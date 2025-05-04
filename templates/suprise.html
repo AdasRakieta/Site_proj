@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Psy{% endblock %}
+{% block header %}Losowe Psy{% endblock %}
+
+{% block content %}
+    <main>
+        <div id="backButton" class="center-container">
+            <a href="/" class="rooms-button">Wróć</a>
+        </div>
+        <div id="nextCat" class="center-container">
+            <button onclick="fetchRandomCat()" class="rooms-button" style="margin-top: 20px;">Pokaż kolejnego kota</button>
+        </div>
+        <div id="catContainer" class="center-container">
+            <img id="catImage" src="" alt="Losowe zdjęcie kota" style="max-width: 100%; border-radius: 10px;">
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Inicjalizacja strony automatyzacji');
+            
+            if (!window.app) {
+                console.error('Aplikacja nie została poprawnie zainicjalizowana');
+                return;
+            }
+    
+            // Tutaj możesz dodać kod specyficzny dla automatyzacji
+            // np. obsługę zdarzeń, pobieranie danych itp.
+    
+            fetchRandomDog();
+            document.querySelector('.dog-button').addEventListener('click', fetchRandomDog);
+        });
+        // Fetch a random cat image from the server
+        function fetchRandomCat() {
+            fetch('/random_cat')
+                .then(response => response.json())
+                .then(data => {
+                    const catImage = document.getElementById('catImage');
+                    if (data.cat_url) {
+                        catImage.src = data.cat_url;
+                    } else {
+                        catImage.src = ''; // Clear the image if there's an error
+                        console.error('Błąd: Nie udało się pobrać zdjęcia kota');
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd podczas pobierania zdjęcia kota:', error);
+                });
+        }
+    </script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
+{% endblock %}

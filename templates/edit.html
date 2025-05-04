@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Edycja Kontrolek{% endblock %}
+{% block header %}Edycja Kontrolek{% endblock %}
+
+{% block content %}
+    <div class="edit-mode-buttons">
+        <button id="editModeButton" class="edit-mode-button">Tryb edycji</button>
+        <button id="saveModeButton" class="edit-mode-button save" style="display: none;">Zapisz</button>
+        <button id="cancelModeButton" class="edit-mode-button cancel" style="display: none;">Anuluj</button>
+    </div>
+
+    <!-- Panel kontrolny do dodawania -->
+    <div class="control-panel">
+        <!-- Dodawanie pokoju -->
+        <div class="add-room-container">
+            <h3 class="add-room-h3">Dodaj nowy pokój</h3>
+            <div class="add-room-div" style="display: flex; gap: 10px;">
+                <input class="add-room-input" type="text" id="newRoomName" placeholder="Nazwa pokoju..." >
+                <button class="add-room-btn" onclick="window.addNewRoom()">+</button>
+            </div>
+        </div>
+
+        <!-- Dodawanie urządzenia -->
+        <div class="add-device-container">
+            <h3 class="add-room-h3">Dodaj nowe urządzenie</h3>
+            <div class="add-device-div" style="display: flex; flex-direction: column; gap: 10px;">
+                <input class="add-device-input" type="text" id="newDeviceName" placeholder="Nazwa urządzenia...">
+                <select class="add-device-select" id="newDeviceType">
+                    <option value="light">Światło</option>
+                    <option value="thermostat">Termostat</option>
+                </select>
+                <select class="add-device-select" id="newDeviceRoom">
+                    <option value="">Nieprzypisane</option>
+                    <!-- Lista pokoi będzie dodana przez JS -->
+                </select>
+                <button class="add-room-btn" onclick="window.addNewDevice()">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kanban -->
+    <div class="drag-container" style="display: flex; justify-content: center; width: 100%;">
+        <div id="kanbanContainer" class="drag-list" style="width: 100%; max-width: 1400px; margin: 0 auto;"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dragNdrop.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
+<script src="{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script src="{{ url_for('static', filename='js/controls.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Automatyzacje{% endblock %}
+{% block header %}Automatyzacje{% endblock %}
+
+{% block content %}
+    <div class="automations-container">
+        <button id="new-automation" class="btn-primary">Nowa automatyzacja</button>
+        <form class="automation-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        </form>
+        <div id="automations-list" class="automations-list">
+            <!-- Dodajemy loader podczas ładowania danych -->
+            <div id="loading-indicator" class="loading-indicator">
+                <div class="spinner"></div>
+                <p>Ładowanie automatyzacji...</p>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+<script>
+    async function initPage() {
+        console.log('Inicjalizacja strony automatyzacji');
+        
+        // Pokazujemy loader
+        const loader = document.getElementById('loading-indicator');
+        
+        try {
+            if (window.app && window.app.automations) {
+                // Inicjalizujemy stronę automatyzacji
+                await window.app.automations.initPage();
+                
+                // Ukrywamy loader po załadowaniu
+                if (loader) loader.style.display = 'none';
+                
+                // Nasłuchujemy na aktualizacje przez WebSocket
+                window.app.socket.on('update_automations', (data) => {
+                    window.app.automations.onAutomationsUpdate(data);
+                });
+            } else {
+                console.error('Aplikacja nie została poprawnie zainicjalizowana');
+                if (loader) loader.textContent = 'Błąd inicjalizacji aplikacji';
+            }
+        } catch (error) {
+            console.error('Błąd inicjalizacji strony:', error);
+            if (loader) {
+                loader.textContent = 'Błąd ładowania automatyzacji';
+                loader.style.color = 'red';
+            }
+        }
+    }
+
+    // Startujemy inicjalizację gdy DOM jest gotowy
+    document.addEventListener('DOMContentLoaded', initPage);
+</script>
+{% endblock %}

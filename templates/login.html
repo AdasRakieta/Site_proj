@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Logowanie{% endblock %}
+{% block header %}Logowanie{% endblock %}
+
+{% block content %}
+    
+    <div class="login-container">
+        <form class="login-form" method="POST" action="{{ url_for('login') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="username">Nazwa użytkownika</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Hasło</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" >Zaloguj</button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function initPage() {
+        console.log('Inicjalizacja strony ustawień');
+        
+        if (!window.app) {
+            console.error('Aplikacja nie została poprawnie zainicjalizowana');
+            return;
+        }
+    }
+
+    // Wyświetlenie komunikatów flash jako notyfikacji
+    document.addEventListener('DOMContentLoaded', () => {
+        // Wyświetl komunikaty flash jako notyfikacje
+        const messages = JSON.parse('{{ get_flashed_messages(with_categories=true) | tojson | safe }}');
+        if (messages && Array.isArray(messages)) {
+            messages.forEach(([category, message]) => {
+                window.showNotification(message, category);
+            });
+        }
+    });
+
+</script>
+{% endblock %}

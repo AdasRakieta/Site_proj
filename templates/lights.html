@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Światła{% endblock %}
+{% block header %}Światła{% endblock %}
+
+{% block content %}
+<main>
+    <h2>Lista pokoi i przycisków</h2>
+    <div class="center-container">
+        <div id="roomsAndButtonsList">
+            <!-- Tutaj będą wyświetlane pokoje i przyciski -->
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/lights.js') }}"></script>
+{% endblock %}

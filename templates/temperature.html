@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Temperatura{% endblock %}
+{% block header %}Temperatura{% endblock %}
+
+{% block content %}
+    <main>
+        <div id="temperatureControlsContainer">
+            <!-- Kontrolki temperatury będą ładowane dynamicznie -->
+        </div>
+    </main>
+
+    <script>
+        function initPage() {
+            console.log('Inicjalizacja strony temperatury');
+            
+            if (!window.app) {
+                console.error('Aplikacja nie została zainicjalizowana');
+                return;
+            }
+
+            // Funkcja aktualizująca kontrolki temperatury
+            function updateTemperatureControls(controls) {
+                const container = document.getElementById('temperatureControlsContainer');
+                if (!container) return;
+                
+                container.innerHTML = '';
+
+                // Grupowanie kontrolek według pokoju
+                const controlsByRoom = controls.reduce((acc, control) => {
+                    if (!acc[control.room]) {
+                        acc[control.room] = [];
+                    }
+                    acc[control.room].push(control);
+                    return acc;
+                }, {});
+
+                // Iteracja przez pokoje
+                Object.entries(controlsByRoom).forEach(([room, roomControls], roomIndex) => {
+                    const roomContainer = document.createElement('div');
+                    roomContainer.classList.add('temp-container');
+
+                    const roomHeader = document.createElement('h2');
+                    roomHeader.textContent = `${room}:`;
+                    roomContainer.appendChild(roomHeader);
+
+                    const controlsContainer = document.createElement('div');
+                    controlsContainer.classList.add('center-container');
+
+                    roomControls.forEach(control => {
+                        const controlDiv = document.createElement('div');
+                        controlDiv.classList.add('control-item');
+
+                        const controlName = document.createElement('span');
+                        controlName.textContent = `${control.name}:`;
+                        controlDiv.appendChild(controlName);
+
+                        const input = document.createElement('input');
+                        input.className = 'input-temp';
+                        input.type = 'number';
+                        input.id = `temp${control.name.replace(/\s+/g, '')}`;
+                        input.min = '16';
+                        input.max = '30';
+                        input.placeholder = '22';
+                        input.value = control.temperature || 22;
+                        controlDiv.appendChild(input);
+
+                        const button = document.createElement('button');
+                        button.className = 'control-button';
+                        button.textContent = 'Ustaw';
+                        button.addEventListener('click', () => {
+                            const tempValue = parseInt(input.value, 10);
+                            if (!isNaN(tempValue)) {
+                                app.socket.emit('set_temperature', { 
+                                    name: control.name, 
+                                    temperature: tempValue 
+                                });
+                            }
+                        });
+                        controlDiv.appendChild(button);
+
+                        controlsContainer.appendChild(controlDiv);
+                    });
+
+                    roomContainer.appendChild(controlsContainer);
+                    container.appendChild(roomContainer);
+                });
+            }
+
+            // Nasłuchuj aktualizacji kontrolek temperatury
+            app.onTemperatureControlsUpdate = function(controls) {
+                updateTemperatureControls(controls);
+            };
+
+            // Nasłuchuj synchronizacji temperatury
+            app.socket.on('sync_temperature', function(data) {
+                const input = document.getElementById(`temp${data.name.replace(/\s+/g, '')}`);
+                if (input) input.value = data.temperature;
+            });
+
+            // Pobierz początkowe dane
+            app.fetchData('/api/temperature_controls')
+                .then(controls => {
+                    if (controls) updateTemperatureControls(controls);
+                })
+                .catch(error => console.error('Błąd:', error));
+
+            app.socket.emit('get_temperatures');
+        }
+    </script>
+</body>
+</html>
+{% endblock %}

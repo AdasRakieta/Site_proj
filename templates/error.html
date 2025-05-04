@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_404.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='png/site_icon.png') }}" type="image/x-icon">
+</head>
+<body>
+
+    <div class="wrapper">
+        <div class="text_group">
+            <p style="margin-top: -10px;" class="text_404">404</p>
+            <p style="margin-top: -150px;" class="text_lost">Strona której szukasz <br />Nie istnieje.</p>
+            <a href="/" class="back-link"> Wróc do strony głównej</a>
+        </div>
+        <div class="window_group">
+            <div style="height: 400px; width: 300px;" class="window_404">
+                <div class="stars"></div>
+            </div>
+        </div>
+    </div>
+</body>
+    <script>
+        let starContainer = document.querySelector(".stars");
+        
+    for (let i = 0; i < 100; i++) {
+        starContainer.innerHTML += `<div class="star"></div>`;
+    }
+</script>

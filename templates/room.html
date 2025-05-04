@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - {{ room }}{% endblock %}
+{% block header %}{{ room }}{% endblock %}
+
+{% block content %}
+    <h2>Przyciski w pokoju:</h2>
+    <div class="lights-room-container">
+        <div id="buttonsContainer" class="center-container">
+            {% if buttons %}
+                {% for button in buttons %}
+                    <div class="light-control">
+                        <label class="room-lable">{{ button.name }}</label>
+                        <label class="switch">
+                            <input type="checkbox" id="{{ button.name.replace(' ', '_') }}Switch" {% if button.state %}checked{% endif %}>
+                            <span class="slider" id="room"></span>
+                        </label>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Brak przycisków w tym pokoju.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h2>Kontrolki temperatury:</h2>
+    <div class="temp-container">
+        <div id="temperatureControlsContainer">
+            {% if temperature_controls %}
+                {% for control in temperature_controls %}
+                <div class="control-item">
+                    <span>{{ control.name }}:</span>
+                    <input class="input-temp" type="number" id="temp{{ control.name.replace(' ', '') }}" 
+                           name="temp{{ control.name.replace(' ', '') }}" min="16" max="30" 
+                           placeholder="22" value="{{ control.temperature }}">
+                    <button class="control-button">Ustaw</button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Brak kontrolek temperatury w tym pokoju.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="center-container"> 
+        <a href="/" class="rooms-button">Wróć</a>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const room = "{{ room }}";
+        
+        // Inicjalizacja przełączników
+        const switches = document.querySelectorAll('.switch input[type="checkbox"]');
+        switches.forEach(switchElement => {
+            switchElement.addEventListener('change', function() {
+                const buttonName = this.id.replace('Switch', '').replace(/_/g, ' ');
+                const state = this.checked;
+                app.socket.emit('toggle_button', { room: room, name: buttonName, state: state });
+            });
+        });
+
+        // Inicjalizacja kontrolek temperatury
+        document.querySelectorAll('.control-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const controlName = this.parentElement.querySelector('span').textContent.replace(':', '').trim();
+                const tempInput = document.getElementById(`temp${controlName.replace(/\s+/g, '')}`);
+                const tempValue = parseInt(tempInput.value, 10);
+
+                if (isNaN(tempValue) || tempValue < 16 || tempValue > 30) {
+                    alert('Proszę wprowadzić poprawną temperaturę (16-30).');
+                    return;
+                }
+
+                app.socket.emit('set_temperature', { name: controlName, temperature: tempValue });
+            });
+        });
+
+        // Pobierz kontrolki temperatury dla danego pokoju
+        app.socket.emit('get_room_temperature_controls', room);
+
+        // Nasłuchuj na aktualizacje stanu przycisków
+        app.socket.on('update_button', function(data) {
+            const switchElement = document.getElementById(`${data.name.replace(/\s+/g, '_')}Switch`);
+            if (switchElement) {
+                switchElement.checked = data.state;
+            }
+        });
+
+        // Nasłuchuj na aktualizacje kontrolek temperatury
+        app.socket.on('update_room_temperature_controls', function(controls) {
+            const container = document.getElementById('temperatureControlsContainer');
+            container.innerHTML = '';
+            
+            if(controls && controls.length > 0){
+                controls.forEach(control => {
+                    const controlDiv = document.createElement('div');
+                    controlDiv.classList.add('control-item');
+
+                    const controlName = document.createElement('span');
+                    controlName.textContent = `${control.name}:`;
+                    controlDiv.appendChild(controlName);
+
+                    const input = document.createElement('input');
+                    input.className = 'input-temp';
+                    input.type = 'number';
+                    input.id = `temp${control.name.replace(/\s+/g, '')}`;
+                    input.name = `temp${control.name.replace(/\s+/g, '')}`;
+                    input.min = '16';
+                    input.max = '30';
+                    input.placeholder = '22';
+                    input.value = control.temperature || 22;
+                    controlDiv.appendChild(input);
+
+                    const button = document.createElement('button');
+                    button.className = 'control-button';
+                    button.textContent = 'Ustaw';
+                    button.addEventListener('click', () => {
+                        const tempValue = parseInt(input.value, 10);
+                        if (!isNaN(tempValue) && tempValue >= 16 && tempValue <= 30) {
+                            app.socket.emit('set_temperature', { name: control.name, temperature: tempValue });
+                        }
+                    });
+                    controlDiv.appendChild(button);
+
+                    container.appendChild(controlDiv);
+                });
+            } else {
+                container.innerHTML = '<p>Brak kontrolek temperatury w tym pokoju.</p>';
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Strona Główna{% endblock %}
+{% block header %}Strona Główna{% endblock %}
+
+{% block content %}
+    <h3 style="margin-bottom: 25px;">Wybierz pokój, którym chcesz sterować</h3>
+    <div class="rooms-container" id="roomSelect">
+        <!-- Rooms will be dynamically added here -->
+    </div>
+    <div id="tempNow" class="temp-cont">
+        <label>Aktualna Temperatura w </label>
+        <label id="statShow"></label>
+        <label id="tempShow">Ładowanie...</label>
+    </div>
+    <button id="toggleMap"  class="map-button">Pokaż mapę</button>
+    <div id="map-container" style="display: none;">
+        <h3>Nasze miejsca</h3>
+        <div id="map"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        loadRooms();
+        startTemperatureAutoRefresh();
+    });
+
+    function loadRooms() {
+        app.getRooms().then(rooms => {
+            const roomSelect = document.getElementById('roomSelect');
+            roomSelect.innerHTML = '';
+
+            for (let i = 0; i < rooms.length; i += 2) {
+                const row = document.createElement('div');
+                row.className = 'grid-container';
+
+                const roomButton1 = document.createElement('a');
+                roomButton1.href = `/${rooms[i].toLowerCase()}`;
+                roomButton1.className = 'rooms-button';
+                roomButton1.textContent = rooms[i];
+                row.appendChild(roomButton1);
+
+                if (i + 1 < rooms.length) {
+                    const roomButton2 = document.createElement('a');
+                    roomButton2.href = `/${rooms[i + 1].toLowerCase()}`;
+                    roomButton2.className = 'rooms-button';
+                    roomButton2.textContent = rooms[i + 1];
+                    row.appendChild(roomButton2);
+                }
+
+                roomSelect.appendChild(row);
+                const hr = document.createElement('hr');
+                roomSelect.appendChild(hr);
+            }
+        });
+    }
+
+    function fetchTemperature() {
+        app.fetchData('/weather')
+            .then(data => {
+                const stationElement = document.getElementById('statShow');
+                const temperatureElement = document.getElementById('tempShow');
+
+                if (data.stacja && data.temperatura) {
+                    stationElement.textContent = `${data.stacja}: `;
+                    temperatureElement.textContent = `${data.temperatura} °C`;
+                } else {
+                    stationElement.textContent = 'Brak danych';
+                    temperatureElement.textContent = '';
+                }
+            })
+            .catch(error => {
+                console.error('Błąd podczas pobierania danych pogodowych:', error);
+                document.getElementById('statShow').textContent = 'Błąd pobierania';
+                document.getElementById('tempShow').textContent = '';
+            });
+    }
+
+    function startTemperatureAutoRefresh() {
+        fetchTemperature();
+        setInterval(fetchTemperature, 300000);
+    }
+
+    app.onRoomsUpdate = function(rooms) {
+        loadRooms();
+    };
+</script>
+{% endblock %}

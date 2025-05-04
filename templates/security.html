@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Zabezpieczenia{% endblock %}
+{% block header %}Zabezpieczenia{% endblock %}
+
+{% block content %}
+    <div class="security-container">
+        <h3 style="margin-top: -5px;">Alarm</h3>
+        <div class="button-group">
+            <button class="control-button" id="enableSecurity">Załącz czuwanie</button>
+            <button class="control-button" id="disableSecurity">Wyłącz czuwanie</button>
+        </div>
+        <p id="securityStatus" class="status-text">Aktualny status: Nieznany</p>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Pobierz początkowy status zabezpieczeń
+        app.socket.emit('get_security_state');
+
+        // Podpięcie przycisków
+        document.getElementById('enableSecurity').addEventListener('click', () => {
+            app.socket.emit('set_security_state', { state: 'Załączony' });
+        });
+
+        document.getElementById('disableSecurity').addEventListener('click', () => {
+            app.socket.emit('set_security_state', { state: 'Wyłączony' });
+        });
+
+        // Nasłuchuj aktualizacji statusu zabezpieczeń
+        app.socket.on('update_security_state', function(data) {
+            const statusElement = document.getElementById('securityStatus');
+            if (statusElement) {
+                statusElement.textContent = `Aktualny status: ${data.state}`;
+                
+                // Optional: Add visual feedback based on state
+                if (data.state === 'Załączony') {
+                    statusElement.classList.add('active');
+                    statusElement.classList.remove('inactive');
+                } else {
+                    statusElement.classList.add('inactive');
+                    statusElement.classList.remove('active');
+                }
+            }
+        });
+
+        // Optional: Add error handling
+        app.socket.on('security_error', function(error) {
+            console.error('Błąd zabezpieczeń:', error);
+            const statusElement = document.getElementById('securityStatus');
+            if (statusElement) {
+                statusElement.textContent = `Błąd: ${error.message}`;
+                statusElement.classList.add('error');
+            }
+        });
+    });
+</script>
+{% endblock %}

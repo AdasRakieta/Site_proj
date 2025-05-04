@@ -1,0 +1,75 @@
+// Generyczny formularz edycji/dodawania elementów
+// fields: [{type, name, value, label, options, ...}]
+// onSave: async (values) => {}
+// onCancel: () => {}
+// parent: element do którego wstawiamy formularz
+window.createEditForm = function({fields, onSave, onCancel, parent, saveText = 'Zapisz', cancelText = 'Anuluj'}) {
+    const form = document.createElement('form');
+    form.className = 'edit-generic-form';
+    form.style.display = 'flex';
+    form.style.gap = '8px';
+    form.style.flexWrap = 'wrap';
+    const inputs = {};
+    fields.forEach(field => {
+        let input;
+        if (field.type === 'select') {
+            input = document.createElement('select');
+            input.className = field.className || 'select-edit';
+            (field.options || []).forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label || opt.value;
+                if (opt.value === field.value) option.selected = true;
+                input.appendChild(option);
+            });
+        } else {
+            input = document.createElement('input');
+            input.type = field.type || 'text';
+            input.value = field.value || '';
+            input.className = field.className || 'input-edit';
+            if (field.minLength) input.minLength = field.minLength;
+            if (field.placeholder) input.placeholder = field.placeholder;
+        }
+        input.name = field.name;
+        input.style.marginRight = '8px';
+        input.style.marginBottom = '12px';
+        if (field.required) input.required = true;
+        if (field.label) {
+            const label = document.createElement('label');
+            label.textContent = field.label;
+            label.style.marginRight = '4px';
+            label.appendChild(input);
+            form.appendChild(label);
+        } else {
+            form.appendChild(input);
+        }
+        inputs[field.name] = input;
+    });
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'submit';
+    saveBtn.textContent = saveText;
+    saveBtn.className = 'rooms-button';
+    form.appendChild(saveBtn);
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = cancelText;
+    cancelBtn.className = 'cancel-button';
+    cancelBtn.onclick = (e) => {
+        e.preventDefault();
+        if (onCancel) onCancel();
+    };
+    form.appendChild(cancelBtn);
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const values = {};
+        Object.keys(inputs).forEach(name => {
+            values[name] = inputs[name].type === 'checkbox' ? inputs[name].checked : inputs[name].value;
+        });
+        if (onSave) await onSave(values);
+    };
+    if (parent) {
+        parent.innerHTML = '';
+        parent.appendChild(form);
+    }
+    return form;
+};

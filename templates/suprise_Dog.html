@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Psy{% endblock %}
+{% block header %}Losowe Psy{% endblock %}
+
+{% block content %}
+    <main>
+        <div class="dog-page-container">
+            <div id="backButton" class="center-container">
+                <a href="/" class="rooms-button">Wróć</a>
+            </div>
+            <div id="nextDog" class="center-container">
+                <button onclick="fetchRandomDog()" class="rooms-button dog-button">Pokaż kolejnego psa</button>
+            </div>
+            <div id="dogContainer" class="center-container">
+                <img id="dogImage" src="" alt="Losowe zdjęcie psa" class="dog-image">
+                <div id="dogLoading" class="loading-spinner" style="display: none;"></div>
+                <p id="dogError" class="error-message" style="display: none;"></p>
+            </div>
+            <div class="dog-info">
+            </div>
+        </div>
+    </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Inicjalizacja strony automatyzacji');
+        
+        if (!window.app) {
+            console.error('Aplikacja nie została poprawnie zainicjalizowana');
+            return;
+        }
+
+        // Tutaj możesz dodać kod specyficzny dla automatyzacji
+        // np. obsługę zdarzeń, pobieranie danych itp.
+
+        fetchRandomDog();
+        document.querySelector('.dog-button').addEventListener('click', fetchRandomDog);
+    });
+    async function fetchRandomDog() {
+        const dogImage = document.getElementById('dogImage');
+        const loadingSpinner = document.getElementById('dogLoading');
+        const errorMessage = document.getElementById('dogError');
+        
+        // Show loading state
+        dogImage.style.display = 'none';
+        errorMessage.style.display = 'none';
+        loadingSpinner.style.display = 'block';
+
+        try {
+            const response = await fetch('/random_dog');
+            
+            if (!response.ok) {
+                throw new Error('Problem z pobraniem zdjęcia');
+            }
+            
+            const data = await response.json();
+            
+            if (data.dog_url) {
+                // Preload the image to avoid flickering
+                const img = new Image();
+                img.src = data.dog_url;
+                img.onload = () => {
+                    dogImage.src = data.dog_url;
+                    dogImage.style.display = 'block';
+                    loadingSpinner.style.display = 'none';
+                };
+                img.onerror = () => {
+                    throw new Error('Nieprawidłowy adres URL zdjęcia');
+                };
+            } else {
+                throw new Error('Brak adresu URL zdjęcia w odpowiedzi');
+            }
+        } catch (error) {
+            console.error('Błąd podczas pobierania zdjęcia psa:', error);
+            dogImage.style.display = 'none';
+            loadingSpinner.style.display = 'none';
+            errorMessage.textContent = 'Nie udało się załadować zdjęcia psa. Spróbuj ponownie.';
+            errorMessage.style.display = 'block';
+        }
+    }
+</script>
+{% endblock %}

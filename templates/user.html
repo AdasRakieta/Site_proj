@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="user-profile-container">
+    <h1>Profil użytkownika</h1>
+    
+    <div class="profile-section">
+        <div class="profile-picture-section">
+            <div class="profile-picture-container">
+                <img id="profilePicture" src="{{ user_data.profile_picture or url_for('static', filename='icons/site_icon.png') }}" alt="Zdjęcie profilowe">
+            </div>
+            <div class="profile-picture-upload">
+                <label for="profilePictureInput" class="upload-btn">Zmień zdjęcie</label>
+                <input type="file" id="profilePictureInput" accept="image/*" style="display: none;">
+            </div>
+        </div>
+
+        <form id="userProfileForm" class="profile-form">
+            <div class="form-group">
+                <label for="userName">Nazwa użytkownika</label>
+                <input type="text" id="userName" name="userName" value="{{ user_data.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="userEmail">Email</label>
+                <input type="email" id="userEmail" name="userEmail" value="{{ user_data.email }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="currentPassword">Aktualne hasło</label>
+                <input type="password" id="currentPassword" name="currentPassword">
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">Nowe hasło</label>
+                <input type="password" id="newPassword" name="newPassword">
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Potwierdź nowe hasło</label>
+                <input type="password" id="confirmPassword" name="confirmPassword">
+            </div>
+
+            <button type="submit" class="save-button">Zapisz zmiany</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{
+    "users": {
+        "admin": {
+            "password": "admin123",
+            "role": "admin"
+        },
+        "guest": {
+            "password": "guest123",
+            "role": "guest"
+        },
+        "user": {
+            "password": "user123",
+            "role": "user"
+        }
+        
+    },
+    "temperature_states": {
+        "salon": 22,
+        "bedroom": 22,
+        "bathroom": 22
+    },
+ "security_state": "Za\u0142\u0105czony",
+    "rooms": [
+        "Garderoba",
+        "Sypialnia",
+        "Kuchnia",
+        "Salon",
+        "Łazienka",
+        "Korytarz"
+    ],
+    "buttons": [
+        {
+            "name": "G\u0142\u00f3wny",
+            "room": "Garderoba",
+            "state": false
+        },
+        {
+            "name": "Główny",
+            "room": "Sypialnia",
+            "state": false
+        },
+        {
+            "name": "Główny",
+            "room": "Kuchnia",
+            "state": false
+        },
+        {
+            "name": "Główny",
+            "room": "Salon",
+            "state": false
+        },
+        {
+            "name": "Główny",
+            "room": "Łazienka",
+            "state": false
+        },
+        {
+            "name": "Główny",
+            "room": "Korytarz",
+            "state": false
+        }
+    ],
+    "temperature_controls": [
+        {
+            "name": "G\u0142\u00f3wny",
+            "room": "Garderoba",
+            "temperature": 22
+        }
+    ],
+    "automations": [
+        {
+            "name": "asds",
+            "trigger": {
+                "type": "time",
+                "time": "00:31"
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "fdsfsd_sadadd",
+                    "state": "toggle"
+                }
+            ],
+            "enabled": false
+        }
+    ]
+}

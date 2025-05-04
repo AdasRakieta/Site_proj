@@ -1,0 +1,444 @@
+:root[data-theme="light"] {
+    --bg-column: rgba(0, 0, 0, 0.1);
+    --bg-column-fixed: rgba(0, 0, 0, 0.2);
+    --bg-header: rgba(0, 0, 0, 0.1);
+    --bg-header-fixed: rgba(0, 0, 0, 0.15);
+    --bg-card: rgba(0, 0, 0, 0.4);
+    --bg-card-hover: rgba(0, 0, 0, 0.5);
+    --bg-button: rgba(255, 255, 255, 0.1);
+    --bg-button-hover: rgba(255, 255, 255, 0.2);
+    --bg-delete-button: rgba(255, 0, 0, 0.411);
+    --bg-delete-button-hover: rgba(255, 0, 0, 0.7);
+    --bg-add-card: rgba(0, 0, 0, 0.2);
+    --bg-input: rgba(255, 255, 255, 0.1);
+    --border-input: rgba(255, 255, 255, 0.2);
+    --shadow-color: 0 4px 8px rgba(0, 0, 0, 0.20);
+    --mirror-opacity: 0.8;
+    --transit-opacity: 0.2;
+    --moving-bg: rgba(0, 0, 0, 0.8);
+    --bg-add-column: rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] {
+    --bg-column: rgba(0, 0, 0, 0.1);
+    --bg-column-fixed: rgba(0, 0, 0, 0.2);
+    --bg-header: rgba(0, 0, 0, 0.1);
+    --bg-header-fixed: rgba(0, 0, 0, 0.15);
+    --bg-card: rgba(0, 0, 0, 0.4);
+    --bg-card-hover: rgba(0, 0, 0, 0.5);
+    --bg-button: rgba(255, 255, 255, 0.1);
+    --bg-button-hover: rgba(255, 255, 255, 0.2);
+    --bg-delete-button: rgba(255, 0, 0, 0.411);
+    --bg-delete-button-hover: rgba(255, 0, 0, 0.7);
+    --bg-add-card: rgba(0, 0, 0, 0.2);
+    --bg-input: rgba(255, 255, 255, 0.1);
+    --border-input: rgba(255, 255, 255, 0.2);
+    --shadow-color: rgba(0, 0, 0, 0.15);
+    --mirror-opacity: 0.8;
+    --transit-opacity: 0.2;
+    --moving-bg: rgba(0, 0, 0, 0.8);
+    --bg-add-column: rgba(0, 0, 0, 0.1);
+}
+
+
+/* Base styles */
+* {
+    box-sizing: border-box;
+}
+
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+input:focus{
+    outline: none;
+}
+
+/* Main container styles */
+.drag-container {
+    max-width: 1000px;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.drag-list {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+@media (max-width: 690px) {
+    .drag-list {
+        display: block;
+    }
+}
+
+/* Kanban column styles */
+.kanban-column {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    padding: 10px;
+    background: var(--bg-column);
+    border-radius: 8px;
+    box-shadow: var(--shadow-color);
+    min-width: 250px;
+    flex: 0 0 calc(25% - 15px);
+    min-width: 280px;
+    max-width: 300px;
+    transition: transform 0.3s ease;
+}
+
+.kanban-column .kanban-column-header:hover ~ * {
+    transform: none;
+}
+
+.kanban-column:has(.kanban-column-header:hover) {
+    transform: none;
+}
+
+.edit-mode .kanban-column:has(.kanban-column-header:hover):not([data-fixed="true"]) {
+    transform: scale(1.05);
+}
+
+.kanban-column[data-fixed="true"] {
+    background: var(--bg-column-fixed);
+}
+
+/* Column header styles */
+.kanban-column-header {
+    text-align: center;
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--bg-header);
+    cursor: move;
+}
+
+.kanban-column[data-fixed="true"] .kanban-column-header {
+    background: var(--bg-header-fixed);
+    cursor: default;
+}
+
+/* List container styles */
+.kanban-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100px;
+}
+
+/* Card styles */
+.kanban-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 90%;
+    height: 100px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    box-shadow: var(--shadow-color);
+    margin: 10px;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.kanban-card-content {
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.kanban-card:hover {
+    transform: none;
+    background: var(--bg-card);
+}
+
+.edit-mode .kanban-card:hover {
+    background: var(--bg-card-hover);
+    transform: scale(1.05);
+}
+
+/* Card buttons */
+.kanban-edit-btn,
+.kanban-remove-btn,
+.kanban-save-btn,
+.kanban-cancel-btn,
+.kanban-add-btn {
+    padding: 4px 8px;
+    margin: 0 2px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--bg-button);
+    color: inherit;
+    width: 35px;
+    height: 35px;
+    transition: all 0.2s ease-in-out;
+    box-shadow: var(--shadow-color);
+
+}
+
+.kanban-edit-btn:hover,
+.kanban-remove-btn:hover,
+.kanban-save-btn:hover,
+
+.kanban-add-btn:hover {
+    background: var(--bg-button-hover);
+    transform: scale(1.05);
+}
+
+.kanban-edit-btns {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+  }
+
+.kanban-cancel-btn,
+.kanban-remove-btn {
+    background: var(--bg-delete-button);
+    color: white;
+}
+
+.kanban-cancel-btn:hover,
+.kanban-remove-btn:hover {
+    background: var(--bg-delete-button-hover);
+    transform: scale(1.05);
+
+}
+/* Add new device card */
+.kanban-add-card {
+    background: var(--bg-add-card);
+}
+
+.kanban-add-input {
+    margin: 5px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-input);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: inherit;
+}
+
+.kanban-edit-input {
+  border: 2px solid var(--border-input);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: inherit;
+  width: auto;
+  text-align: center;
+  transition: all 0.2s ease-in-out;
+  margin: 5px;
+  padding: 4px 8px;
+  box-shadow: var(--shadow-color);
+
+}
+
+.kanban-edit-input:focus,
+.kanban-edit-input:hover {
+    border: 3px solid var(--border-input);
+    transform: scale(1.05);
+    outline: none;
+}
+
+/* Dragula specific styles */
+.gu-mirror {
+    position: fixed !important;
+    margin: 0 !important;
+    z-index: 9999 !important;
+    opacity: var(--mirror-opacity);
+    list-style-type: none;
+}
+
+.gu-hide {
+    display: none !important;
+}
+
+.gu-unselectable {
+    user-select: none !important;
+}
+
+.gu-transit {
+    opacity: var(--transit-opacity);
+}
+
+/* Drag and drop states */
+.is-moving {
+    transform: scale(1.1);
+    background: var(--moving-bg);
+}
+
+.is-moved {
+    transition: transform 0.3s;
+}
+
+.control-panel {
+    justify-content: center;
+    align-items: start;
+    margin: 20px auto;
+    width: fit-content;
+    background-color: var(--bg-column);
+    padding: 20px;
+    width: fit-content+ 20px;
+    display: none;
+    gap: 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-color);
+}
+
+.control-panel.active {
+    display: flex;
+}
+
+.edit-mode-button {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background: var(--bg-button);
+    color: inherit;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+}
+
+.edit-mode-button:hover {
+    background: var(--bg-button-hover);
+    transform: scale(1.05);
+}
+
+.add-room-container, .add-device-container {
+
+  background: var(--bg-add-column); 
+  padding: 15px; 
+  border-radius: 8px; 
+  min-width: 250px;
+  box-shadow: var(--shadow-color);
+}
+
+.add-room-input, .add-device-input {
+  margin: 5px;
+  padding: 4px 8px;
+  width: inherit;
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-color);
+  color: inherit;
+  flex: 1;
+  font-size: 1em;
+  transition: all 0.2s ease-in-out;
+}
+.add-room-input:focus,
+.add-device-input:focus {
+  border: 2px solid var(--border-input);
+  transform: scale(1.05);
+}
+
+.add-room-input:hover,
+.add-device-input:hover {
+  border: 2px solid var(--border-input);
+  transform: scale(1.05);
+}
+
+.add-device-select, .add-room-select {
+  margin: 5px;
+  padding: 4px 8px;
+  width: inherit;
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-color);
+  color: inherit;
+  flex: 1;
+  font-size: 1em;
+  transition: all 0.2s ease-in-out;
+}
+
+.add-device-select:focus,
+.add-room-select:focus {
+  border: 2px solid var(--border-input);
+  transform: scale(1.05);
+}
+
+.add-device-select:hover,
+.add-room-select:hover {
+  border: 2px solid var(--border-input);
+  transform: scale(1.05);
+}
+
+.add-room-btn, .add-device-btn {
+  padding: 4px 8px;
+  margin: 0 2px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--bg-button);
+  color: inherit;
+  width: fit-content;
+  height: inherit;
+  transition: all 0.2s ease-in-out;
+  box-shadow: var(--shadow-color);
+  align-self: center;
+  font-weight: bolder;
+  font-size: 1.2em;
+}
+.add-room-btn:hover,
+.add-device-btn:hover {
+  background: var(--bg-button-hover);
+  transform: scale(1.05);
+}
+
+.add-room-h3, .add-device-h3 {
+  margin: 0 0 10px 0; 
+  text-align: center;
+}
+
+.edit-mode-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+.edit-mode-button {
+    padding: 10px 20px;
+    background: var(--bg-button);
+    color: inherit;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+}
+
+.edit-mode-button:hover {
+    background: var(--bg-button-hover);
+    transform: scale(1.05);
+}
+
+.edit-mode-button.save {
+    background: rgba(0, 255, 0, 0.2);
+}
+
+.edit-mode-button.save:hover {
+    background: rgba(0, 255, 0, 0.3);
+}
+
+.edit-mode-button.cancel {
+    background: var(--bg-delete-button);
+}
+
+.edit-mode-button.cancel:hover {
+    background: var(--bg-delete-button-hover);
+}
