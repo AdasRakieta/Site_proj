@@ -238,6 +238,153 @@ window.storeColumnMove = function(roomOrder) {
     pendingChanges.columnMoves = roomOrder;
 };
 
+// Room management functions
+function updateColumnHeader(columnElement, roomName) {
+    const header = columnElement.querySelector('.kanban-column-header');
+    if (header) {
+        // Clear existing content
+        header.innerHTML = '';
+        
+        // Add room name
+        const roomNameSpan = document.createElement('span');
+        roomNameSpan.className = 'room-name';
+        roomNameSpan.textContent = roomName;
+        header.appendChild(roomNameSpan);
+        
+        // Add name edit input (initially hidden)
+        const roomNameInput = document.createElement('input');
+        roomNameInput.type = 'text';
+        roomNameInput.className = 'room-name-input';
+        roomNameInput.value = roomName;
+        header.appendChild(roomNameInput);
+
+        // Add context menu button
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'room-menu-btn';
+        menuBtn.textContent = '⁝';
+        menuBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleRoomContextMenu(columnElement);
+        };
+        header.appendChild(menuBtn);
+
+        // Add context menu
+        const contextMenu = document.createElement('div');
+        contextMenu.className = 'room-context-menu';
+        
+        const renameBtn = document.createElement('button');
+        renameBtn.textContent = 'Zmień nazwę';
+        renameBtn.onclick = () => startRenameRoom(columnElement);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Usuń pokój';
+        deleteBtn.onclick = () => deleteRoom(columnElement);
+        
+        contextMenu.appendChild(renameBtn);
+        contextMenu.appendChild(deleteBtn);
+        header.appendChild(contextMenu);
+    }
+}
+
+function toggleRoomContextMenu(columnElement) {
+    const allMenus = document.querySelectorAll('.room-context-menu');
+    allMenus.forEach(menu => {
+        if (menu !== columnElement.querySelector('.room-context-menu')) {
+            menu.classList.remove('active');
+        }
+    });
+
+    const menu = columnElement.querySelector('.room-context-menu');
+    menu.classList.toggle('active');
+
+    // Close menu when clicking outside
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target) && !columnElement.querySelector('.room-menu-btn').contains(e.target)) {
+            menu.classList.remove('active');
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    document.addEventListener('click', closeMenu);
+}
+
+function startRenameRoom(columnElement) {
+    const header = columnElement.querySelector('.kanban-column-header');
+    const nameSpan = header.querySelector('.room-name');
+    const nameInput = header.querySelector('.room-name-input');
+    const menu = header.querySelector('.room-context-menu');
+
+    nameSpan.style.display = 'none';
+    nameInput.classList.add('active');
+    nameInput.focus();
+    menu.classList.remove('active');
+
+    function saveRoomName() {
+        const newName = nameInput.value.trim();
+        if (newName && newName !== nameSpan.textContent) {
+            const roomId = columnElement.getAttribute('data-room-id');
+            fetch(`/api/rooms/${roomId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.getCSRFToken()
+                },
+                body: JSON.stringify({ name: newName })
+            })
+            .then(response => response.json())
+            .then(() => {
+                nameSpan.textContent = newName;
+                if (window.updateRoomSelect) {
+                    window.updateRoomSelect();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating room name:', error);
+                alert('Nie udało się zmienić nazwy pokoju');
+            });
+        }
+        nameSpan.style.display = '';
+        nameInput.classList.remove('active');
+    }
+
+    nameInput.onblur = saveRoomName;
+    nameInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            saveRoomName();
+        } else if (e.key === 'Escape') {
+            nameInput.value = nameSpan.textContent;
+            nameSpan.style.display = '';
+            nameInput.classList.remove('active');
+        }
+    };
+}
+
+function deleteRoom(columnElement) {
+    const roomName = columnElement.querySelector('.room-name').textContent;
+    if (confirm(`Czy na pewno chcesz usunąć pokój "${roomName}"? Wszystkie przypisane urządzenia zostaną przeniesione do nieprzypisanych.`)) {
+        const roomId = columnElement.getAttribute('data-room-id');
+        fetch(`/api/rooms/${roomId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': window.getCSRFToken()
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                columnElement.remove();
+                if (window.updateRoomSelect) {
+                    window.updateRoomSelect();
+                }
+            } else {
+                throw new Error('Failed to delete room');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting room:', error);
+            alert('Nie udało się usunąć pokoju');
+        });
+    }
+}
+
 // Inicjalizacja przycisków trybu edycji
 document.addEventListener('DOMContentLoaded', function() {
     const editButton = document.getElementById('editModeButton');

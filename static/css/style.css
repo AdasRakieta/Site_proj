@@ -154,13 +154,16 @@
         padding: 4px 8px !important;
         font-size: 0.8em !important;
     }
-    
-    /* Listy kontrolek */
+      /* Listy kontrolek */
     .grid-container-list {
         grid-template-columns: 1fr !important;
         gap: 10px !important;
     }
     
+    .grid-container {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
     
     /* Nagłówki list */
     .grid-container-list h2 {
@@ -795,7 +798,6 @@ input:checked+.slider:before {
     padding: 20px;
     margin-bottom: -15px;
     margin-top: -15px;
-
 }
 
 .grid-container-list {
@@ -806,7 +808,33 @@ input:checked+.slider:before {
     padding: 20px;
     margin-bottom: -15px;
     margin-top: -15px;
+    margin: 0 auto;
+    width: 100%;
+}
 
+.rooms-container .grid-container,
+.rooms-container .grid-container-list {
+    display: grid;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.rooms-container.wide .rooms-button {
+    min-width: 90px;
+}
+
+@media (max-width: 992px) {
+    .grid-container-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .grid-container-list,
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Ustawienia dla select w centralnym kontenerze */
@@ -1356,6 +1384,11 @@ footer {
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin: auto;
+    transition: width 0.3s ease;
+}
+
+.rooms-container.wide {
+    width: 375px;
 }
 
 .temp-cont {
