@@ -25,29 +25,32 @@
     document.addEventListener('DOMContentLoaded', function () {
         loadRooms();
         startTemperatureAutoRefresh();
-    });
-
-    function loadRooms() {
+    });    function loadRooms() {
         app.getRooms().then(rooms => {
             const roomSelect = document.getElementById('roomSelect');
             roomSelect.innerHTML = '';
+            
+            // Adjust container width based on room count
+            if (rooms.length > 8) {
+                roomSelect.classList.add('wide');
+            } else {
+                roomSelect.classList.remove('wide');
+            }
 
-            for (let i = 0; i < rooms.length; i += 2) {
+            // Determine how many rooms per row based on total count
+            const roomsPerRow = rooms.length > 8 ? 3 : 2;
+
+            for (let i = 0; i < rooms.length; i += roomsPerRow) {
                 const row = document.createElement('div');
-                row.className = 'grid-container';
+                row.className = roomsPerRow === 3 ? 'grid-container-list' : 'grid-container';
 
-                const roomButton1 = document.createElement('a');
-                roomButton1.href = `/${rooms[i].toLowerCase()}`;
-                roomButton1.className = 'rooms-button';
-                roomButton1.textContent = rooms[i];
-                row.appendChild(roomButton1);
-
-                if (i + 1 < rooms.length) {
-                    const roomButton2 = document.createElement('a');
-                    roomButton2.href = `/${rooms[i + 1].toLowerCase()}`;
-                    roomButton2.className = 'rooms-button';
-                    roomButton2.textContent = rooms[i + 1];
-                    row.appendChild(roomButton2);
+                // Create and add buttons for each room in this row
+                for (let j = 0; j < roomsPerRow && i + j < rooms.length; j++) {
+                    const roomButton = document.createElement('a');
+                    roomButton.href = `/${rooms[i + j].toLowerCase()}`;
+                    roomButton.className = 'rooms-button';
+                    roomButton.textContent = rooms[i + j];
+                    row.appendChild(roomButton);
                 }
 
                 roomSelect.appendChild(row);

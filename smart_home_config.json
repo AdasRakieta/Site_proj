@@ -29,8 +29,8 @@
     },
     "security_state": "Za\u0142\u0105czony",
     "rooms": [
-        "\u0141azienka",
         "Kuchnia",
+        "\u0141azienka",
         "ddasd",
         "Salon",
         "Garderoba",
@@ -45,25 +45,19 @@
             "room": "ddasd",
             "state": false,
             "id": "94554cbb-7a9d-43a2-9f23-5b8e351dea71"
-        },
-        {
-            "name": "d",
-            "room": "Kuchnia",
-            "id": "45b0b764-dfda-4830-b4fc-d8ae62d6f0a1",
-            "state": false
         }
     ],
     "temperature_controls": [
         {
-            "name": "s",
-            "room": "Garderoba",
-            "id": "99d8faf9-b0f8-46c3-a0f6-51d247721130",
-            "temperature": 22
-        },
-        {
             "name": "sadd",
             "room": "s",
             "id": "f700cc0d-c803-437d-a0e5-3e0a489c334c",
+            "temperature": 22
+        },
+        {
+            "name": "s",
+            "room": "Kuchnia",
+            "id": "99d8faf9-b0f8-46c3-a0f6-51d247721130",
             "temperature": 22
         }
     ],
