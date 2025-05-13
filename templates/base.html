@@ -16,8 +16,8 @@
           document.documentElement.setAttribute('data-theme', theme);
         } catch(e) {}
       })();
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    </script>    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block additional_styles %}{% endblock %}
 </head>
 <body>
     <div id="notifications-container"></div>

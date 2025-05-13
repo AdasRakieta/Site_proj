@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 
+{% block title %}SmartHome - Profil Użytkownika{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
+{% endblock %}
+
 {% block content %}
 <div class="user-profile-container">
     <h1>Profil użytkownika</h1>
@@ -45,10 +51,6 @@
         </form>
     </div>
 </div>
-{% endblock %}
-
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}">
 {% endblock %}
 
 {% block scripts %}
