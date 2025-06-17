@@ -6,20 +6,34 @@ import secrets
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
-import threading
 import time
 from datetime import datetime, timedelta
-import json
 import os
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 # --- Bezpieczne ustawienia cookies i timeout sesji ---
-app.config['SESSION_COOKIE_SECURE'] = True  # tylko przez HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # wyłącz wymóg HTTPS dla środowiska lokalnego
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # niedostępne dla JS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # ochrona przed CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=60)  # czas wygaśnięcia sesji
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Konfiguracja CORS - automatyczne wykrywanie adresów lokalnych
+def get_allowed_origins():
+    base_origins = [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost",
+        "http://127.0.0.1"
+    ]
+    # Dodaj wszystkie możliwe adresy z sieci lokalnej 192.168.1.*
+    for i in range(256):
+        base_origins.extend([
+            f"http://192.168.1.{i}:5000",
+            f"http://192.168.1.{i}"
+        ])
+    return base_origins
+
+socketio = SocketIO(app, cors_allowed_origins=get_allowed_origins())
 
 # --- CSRF token ---
 def generate_csrf_token():
@@ -28,12 +42,30 @@ def generate_csrf_token():
     return session['_csrf_token']
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
+def is_trusted_host(ip):
+    """Sprawdza, czy adres IP jest zaufany"""
+    if ip in ['127.0.0.1', 'localhost']:
+        return True
+    try:
+        # Sprawdź czy IP jest w sieci 192.168.1.*
+        octets = ip.split('.')
+        return len(octets) == 4 and octets[0] == '192' and octets[1] == '168' and octets[2] == '1' and 0 <= int(octets[3]) <= 255
+    except:
+        return False
+
 @app.before_request
 def csrf_protect():
     if request.method in ['POST', 'PUT', 'DELETE']:
-        token = request.headers.get('X-CSRFToken') or request.form.get('_csrf_token')
-        if not token or token != session.get('_csrf_token'):
-            return 'CSRF token missing or invalid', 400
+        # Sprawdź czy żądanie pochodzi z zaufanego hosta
+        if is_trusted_host(request.remote_addr):
+            # Sprawdź token CSRF
+            token = request.headers.get('X-CSRFToken') or request.form.get('_csrf_token')
+            if not token or token != session.get('_csrf_token'):
+                app.logger.warning(f'Invalid CSRF token from {request.remote_addr}. Token: {token}, Session token: {session.get("_csrf_token")}')
+                return 'CSRF token missing or invalid', 400
+        else:
+            app.logger.warning(f'Request from untrusted host: {request.remote_addr}')
+            return 'Unauthorized host', 403
 
 class AuthManager:
     """Klasa odpowiedzialna za zarządzanie uwierzytelnianiem"""
