@@ -1,12 +1,10 @@
 :root[data-theme="light"] {
-    --bg-column: rgba(0, 0, 0, 0.1);
+    --bg-column: ;
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
-    --bg-header: rgba(0, 0, 0, 0.1);
+    --bg-header: #9DB2BF;
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
-    --bg-card: rgba(0, 0, 0, 0.4);
-    --bg-card-hover: rgba(0, 0, 0, 0.5);
-    --bg-button: rgba(255, 255, 255, 0.1);
-    --bg-button-hover: rgba(255, 255, 255, 0.2);
+    --bg-button: #9DB2BF;
+    --bg-button-hover: rgb(182, 206, 223);
     --bg-delete-button: rgba(255, 0, 0, 0.411);
     --bg-delete-button-hover: rgba(255, 0, 0, 0.7);
     --bg-add-card: rgba(0, 0, 0, 0.2);
@@ -16,11 +14,15 @@
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
     --moving-bg: rgba(0, 0, 0, 0.8);
-    --bg-add-column: rgba(0, 0, 0, 0.1);
+    --bg-add-column: #DDE6ED;
+    --bg-kaban-column: #DDE6ED;
+    --bg-card: rgb(212, 220, 230);
+    --bg-card-hover: rgb(212, 220, 230);
 }
 
 :root[data-theme="dark"] {
     --bg-column: rgba(0, 0, 0, 0.1);
+    --bg-kaban-column: var(--bg-add-card)
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
     --bg-header: rgba(0, 0, 0, 0.1);
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
@@ -85,10 +87,11 @@ input:focus{
     flex-direction: column;
     margin: 10px;
     padding: 10px;
-    background: var(--bg-column);
+    background: var(--bg-kaban-column);
     border-radius: 8px;
     box-shadow: var(--shadow-color);
     min-width: 250px;
+    min-height: 190px;
     flex: 0 0 calc(25% - 15px);
     min-width: 280px;
     max-width: 300px;
@@ -107,10 +110,6 @@ input:focus{
     transform: scale(1.05);
 }
 
-.kanban-column[data-fixed="true"] {
-    background: var(--bg-column-fixed);
-}
-
 /* Column header styles */
 .kanban-column-header {
     position: relative;
@@ -126,7 +125,12 @@ input:focus{
     z-index: 1;
 }
 
-.kanban-column[data-fixed="true"] .kanban-column-header {
+.kanban-column[data-fixed="true"]  {
+    background: var(--bg-kaban-column);
+    cursor: default;
+}
+
+.kanban-column-header[data-fixed="true"] {
     background: var(--bg-header-fixed);
     cursor: default;
 }
@@ -321,11 +325,6 @@ input:focus{
     cursor: pointer;
     font-size: 1.1em;
     transition: all 0.3s ease;
-}
-
-.edit-mode-button:hover {
-    background: var(--bg-button-hover);
-    transform: scale(1.05);
 }
 
 .add-room-container, .add-device-container {

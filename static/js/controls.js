@@ -298,24 +298,9 @@ function createKanbanColumn(room, roomButtons, roomControls, isFixed = false) {
     const column = document.createElement('div');
     column.className = 'kanban-column';
     if (isFixed) column.setAttribute('data-fixed', 'true');
-    column.style.display = 'flex';
-    column.style.flexDirection = 'column';
-    column.style.margin = '10px';
-    column.style.padding = '10px';
-    column.style.background = isFixed ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.1)';
-    column.style.borderRadius = '8px';
-    column.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-    column.style.minWidth = '250px';
-    column.style.cursor = 'default';
 
     const header = document.createElement('div');
-    header.className = 'kanban-column-header';
-    header.style.textAlign = 'center';
-    header.style.marginBottom = '10px';
-    header.style.padding = '8px';
-    header.style.borderRadius = '4px';
-    header.style.background = isFixed ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.1)';
-    header.style.cursor = isFixed ? 'default' : 'move';
+    header.className = 'kanban-column-header';;
     // Use room.name if room is an object, otherwise use room as string
     const roomName = typeof room === 'object' && room !== null ? room.name : room;
     header.innerHTML = `<h3 style="margin:0;">${roomName}</h3>`;
@@ -344,17 +329,7 @@ function createKanbanColumn(room, roomButtons, roomControls, isFixed = false) {
     [...roomButtons, ...roomControls].forEach(device => {
         const li = document.createElement('li');
         li.className = 'kanban-card';
-        li.style.display = 'flex';
-        li.style.flexDirection = 'column';
-        li.style.justifyContent = 'center';
-        li.style.alignItems = 'center';
-        li.style.width = '90%';
-        li.style.height = '100px';
-        li.style.background = 'rgba(0,0,0,0.4)';
-        li.style.borderRadius = '8px';
-        li.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-        li.style.margin = '10px';
-        li.innerHTML = `<span class="kanban-card-content" style="font-size:1.1em;font-weight:500;">${device.name} - ${device.type}</span>`;
+        li.innerHTML = `<span class="kanban-card-content">${device.name} - ${device.type}</span>`;
         li.setAttribute('data-id', device.id);
         li.setAttribute('data-type', device.type);
 
