@@ -245,44 +245,60 @@ function updateColumnHeader(columnElement, roomName) {
         // Clear existing content
         header.innerHTML = '';
         
-        // Add room name
-        const roomNameSpan = document.createElement('span');
-        roomNameSpan.className = 'room-name';
-        roomNameSpan.textContent = roomName;
-        header.appendChild(roomNameSpan);
+        // Add room name in h3
+        const roomNameH3 = document.createElement('h3');
+        roomNameH3.style.margin = '0';
+        roomNameH3.textContent = roomName;
+        header.appendChild(roomNameH3);
         
-        // Add name edit input (initially hidden)
-        const roomNameInput = document.createElement('input');
-        roomNameInput.type = 'text';
-        roomNameInput.className = 'room-name-input';
-        roomNameInput.value = roomName;
-        header.appendChild(roomNameInput);
+        if (roomName !== 'Nieprzypisane') {
+            // Create a container for the delete button
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.position = 'absolute';
+            buttonContainer.style.right = '8px';
+            buttonContainer.style.top = '50%';
+            buttonContainer.style.transform = 'translateY(-50%)';
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.gap = '8px';
+            
+            // Add delete button
+            const deleteRoomBtn = document.createElement('button');
+            deleteRoomBtn.className = 'delete-room-button';
+            deleteRoomBtn.textContent = '✕';
+            deleteRoomBtn.type = 'button';
+            deleteRoomBtn.title = 'Usuń pokój';
+            deleteRoomBtn.setAttribute('aria-label', 'Usuń pokój');
+            deleteRoomBtn.style.transition = 'all 0.2s ease-in-out';
+            deleteRoomBtn.style.opacity = window.editMode ? '1' : '0';
+            deleteRoomBtn.onclick = async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (window.editMode) {
+                    await deleteRoom(columnElement);
+                }
+            };
+            buttonContainer.appendChild(deleteRoomBtn);
+            
+            // Add name edit input (initially hidden)
+            const roomNameInput = document.createElement('input');
+            roomNameInput.type = 'text';
+            roomNameInput.className = 'room-name-input';
+            roomNameInput.value = roomName;
+            roomNameInput.style.display = 'none';
+            header.appendChild(roomNameInput);
 
-        // Add context menu button
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'room-menu-btn';
-        menuBtn.textContent = '⁝';
-        menuBtn.onclick = (e) => {
-            e.stopPropagation();
-            toggleRoomContextMenu(columnElement);
-        };
-        header.appendChild(menuBtn);
-
-        // Add context menu
-        const contextMenu = document.createElement('div');
-        contextMenu.className = 'room-context-menu';
-        
-        const renameBtn = document.createElement('button');
-        renameBtn.textContent = 'Zmień nazwę';
-        renameBtn.onclick = () => startRenameRoom(columnElement);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Usuń pokój';
-        deleteBtn.onclick = () => deleteRoom(columnElement);
-        
-        contextMenu.appendChild(renameBtn);
-        contextMenu.appendChild(deleteBtn);
-        header.appendChild(contextMenu);
+            // Add context menu button
+            const menuBtn = document.createElement('button');
+            menuBtn.className = 'room-menu-btn';
+            menuBtn.textContent = '⁝';
+            menuBtn.onclick = (e) => {
+                e.stopPropagation();
+                toggleRoomContextMenu(columnElement);
+            };
+            buttonContainer.appendChild(menuBtn);
+            
+            header.appendChild(buttonContainer);
+        }
     }
 }
 
@@ -358,30 +374,56 @@ function startRenameRoom(columnElement) {
     };
 }
 
-function deleteRoom(columnElement) {
-    const roomName = columnElement.querySelector('.room-name').textContent;
-    if (confirm(`Czy na pewno chcesz usunąć pokój "${roomName}"? Wszystkie przypisane urządzenia zostaną przeniesione do nieprzypisanych.`)) {
-        const roomId = columnElement.getAttribute('data-room-id');
-        fetch(`/api/rooms/${roomId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': window.getCSRFToken()
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                columnElement.remove();
-                if (window.updateRoomSelect) {
-                    window.updateRoomSelect();
+async function deleteRoom(columnElement) {
+    // Try to get the room name from .room-name, fallback to h3, fallback to 'Pokój'
+    let roomName = null;
+    const nameSpan = columnElement.querySelector('.room-name');
+    if (nameSpan) {
+        roomName = nameSpan.textContent;
+    } else {
+        // Fallback: try h3
+        const h3 = columnElement.querySelector('h3');
+        if (h3) {
+            roomName = h3.textContent;
+        } else {
+            roomName = 'Pokój';
+        }
+    }
+    if (!window.editMode) {
+        console.warn('Cannot delete room outside of edit mode');
+        return;
+    }
+
+    if (await confirm(`Czy na pewno chcesz usunąć pokój "${roomName}"? Wszystkie przypisane urządzenia zostaną przeniesione do nieprzypisanych.`)) {
+        try {
+            const roomId = columnElement.getAttribute('data-room-id');
+            const response = await fetch(`/api/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': window.getCSRFToken()
                 }
-            } else {
+            });
+
+            if (!response.ok) {
                 throw new Error('Failed to delete room');
             }
-        })
-        .catch(error => {
+
+            // Update pendingChanges to track room deletion
+            if (pendingChanges.columnMoves) {
+                pendingChanges.columnMoves = pendingChanges.columnMoves.filter(room => room.id !== roomId);
+            }
+
+            // Remove the column from DOM
+            columnElement.remove();
+
+            // Update room select dropdown if the function exists
+            if (window.updateRoomSelect) {
+                window.updateRoomSelect();
+            }
+        } catch (error) {
             console.error('Error deleting room:', error);
             alert('Nie udało się usunąć pokoju');
-        });
+        }
     }
 }
 

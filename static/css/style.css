@@ -804,12 +804,10 @@ input:checked+.slider:before {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
-    justify-content: center;
     padding: 20px;
     margin-bottom: -15px;
     margin-top: -15px;
-    margin: 0 auto;
-    width: 100%;
+    
 }
 
 .rooms-container .grid-container,
@@ -817,7 +815,6 @@ input:checked+.slider:before {
     display: grid;
     justify-content: center;
     align-items: center;
-    margin: 0 auto;
 }
 
 .rooms-container.wide .rooms-button {
@@ -1388,7 +1385,8 @@ footer {
 }
 
 .rooms-container.wide {
-    width: 375px;
+    width: 600px;
+    justify-content: center; /* Szerokość dla trybu szerokiego */
 }
 
 .temp-cont {

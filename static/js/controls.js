@@ -231,9 +231,14 @@ function renderKanbanLists(rooms, buttons, controls) {
 
     // Dodaj pozostałe pokoje
     rooms.forEach(room => {
-        const column = createKanbanColumn(room, 
-            buttons.filter(button => button.room === room),
-            controls.filter(control => control.room === room)
+        // If room is an object, pass as is; if string, wrap as {name: room, id: room}
+        let roomObj = room;
+        if (typeof room === 'string') {
+            roomObj = { name: room, id: room };
+        }
+        const column = createKanbanColumn(roomObj, 
+            buttons.filter(button => button.room === roomObj.name),
+            controls.filter(control => control.room === roomObj.name)
         );
         columnsWrapper.appendChild(column);
     });
@@ -289,7 +294,7 @@ function renderKanbanLists(rooms, buttons, controls) {
 }
 
 // Pomocnicza funkcja do tworzenia kolumny Kanban
-function createKanbanColumn(name, roomButtons, roomControls, isFixed = false) {
+function createKanbanColumn(room, roomButtons, roomControls, isFixed = false) {
     const column = document.createElement('div');
     column.className = 'kanban-column';
     if (isFixed) column.setAttribute('data-fixed', 'true');
@@ -311,9 +316,17 @@ function createKanbanColumn(name, roomButtons, roomControls, isFixed = false) {
     header.style.borderRadius = '4px';
     header.style.background = isFixed ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.1)';
     header.style.cursor = isFixed ? 'default' : 'move';
-    header.innerHTML = `<h3 style="margin:0;">${name}</h3>`;
+    // Use room.name if room is an object, otherwise use room as string
+    const roomName = typeof room === 'object' && room !== null ? room.name : room;
+    header.innerHTML = `<h3 style="margin:0;">${roomName}</h3>`;
     if (!isFixed) {
         header.setAttribute('data-drag-handle', 'true');
+        if (window.updateColumnHeader) {
+            setTimeout(() => window.updateColumnHeader(column, roomName), 0);
+        }
+        // Set data-room-id to room.id if available, else to name
+        const roomId = typeof room === 'object' && room !== null && room.id ? room.id : roomName;
+        column.setAttribute('data-room-id', roomId);
     }
     column.appendChild(header);
 
