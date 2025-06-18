@@ -8,7 +8,9 @@
     --bg-delete-button: rgba(255, 0, 0, 0.411);
     --bg-delete-button-hover: rgba(255, 0, 0, 0.7);
     --bg-add-card: rgba(0, 0, 0, 0.2);
-    --bg-input: rgba(255, 255, 255, 0.1);
+    --bg-input: #DDE6ED;
+    --bg-input-hover: #9DB2BF;
+    --input-text-hover: #DDE6ED;
     --border-input: rgba(255, 255, 255, 0.2);
     --shadow-color: 0 4px 8px rgba(0, 0, 0, 0.20);
     --mirror-opacity: 0.8;
@@ -22,7 +24,7 @@
 
 :root[data-theme="dark"] {
     --bg-column: rgba(0, 0, 0, 0.1);
-    --bg-kaban-column: var(--bg-add-card)
+    --bg-kaban-column: #282a36;
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
     --bg-header: rgba(0, 0, 0, 0.1);
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
@@ -39,7 +41,7 @@
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
     --moving-bg: rgba(0, 0, 0, 0.8);
-    --bg-add-column: rgba(0, 0, 0, 0.1);
+    --bg-add-column: #282a36;
 }
 
 
@@ -197,7 +199,7 @@ input:focus{
     color: inherit;
     width: 35px;
     height: 35px;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.3s ease-in-out;
     box-shadow: var(--shadow-color);
 
 }
@@ -251,7 +253,7 @@ input:focus{
   color: inherit;
   width: auto;
   text-align: center;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
   margin: 5px;
   padding: 4px 8px;
   box-shadow: var(--shadow-color);
@@ -260,8 +262,8 @@ input:focus{
 
 .kanban-edit-input:focus,
 .kanban-edit-input:hover {
-    border: 3px solid var(--border-input);
-    transform: scale(1.05);
+    background-color: var(--bg-input-hover);
+    color: var(--input-text-hover);
     outline: none;
 }
 
@@ -298,20 +300,29 @@ input:focus{
 
 .control-panel {
     justify-content: center;
-    align-items: start;
+    align-items: center;
     margin: 20px auto;
-    width: fit-content;
     background-color: var(--bg-column);
     padding: 20px;
-    width: fit-content+ 20px;
-    display: none;
-    gap: 20px;
     border-radius: 8px;
     box-shadow: var(--shadow-color);
+    display: none;
+    flex-direction: column;
+    width: fit-content;
 }
 
 .control-panel.active {
     display: flex;
+}
+
+#saveModeButton,
+#cancelModeButton {
+    display: none;
+}
+
+.control-panel.active #saveModeButton,
+.control-panel.active #cancelModeButton {
+    display: block;
 }
 
 .edit-mode-button {
@@ -320,7 +331,7 @@ input:focus{
     padding: 10px 20px;
     background: var(--bg-button);
     color: inherit;
-    border: none;
+    border: var(--border-input);
     border-radius: 4px;
     cursor: pointer;
     font-size: 1.1em;
@@ -329,7 +340,7 @@ input:focus{
 
 .add-room-container, .add-device-container {
 
-  background: var(--bg-add-column); 
+  background: var(--bg-card); 
   padding: 15px; 
   border-radius: 8px; 
   min-width: 250px;
@@ -347,7 +358,7 @@ input:focus{
   color: inherit;
   flex: 1;
   font-size: 1em;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 .add-room-input:focus,
 .add-device-input:focus {
@@ -357,8 +368,10 @@ input:focus{
 
 .add-room-input:hover,
 .add-device-input:hover {
-  border: 2px solid var(--border-input);
-  transform: scale(1.05);
+  background-color: var(--bg-input-hover);
+  color: var(--input-text-hover);
+  outline: none;
+  box-shadow: var(--shadow-color);
 }
 
 .add-device-select, .add-room-select {
@@ -372,19 +385,22 @@ input:focus{
   color: inherit;
   flex: 1;
   font-size: 1em;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
 .add-device-select:focus,
 .add-room-select:focus {
-  border: 2px solid var(--border-input);
-  transform: scale(1.05);
+  background-color: var(--bg-input-hover);
+  color: var(--input-text-hover);
+  outline: none;
 }
 
 .add-device-select:hover,
 .add-room-select:hover {
-  border: 2px solid var(--border-input);
-  transform: scale(1.05);
+  background-color: var(--bg-input-hover);
+  color: var(--input-text-hover);
+  outline: none;
+  box-shadow: var(--shadow-color);
 }
 
 .add-room-btn, .add-device-btn {
@@ -397,7 +413,7 @@ input:focus{
   color: inherit;
   width: fit-content;
   height: inherit;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
   box-shadow: var(--shadow-color);
   align-self: center;
   font-weight: bolder;
@@ -425,11 +441,12 @@ input:focus{
     padding: 10px 20px;
     background: var(--bg-button);
     color: inherit;
-    border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 1.1em;
     transition: all 0.3s ease;
+    border: 1px  solid var(--bg-button);
+    box-shadow: var(--shadow-color);
 }
 
 .edit-mode-button:hover {
@@ -438,11 +455,12 @@ input:focus{
 }
 
 .edit-mode-button.save {
-    background: rgba(0, 255, 0, 0.2);
+    background: rgba(0, 255, 0, 0.253);
+    
 }
 
 .edit-mode-button.save:hover {
-    background: rgba(0, 255, 0, 0.3);
+    background: rgba(0, 255, 0, 0.466);
 }
 
 .edit-mode-button.cancel {
@@ -466,7 +484,7 @@ input:focus{
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 .edit-mode .room-menu-btn {
@@ -501,7 +519,7 @@ input:focus{
     color: inherit;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.3s ease;
 }
 
 .room-context-menu button:hover {
@@ -542,7 +560,7 @@ input:focus{
     line-height: 1;
     cursor: pointer;
     opacity: 0;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.3s ease-in-out;
     padding: 0;
     position: absolute;
     right: 8px;

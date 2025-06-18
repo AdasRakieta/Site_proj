@@ -807,7 +807,7 @@ input:checked+.slider:before {
     padding: 20px;
     margin-bottom: -15px;
     margin-top: -15px;
-    
+
 }
 
 .rooms-container .grid-container,
@@ -1052,7 +1052,7 @@ footer {
     width: 95%;
     padding: 10px;
     border-radius: 5px;
-    background-color: var(--input-bg);
+    background-color: var(--bg-primary);
     color: var(--text-color);
     border-color: var(--input-border);
     transition: all 0.3s ease;
@@ -1061,13 +1061,15 @@ footer {
 }
 
 .login-form input:focus {
-    background-color: var(--btn-primary-hover);
-    transform: scale(1.05);
+    background-color: var(--hover);
+        color: var(--input-text-hover);
+
+    
 }
 .login-form input:hover {
-    background-color: var(--btn-primary-hover);
+    background-color: var(--hover);
     color: var(--input-text-hover);
-    transform: scale(1.05);
+    
 }
 
 
@@ -1668,8 +1670,7 @@ footer {
 }
 
 #automation-form button[class="remove-action"] {
-    padding: 0.8rem 1.5rem;
-    margin-right: 30px;
+    padding: 0.5rem 1rem;
     margin-bottom: 14px;
     font-size: 1rem;
     background-color: var(--btn-danger);
@@ -1732,8 +1733,8 @@ footer {
 #automation-form-container input[type="text"],
 #automation-form-container input[type="time"],
 #automation-form-container input[type="number"] {
-    min-width: 200px;
-    width: auto;
+    width: 200px;
+    max-width: 220px;
     padding: 8px;
     border: 1px solid var(--primary);
     border-radius: 4px;
@@ -1750,7 +1751,7 @@ footer {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--hover);
+    background-color: var(--input-bg);
     color: var(--background);
 }
 
@@ -1760,14 +1761,13 @@ footer {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--hover);
+    background-color: var(--input-bg);
     color: var(--background);
 }
 
 /* Style dla selectów w formularzu automatyzacji */
 #automation-form-container select {
-    width: auto;
-    min-width: 200px;
+    width: 217.6px;
     margin-bottom: 15px;
     padding: 8px;
     border: 1px solid var(--primary);
@@ -1782,14 +1782,14 @@ footer {
 
 #automation-form-container select:hover {
     border-color: var(--accent);
-    background-color: var(--hover);
+    background-color: var(--input-bg);
     color: var(--background);
 }
 
 #automation-form-container select:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--hover);
+    background-color: var(--input-bg);
     color: var(--background);
 }
 

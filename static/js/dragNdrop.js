@@ -112,16 +112,12 @@ window.toggleEditMode = function(enabled) {
     window.editMode = enabled;
     const controlPanel = document.querySelector('.control-panel');
     const editButton = document.getElementById('editModeButton');
-    const saveButton = document.getElementById('saveModeButton');
-    const cancelButton = document.getElementById('cancelModeButton');
     const kanbanContainer = document.getElementById('kanbanContainer');
 
     if (controlPanel) {
         if (enabled) {
             controlPanel.classList.add('active');
             editButton.style.display = 'none';
-            saveButton.style.display = 'block';
-            cancelButton.style.display = 'block';
             if (kanbanContainer) {
                 kanbanContainer.classList.add('edit-mode');
             }
@@ -133,8 +129,6 @@ window.toggleEditMode = function(enabled) {
         } else {
             controlPanel.classList.remove('active');
             editButton.style.display = 'block';
-            saveButton.style.display = 'none';
-            cancelButton.style.display = 'none';
             if (kanbanContainer) {
                 kanbanContainer.classList.remove('edit-mode');
             }

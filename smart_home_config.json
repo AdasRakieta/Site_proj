@@ -32,25 +32,17 @@
         "ddasd",
         "Korytarz",
         "d",
-        "\u0141azienka",
         "Sypialnia"
     ],
     "buttons": [
         {
             "name": "G\u0142\u00f3wny",
-            "room": "ddasd",
+            "room": "Sypialnia",
             "state": false,
             "id": "94554cbb-7a9d-43a2-9f23-5b8e351dea71"
         }
     ],
-    "temperature_controls": [
-        {
-            "name": "s",
-            "room": "\u0141azienka",
-            "id": "99d8faf9-b0f8-46c3-a0f6-51d247721130",
-            "temperature": 22
-        }
-    ],
+    "temperature_controls": [],
     "automations": [
         {
             "name": "powiado",
