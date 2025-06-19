@@ -9,6 +9,7 @@
     --primary: #27374D;
     --secondary: #688699;
     --accent: #9DB2BF;
+    --automation-hover: var(--input-bg);
     --button: #9DB2BF;
     --hover: rgb(182, 206, 223);
     --btn_text: var(--text);
@@ -58,6 +59,7 @@
     --secondary: #343746;
     --accent: #6170a0;
     --hover: #f8f8f28c;
+    --automation-hover: var(--hover);
     --btn_text: var(--text);
     --border: #222831;
     --box_shd: 0 2px 5px hsla(0, 0%, 75%, 0.26);
@@ -67,10 +69,10 @@
     --border_side_men: #dde6ed9a;
     --card-bg: #282a36;
     --text-secondary: #aaa;
-    --confirm-btn: #4CAF50;
-    --confirm-btn-hover: #45a049;
-    --delete-btn: #ff4444;
-    --delete-btn-hover: #cc0000;
+    --confirm-btn: rgba(0, 255, 0, 0.253);
+    --confirm-btn-hover: rgba(0, 255, 0, 0.466);
+    --delete-btn: rgba(255, 0, 0, 0.411);
+    --delete-btn-hover: rgba(255, 0, 0, 0.7);
     --text-delete: #fff;
     --checkbox-bg: #22242a;
     --checkbox-border: #44485a;
@@ -87,8 +89,8 @@
     --shadow-color: rgba(0, 0, 0, 0.3);
     --input-bg: #333333;
     --input-border: #404040;
-    --btn-primary: #0d6efd;
-    --btn-primary-hover: #0b5ed7;
+    --btn-primary: #282a36;
+    --btn-primary-hover: #f8f8f28c;
     --btn-danger: #dc3545;
     --btn-danger-hover: #bb2d3b;
     --link-color: #0d6efd;
@@ -432,14 +434,7 @@ input{
     transform: scale(1.05);
 }
 
-.delete-button, .cancel-button {
-    background-color: var(--delete-btn);
-    color: var(--text-delete);
-    border-radius: 8px;
-}
-.delete-button:hover, .cancel-button:hover {
-    background-color: var(--delete-btn-hover);
-}
+
 
 .confirm-delete-btn {
     background-color: var(--confirm-btn);
@@ -508,7 +503,7 @@ input{
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    transition: all 0.3s ease;
     margin-top: 20px;
     margin-bottom: 10px;
     margin-left: auto;
@@ -541,10 +536,17 @@ input{
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    transition: all 0.3s ease;
     margin: 0.5rem;
     text-decoration: none;
     box-shadow: var(--box_shd);
+}
+
+.edit-generic-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 /* Specjalne style dla .rooms-button */
@@ -557,7 +559,7 @@ input{
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    transition: all 0.3s ease;
     margin: 0.5rem;
     text-decoration: none;
     box-shadow: var(--box_shd);
@@ -583,16 +585,17 @@ input{
     margin: 0.5rem 0.5rem 0.5rem 0;
     text-decoration: none;
     box-shadow: var(--box_shd);
-    transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    transition: all 0.3s ease;
 }
 
-.delete-button {
+.delete-button, .cancel-button {
     background-color: var(--btn-danger);
     border-color: var(--btn-danger);
     color: var(--text-delete);
+    transition:all 0.3s ease;
 }
 
-.delete-button:hover {
+.delete-button:hover, .cancel-button:hover {
     background-color: var(--btn-danger-hover);
     border-color: var(--btn-danger-hover);
     color: var(--text-delete);
@@ -604,6 +607,15 @@ input{
 .change-button {
     background-color: var(--accent);
     color: var(--btn_text);
+}
+
+.change-button[type="submit"] {
+    background-color: var(--confirm-btn);
+    color: var(--btn_text);
+}
+
+.change-button[type="submit"]:hover {
+    background-color: var(--confirm-btn-hover);
 }
 
 /* ============================== */
@@ -852,7 +864,7 @@ input:checked+.slider:before {
     margin-left: 15px;
     margin-top: 17px;
     font-size: 15px;
-    height: 40px;
+    height: 34px;
     width: 125px;
     transition: background-color 0.3s ease;
 }
@@ -863,57 +875,68 @@ input:checked+.slider:before {
 }
 
 .input-edit {
-    background-color: transparent;
-    color: var(--btn_text);
-    border-color: var(--primary);
-    border-radius: 5px;
-    margin-left: 15px;
-    margin-top: 17px;
-    font-size: 15px;
-    height: 34px;
     width: 125px;
-    transition: background-color 0.3s ease;
+    max-width: 220px;
+    padding: 8px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    background-color: var(--background);
+    box-shadow: var(--box_shd);
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    text-align: center;
 }
 
 .input-edit:hover {
-    background-color: var(--hover);
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
 .select-settings {
-    background-color: transparent;
-    color: var(--btn_text);
-    border-color: var(--primary);
-    border-radius: 5px;
-    margin-left: 15px;
-    margin-top: 17px;
-    margin-bottom: 17px;
-    font-size: 15px;
-    height: 40px;
     width: 125px;
-    transition: background-color 0.3s ease;
+    max-width: 220px;
+    padding: 8px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    background-color: var(--background);
+    box-shadow: var(--box_shd);
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    text-align: center;
 }
 
 .select-settings:hover {
-    background-color: var(--hover);
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
 .input-settings {
-    background-color: transparent;
-    color: var(--btn_text);
-    border-color: var(--primary);
-    border-radius: 5px;
-    margin-left: 15px;
-    margin-top: 17px;
-    font-size: 15px;
-    height: 34px;
     width: 125px;
-    transition: background-color 0.3s ease;
+    max-width: 220px;
+    padding: 8px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    background-color: var(--background);
+    box-shadow: var(--box_shd);
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    text-align: center;
 }
 
 .input-settings:hover {
-    background-color: var(--hover);
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
@@ -934,14 +957,17 @@ input:checked+.slider:before {
     color: var(--background);
 }
 
-
+.theme.selector {
+    align-self: center;
+}
 
 .theme-form {
 
     margin-left: auto;
     margin-right: auto;
-    flex: 1;
-    min-width: 300px;
+    align-content: center;
+    min-width: 200px;
+    height: 50px;
     padding: 20px;
     max-width: fit-content;
     background: var(--card-bg);
@@ -1619,7 +1645,8 @@ footer {
 .form-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 .action {
@@ -1761,7 +1788,7 @@ footer {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--input-bg);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
@@ -1771,7 +1798,7 @@ footer {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--input-bg);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
@@ -1794,14 +1821,14 @@ footer {
 
 #automation-form-container select:hover {
     border-color: var(--accent);
-    background-color: var(--input-bg);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 
 #automation-form-container select:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--input-bg);
+    background-color: var(--automation-hover);
     color: var(--background);
 }
 

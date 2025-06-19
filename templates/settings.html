@@ -24,13 +24,15 @@
                 <form class="user-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <h3>Dodaj nowego użytkownika</h3>
-                    <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
-                    <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
-                    <select class="select-settings" id="userRole">
-                        <option value="user">Użytkownik</option>
-                        <option value="admin">Administrator</option>
-                    </select>
-                    <button class="rooms-button" id="addUserBtn">Dodaj użytkownika</button>
+                    <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                        <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
+                        <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
+                        <select class="select-settings" id="userRole">
+                            <option value="user">Użytkownik</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <button class="rooms-button" id="addUserBtn">Dodaj użytkownika</button>
+                    </div>
                     <div id="addUserMessage" class="alert-msg" style="display: none;"></div>
                 </form>
                 <div class="user-form">
@@ -41,7 +43,6 @@
                             <thead>
                                 <tr>
                                     <th>Nazwa</th>
-                                    <th>Hasło</th>
                                     <th>Rola</th>
                                     <th>Akcja</th>
                                 </tr>
