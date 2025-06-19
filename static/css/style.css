@@ -20,10 +20,10 @@
     --border_side_men: #dde6ed9a;
     --card-bg: #DDE6ED;
     --text-secondary: #666;
-    --confirm-btn: #4CAF50;
-    --confirm-btn-hover: #45a049;
-    --delete-btn: #ff4444;
-    --delete-btn-hover: #cc0000;
+    --confirm-btn: rgba(0, 255, 0, 0.253);
+    --confirm-btn-hover: rgba(0, 255, 0, 0.466);
+    --delete-btn: rgba(255, 0, 0, 0.411);
+    --delete-btn-hover: rgba(255, 0, 0, 0.7);
     --text-delete: #fff;
     --checkbox-bg: #fff;
     --checkbox-border: #cccfdb;
@@ -43,8 +43,8 @@
     --input-text-hover: #5e5e5e;
     --btn-primary: #9DB2BF;
     --btn-primary-hover: rgb(182, 206, 223);
-    --btn-danger: #dc3545;
-    --btn-danger-hover: #c82333;
+    --btn-danger: #f44336;
+    --btn-danger-hover: #f32819;
     --link-color: #007bff;
     --link-hover: #0056b3;
     --nav-bg: #ffffff;
@@ -421,6 +421,8 @@ input{
     transition: inherit;
     text-decoration: inherit;
     margin: inherit;
+    box-shadow: var(--box_shd);
+
 }
 
 /* Specyficzne style dla poszczególnych przycisków */
@@ -740,9 +742,13 @@ input:checked+.slider:before {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    margin: 10px 0;
-    width: 100%;
+    padding: 10px;
     min-height: 34px;
+    box-shadow: var(--box_shd);
+    border-radius: 10px;
+    margin: 10px 0;
+
+
 }
 
 .light-control label {
@@ -763,10 +769,12 @@ input:checked+.slider:before {
 
 .lights-room-container {
     display: flex;
-    flex-direction: column;
-    width: fit-content;
-    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center; /* lub inna wartość, zależnie od szerokości przycisków */
     min-width: 300px;
+    width: fit-content;
     padding: 20px 30px;
     background: var(--card-bg);
     border-radius: 10px;
@@ -1412,14 +1420,12 @@ footer {
     display: flex;
     flex-direction: column;
     padding: 20px;
-    padding-bottom: 40px;
+    justify-content: center;
     max-width: fit-content;
     background: var(--card-bg);
     border-radius: 10px;
     box-shadow: var(--box_shd);
-    margin-right: auto;
-    margin-left: auto;
-    margin-top: 20px;
+    margin: auto;
     margin-bottom: 20px;
 }
 
@@ -1662,6 +1668,8 @@ footer {
     transition: background-color 0.3s ease;
     margin-right: 0.5rem;
     text-decoration: none;
+    box-shadow: var(--box_shd);
+
 }
 
 #automation-form button[id="add-action"]:hover {
@@ -1671,19 +1679,21 @@ footer {
 }
 
 #automation-form button[class="remove-action"] {
-    padding: 0.5rem 1rem;
-    margin-bottom: 14px;
+    padding: 0.8rem 1.5rem;
     font-size: 1rem;
-    background-color: var(--btn-danger);
-    border-color: var(--btn-danger);
-    color: var(--text-delete);
+    border: none;
     border-radius: 8px;
+    cursor: pointer;
     transition: background-color 0.3s ease;
     text-decoration: none;
+    background-color: var(--delete-btn);
+    color: white;
+    margin-bottom: 15px;
+    
 }
 
 #automation-form button[class="remove-action"]:hover {
-    background-color: var(--btn-danger-hover);
+    background-color: var(--delete-btn-hover);
     border-color: var(--btn-danger-hover);
     box-shadow: var(--box_shd);
 
@@ -1694,7 +1704,7 @@ footer {
 #automation-form button[type="submit"] {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
-    background-color: var(--button);
+    background-color: var(--confirm-btn);
     color: var(--btn_text);
     border: none;
     border-radius: 8px;
@@ -1702,12 +1712,10 @@ footer {
     transition: background-color 0.3s ease;
     margin-right: 0.5rem;
     text-decoration: none;
-
 }
 
-
 #automation-form button[type="submit"]:hover {
-    background-color: var(--hover);
+    background-color: var(--confirm-btn-hover);
 }
 
 #cancel-form {
@@ -1718,16 +1726,16 @@ footer {
     cursor: pointer;
     transition: background-color 0.3s ease;
     text-decoration: none;
-    background-color: #f44336;
+    background-color: var(--delete-btn);
     color: white;
 }
 
 #cancel-form:hover {
-    background-color: #d32f2f;
+    background-color: var(--delete-btn-hover);
 }
 
 /* ============================== */
-/*  Stylowanie inputów w automatyzacjach */
+/*  Stylowanie inputów w automatyzacji */
 /* ============================== */
 
 /* Specyficzne dla inputów w formularzu automatyzacji */
@@ -1740,6 +1748,7 @@ footer {
     border: 1px solid var(--primary);
     border-radius: 4px;
     background-color: var(--background);
+    box-shadow: var(--box_shd);
     color: var(--text);
     font-size: 0.9rem;
     transition: all 0.3s ease;
@@ -1779,6 +1788,8 @@ footer {
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
+    box-shadow: var(--box_shd);
+
 }
 
 #automation-form-container select:hover {
@@ -1794,7 +1805,7 @@ footer {
     color: var(--background);
 }
 
-/* Styl dedykowany do inputa treści powiadomienia w automatyzacjach */
+/* Styl dedykowany do inputa treści powiadomienia w automatyzacji */
 #automation-form-container .action-notification-message {
   width: 100%;
   min-width: 220px;
@@ -1950,6 +1961,13 @@ footer {
 /* Stylowane dni tygodnia w automatyzacjach (czytelne klasy) */
 .weekdays-checkbox-group * {
   box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+  display:flex;
+  position:relative;
 }
 .weekdays-checkbox-group .weekday-checkbox-label {
   -webkit-user-select: none;
