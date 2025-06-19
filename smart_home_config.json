@@ -29,6 +29,7 @@
     },
     "security_state": "Za\u0142\u0105czony",
     "rooms": [
+        "dddd",
         "ddasd",
         "Korytarz",
         "d",
@@ -36,10 +37,22 @@
     ],
     "buttons": [
         {
+            "name": "dasdad",
+            "room": "Sypialnia",
+            "id": "42e92999-78c5-449a-b325-03ef652dd6d3",
+            "state": false
+        },
+        {
             "name": "G\u0142\u00f3wny",
             "room": "Sypialnia",
             "state": false,
             "id": "94554cbb-7a9d-43a2-9f23-5b8e351dea71"
+        },
+        {
+            "name": "ddadad",
+            "room": "Sypialnia",
+            "id": "b7794465-0967-4fbf-8524-769de8cdf2bd",
+            "state": false
         }
     ],
     "temperature_controls": [],
