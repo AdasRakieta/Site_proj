@@ -29,13 +29,19 @@
     },
     "security_state": "Za\u0142\u0105czony",
     "rooms": [
+        "Sypialnia",
         "dddd",
         "ddasd",
         "Korytarz",
-        "d",
-        "Sypialnia"
+        "d"
     ],
     "buttons": [
+        {
+            "name": "e",
+            "room": "Sypialnia",
+            "id": "d4d3d47e-1d5f-48d2-b6fa-b4886f077beb",
+            "state": false
+        },
         {
             "name": "dasdad",
             "room": "Sypialnia",
@@ -61,13 +67,14 @@
             "name": "powiado",
             "trigger": {
                 "type": "device",
-                "device": "Garderoba_G\u0142\u00f3wny",
-                "state": "toggle"
+                "device": "Sypialnia_e",
+                "state": "off"
             },
             "actions": [
                 {
-                    "type": "notification",
-                    "message": "powiadamiam"
+                    "type": "device",
+                    "device": "Sypialnia_ddadad",
+                    "state": "toggle"
                 }
             ],
             "enabled": false

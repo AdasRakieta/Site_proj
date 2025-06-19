@@ -331,8 +331,8 @@ class AutomationsManager {
                     { key: 'sat', label: 'Sobota' },
                     { key: 'sun', label: 'Niedziela' }
                 ];
-                let daysHtml = '<div style="margin-top:6px;margin-bottom:6px;font-weight:bold;">Dni tygodnia:</div>';
-                daysHtml += '<div class="weekdays-checkbox-group" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;display:flex;position:relative;">';
+                let daysHtml = '<div style="margin-top:20px;margin-bottom:10px;font-weight:bold;">Dni tygodnia:</div>';
+                daysHtml += '<div class="weekdays-checkbox-group">';
                 daysHtml += `<svg class='inline-svg'><symbol id='check-4' viewBox='0 0 12 10'><polyline points='1.5 6 4.5 9 10.5 1'></polyline></symbol></svg>`;
                 days.forEach((d, i) => {
                     const checked = existingTrigger?.days?.includes(d.key) ? 'checked' : '';
