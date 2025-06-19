@@ -765,6 +765,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     width: fit-content;
+    align-items: center;
     min-width: 300px;
     padding: 20px 30px;
     background: var(--card-bg);
