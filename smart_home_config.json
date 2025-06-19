@@ -1,7 +1,7 @@
 {
     "users": {
         "admin": {
-            "password": "scrypt:32768:8:1$4U9EScDcnUnd15G1$0239284d67fef826970ea4da16904e327eb4201709c417da65db947dde8926cd99d93b552a607e80a2fc93a1b2f9c136fe40d0e2b9ac1c25069de1d109cba94a",
+            "password": "scrypt:32768:8:1$53QJ42Ur9IjlyM2m$f939fa1a69d6c8d3ba128f3e92ccc098d4dd836ca52e5f2eec1de561368eb98e3144cc77d9948249888ea146681beccef7c9aa9c231fc81db3355a1c4fadf526",
             "role": "admin",
             "name": "admin",
             "email": "szymon.przybysz2003@gmail.com",
