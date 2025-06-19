@@ -31,9 +31,15 @@ window.createEditForm = function({fields, onSave, onCancel, parent, saveText = '
             if (field.placeholder) input.placeholder = field.placeholder;
         }
         input.name = field.name;
-        input.style.marginRight = '8px';
-        input.style.marginBottom = '12px';
+        if (!field.removeDefaultMargin) {
+            input.style.marginRight = '8px';
+            input.style.marginBottom = '12px';
+        } else {
+            input.style.marginRight = '';
+            input.style.marginBottom = '';
+        }
         if (field.required) input.required = true;
+        if (field.id) input.id = field.id;
         if (field.label) {
             const label = document.createElement('label');
             label.textContent = field.label;
@@ -48,12 +54,13 @@ window.createEditForm = function({fields, onSave, onCancel, parent, saveText = '
     const saveBtn = document.createElement('button');
     saveBtn.type = 'submit';
     saveBtn.textContent = saveText;
-    saveBtn.className = 'rooms-button';
+    saveBtn.className = 'change-button';
+    saveBtn.id = 'settings-save-button';
     form.appendChild(saveBtn);
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.textContent = cancelText;
-    cancelBtn.className = 'cancel-button';
+    cancelBtn.className = 'delete-button';
     cancelBtn.onclick = (e) => {
         e.preventDefault();
         if (onCancel) onCancel();

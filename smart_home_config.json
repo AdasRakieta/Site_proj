@@ -37,31 +37,38 @@
     ],
     "buttons": [
         {
-            "name": "e",
-            "room": "Sypialnia",
-            "id": "d4d3d47e-1d5f-48d2-b6fa-b4886f077beb",
-            "state": false
-        },
-        {
-            "name": "dasdad",
-            "room": "Sypialnia",
-            "id": "42e92999-78c5-449a-b325-03ef652dd6d3",
-            "state": false
-        },
-        {
             "name": "G\u0142\u00f3wny",
-            "room": "Sypialnia",
+            "room": "Korytarz",
             "state": false,
             "id": "94554cbb-7a9d-43a2-9f23-5b8e351dea71"
         },
         {
             "name": "ddadad",
-            "room": "Sypialnia",
+            "room": "dddd",
             "id": "b7794465-0967-4fbf-8524-769de8cdf2bd",
+            "state": false
+        },
+        {
+            "name": "dasdad",
+            "room": "d",
+            "id": "42e92999-78c5-449a-b325-03ef652dd6d3",
             "state": false
         }
     ],
-    "temperature_controls": [],
+    "temperature_controls": [
+        {
+            "name": "d",
+            "room": "ddasd",
+            "id": "b787e9f8-5adc-4eb3-aadb-7fdb3501842c",
+            "temperature": 22
+        },
+        {
+            "name": "dd",
+            "room": "Sypialnia",
+            "id": "39042195-385d-441d-afa6-9e869206eb46",
+            "temperature": 22
+        }
+    ],
     "automations": [
         {
             "name": "powiado",

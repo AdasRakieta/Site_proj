@@ -64,11 +64,7 @@ function updateUsersTable(users) {
         const usernameCell = document.createElement('td');
         usernameCell.textContent = user.username;
         row.appendChild(usernameCell);
-        // Password (masked)
-        const passwordCell = document.createElement('td');
-        passwordCell.className = 'password-mask';
-        passwordCell.textContent = '••••••••';
-        row.appendChild(passwordCell);
+
         // Role
         const roleCell = document.createElement('td');
         roleCell.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
@@ -89,7 +85,7 @@ function updateUsersTable(users) {
             changePassBtn.style.display = 'none';
             window.createEditForm({
                 fields: [
-                    { name: 'newPassword', type: 'password', required: true, minLength: 6, placeholder: 'Nowe hasło' }
+                    { name: 'newPassword', type: 'password', required: true, minLength: 6, placeholder: 'Nowe hasło', id: 'password_change', className: 'input-edit', removeDefaultMargin: true }
                 ],
                 parent: actionsDiv,
                 saveText: 'Zapisz',
