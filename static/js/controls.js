@@ -417,14 +417,19 @@ window.deleteDevice = function(device) {
     })
     .then(r => r.json())
     .then(data => {
-        if (data.status === 'success') window.loadKanban();
-        else alert('Błąd usuwania urządzenia: ' + (data.message || 'Nieznany błąd'));
+        if (data.status === 'success') {
+            if (window.showNotification) window.showNotification('Urządzenie usunięte!', 'success');
+            window.loadKanban();
+        }
+        else {
+            if (window.showNotification) window.showNotification('Błąd usuwania urządzenia: ' + (data.message || 'Nieznany błąd'), 'error');
+        }
     });
 };
 
 // Edycja inline w stylu Kanban
 function startEditDeviceKanban(device, li) {
-    li.innerHTML = `<input type='text' class='kanban-edit-input' value='${device.name}'/><div class='kanban-edit-btns' ><button class='kanban-save-btn'>💾</button><button class='kanban-cancel-btn'>✖</button></div>`;
+    li.innerHTML = `<input type='text' class='kanban-edit-input' value='${device.name}'/><div class='kanban-edit-btns' ><button class='kanban-save-btn'>✔</button><button class='kanban-cancel-btn'>✖</button></div>`;
     li.querySelector('.kanban-save-btn').onclick = () => {
         const newName = li.querySelector('input').value.trim();
         if (!newName || newName === device.name) return window.loadKanban();
@@ -476,9 +481,10 @@ window.addNewRoom = function() {
     .then(data => {
         if (data.status === 'success') {
             input.value = ''; // Wyczyść pole
+            if (window.showNotification) window.showNotification('Pokój dodany!', 'success');
             window.loadKanban(); // Przeładuj kanban
         } else {
-            alert(data.message || 'Błąd podczas dodawania pokoju');
+            if (window.showNotification) window.showNotification(data.message || 'Błąd podczas dodawania pokoju', 'error');
         }
     });
 };
@@ -509,9 +515,10 @@ window.addNewDevice = function() {
     .then(data => {
         if (data.status === 'success') {
             nameInput.value = ''; // Wyczyść pole nazwy
+            if (window.showNotification) window.showNotification('Urządzenie dodane!', 'success');
             window.loadKanban(); // Przeładuj kanban
         } else {
-            alert(data.message || 'Błąd podczas dodawania urządzenia');
+            if (window.showNotification) window.showNotification(data.message || 'Błąd podczas dodawania urządzenia', 'error');
         }
     });
 };

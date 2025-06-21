@@ -238,59 +238,174 @@ function updateColumnHeader(columnElement, roomName) {
     if (header) {
         // Clear existing content
         header.innerHTML = '';
-        
+
         // Add room name in h3
         const roomNameH3 = document.createElement('h3');
         roomNameH3.style.margin = '0';
         roomNameH3.textContent = roomName;
         header.appendChild(roomNameH3);
-        
+
         if (roomName !== 'Nieprzypisane') {
-            // Create a container for the delete button
+            // Container for edit controls
             const buttonContainer = document.createElement('div');
             buttonContainer.style.position = 'absolute';
             buttonContainer.style.right = '8px';
             buttonContainer.style.top = '50%';
             buttonContainer.style.transform = 'translateY(-50%)';
             buttonContainer.style.display = 'flex';
-            buttonContainer.style.gap = '8px';
-            
-            // Add delete button
-            const deleteRoomBtn = document.createElement('button');
-            deleteRoomBtn.className = 'delete-room-button';
-            deleteRoomBtn.textContent = '✕';
-            deleteRoomBtn.type = 'button';
-            deleteRoomBtn.title = 'Usuń pokój';
-            deleteRoomBtn.setAttribute('aria-label', 'Usuń pokój');
-            deleteRoomBtn.style.transition = 'all 0.2s ease-in-out';
-            deleteRoomBtn.style.opacity = window.editMode ? '1' : '0';
-            deleteRoomBtn.onclick = async (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (window.editMode) {
-                    await deleteRoom(columnElement);
-                }
-            };
-            buttonContainer.appendChild(deleteRoomBtn);
-            
-            // Add name edit input (initially hidden)
-            const roomNameInput = document.createElement('input');
-            roomNameInput.type = 'text';
-            roomNameInput.className = 'room-name-input';
-            roomNameInput.value = roomName;
-            roomNameInput.style.display = 'none';
-            header.appendChild(roomNameInput);
+            buttonContainer.style.gap = '4px';
+            buttonContainer.style.alignItems = 'center';
 
-            // Add context menu button
-            const menuBtn = document.createElement('button');
-            menuBtn.className = 'room-menu-btn';
-            menuBtn.textContent = '⁝';
-            menuBtn.onclick = (e) => {
-                e.stopPropagation();
-                toggleRoomContextMenu(columnElement);
-            };
-            buttonContainer.appendChild(menuBtn);
+            // Edit button (ołówek)
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-room-button';
+            editBtn.title = 'Edytuj nazwę pokoju';
+            editBtn.innerHTML = '⁝';
+            editBtn.style.background = 'none';
+            editBtn.style.border = 'none';
+            editBtn.style.cursor = 'pointer';
+            editBtn.style.fontSize = '1.1em';
+
+            // Input for editing name (hidden by default)
+            const roomNameInputEdit = document.createElement('input');
+            roomNameInputEdit.type = 'text';
+            roomNameInputEdit.className = 'room-name-input-edit';
+            roomNameInputEdit.value = roomName;
+            roomNameInputEdit.style.display = 'none';
+
+            // Kontener na przyciski edycji
+            const editActionsDiv = document.createElement('div');
+            editActionsDiv.className = 'room-edit-container';
+
+            // Save button (✔)
+            const saveBtnEdit = document.createElement('button');
+            saveBtnEdit.className = 'save-room-button-edit';
+            saveBtnEdit.title = 'Zapisz';
+            saveBtnEdit.innerHTML = '✔';
             
+
+            // Cancel button (✖)
+            const cancelBtnEdit = document.createElement('button');
+            cancelBtnEdit.className = 'cancel-room-button-edit';
+            cancelBtnEdit.title = 'Anuluj';
+            cancelBtnEdit.innerHTML = '✖';
+            
+
+            // Delete button (🗑)
+            const deleteRoomBtnEdit = document.createElement('button');
+            deleteRoomBtnEdit.className = 'delete-room-button-edit';
+            deleteRoomBtnEdit.title = 'Usuń pokój';
+            deleteRoomBtnEdit.innerHTML = '🗑';
+
+            // Show edit controls
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                roomNameH3.style.display = 'none';
+                editBtn.style.display = 'none';
+                roomNameInputEdit.style.display = '';
+                editActionsDiv.style.display = 'flex';
+                
+                roomNameInputEdit.focus();
+            };
+
+            // Save new name
+            saveBtnEdit.onclick = async (e) => {
+                e.stopPropagation();
+                const newName = roomNameInputEdit.value.trim();
+                if (newName && newName !== roomNameH3.textContent) {
+                    const roomId = columnElement.getAttribute('data-room-id');
+                    try {
+                        await fetch(`/api/rooms/${roomId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': window.getCSRFToken()
+                            },
+                            body: JSON.stringify({ name: newName })
+                        });
+                        roomNameH3.textContent = newName;
+                        if (window.updateRoomSelect) window.updateRoomSelect();
+                    } catch (error) {
+                        alert('Nie udało się zmienić nazwy pokoju');
+                    }
+                }
+                // Exit edit mode
+                roomNameH3.style.display = '';
+                editBtn.style.display = '';
+                roomNameInputEdit.style.display = 'none';
+                editActionsDiv.style.display = 'none';
+            };
+
+            // Cancel editing
+            cancelBtnEdit.onclick = (e) => {
+                e.stopPropagation();
+                roomNameInputEdit.value = roomNameH3.textContent;
+                roomNameH3.style.display = '';
+                editBtn.style.display = '';
+                roomNameInputEdit.style.display = 'none';
+                editActionsDiv.style.display = 'none';
+            };
+
+            // Delete room
+            deleteRoomBtnEdit.onclick = async (e) => {
+                e.stopPropagation();
+                // Zamień śmietnik na haczyk potwierdzenia
+                deleteRoomBtnEdit.style.display = 'none';
+                // Dodaj przycisk potwierdzenia
+                const confirmBtnEdit = document.createElement('button');
+                confirmBtnEdit.className = 'confirm-delete-button-edit';
+                confirmBtnEdit.title = 'Potwierdź usunięcie pokoju';
+                confirmBtnEdit.innerHTML = '✔';
+                // Po kliknięciu haczyka - usuń pokój
+                confirmBtnEdit.onclick = async (ev) => {
+                    ev.stopPropagation();
+                    try {
+                        await deleteRoom(columnElement);
+                        if (window.showNotification) window.showNotification('Pokój usunięty!', 'success');
+                    } catch (err) {
+                        if (window.showNotification) window.showNotification('Nie udało się usunąć pokoju', 'error');
+                    }
+                    confirmBtnEdit.remove();
+                };
+                // Po 5 sekundach przywróć śmietnik jeśli nie kliknięto
+                const timeout = setTimeout(() => {
+                    confirmBtnEdit.remove();
+                    deleteRoomBtnEdit.style.display = '';
+                }, 5000);
+                confirmBtnEdit.onclick = (ev) => {
+                    clearTimeout(timeout);
+                    confirmBtnEdit.remove();
+                    deleteRoomBtnEdit.style.display = '';
+                    // ...usuwanie pokoju jak wyżej...
+                    (async () => {
+                        try {
+                            await deleteRoom(columnElement);
+                            if (window.showNotification) window.showNotification('Pokój usunięty!', 'success');
+                        } catch (err) {
+                            if (window.showNotification) window.showNotification('Nie udało się usunąć pokoju', 'error');
+                        }
+                    })();
+                };
+                // Dodaj haczyk obok śmietnika
+                editActionsDiv.appendChild(confirmBtnEdit);
+            };
+
+            // Keyboard shortcuts
+            roomNameInputEdit.onkeydown = (e) => {
+                if (e.key === 'Enter') saveBtnEdit.onclick(e);
+                if (e.key === 'Escape') cancelBtnEdit.onclick(e);
+            };
+
+            // Dodaj przyciski do kontenera edycji
+            editActionsDiv.appendChild(saveBtnEdit);
+            editActionsDiv.appendChild(cancelBtnEdit);
+            editActionsDiv.appendChild(deleteRoomBtnEdit);
+
+            // Dodaj elementy do głównego kontenera
+            buttonContainer.appendChild(editBtn);
+            buttonContainer.appendChild(roomNameInputEdit);
+            buttonContainer.appendChild(editActionsDiv);
+
             header.appendChild(buttonContainer);
         }
     }
@@ -388,7 +503,7 @@ async function deleteRoom(columnElement) {
         return;
     }
 
-    if (await confirm(`Czy na pewno chcesz usunąć pokój "${roomName}"? Wszystkie przypisane urządzenia zostaną przeniesione do nieprzypisanych.`)) {
+    
         try {
             const roomId = columnElement.getAttribute('data-room-id');
             const response = await fetch(`/api/rooms/${roomId}`, {
@@ -418,7 +533,7 @@ async function deleteRoom(columnElement) {
             console.error('Error deleting room:', error);
             alert('Nie udało się usunąć pokoju');
         }
-    }
+    
 }
 
 // Inicjalizacja przycisków trybu edycji

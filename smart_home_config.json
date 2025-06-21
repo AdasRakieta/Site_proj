@@ -29,39 +29,18 @@
     },
     "security_state": "Za\u0142\u0105czony",
     "rooms": [
-        "Sypialnia",
-        "dddd",
-        "ddasd",
-        "d"
+        "pok\u00f3j 1",
+        "do us"
     ],
     "buttons": [
         {
-            "name": "ddadad",
-            "room": "dddd",
-            "id": "b7794465-0967-4fbf-8524-769de8cdf2bd",
-            "state": false
-        },
-        {
-            "name": "dasdad",
-            "room": "d",
-            "id": "42e92999-78c5-449a-b325-03ef652dd6d3",
+            "name": "\u015bwiat\u0142o 1",
+            "room": "pok\u00f3j 1",
+            "id": "a3925d2c-d73c-4d45-8e69-31a116f7ad21",
             "state": false
         }
     ],
-    "temperature_controls": [
-        {
-            "name": "d",
-            "room": "ddasd",
-            "id": "b787e9f8-5adc-4eb3-aadb-7fdb3501842c",
-            "temperature": 22
-        },
-        {
-            "name": "dd",
-            "room": "Sypialnia",
-            "id": "39042195-385d-441d-afa6-9e869206eb46",
-            "temperature": 22
-        }
-    ],
+    "temperature_controls": [],
     "automations": [
         {
             "name": "powiado",
