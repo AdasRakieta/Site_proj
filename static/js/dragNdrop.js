@@ -498,12 +498,7 @@ async function deleteRoom(columnElement) {
             roomName = 'Pokój';
         }
     }
-    if (!window.editMode) {
-        console.warn('Cannot delete room outside of edit mode');
-        return;
-    }
-
-    
+        
         try {
             const roomId = columnElement.getAttribute('data-room-id');
             const response = await fetch(`/api/rooms/${roomId}`, {
@@ -531,7 +526,6 @@ async function deleteRoom(columnElement) {
             }
         } catch (error) {
             console.error('Error deleting room:', error);
-            alert('Nie udało się usunąć pokoju');
         }
     
 }
