@@ -1,8 +1,6 @@
-from functools import wraps
 import json
 import os
 from datetime import datetime
-from flask import flash, redirect, request, session, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 import uuid
@@ -12,8 +10,10 @@ class SmartHomeSystem:
     """Główna klasa systemu SmartHome zarządzająca wszystkimi komponentami"""
     
     def __init__(self, config_file='smart_home_config.json', save_interval=3000):
-        self.config_file = config_file
-        self.first_config_file = 'smart_home_1st_conf.json'
+        # Ustal katalog bazowy na podstawie lokalizacji tego pliku
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_file = os.path.join(self.base_dir, config_file)
+        self.first_config_file = os.path.join(self.base_dir, 'smart_home_1st_conf.json')
         self.save_interval = save_interval
         self.last_save_time = datetime.now()
         

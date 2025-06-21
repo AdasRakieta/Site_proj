@@ -9,6 +9,7 @@ from mail_manager import MailManager, get_notifications_settings, set_notificati
 import time
 from datetime import datetime, timedelta
 import os
+import socket
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -19,18 +20,23 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # ochrona przed CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=60)  # czas wygaśnięcia sesji
 # Konfiguracja CORS - automatyczne wykrywanie adresów lokalnych
 def get_allowed_origins():
+    # Pobierz lokalny adres IP urządzenia
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "127.0.0.1"
+
     base_origins = [
         "http://localhost:5000",
         "http://127.0.0.1:5000",
         "http://localhost",
-        "http://127.0.0.1"
+        "http://127.0.0.1",
+        f"http://{local_ip}:5000",
+        f"http://{local_ip}"
     ]
-    # Dodaj wszystkie możliwe adresy z sieci lokalnej 192.168.1.*
-    for i in range(256):
-        base_origins.extend([
-            f"http://192.168.1.{i}:5000",
-            f"http://192.168.1.{i}"
-        ])
     return base_origins
 
 socketio = SocketIO(app, cors_allowed_origins=get_allowed_origins())
@@ -47,9 +53,15 @@ def is_trusted_host(ip):
     if ip in ['127.0.0.1', 'localhost']:
         return True
     try:
-        # Sprawdź czy IP jest w sieci 192.168.1.*
+        # Sprawdź czy IP jest w sieci 192.168.1.* lub 192.168.0.*
         octets = ip.split('.')
-        return len(octets) == 4 and octets[0] == '192' and octets[1] == '168' and octets[2] == '1' and 0 <= int(octets[3]) <= 255
+        return (
+            len(octets) == 4 and
+            octets[0] == '192' and
+            octets[1] == '168' and
+            octets[2] in ['0', '1'] and
+            0 <= int(octets[3]) <= 255
+        )
     except:
         return False
 
