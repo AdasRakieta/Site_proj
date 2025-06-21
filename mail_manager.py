@@ -73,7 +73,7 @@ class MailManager:
         self.failed_attempts = {}
         self.smtp_config = {
             'server': os.getenv('SMTP_SERVER'),       # np. smtp.gmail.com
-            'port': int(os.getenv('SMTP_PORT')),      # np. 587
+            'port': os.getenv('SMTP_PORT'),      # np. 587
             'username': os.getenv('SMTP_USERNAME'),   # np. twój@gmail.com
             'password': os.getenv('SMTP_PASSWORD')    # hasło SMTP
         }

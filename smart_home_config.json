@@ -32,16 +32,9 @@
         "Sypialnia",
         "dddd",
         "ddasd",
-        "Korytarz",
         "d"
     ],
     "buttons": [
-        {
-            "name": "G\u0142\u00f3wny",
-            "room": "Korytarz",
-            "state": false,
-            "id": "94554cbb-7a9d-43a2-9f23-5b8e351dea71"
-        },
         {
             "name": "ddadad",
             "room": "dddd",
