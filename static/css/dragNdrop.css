@@ -189,7 +189,6 @@ input:focus{
 /* Card buttons */
 .kanban-edit-btn,
 .kanban-remove-btn,
-.kanban-save-btn,
 .kanban-cancel-btn,
 .kanban-add-btn {
     padding: 4px 8px;
@@ -208,8 +207,6 @@ input:focus{
 
 .kanban-edit-btn:hover,
 .kanban-remove-btn:hover,
-.kanban-save-btn:hover,
-
 .kanban-add-btn:hover {
     background: var(--bg-button-hover);
     transform: scale(1.05);
@@ -632,6 +629,25 @@ input:focus{
 
 .confirm-delete-button-edit:hover {
     background: var(--confirm-btn-hover);
+}
+
+.kanban-save-btn{
+    padding: 4px 8px;
+    margin: 0 2px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--confirm-btn);
+    color: inherit;
+    width: 35px;
+    height: 35px;
+    transition: all 0.3s ease-in-out;
+    box-shadow: var(--shadow-color);
+}
+
+.kanban-save-btn:hover{
+    background: var(--confirm-btn-hover);
+    transform: scale(1.05);
 }
 
 .save-room-button-edit:hover,
