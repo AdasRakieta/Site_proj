@@ -70,12 +70,15 @@ def csrf_protect():
     if request.method in ['POST', 'PUT', 'DELETE']:
         # Sprawdź czy żądanie pochodzi z zaufanego hosta
         if is_trusted_host(request.remote_addr):
-            # Sprawdź token CSRF
             token = request.headers.get('X-CSRFToken') or request.form.get('_csrf_token')
-            if not token or token != session.get('_csrf_token'):
-                app.logger.warning(f'Invalid CSRF token from {request.remote_addr}. Token: {token}, Session token: {session.get("_csrf_token")}')
+            expected = session.get('_csrf_token')
+            print(f"[CSRF DEBUG] IP: {request.remote_addr} | Sent: {token} | Expected: {expected} | Path: {request.path}")
+            if not token or token != expected:
+                print(f"[CSRF] Invalid CSRF token from {request.remote_addr}. Sent: {token}, Expected: {expected}")
+                app.logger.warning(f'Invalid CSRF token from {request.remote_addr}. Token: {token}, Session token: {expected}')
                 return 'CSRF token missing or invalid', 400
         else:
+            print(f"[CSRF] Request from untrusted host: {request.remote_addr}")
             app.logger.warning(f'Request from untrusted host: {request.remote_addr}')
             return 'Unauthorized host', 403
 
@@ -326,18 +329,6 @@ class APIManager:
                 smart_home.save_config()
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
-
-    @staticmethod
-    @app.route('/api/rooms', methods=['POST'])
-    @auth_manager.login_required
-    @auth_manager.admin_required
-    def add_room():
-        data = request.get_json()
-        print("POST /api/rooms data:", data)  # Dodaj ten log
-        name = data.get('name') if data else None
-        if not name or name.lower() in [r.lower() for r in smart_home.rooms]:
-            print("Błąd: nieprawidłowa lub już istniejąca nazwa pokoju:", name)
-            return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
 
     @staticmethod
     @app.route('/api/rooms/<room>', methods=['DELETE'])
