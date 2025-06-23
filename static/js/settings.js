@@ -60,6 +60,7 @@ function updateUsersTable(users) {
     tableBody.innerHTML = '';
     users.forEach(user => {
         const row = document.createElement('tr');
+        row.className = 'user-row';
         // Username
         const usernameCell = document.createElement('td');
         usernameCell.textContent = user.username;
@@ -144,15 +145,65 @@ async function addUser() {
         return;
     }
     try {
-        const response = await app.postData('/api/users', { username, password, role });
-        if (response.status === 'success') {
+        // Pobierz token CSRF z inputa (najpewniejsze źródło dla Flask)
+        let csrfToken = null;
+        const input = document.querySelector('input[name="_csrf_token"]');
+        if (input) csrfToken = input.value;
+        if (!csrfToken) {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) csrfToken = meta.getAttribute('content');
+        }
+        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+
+        if (!csrfToken) {
+            showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
+            return;
+        }
+
+        // DEBUG: log request before sending
+        // console.log('Sending addUser POST', { username, password, role, csrfToken });
+
+        // Wyślij żądanie POST z CSRF tokenem
+        const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username, password, role })
+        });
+
+        // Sprawdź, czy fetch został zablokowany przez przeglądarkę (np. przez CORS, brak sesji, itp.)
+        if (response.type === 'opaque' || response.status === 0) {
+            showMessage('addUserMessage', 'Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.', true);
+            throw new Error('Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.');
+        }
+
+        // Jeśli odpowiedź nie jest ok, spróbuj pobrać tekst błędu
+        if (!response.ok) {
+            let msg = '';
+            try {
+                msg = await response.text();
+            } catch {}
+            throw new Error(msg || `HTTP ${response.status}`);
+        }
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            throw new Error('Serwer nie zwrócił poprawnego JSON');
+        }
+
+        if (data.status === 'success') {
             showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
             showNotification(`Użytkownik ${username} został dodany`, 'success');
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
             loadUsers();
         } else {
-            throw new Error(response.message || 'Nieznany błąd');
+            throw new Error(data.message || 'Nieznany błąd');
         }
     } catch (error) {
         console.error('Błąd dodawania użytkownika:', error);
@@ -220,6 +271,7 @@ function renderNotificationRecipients() {
     tableBody.innerHTML = '';
     if (notificationRecipients.length === 0) {
         const row = document.createElement('tr');
+        row.className = 'no-recipients-row';
         const cell = document.createElement('td');
         cell.colSpan = 4;
         cell.style.color = '#888';
