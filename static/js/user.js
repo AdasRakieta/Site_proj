@@ -3,6 +3,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const profilePictureInput = document.getElementById('profilePictureInput');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+    // Aktualizuj dane w menu użytkownika i avatarze po zmianie profilu lub zdjęcia
+    function updateUserMenu({ name, profile_picture, role }) {
+        // Zaktualizuj avatar w menu
+        const avatarImg = document.querySelector('#user-avatar-dropdown .user-avatar');
+        if (avatarImg && profile_picture) {
+            avatarImg.src = profile_picture;
+        }
+        // Zaktualizuj nazwę i rolę w dropdownie
+        const menuUsername = document.querySelector('#user-menu .user-menu-username');
+        if (menuUsername && name) {
+            menuUsername.textContent = name;
+        }
+        const menuRole = document.querySelector('#user-menu .user-menu-role');
+        if (menuRole && role) {
+            menuRole.textContent = 'Uprawnienia: ' + role;
+        }
+    }
+
+    // Pobierz aktualne dane użytkownika z backendu i zaktualizuj menu/avatar
+    async function refreshUserData() {
+        try {
+            const response = await fetch('/api/user/profile', {
+                method: 'GET',
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                updateUserMenu({
+                    name: data.name,
+                    profile_picture: data.profile_picture,
+                    role: data.role
+                });
+                // Zaktualizuj pole loginu i avatar na stronie profilu
+                if (document.getElementById('userName')) {
+                    document.getElementById('userName').value = data.name;
+                }
+                if (document.getElementById('profilePicture')) {
+                    document.getElementById('profilePicture').src = data.profile_picture;
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     // Handle profile picture change
     profilePictureInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -23,8 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             
             if (response.ok) {
-                // Update the profile picture in the UI
-                document.getElementById('profilePicture').src = data.profile_picture_url;
+                await refreshUserData();
                 showMessage('Zdjęcie profilowe zostało zaktualizowane.', 'success');
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas aktualizacji zdjęcia.', 'error');
@@ -77,13 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await response.json();
-            
-            if (response.ok) {
-                showMessage('Profil został zaktualizowany pomyślnie.', 'success');
-                // Clear password fields
-                document.getElementById('currentPassword').value = '';
-                document.getElementById('newPassword').value = '';
-                document.getElementById('confirmPassword').value = '';
+            if (response.ok && data.logout) {
+                window.location.href = '/logout?changed=1';
+                return;
+            } else if (response.ok) {
+                showMessage(data.message || 'Zapisano zmiany.', 'success');
+                await refreshUserData();
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas aktualizacji profilu.', 'error');
             }

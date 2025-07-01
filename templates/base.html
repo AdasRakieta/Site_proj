@@ -28,7 +28,7 @@
             <img id="menu-icon" src="{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
-        <div style="position: absolute; top: 16px; right: 24px; display: flex; align-items: center; z-index: 1001;">
+        <div style="position: absolute; top: 8px; right: 24px; display: flex; align-items: center; z-index: 1001;">
             {% if request.endpoint != 'login' %}
             <div id="user-avatar-dropdown" style="position: relative;">
                 <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/admin_1747136465.png') }}"
@@ -64,15 +64,6 @@
                 {% endif %}
                 <li><a href="/settings" class="menu-link"><img id="settings-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Settings"> Ustawienia</a></li>
             </ul>
-            
-            <div class="user-info-menu">
-                <div class="user-info-content">
-                    <p class="user-info-label">Zalogowano jako:</p>
-                    <p class="username">{{ session.username if session.username else 'Gość' }}</p>
-                    <p class="user-role">Uprawnienia: {{ session.role if session.role else 'Brak roli' }}</p>
-                    <a href="/logout" class="logout-btn">Wyloguj</a>
-                </div>
-            </div>
         </nav>
     </div>
 

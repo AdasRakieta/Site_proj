@@ -92,7 +92,6 @@ class SmartHomeSystem:
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r') as f:
                     config = json.load(f)
-                    
                     self.users = config.get('users', self.default_config['users'].copy())
                     self.temperature_states = config.get('temperature_states', self.default_config['temperature_states'].copy())
                     self.security_state = config.get('security_state', self.default_config['security_state'])
@@ -108,7 +107,8 @@ class SmartHomeSystem:
                     for device in self.temperature_controls:
                         if 'id' not in device:
                             device['id'] = str(uuid.uuid4())
-                    
+                    # MIGRACJA użytkowników na UUID
+                    self.migrate_users_to_uuid()
                     print(f"Załadowano konfigurację z {self.config_file}")
             else:
                 print(f"Plik {self.config_file} nie istnieje. Używam domyślnej konfiguracji.")
@@ -146,15 +146,7 @@ class SmartHomeSystem:
                     device['id'] = str(uuid.uuid4())
             
             config = {
-                'users': {
-                    username: {
-                        'password': data['password'],
-                        'role': data['role'],
-                        'name': data.get('name', username),
-                        'email': data.get('email', ''),
-                        'profile_picture': data.get('profile_picture', '')
-                    } for username, data in self.users.items()
-                },
+                'users': self.users,
                 'temperature_states': self.temperature_states,
                 'security_state': self.security_state,
                 'rooms': self.rooms,
@@ -189,87 +181,158 @@ class SmartHomeSystem:
         return None
     
     def add_user(self, username, password, role='user'):
-        """Dodaje nowego użytkownika"""
-        if username in self.users:
-            return False, "Użytkownik już istnieje"
+        """Dodaje nowego użytkownika (login w 'name', klucz to UUID)"""
+        # Sprawdź czy login już istnieje
+        for user in self.users.values():
+            if user.get('name') == username:
+                return False, "Użytkownik już istnieje"
         if len(username) < 3:
             return False, "Nazwa użytkownika musi mieć co najmniej 3 znaki"
         if len(password) < 6:
             return False, "Hasło musi mieć co najmniej 6 znaków"
         if role not in ['user', 'admin']:
             return False, "Nieprawidłowa rola użytkownika"
-        
-        self.users[username] = {
+        user_id = str(uuid.uuid4())
+        self.users[user_id] = {
+            'name': username,
             'password': generate_password_hash(password),
-            'role': role
+            'role': role,
+            'email': '',
+            'profile_picture': ''
         }
         self.save_config()
         return True, "Użytkownik dodany pomyślnie"
 
-    def delete_user(self, username):
-        """Usuwa użytkownika"""
-        if username not in self.users:
+    def delete_user(self, user_id):
+        """Usuwa użytkownika po user_id (UUID)"""
+        user = self.users.get(user_id)
+        if not user:
             return False, "Użytkownik nie istnieje"
-        if username == 'admin':
-            return False, "Nie można usunąć głównego administratora"
-        
-        del self.users[username]
+        if user.get('role') == 'admin':
+            # Nie pozwól usunąć ostatniego admina
+            admin_count = sum(1 for u in self.users.values() if u.get('role') == 'admin')
+            if admin_count <= 1:
+                return False, "Nie można usunąć głównego administratora"
+        del self.users[user_id]
         self.save_config()
         return True, "Użytkownik usunięty pomyślnie"
 
-    def change_password(self, username, new_password):
-        """Zmienia hasło użytkownika"""
-        if username not in self.users:
+    def change_password(self, user_id, new_password):
+        """Zmienia hasło użytkownika po user_id (UUID)"""
+        user = self.users.get(user_id)
+        if not user:
             return False, "Użytkownik nie istnieje"
         if len(new_password) < 6:
             return False, "Hasło musi mieć co najmniej 6 znaków"
-        
-        self.users[username]['password'] = generate_password_hash(new_password)
+        user['password'] = generate_password_hash(new_password)
         self.save_config()
         return True, "Hasło zmienione pomyślnie"
 
-    def get_user_data(self, username):
-        """Pobiera dane użytkownika (bez hasła)"""
-        user = self.users.get(username, {})
+    def update_user_profile(self, user_id, updates):
+        """Aktualizuje profil użytkownika po user_id (UUID), w tym login (pole 'name')"""
+        user = self.users.get(user_id)
+        if not user:
+            return False, "Użytkownik nie istnieje"
+        new_username = updates.get('username')
+        # Jeśli zmieniamy login (nazwę użytkownika)
+        if new_username and new_username != user.get('name'):
+            # Sprawdź czy login już istnieje
+            for u in self.users.values():
+                if u.get('name') == new_username:
+                    return False, "Taki użytkownik już istnieje"
+            user['name'] = new_username
+        for key in ['email', 'profile_picture']:
+            if key in updates:
+                user[key] = updates[key]
+        if 'password' in updates:
+            if len(updates['password']) < 6:
+                return False, "Hasło musi mieć co najmniej 6 znaków"
+            user['password'] = generate_password_hash(updates['password'])
+        self.save_config()
+        return True, "Profil zaktualizowany pomyślnie"
+
+    def migrate_users_to_uuid(self):
+        """Migracja użytkowników: klucze na UUID, login w polu 'name'"""
+        new_users = {}
+        for old_key, user in self.users.items():
+            # Jeśli już jest UUID (ma pole 'name' różne od klucza), pomiń
+            if user.get('name') and old_key != user.get('name') and self.is_uuid(old_key):
+                new_users[old_key] = user
+                continue
+            # Wygeneruj UUID
+            new_id = str(uuid.uuid4())
+            # Przenieś login do pola 'name'
+            user = user.copy()
+            user['name'] = user.get('name', old_key)
+            new_users[new_id] = user
+        self.users = new_users
+
+    @staticmethod
+    def is_uuid(val):
+        try:
+            uuid.UUID(str(val))
+            return True
+        except Exception:
+            return False
+
+    def get_user_data(self, user_id):
+        """Pobiera dane użytkownika (bez hasła) na podstawie user_id (klucz w users)"""
+        user = self.users.get(user_id, {})
         return {
-            'username': username,
-            'name': user.get('name', username),
+            'user_id': user_id,
+            'name': user.get('name', user_id),
             'email': user.get('email', ''),
             'profile_picture': user.get('profile_picture', ''),
             'role': user.get('role', 'user')
         }
 
-    def verify_password(self, username, password):
-        """Weryfikuje hasło użytkownika"""
-        user = self.users.get(username)
+    def verify_password(self, user_id, password):
+        """Weryfikuje hasło użytkownika po user_id"""
+        user = self.users.get(user_id)
         if user and check_password_hash(user['password'], password):
             return True
         return False
 
     def update_user_profile(self, username, updates):
-        """Aktualizuje profil użytkownika"""
+        """Aktualizuje profil użytkownika, w tym login (nazwę użytkownika)"""
         if username not in self.users:
             return False, "Użytkownik nie istnieje"
 
         user = self.users[username]
-        
-        # Update name if provided
-        if 'name' in updates:
-            user['name'] = updates['name']
-        
-        # Update email if provided
-        if 'email' in updates:
-            user['email'] = updates['email']
-        
-        # Update password if provided
+        new_username = updates.get('username')
+        # Jeśli zmieniamy login (nazwę użytkownika)
+        if new_username and new_username != username:
+            if new_username in self.users:
+                return False, "Taki użytkownik już istnieje"
+            # Przenieś WSZYSTKIE dane pod nowy klucz
+            self.users[new_username] = user.copy()
+            # Zaktualizuj tylko te pola, które są w updates
+            for key in ['name', 'email', 'profile_picture']:
+                if key in updates:
+                    self.users[new_username][key] = updates[key]
+            if 'password' in updates:
+                if len(updates['password']) < 6:
+                    return False, "Hasło musi mieć co najmniej 6 znaków"
+                self.users[new_username]['password'] = generate_password_hash(updates['password'])
+            # Usuń starego użytkownika
+            del self.users[username]
+            self.save_config()
+            self.load_config()  # Dodaj: odśwież użytkowników w pamięci po zmianie loginu
+            return True, "Login użytkownika został zmieniony"
+        # Standardowa aktualizacja bez zmiany loginu
+        for key in ['name', 'email', 'profile_picture']:
+            if key in updates:
+                user[key] = updates[key]
         if 'password' in updates:
             if len(updates['password']) < 6:
                 return False, "Hasło musi mieć co najmniej 6 znaków"
             user['password'] = generate_password_hash(updates['password'])
-        
-        # Update profile picture if provided
-        if 'profile_picture' in updates:
-            user['profile_picture'] = updates['profile_picture']
-        
         self.save_config()
         return True, "Profil zaktualizowany pomyślnie"
+
+    def get_user_by_login(self, login):
+        """Zwraca (user_id, user_dict) na podstawie loginu (pola name)"""
+        for user_id, user in self.users.items():
+            if user.get('name') == login:
+                return user_id, user
+        return None, None
