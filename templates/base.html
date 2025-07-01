@@ -16,17 +16,37 @@
           document.documentElement.setAttribute('data-theme', theme);
         } catch(e) {}
       })();
-    </script>    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
     <div id="notifications-container"></div>
+    
     <header>
         <button class="close-btn" onclick="toggleMenu()">
             <img id="menu-icon" src="{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
+        <div style="position: absolute; top: 16px; right: 24px; display: flex; align-items: center; z-index: 1001;">
+            {% if request.endpoint != 'login' %}
+            <div id="user-avatar-dropdown" style="position: relative;">
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/admin_1747136465.png') }}"
+                    alt="Profilowe" class="user-avatar" onclick="toggleUserMenu()">
+                <div id="user-menu">
+                    <div class="user-menu-info">
+                        <div class="user-menu-username">{{ session.username if session.username else 'Gość' }}</div>
+                        <div class="user-menu-role">Uprawnienia: {{ session.role if session.role else 'Brak roli' }}</div>
+                    </div>
+                    <a href="/user" class="user-menu-link">Profil użytkownika</a>
+                    <a href="/settings" class="user-menu-link">Ustawienia</a>
+                    <a href="/logout" class="user-menu-link logout">Wyloguj</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </header>
+    
 
     <div id="sideMenu" class="side-menu">
         <button style="margin-top: 18px;" class="close-btn" onclick="toggleMenu()">
@@ -69,6 +89,7 @@
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/automations.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setup.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

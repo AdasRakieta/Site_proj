@@ -834,6 +834,13 @@ class SocketManager:
     def handle_save_config():
         smart_home.save_config()
 
+@app.context_processor
+def inject_user_data():
+    user_data = None
+    if 'username' in session:
+        user_data = smart_home.get_user_data(session['username'])
+    return dict(user_data=user_data)
+
 def check_device_triggers(room, name, new_state):
     import sys
     print(f"[AUTOMATION] Sprawdzam automatyzacje po zmianie stanu urządzenia: {room}_{name} => {new_state}", file=sys.stderr)
