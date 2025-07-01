@@ -2191,9 +2191,14 @@ footer {
   border: 2px solid #ccc;
   background: #fff;
   cursor: pointer;
-  margin-bottom: 5px;
-  margin-top: -8px; /* przesunięcie lekko wyżej */
+  transition: all 0.3s ease; /* przesunięcie lekko wyżej */
 }
+.user-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    z-index: 10;
+}
+
 #user-avatar-dropdown {
   position: relative;
 }
