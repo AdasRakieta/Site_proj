@@ -879,7 +879,7 @@ def execute_automations():
                 elif trigger['type'] == 'device':
                     device_state = next(
                         (button['state'] for button in smart_home.buttons 
-                         if f"{button['room']}_{button['name']}" == trigger['device']), None)
+                            if f"{button['room']}_{button['name']}" == trigger['device']), None)
                     # print(f"[AUTOMATION] Wyzwalacz urządzenia: {trigger['device']} stan={device_state}, oczekiwany={trigger['state']}", file=sys.stderr)
                     if trigger['state'] == 'toggle':
                         # Nie sprawdzamy w pętli co minutę, bo toggle ma sens tylko przy zmianie
