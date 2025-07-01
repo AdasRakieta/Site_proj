@@ -1087,26 +1087,18 @@ footer {
     width: 95%;
     padding: 10px;
     border-radius: 5px;
-    background-color: var(--bg-primary);
+    background-color: var(--background);
     color: var(--text-color);
-    border-color: var(--input-border);
+    border: 1px solid var(--primary);
     transition: all 0.3s ease;
     font-size: 12px;
     box-shadow: var(--box_shd);
 }
 
-.login-form input:focus {
-    background-color: var(--hover);
-        color: var(--input-text-hover);
-
-    
+.login-form input:focus, .login-form input:hover {
+    border-color: var(--accent-color);
+    outline: none;
 }
-.login-form input:hover {
-    background-color: var(--hover);
-    color: var(--input-text-hover);
-    
-}
-
 
 .login-form button {
     padding: 0.8rem 1.5rem;
@@ -1160,7 +1152,7 @@ footer {
 .input-user {
     background-color: var(--input-bg);
     color: var(--text-color);
-    border-color: var(--input-border);
+    border: 1px solid var(--primary);
     border-radius: 5px;
     margin: auto;
     font-size: 15px;
@@ -1782,24 +1774,14 @@ footer {
     text-align: center;
 }
 
+#automation-form-container input[type="text"]:focus,
+#automation-form-container input[type="time"]:focus,
+#automation-form-container input[type="number"]:focus,
 #automation-form-container input[type="text"]:hover,
 #automation-form-container input[type="time"]:hover,
 #automation-form-container input[type="number"]:hover {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
-    color: var(--background);
-}
-
-#automation-form-container input[type="text"]:focus,
-#automation-form-container input[type="time"]:focus,
-#automation-form-container input[type="number"]:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
-    color: var(--background);
+    border-color: var(--accent-color);
 }
 
 /* Style dla selectów w formularzu automatyzacji */
@@ -1819,17 +1801,9 @@ footer {
 
 }
 
-#automation-form-container select:hover {
-    border-color: var(--accent);
-    background-color: var(--automation-hover);
-    color: var(--background);
-}
-
-#automation-form-container select:focus {
+#automation-form-container select:focus, #automation-form-container select:hover {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
-    color: var(--background);
+    border-color: var(--accent-color);
 }
 
 /* Styl dedykowany do inputa treści powiadomienia w automatyzacji */
