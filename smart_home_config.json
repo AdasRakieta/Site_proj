@@ -1,20 +1,20 @@
 {
     "users": {
-        "admin": {
-            "password": "scrypt:32768:8:1$53QJ42Ur9IjlyM2m$f939fa1a69d6c8d3ba128f3e92ccc098d4dd836ca52e5f2eec1de561368eb98e3144cc77d9948249888ea146681beccef7c9aa9c231fc81db3355a1c4fadf526",
+        "32d2fe98-26c2-45f4-a78a-7a1cb9692f6a": {
+            "password": "scrypt:32768:8:1$iSZSTD11WOcYSi74$921a65b5d0fc92cf1113ea72a31835ba3eb63cd0c59e3d2e6d6b814ccb3308b73ee0a64bef7f24acaa9104bf166debd99c2a4f044e254ad1ff816ee3e58581d1",
             "role": "admin",
             "name": "admin",
             "email": "szymon.przybysz2003@gmail.com",
-            "profile_picture": "/static/profile_pictures/admin_1750534751.png"
+            "profile_picture": "/static/profile_pictures/32d2fe98-26c2-45f4-a78a-7a1cb9692f6a_1751404888.jpg"
         },
-        "guest": {
+        "a67bef9e-b971-417f-8b24-3510184974bb": {
             "password": "scrypt:32768:8:1$UCHmJ23YcdQ0qQEP$8b9dda10320ac6b3df79cac0a506dd830a1d1976efd24578a2c4962c89b27fd1baff6d8f25f49168a76fad7b45f46c1e46563fc01c59841f7d18b8e580160856",
             "role": "guest",
             "name": "guest",
             "email": "",
             "profile_picture": ""
         },
-        "user": {
+        "1bad3586-2957-4d29-b1ea-de4b43fb9197": {
             "password": "scrypt:32768:8:1$3J536Bu3099NsMN0$d492f03c8dacf3d8d0d8fa7c0bfbb9c14bb7abce7b5e8d4670ad0ca84ccecd4b8da84a3a601ca80d3120c715336fb60307a640f0ed4998b946d0aa40ec9a31cb",
             "role": "user",
             "name": "user",
@@ -41,7 +41,14 @@
             "state": false
         }
     ],
-    "temperature_controls": [],
+    "temperature_controls": [
+        {
+            "name": "ddd",
+            "room": "pok\u00f3j 1",
+            "id": "e1390786-089a-4dcb-a303-e170eb89c4d0",
+            "temperature": 22
+        }
+    ],
     "automations": [
         {
             "name": "powiado",

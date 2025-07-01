@@ -4,5 +4,8 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "mc-dp-icons.enableSubfolderIcons": true
+    "mc-dp-icons.enableSubfolderIcons": true,
+    "github-actions.workflows.pinned.workflows": [
+        "dynamic/pages/pages-build-deployment"
+    ]
 }
