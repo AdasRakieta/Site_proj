@@ -100,7 +100,11 @@ class AuthManager:
         """Dekorator wymagający uprawnień administratora"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if 'username' not in session or smart_home.users.get(session['username'], {}).get('role') != 'admin':
+            if 'username' not in session:
+                flash('Brak uprawnień administratora.', 'danger')
+                return redirect(url_for('home'))
+            user_id, user = smart_home.get_user_by_login(session['username'])
+            if not user or user.get('role') != 'admin':
                 flash('Brak uprawnień administratora.', 'danger')
                 return redirect(url_for('home'))
             return f(*args, **kwargs)
@@ -114,20 +118,21 @@ mail_manager = MailManager()
 # Trasy dla uwierzytelniania
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Rozszerzona metoda logowania z zabezpieczeniami"""
+    """Rozszerzona metoda logowania z zabezpieczeniami (login = pole name)"""
     if request.method == 'POST':
-        username = request.form.get('username')
+        login_name = request.form.get('username')
         password = request.form.get('password')
         ip_address = request.remote_addr
-        user = smart_home.users.get(username)
+        user_id, user = smart_home.get_user_by_login(login_name)
         if user and check_password_hash(user['password'], password):
-            session['username'] = username
+            session['user_id'] = user_id  # identyfikator techniczny
+            session['username'] = user['name']  # login
             session['role'] = user['role']
             session.permanent = True  # aktywuj timeout sesji
             flash('Zalogowano pomyślnie!', 'success')
             return redirect(url_for('home'))
         # Rejestracja nieudanej próby i wysłanie alertu
-        mail_manager.track_and_alert_failed_login(username, ip_address)
+        mail_manager.track_and_alert_failed_login(login_name, ip_address)
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
     return render_template('login.html')
 
@@ -136,7 +141,10 @@ def login():
 def logout():
     """Wylogowanie użytkownika"""
     session.clear()
-    flash('Wylogowano pomyślnie.', 'info')
+    if request.args.get('changed') == '1':
+        flash('Pomyślnie zmieniono dane', 'success')
+    else:
+        flash('Wylogowano pomyślnie.', 'info')
     return redirect(url_for('login'))
 
 class RoutesManager:
@@ -146,31 +154,36 @@ class RoutesManager:
     def home():
         if 'username' not in session:
             return redirect(url_for('login'))
-        return render_template('index.html', user=session.get('username'))
+        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+        return render_template('index.html', user_data=user_data)
 
     @staticmethod
     @app.route('/temp')
     @auth_manager.login_required
     def temp():
-        return render_template('temp_lights.html')
+        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+        return render_template('temp_lights.html', user_data=user_data)
 
     @staticmethod
     @app.route('/temperature')
     @auth_manager.login_required
     def temperature():
-        return render_template('temperature.html')
+        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+        return render_template('temperature.html', user_data=user_data)
 
     @staticmethod
     @app.route('/security')
     @auth_manager.login_required
     def security():
-        return render_template('security.html')
+        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+        return render_template('security.html', user_data=user_data)
 
     @staticmethod
     @app.route('/settings')
     @auth_manager.login_required
     def settings():
-        return render_template('settings.html')
+        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+        return render_template('settings.html', user_data=user_data)
 
     @staticmethod
     @app.route('/suprise')
@@ -221,40 +234,45 @@ class RoutesManager:
     @app.route('/user')
     @auth_manager.login_required
     def user_profile():
-        user_data = smart_home.get_user_data(session['username'])
+        user_id, user = smart_home.get_user_by_login(session['username'])
+        user_data = smart_home.get_user_data(user_id) if user else None
         return render_template('user.html', user_data=user_data)
 
     @staticmethod
     @app.route('/api/user/profile', methods=['GET', 'PUT'])
     @auth_manager.login_required
     def manage_profile():
+        user_id, user = smart_home.get_user_by_login(session['username'])
+        if not user:
+            return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
         if request.method == 'GET':
-            user_data = smart_home.get_user_data(session['username'])
+            user_data = smart_home.get_user_data(user_id)
             return jsonify(user_data)
         elif request.method == 'PUT':
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "Brak danych"}), 400
 
-            username = session['username']
             updates = {}
-            
+            # Jeśli użytkownik zmienia login (nazwę użytkownika)
+            if 'username' in data and data['username'] != user['name']:
+                updates['name'] = data['username']
             # Update name if provided
             if 'name' in data:
                 updates['name'] = data['name']
-            
             # Update email if provided
             if 'email' in data:
                 updates['email'] = data['email']
-            
             # Handle password change if provided
             if data.get('current_password') and data.get('new_password'):
-                if not smart_home.verify_password(username, data['current_password']):
+                if not smart_home.verify_password(user_id, data['current_password']):
                     return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
                 updates['password'] = data['new_password']
-            
-            success, message = smart_home.update_user_profile(username, updates)
+            success, message = smart_home.update_user_profile(user_id, updates)
             if success:
+                # Jeśli login, email lub hasło zostały zmienione, wyloguj użytkownika i przekaż info o sukcesie
+                if any(k in updates for k in ['name', 'email', 'password']):
+                    return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
                 return jsonify({"status": "success", "message": message})
             return jsonify({"status": "error", "message": message}), 400
 
@@ -273,18 +291,21 @@ class RoutesManager:
             return jsonify({"status": "error", "message": "Niedozwolony typ pliku"}), 400
             
         try:
-            filename = secure_filename(f"{session['username']}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
+            user_id, user = smart_home.get_user_by_login(session['username'])
+            if not user:
+                return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
+            filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
             profile_pictures_dir = os.path.join(app.static_folder, 'profile_pictures')
             if not os.path.exists(profile_pictures_dir):
                 os.makedirs(profile_pictures_dir)
-                
+
             file_path = os.path.join(profile_pictures_dir, filename)
             file.save(file_path)
-            
+
             # Update user's profile picture URL in database
             profile_picture_url = url_for('static', filename=f'profile_pictures/{filename}')
-            success, message = smart_home.update_user_profile(session['username'], {'profile_picture': profile_picture_url})
-            
+            success, message = smart_home.update_user_profile(user_id, {'profile_picture': profile_picture_url})
+
             if success:
                 return jsonify({
                     "status": "success",
@@ -444,27 +465,15 @@ class APIManager:
             room_controls = [c for c in smart_home.temperature_controls if c.get('room') == room]
             new_room_controls = []
             for ctrl_id in order:
-                found = next((c for c in room_controls if str(c.get('id')) == str(ctrl_id)), None)
+                found = next((c for c in room_controls if c['id'] == ctrl_id), None)
                 if found:
                     new_room_controls.append(found)
-            other_controls = [c for c in smart_home.temperature_controls if c.get('room') != room]
-            smart_home.temperature_controls = other_controls + new_room_controls
+            # Zastąp kolejność sterowników temperatury w tym pokoju
+            smart_home.temperature_controls = [c for c in smart_home.temperature_controls if c.get('room') != room] + new_room_controls
             socketio.emit('update_temperature_controls', smart_home.temperature_controls)
             smart_home.save_config()
             return jsonify({'status': 'success'})
-        # Obsługa starego formatu: {controls: [...]}
-        controls = data.get('controls')
-        if not isinstance(controls, list):
-            return jsonify({'status': 'error', 'message': 'Brak listy sterowników'}), 400
-        new_order = []
-        for ctrl in controls:
-            found = next((c for c in smart_home.temperature_controls if c['name'] == ctrl.get('name') and c['room'] == ctrl.get('room')), None)
-            if found:
-                new_order.append(found)
-        smart_home.temperature_controls = new_order
-        socketio.emit('update_temperature_controls', smart_home.temperature_controls)
-        smart_home.save_config()
-        return jsonify({'status': 'success'})
+        return jsonify({'status': 'error', 'message': 'Brak danych lub nieprawidłowy format'}), 400
 
     @staticmethod
     @app.route('/api/buttons', methods=['GET', 'POST'])
@@ -603,11 +612,12 @@ class APIManager:
         if room.lower() in [r.lower() for r in smart_home.rooms]:
             room_buttons = [button for button in smart_home.buttons if button['room'].lower() == room.lower()]
             room_temperature_controls = [control for control in smart_home.temperature_controls if control['room'].lower() == room.lower()]
+            user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('room.html', 
                                 room=room.capitalize(), 
                                 buttons=room_buttons, 
                                 temperature_controls=room_temperature_controls,
-                                user=session.get('username'))
+                                user_data=user_data)
         return redirect(url_for('error'))
 
     @staticmethod
@@ -616,10 +626,14 @@ class APIManager:
     @auth_manager.admin_required
     def get_users():
         """Zwraca listę wszystkich użytkowników (bez haseł)"""
-        users_list = [{
-            'username': username,
-            'role': data['role']
-        } for username, data in smart_home.users.items()]
+        users_list = [
+            {
+                'user_id': user_id,
+                'username': data['name'],
+                'role': data['role']
+            }
+            for user_id, data in smart_home.users.items()
+        ]
         return jsonify(users_list)
 
     @staticmethod
@@ -638,33 +652,35 @@ class APIManager:
             return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
         success, message = smart_home.add_user(username, password, role)
         if success:
-            return jsonify({"status": "success", "message": message, "user": username})
+            # Pobierz user_id nowego użytkownika
+            user_id, user = smart_home.get_user_by_login(username)
+            return jsonify({"status": "success", "message": message, "user_id": user_id, "username": username})
         return jsonify({"status": "error", "message": message}), 400
 
     @staticmethod
-    @app.route('/api/users/<username>', methods=['DELETE'])
+    @app.route('/api/users/<user_id>', methods=['DELETE'])
     @auth_manager.login_required
     @auth_manager.admin_required
-    def delete_user(username):
-        """Usuwa użytkownika"""
-        success, message = smart_home.delete_user(username)
+    def delete_user(user_id):
+        """Usuwa użytkownika po user_id (UUID)"""
+        success, message = smart_home.delete_user(user_id)
         if success:
             return jsonify({"status": "success", "message": message})
         return jsonify({"status": "error", "message": message}), 400
 
     @staticmethod
-    @app.route('/api/users/<username>/password', methods=['PUT'])
+    @app.route('/api/users/<user_id>/password', methods=['PUT'])
     @auth_manager.login_required
     @auth_manager.admin_required
-    def change_password(username):
-        """Zmienia hasło użytkownika"""
+    def change_password(user_id):
+        """Zmienia hasło użytkownika po user_id (UUID)"""
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "message": "Brak danych"}), 400
         new_password = data.get('new_password')
         if not new_password:
             return jsonify({"status": "error", "message": "Brak nowego hasła"}), 400
-        success, message = smart_home.change_password(username, new_password)
+        success, message = smart_home.change_password(user_id, new_password)
         if success:
             return jsonify({"status": "success", "message": message})
         return jsonify({"status": "error", "message": message}), 400
@@ -834,6 +850,14 @@ class SocketManager:
     def handle_save_config():
         smart_home.save_config()
 
+@app.context_processor
+def inject_user_data():
+    user_data = None
+    # Używaj user_id z sesji, nie loginu!
+    if 'user_id' in session:
+        user_data = smart_home.get_user_data(session['user_id'])
+    return dict(user_data=user_data)
+
 def check_device_triggers(room, name, new_state):
     import sys
     print(f"[AUTOMATION] Sprawdzam automatyzacje po zmianie stanu urządzenia: {room}_{name} => {new_state}", file=sys.stderr)
@@ -945,4 +969,4 @@ if __name__ == '__main__':
     socketio.start_background_task(periodic_save)
     # Uruchomienie wątku okresowo sprawdzającego automatyzacje
     socketio.start_background_task(execute_automations)
-    socketio.run(app, debug=True, host="0.0.0.0" , port=5000)
+    socketio.run(app, debug=False, host="0.0.0.0" , port=5000)
