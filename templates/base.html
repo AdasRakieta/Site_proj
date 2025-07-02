@@ -31,7 +31,7 @@
         <div style="position: absolute; top: 8px; right: 24px; display: flex; align-items: center; z-index: 1001;">
             {% if request.endpoint != 'login' %}
             <div id="user-avatar-dropdown" style="position: relative;">
-                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/admin_1747136465.png') }}"
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}"
                     alt="Profilowe" class="user-avatar" onclick="toggleUserMenu()">
                 <div id="user-menu">
                     <div class="user-menu-info">

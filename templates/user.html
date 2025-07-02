@@ -13,7 +13,7 @@
     <div class="profile-section">
         <div class="profile-picture-section">
             <div class="profile-picture-container">
-                <img id="profilePicture" src="{{ user_data.profile_picture or url_for('static', filename='icons/site_icon.png') }}" alt="Zdjęcie profilowe">
+                <img id="profilePicture" src="{{ user_data.profile_picture if user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Zdjęcie profilowe">
             </div>
             <div class="profile-picture-upload">
                 <label for="profilePictureInput" class="upload-btn">Zmień zdjęcie</label>
@@ -47,7 +47,7 @@
                 <input type="password" id="confirmPassword" name="confirmPassword">
             </div>
 
-            <button type="submit" class="save-button">Zapisz zmiany</button>
+            <button type="submit" class="save-button">Zapisz zmiany i wyloguj</button>
         </form>
     </div>
 </div>
