@@ -103,110 +103,6 @@
 /*          Media Queries          */
 /* ============================== */
 
-@media (max-width: 768px) {
-
-    /* Menu boczne */
-    .side-menu {
-        width: 200px !important;
-    }
-
-    /* Nagłówek */
-    header {
-        padding: 1rem !important;
-        font-size: 1.5rem !important;
-        margin-bottom: -2rem !important;
-    }
-
-    .center-container {
-        flex-direction: column !important;
-        /* Ustaw układ w kolumnie */
-        align-items: center !important;
-        /* Wyrównaj elementy do środka */
-    }
-
-    hr3 {
-        margin-top: 0px !important;
-
-    }
-
-    footer {
-        margin-bottom: -1rem !important;
-    }
-
-    .salon-temp {
-        flex-direction: column !important;
-        align-items: center !important;
-    }
-    .user-table-container {
-        overflow-x: auto !important;
-        width: 100% !important;
-    }
-    
-    .user-table {
-        font-size: 0.8rem !important;
-        min-width: 600px !important;/* Zapewnia, że tabela nie będzie się zawijać */
-    }
-    
-    .action-buttons {
-        flex-direction: column !important;
-        gap: 5px !important;
-    }
-    
-    .action-btn {
-        padding: 4px 8px !important;
-        font-size: 0.8em !important;
-    }
-      /* Listy kontrolek */
-    .grid-container-list {
-        grid-template-columns: 1fr !important;
-        gap: 10px !important;
-    }
-    
-    .grid-container {
-        grid-template-columns: 1fr !important;
-        gap: 10px !important;
-    }
-    
-    /* Nagłówki list */
-    .grid-container-list h2 {
-        margin-bottom: 5px !important;
-        font-size: 1.2rem !important;
-    }
-
-    #map {
-        height: 300px !important;
-    }
-
-    .rooms-container{
-        width: auto !important;
-    }
-    .temp-cont{
-        width: auto !important;
-        font-size: 80%;
-    }
-
-    .user-form{
-        width: auto;
-        margin:auto;
-    }
-
-    .input-user {
-        width: auto;
-        
-        margin:auto;
-    }
-
-    .menu-link{
-        font-size: 90%;
-    }
-
-    .side-menu .close-btn {
-        left: 0.5rem;
-        top: 0.7rem;
-    }
-    
-
-}
 
 
 /* ============================== */
@@ -222,6 +118,39 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+}
+
+select {
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s;
+}
+
+select:focus, select:hover {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+input {
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s;
+}
+
+input:focus, input:hover {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+button {
+    transition: all 0.3s ease !important;
+    
 }
 
 /* ============================== */
@@ -564,12 +493,6 @@ input{
     text-decoration: none;
     box-shadow: var(--box_shd);
 }
-.rooms-button:hover {
-    background-color: var(--hover);
-    color: var(--btn_text);
-    box-shadow: var(--box_shd);
-    transform: scale(1.08);
-}
 
 /* ============================== */
 /*   Poprawki przycisków akcji w tabeli użytkowników (settings) */
@@ -632,13 +555,6 @@ input{
     cursor: pointer;
     z-index: 10000;
     transform: none;
-}
-
-@media (max-width: 768px) {
-    .side-menu .close-btn {
-        left: 0.5rem;
-        top: 0.7rem;
-    }
 }
 
 /* ============================== */
@@ -900,61 +816,23 @@ input:checked+.slider:before {
     width: 125px;
     max-width: 220px;
     padding: 8px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    background-color: var(--background);
-    box-shadow: var(--box_shd);
-    color: var(--text);
     font-size: 0.9rem;
-    transition: all 0.3s ease;
     text-align: center;
-}
-
-.select-settings:hover {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
-    color: var(--background);
 }
 
 .input-settings {
     width: 125px;
     max-width: 220px;
     padding: 8px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    background-color: var(--background);
-    box-shadow: var(--box_shd);
-    color: var(--text);
     font-size: 0.9rem;
-    transition: all 0.3s ease;
     text-align: center;
 }
 
-.input-settings:hover {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
-    color: var(--background);
-}
-
 .select-theme {
-    background-color: transparent;
-    color: var(--btn_text);
-    border-color: var(--primary);
-    border-radius: 5px;
     margin: auto;
     font-size: 15px;
     height: 34px;
     width: 125px;
-    transition: background-color 0.3s ease;
-}
-
-.select-theme:hover {
-    background-color: var(--hover);
-    color: var(--background);
 }
 
 .theme.selector {
@@ -1703,11 +1581,11 @@ footer {
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
     text-decoration: none;
     background-color: var(--delete-btn);
     color: white;
     margin-bottom: 15px;
+    box-shadow: var(--box_shd);
     
 }
 
@@ -1715,6 +1593,7 @@ footer {
     background-color: var(--delete-btn-hover);
     border-color: var(--btn-danger-hover);
     box-shadow: var(--box_shd);
+    transform: scale(1.05);
 
 }
 
@@ -1743,10 +1622,16 @@ footer {
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
     text-decoration: none;
     background-color: var(--delete-btn);
     color: white;
+}
+
+#cancel-form:hover {
+    background-color: var(--delete-btn-hover);
+    border-color: var(--btn-danger-hover);
+    box-shadow: var(--box_shd);
 }
 
 /* ============================== */
@@ -1760,24 +1645,9 @@ footer {
     width: 200px;
     max-width: 220px;
     padding: 8px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    background-color: var(--background);
-    box-shadow: var(--box_shd);
-    color: var(--text);
     font-size: 0.9rem;
     transition: all 0.3s ease;
     text-align: center;
-}
-
-#automation-form-container input[type="text"]:focus,
-#automation-form-container input[type="time"]:focus,
-#automation-form-container input[type="number"]:focus,
-#automation-form-container input[type="text"]:hover,
-#automation-form-container input[type="time"]:hover,
-#automation-form-container input[type="number"]:hover {
-    outline: none;
-    border-color: var(--accent-color);
 }
 
 /* Style dla selectów w formularzu automatyzacji */
@@ -1785,22 +1655,13 @@ footer {
     width: 217.6px;
     margin-bottom: 15px;
     padding: 8px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    background-color: var(--background);
-    color: var(--text);
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
-    box-shadow: var(--box_shd);
 
 }
 
-#automation-form-container select:focus, #automation-form-container select:hover {
-    outline: none;
-    border-color: var(--accent-color);
-}
 
 /* Styl dedykowany do inputa treści powiadomienia w automatyzacji */
 #automation-form-container .action-notification-message {
@@ -2246,3 +2107,6 @@ footer {
 }
 /* --- End Avatar Dropdown Styles --- */
 
+.user-add-form{
+    display: flex; gap: 10px; align-items: center; justify-content: center;
+}

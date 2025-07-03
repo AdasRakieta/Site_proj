@@ -24,7 +24,7 @@
                 <form class="user-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <h3>Dodaj nowego użytkownika</h3>
-                    <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                    <div class="new-user-form">
                         <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
                         <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
                         <select class="select-settings" id="userRole">
