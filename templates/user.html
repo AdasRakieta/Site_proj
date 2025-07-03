@@ -3,6 +3,7 @@
 {% block title %}SmartHome - Profil Użytkownika{% endblock %}
 
 {% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v={{ range(1, 99999) | random }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
 {% endblock %}
 
@@ -22,27 +23,27 @@
         </div>
 
         <form id="userProfileForm" class="profile-form">
-            <div class="form-group">
+            <div class="form-group-user">
                 <label for="userName">Nazwa użytkownika</label>
                 <input type="text" id="userName" name="userName" value="{{ user_data.name }}" required>
             </div>
 
-            <div class="form-group">
+            <div class="form-group-user">
                 <label for="userEmail">Email</label>
                 <input type="email" id="userEmail" name="userEmail" value="{{ user_data.email }}" required>
             </div>
 
-            <div class="form-group">
+            <div class="form-group-user">
                 <label for="currentPassword">Aktualne hasło</label>
                 <input type="password" id="currentPassword" name="currentPassword">
             </div>
 
-            <div class="form-group">
+            <div class="form-group-user">
                 <label for="newPassword">Nowe hasło</label>
                 <input type="password" id="newPassword" name="newPassword">
             </div>
 
-            <div class="form-group">
+            <div class="form-group-user">
                 <label for="confirmPassword">Potwierdź nowe hasło</label>
                 <input type="password" id="confirmPassword" name="confirmPassword">
             </div>

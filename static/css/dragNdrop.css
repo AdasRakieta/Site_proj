@@ -79,12 +79,6 @@ input:focus{
     margin: 0 auto;
 }
 
-@media (max-width: 690px) {
-    .drag-list {
-        display: block;
-    }
-}
-
 /* Kanban column styles */
 .kanban-column {
     display: flex;
