@@ -35,7 +35,9 @@ def get_allowed_origins():
         "http://localhost",
         "http://127.0.0.1",
         f"http://{local_ip}:5000",
-        f"http://{local_ip}"
+        f"http://{local_ip}",
+        "172.17.240.69:5000",
+        "172.17.240.69"
     ]
     return base_origins
 
@@ -50,20 +52,31 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
-    if ip in ['127.0.0.1', 'localhost']:
+    if ip in ['127.0.0.1', 'localhost', '172.17.240.69']:
         return True
     try:
-        # Sprawdź czy IP jest w sieci 192.168.1.* lub 192.168.0.*
         octets = ip.split('.')
-        return (
+        # Sprawdź czy IP jest w sieci 192.168.1.* lub 192.168.0.*
+        if (
             len(octets) == 4 and
             octets[0] == '192' and
             octets[1] == '168' and
             octets[2] in ['0', '1'] and
             0 <= int(octets[3]) <= 255
-        )
+        ):
+            return True
+        # Dodaj obsługę sieci 172.17.240.*
+        if (
+            len(octets) == 4 and
+            octets[0] == '172' and
+            octets[1] == '17' and
+            octets[2] == '240' and
+            0 <= int(octets[3]) <= 255
+        ):
+            return True
     except:
         return False
+    return False
 
 @app.before_request
 def csrf_protect():
