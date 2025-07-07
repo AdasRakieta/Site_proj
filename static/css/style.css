@@ -126,7 +126,7 @@ select {
     border-radius: 4px;
     background-color: var(--background);
     color: var(--text-color);
-    transition: all 0.3s;
+    transition: all 0.3s ease;
 }
 
 select:focus, select:hover {
@@ -140,7 +140,7 @@ input {
     border-radius: 4px;
     background-color: var(--background);
     color: var(--text-color);
-    transition: all 0.3s;
+    transition: all 0.3s ease;
 }
 
 input:focus, input:hover {
@@ -269,7 +269,7 @@ input{
     padding: 12px;
     border-radius: 8px;
     font-weight: 500;
-    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s;
+    transition: all 0.3s ease;
     align-items: center;
     justify-content: center;
     margin: 10px 0;
@@ -278,13 +278,13 @@ input{
     display: flex;
     justify-content: flex-start;
     border: 2px solid var(--border);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    box-shadow: var(--box_shd);
 }
 
 .menu-link:hover {
     background-color: var(--hover);
     color: var(--background);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    transform: scale(1.05);
 }
 
 .menu-icon {
