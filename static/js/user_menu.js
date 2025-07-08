@@ -8,6 +8,8 @@ function toggleUserMenu() {
   } else {
     handle.classList.add('active');
     menu.classList.add('active');
+    // Uruchom animację menu-itemów po otwarciu menu
+    animateMenuItemsOnOpen();
   }
 }
 
@@ -40,3 +42,25 @@ document.addEventListener('click', function(e) {
     document.body.appendChild(svg);
   }
 })();
+
+function animateMenuItemsOnOpen() {
+    const menuItems = document.querySelectorAll('.main-menu.active .menu-item');
+    menuItems.forEach(item => {
+        item.classList.add('animating');
+        item.style.marginRight = '-50px';
+        item.style.width = '0';
+        // Wymuś reflow
+        void item.offsetWidth;
+        // Teraz uruchom animację do width 100%
+        item.style.width = '100%';
+        // Po zakończeniu animacji usuń margin-right i klasę
+        item.addEventListener('transitionend', function handler(e) {
+            if (e.propertyName === 'width') {
+                item.classList.remove('animating');
+                item.style.marginRight = '';
+                item.style.width = '';
+                item.removeEventListener('transitionend', handler);
+            }
+        });
+    });
+}

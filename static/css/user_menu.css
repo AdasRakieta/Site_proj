@@ -16,21 +16,6 @@
     z-index: 10;
 }
 
-#user-avatar-dropdown {
-  position: relative;
-  z-index: 1002;
-}
-
-.user-menu-info{
-    color: var(--text-color);
-    margin: 8px;
-}
-
-.user-menu-role{
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    margin: 8px;
-}
 
 #user-menu a {
     display: block;
@@ -40,15 +25,6 @@
     text-decoration: none;
     border-top: 1px solid var(--secondary);
     transition: all 0.3s ease;
-}
-#user-menu a:last-child {
-  border-bottom: none;
-}
-#user-menu a:hover {
-  background: var(--hover);
-}
-#user-menu a[href="/logout"] {
-  color: #d00;
 }
 
 .user-add-form{
@@ -101,11 +77,12 @@
     color: var(--text-color);
     text-decoration: none;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); /* animacja jak w menu głównym */
 }
 
 #user-menu .user-menu-link:hover {
     background: var(--hover);
+    transform: scale(1.05); /* animacja jak w menu głównym */
 }
 
 #user-menu .logout {
@@ -127,10 +104,11 @@
     margin-right: 8px;
     vertical-align: middle;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
-    transition: all .3s ease;
+    transition: transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); /* animacja jak w menu głównym */
 }
-.user-menu-link:hover, .user-menu-icon:hover {
-    transform: scale(1.15);
+.user-menu-link:hover .user-menu-icon,
+.user-menu-icon:hover {
+    transform: scale(1.05); /* animacja jak w menu głównym */
 }
 
 .menu-handle {
@@ -221,10 +199,24 @@
     align-items: center;
     justify-content: center;
     color: #fff;
-    transition: transform 0.2s;
-    width: 100%;
+    transition: all 0.2s ease;
+    width: 0;
+    margin-right: -50px;
     box-sizing: border-box;
-    transition: all 0.3s ease;
+    transition: all 0.5s ease;
+}
+
+.main-menu.active .menu-item {
+    transition: all 0.8s ease;
+    margin-right: 0;
+    width: 100%;
+}
+
+.main-menu.active .menu-item.animating {
+    margin-right: -50px;
+}
+.main-menu.active .menu-item:not(.animating) {
+    margin-right: 0;
 }
 
 .main-menu.active {

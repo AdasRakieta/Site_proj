@@ -33,9 +33,6 @@
         <div style="position: absolute; top: 8px; right: 24px; display: flex; align-items: center; z-index: 1001;">
             {% if request.endpoint != 'login' %}
             <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
                 <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" style="position:absolute;top:0;left:0;width:40px;height:40px;border-radius:50%;z-index:3;pointer-events:none;">
             </div>
             <div class="main-menu" id="user-main-menu">
