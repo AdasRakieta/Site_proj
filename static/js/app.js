@@ -488,3 +488,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM załadowany - rozpoczynanie inicjalizacji');
     initializeApp();
 });
+
+
+// Wywołaj animateMenuItemsOnOpen() po otwarciu menu (np. po dodaniu klasy .active do .main-menu)
+// Przykład:
+// document.querySelector('.main-menu').classList.add('active');
+// animateMenuItemsOnOpen();
