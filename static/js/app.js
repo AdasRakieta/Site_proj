@@ -140,7 +140,9 @@ class SmartHomeApp {
             'security-icon': 'security_icon',
             'settings-icon': 'settings_icon',
             'automations-icon': 'automations_icon',
-            'edit-icon': 'edit_icon'
+            'edit-icon': 'edit_icon',
+            'user-menu-settings-icon': 'settings_icon',
+            'user-menu-user-icon': 'user_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
             const el = document.getElementById(id);
@@ -178,7 +180,9 @@ class SmartHomeApp {
             'security-icon': 'security_icon',
             'settings-icon': 'settings_icon',
             'automations-icon': 'automations_icon',
-            'edit-icon': 'edit_icon'
+            'edit-icon': 'edit_icon',
+            'user-menu-settings-icon': 'settings_icon',
+            'user-menu-user-icon': 'user_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
             const element = document.getElementById(id);
