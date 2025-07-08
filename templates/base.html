@@ -31,17 +31,23 @@
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
         <div style="position: absolute; top: 8px; right: 24px; display: flex; align-items: center; z-index: 1001;">
             {% if request.endpoint != 'login' %}
-            <div id="user-avatar-dropdown" style="position: relative;">
-                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}"
-                    alt="Profilowe" class="user-avatar" onclick="toggleUserMenu()">
-                <div id="user-menu">
-                    <div class="user-menu-info">
-                        <div class="user-menu-username">{{ session.username if session.username else 'Gość' }}</div>
-                        <div class="user-menu-role">Uprawnienia: {{ session.role if session.role else 'Brak roli' }}</div>
-                    </div>
-                    <a href="/user" class="user-menu-link">Profil użytkownika</a>
-                    <a href="/settings" class="user-menu-link">Ustawienia</a>
-                    <a href="/logout" class="user-menu-link logout">Wyloguj</a>
+            <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" style="position:absolute;top:0;left:0;width:40px;height:40px;border-radius:50%;z-index:3;pointer-events:none;">
+            </div>
+            <div class="main-menu" id="user-main-menu">
+                <div class="menu-wrap">
+                    <a href="/user" class="menu-item">
+                        <img class="user-menu-icon" id="user-menu-user-icon" src="{{ url_for('static', filename='icons/user_icon_' + ('dark' if (request.cookies.get('theme') == 'dark' or request.cookies.get('theme') is none and request.endpoint != 'login' and 'dark' in request.headers.get('User-Agent', '').lower()) else 'light') + '.png') }}" alt="Profil">
+                    </a>
+                    <a href="/settings" class="menu-item">
+                        <img class="user-menu-icon" id="user-menu-settings-icon" src="{{ url_for('static', filename='icons/settings_icon_' + ('dark' if (request.cookies.get('theme') == 'dark' or request.cookies.get('theme') is none and request.endpoint != 'login' and 'dark' in request.headers.get('User-Agent', '').lower()) else 'light') + '.png') }}" alt="Ustawienia">
+                    </a>
+                        <a href="/logout" class="menu-item">
+                        <img class="user-menu-icon" id="user-menu-logout-icon" src="{{ url_for('static', filename='icons/leave_icon.png') }}" alt="Wyloguj">
+                    </a>
                 </div>
             </div>
             {% endif %}
