@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}SmartHome - Profil Użytkownika{% endblock %}
+{% block header %}Rejestracja{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}?v={{ range(1, 99999) | random }}">
+{% endblock %}
+
+{% block content %}
+<div class="register-profile-container">
+    <h1>Dane użytkownika</h1>
+    <form id="registerProfileForm" class="profile-form">
+        <div class="form-group-register">
+            <label for="registerName">Nazwa użytkownika</label>
+            <input type="text" id="registerName" name="registerName" required>
+        </div>
+        <div class="form-group-register">
+            <label for="registerEmail">Email</label>
+            <input type="email" id="registerEmail" name="registerEmail" required>
+        </div>
+        <div class="form-group-register">
+            <label for="newPassword">Hasło</label>
+            <input type="password" id="newPassword" name="Password">
+        </div>
+        <div class="form-group-register">
+            <label for="confirmPassword">Potwierdź nowe hasło</label>
+            <input type="password" id="confirmPassword" name="confirmPassword">
+        </div>
+        <button type="submit" class="save-button">Potwierdź dane</button>
+    </form>
+</div>
+{% endblock %}
