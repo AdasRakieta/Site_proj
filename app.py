@@ -1,5 +1,5 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash, g
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
+from flask_socketio import SocketIO
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 import secrets
