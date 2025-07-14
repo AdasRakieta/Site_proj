@@ -233,6 +233,11 @@ class RoutesManager:
     @app.route('/error')
     def error():
         return render_template('error.html')
+    
+    @staticmethod
+    @app.route('/register')
+    def register():
+        return render_template('register.html')
 
     @app.route('/test-email')
     def test_email():
