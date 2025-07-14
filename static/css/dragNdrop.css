@@ -233,31 +233,14 @@ input:focus{
 .kanban-add-input {
     margin: 5px;
     padding: 4px 8px;
-    border: 1px solid var(--border-input);
-    border-radius: 4px;
-    background: var(--bg-input);
-    color: inherit;
 }
 
 .kanban-edit-input {
-  border: 2px solid var(--border-input);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: inherit;
-  width: auto;
   text-align: center;
   transition: all 0.3s ease-in-out;
   margin: 5px;
   padding: 4px 8px;
-  box-shadow: var(--shadow-color);
 
-}
-
-.kanban-edit-input:focus,
-.kanban-edit-input:hover {
-    background-color: var(--bg-input-hover);
-    color: var(--input-text-hover);
-    outline: none;
 }
 
 /* Dragula specific styles */
@@ -353,47 +336,13 @@ input:focus{
   font-size: 1em;
   transition: all 0.3s ease-in-out;
 }
-.add-room-input:focus,
-.add-device-input:focus {
-  border: 2px solid var(--border-input);
-  transform: scale(1.05);
-}
-
-.add-room-input:hover,
-.add-device-input:hover {
-  background-color: var(--bg-input-hover);
-  color: var(--input-text-hover);
-  outline: none;
-  box-shadow: var(--shadow-color);
-}
 
 .add-device-select, .add-room-select {
   margin: 5px;
   padding: 4px 8px;
   width: inherit;
-  border: 1px solid var(--border-input);
-  border-radius: 4px;
-  background: var(--bg-input);
-  box-shadow: var(--shadow-color);
-  color: inherit;
   flex: 1;
   font-size: 1em;
-  transition: all 0.3s ease-in-out;
-}
-
-.add-device-select:focus,
-.add-room-select:focus {
-  background-color: var(--bg-input-hover);
-  color: var(--input-text-hover);
-  outline: none;
-}
-
-.add-device-select:hover,
-.add-room-select:hover {
-  background-color: var(--bg-input-hover);
-  color: var(--input-text-hover);
-  outline: none;
-  box-shadow: var(--shadow-color);
 }
 
 .add-room-btn, .add-device-btn {
@@ -659,4 +608,15 @@ input:focus{
     width: 80%;
     align-self: center;
     margin-left: 10px;
+}
+.edit-room-button{
+    font-Size: 1.1em;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+}           
+
+.edit-room-button:hover{
+    font-Size: 1.3em;
 }

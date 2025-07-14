@@ -261,10 +261,7 @@ function updateColumnHeader(columnElement, roomName) {
             editBtn.className = 'edit-room-button';
             editBtn.title = 'Edytuj nazwę pokoju';
             editBtn.innerHTML = '⁝';
-            editBtn.style.background = 'none';
-            editBtn.style.border = 'none';
-            editBtn.style.cursor = 'pointer';
-            editBtn.style.fontSize = '1.1em';
+
 
             // Input for editing name (hidden by default)
             const roomNameInputEdit = document.createElement('input');
