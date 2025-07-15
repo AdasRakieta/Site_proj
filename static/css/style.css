@@ -956,7 +956,6 @@ footer {
 
 .login-form label {
     display: block;
-    margin-bottom: 0.5rem;
     color: var(--text-color);
 }
 
@@ -999,6 +998,25 @@ footer {
 .alert-msg {
     margin-bottom: 1rem; 
     color:crimson;
+}
+
+.remember-me-container {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Odstęp między checkboxem a napisem */
+    margin-bottom: 1rem; /* Opcjonalny margines dolny, aby oddzielić od innych elementów */
+    justify-content: center;
+}
+
+.remember-me-container input[type="checkbox"] {
+    margin: 0; /* Usunięcie domyślnych marginesów checkboxa */
+    cursor: pointer;
+    width:auto;
+}
+
+.remember-me-container label {
+    cursor: pointer;
+    font-size: 1rem; /* Dopasuj rozmiar czcionki do reszty formularza */
 }
 
 /* ============================== */

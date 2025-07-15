@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('registerProfileForm');
     if (!form) return;
@@ -83,5 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             window.location.href = '/login';
         });
+    } else {
+        console.error('Przycisk "Wróć" nie został znaleziony.');
     }
 });

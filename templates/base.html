@@ -26,13 +26,15 @@
     <div id="notifications-container"></div>
     
     <header>
+        {% if request.endpoint != 'login' and request.endpoint != 'register' %}
         <button class="close-btn" onclick="toggleMenu()">
             <img id="menu-icon" src="{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
+        {% endif %}
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
         <div class="user-menu-container">
 
-            {% if request.endpoint != 'login' %}
+            {% if request.endpoint != 'login' and request.endpoint != 'register' %}
             <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
                 <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar">
             </div>
