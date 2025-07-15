@@ -41,7 +41,8 @@ class SmartHomeSystem:
         }
         
         # Wybór konfiguracji przy starcie
-        self.choose_configuration()
+        self.load_config()
+        # self.choose_configuration()
 
     def choose_configuration(self):
         """Pyta użytkownika o wybór konfiguracji przy starcie"""
