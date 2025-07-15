@@ -103,7 +103,7 @@
     margin-top: 1rem;
     box-shadow: var(--box_shd);
     text-decoration: none;
-    width: 300px;
+    width: 150px;
     align-self: center;
     
 }
@@ -112,6 +112,26 @@
     background-color: var(--confirm-btn-hover);
     transform: scale(1.05);
     
+}
+.return-button {
+    background: var(--btn-danger);
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    box-shadow: var(--box_shd);
+    text-decoration: none;
+    width: 150px;
+    align-self: center;
+}
+
+.return-button:hover {
+    background: var(--btn-danger-hover);
+    transform: scale(1.05);
 }
 
 .error-message {
@@ -125,3 +145,4 @@
     font-size: 0.9rem;
     margin-top: 0.25rem;
 }
+
