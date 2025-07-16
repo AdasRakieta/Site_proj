@@ -8,7 +8,7 @@ from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
 import time
 from datetime import datetime, timedelta
-import os
+import routes
 import socket
 
 app = Flask(__name__)
@@ -160,182 +160,182 @@ def logout():
         flash('Wylogowano pomyślnie.', 'info')
     return redirect(url_for('login'))
 
-class RoutesManager:
-    """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    @staticmethod
-    @app.route('/')
-    def home():
-        if 'username' not in session:
-            return redirect(url_for('login'))
-        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-        return render_template('index.html', user_data=user_data)
+# class RoutesManager:
+#     """Klasa zarządzająca podstawowymi trasami aplikacji"""
+#     @staticmethod
+#     @app.route('/')
+#     def home():
+#         if 'username' not in session:
+#             return redirect(url_for('login'))
+#         user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+#         return render_template('index.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/temp')
-    @auth_manager.login_required
-    def temp():
-        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-        return render_template('temp_lights.html', user_data=user_data)
+#     @staticmethod
+#     @app.route('/temp')
+#     @auth_manager.login_required
+#     def temp():
+#         user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+#         return render_template('temp_lights.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/temperature')
-    @auth_manager.login_required
-    def temperature():
-        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-        return render_template('temperature.html', user_data=user_data)
+#     @staticmethod
+#     @app.route('/temperature')
+#     @auth_manager.login_required
+#     def temperature():
+#         user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+#         return render_template('temperature.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/security')
-    @auth_manager.login_required
-    def security():
-        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-        return render_template('security.html', user_data=user_data)
+#     @staticmethod
+#     @app.route('/security')
+#     @auth_manager.login_required
+#     def security():
+#         user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+#         return render_template('security.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/settings')
-    @auth_manager.login_required
-    def settings():
-        user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-        return render_template('settings.html', user_data=user_data)
+#     @staticmethod
+#     @app.route('/settings')
+#     @auth_manager.login_required
+#     def settings():
+#         user_data = smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+#         return render_template('settings.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/suprise')
-    @auth_manager.login_required
-    def suprise():
-        return render_template('suprise.html')
+#     @staticmethod
+#     @app.route('/suprise')
+#     @auth_manager.login_required
+#     def suprise():
+#         return render_template('suprise.html')
 
-    @staticmethod
-    @app.route('/suprise_dog')
-    @auth_manager.login_required
-    def suprise_dog():
-        return render_template('suprise_Dog.html')
+#     @staticmethod
+#     @app.route('/suprise_dog')
+#     @auth_manager.login_required
+#     def suprise_dog():
+#         return render_template('suprise_Dog.html')
 
-    @staticmethod
-    @app.route('/automations')
-    @auth_manager.login_required
-    def automations():
-        return render_template('automations.html')
+#     @staticmethod
+#     @app.route('/automations')
+#     @auth_manager.login_required
+#     def automations():
+#         return render_template('automations.html')
 
-    @staticmethod
-    @app.route('/edit')
-    @auth_manager.login_required
-    @auth_manager.admin_required
-    def edit():
-        return render_template('edit.html')
+#     @staticmethod
+#     @app.route('/edit')
+#     @auth_manager.login_required
+#     @auth_manager.admin_required
+#     def edit():
+#         return render_template('edit.html')
 
-    @staticmethod
-    @app.route('/lights')
-    @auth_manager.login_required
-    def lights():
-        return render_template('lights.html')
+#     @staticmethod
+#     @app.route('/lights')
+#     @auth_manager.login_required
+#     def lights():
+#         return render_template('lights.html')
 
-    @staticmethod
-    @app.route('/error')
-    def error():
-        return render_template('error.html')
+#     @staticmethod
+#     @app.route('/error')
+#     def error():
+#         return render_template('error.html')
 
-    @app.route('/test-email')
-    def test_email():
-        result = mail_manager.send_security_alert('failed_login', {
-            'username': 'testuser',
-            'ip_address': '127.0.0.1',
-            'attempt_count': 3
-        })
-        return jsonify({"status": "success" if result else "error"})
+#     @app.route('/test-email')
+#     def test_email():
+#         result = mail_manager.send_security_alert('failed_login', {
+#             'username': 'testuser',
+#             'ip_address': '127.0.0.1',
+#             'attempt_count': 3
+#         })
+#         return jsonify({"status": "success" if result else "error"})
 
-    @staticmethod
-    @app.route('/user')
-    @auth_manager.login_required
-    def user_profile():
-        user_id, user = smart_home.get_user_by_login(session['username'])
-        user_data = smart_home.get_user_data(user_id) if user else None
-        return render_template('user.html', user_data=user_data)
+#     @staticmethod
+#     @app.route('/user')
+#     @auth_manager.login_required
+#     def user_profile():
+#         user_id, user = smart_home.get_user_by_login(session['username'])
+#         user_data = smart_home.get_user_data(user_id) if user else None
+#         return render_template('user.html', user_data=user_data)
 
-    @staticmethod
-    @app.route('/api/user/profile', methods=['GET', 'PUT'])
-    @auth_manager.login_required
-    def manage_profile():
-        user_id, user = smart_home.get_user_by_login(session['username'])
-        if not user:
-            return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-        if request.method == 'GET':
-            user_data = smart_home.get_user_data(user_id)
-            return jsonify(user_data)
-        elif request.method == 'PUT':
-            data = request.get_json()
-            if not data:
-                return jsonify({"status": "error", "message": "Brak danych"}), 400
+#     @staticmethod
+#     @app.route('/api/user/profile', methods=['GET', 'PUT'])
+#     @auth_manager.login_required
+#     def manage_profile():
+#         user_id, user = smart_home.get_user_by_login(session['username'])
+#         if not user:
+#             return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
+#         if request.method == 'GET':
+#             user_data = smart_home.get_user_data(user_id)
+#             return jsonify(user_data)
+#         elif request.method == 'PUT':
+#             data = request.get_json()
+#             if not data:
+#                 return jsonify({"status": "error", "message": "Brak danych"}), 400
 
-            updates = {}
-            # Jeśli użytkownik zmienia login (nazwę użytkownika)
-            if 'username' in data and data['username'] != user['name']:
-                updates['name'] = data['username']
-            # Update name if provided
-            if 'name' in data:
-                updates['name'] = data['name']
-            # Update email if provided
-            if 'email' in data:
-                updates['email'] = data['email']
-            # Handle password change if provided
-            if data.get('current_password') and data.get('new_password'):
-                if not smart_home.verify_password(user_id, data['current_password']):
-                    return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
-                updates['password'] = data['new_password']
-            success, message = smart_home.update_user_profile(user_id, updates)
-            if success:
-                # Jeśli login, email lub hasło zostały zmienione, wyloguj użytkownika i przekaż info o sukcesie
-                if any(k in updates for k in ['name', 'email', 'password']):
-                    return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
-                return jsonify({"status": "success", "message": message})
-            return jsonify({"status": "error", "message": message}), 400
+#             updates = {}
+#             # Jeśli użytkownik zmienia login (nazwę użytkownika)
+#             if 'username' in data and data['username'] != user['name']:
+#                 updates['name'] = data['username']
+#             # Update name if provided
+#             if 'name' in data:
+#                 updates['name'] = data['name']
+#             # Update email if provided
+#             if 'email' in data:
+#                 updates['email'] = data['email']
+#             # Handle password change if provided
+#             if data.get('current_password') and data.get('new_password'):
+#                 if not smart_home.verify_password(user_id, data['current_password']):
+#                     return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
+#                 updates['password'] = data['new_password']
+#             success, message = smart_home.update_user_profile(user_id, updates)
+#             if success:
+#                 # Jeśli login, email lub hasło zostały zmienione, wyloguj użytkownika i przekaż info o sukcesie
+#                 if any(k in updates for k in ['name', 'email', 'password']):
+#                     return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
+#                 return jsonify({"status": "success", "message": message})
+#             return jsonify({"status": "error", "message": message}), 400
 
-    @staticmethod
-    @app.route('/api/user/profile-picture', methods=['POST'])
-    @auth_manager.login_required
-    def update_profile_picture():
-        if 'profile_picture' not in request.files:
-            return jsonify({"status": "error", "message": "Brak pliku"}), 400
+#     @staticmethod
+#     @app.route('/api/user/profile-picture', methods=['POST'])
+#     @auth_manager.login_required
+#     def update_profile_picture():
+#         if 'profile_picture' not in request.files:
+#             return jsonify({"status": "error", "message": "Brak pliku"}), 400
             
-        file = request.files['profile_picture']
-        if file.filename == '':
-            return jsonify({"status": "error", "message": "Nie wybrano pliku"}), 400
+#         file = request.files['profile_picture']
+#         if file.filename == '':
+#             return jsonify({"status": "error", "message": "Nie wybrano pliku"}), 400
             
-        if not file or not allowed_file(file.filename):
-            return jsonify({"status": "error", "message": "Niedozwolony typ pliku"}), 400
+#         if not file or not allowed_file(file.filename):
+#             return jsonify({"status": "error", "message": "Niedozwolony typ pliku"}), 400
             
-        try:
-            user_id, user = smart_home.get_user_by_login(session['username'])
-            if not user:
-                return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-            filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
-            profile_pictures_dir = os.path.join(app.static_folder, 'profile_pictures')
-            if not os.path.exists(profile_pictures_dir):
-                os.makedirs(profile_pictures_dir)
+#         try:
+#             user_id, user = smart_home.get_user_by_login(session['username'])
+#             if not user:
+#                 return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
+#             filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
+#             profile_pictures_dir = os.path.join(app.static_folder, 'profile_pictures')
+#             if not os.path.exists(profile_pictures_dir):
+#                 os.makedirs(profile_pictures_dir)
 
-            file_path = os.path.join(profile_pictures_dir, filename)
-            file.save(file_path)
+#             file_path = os.path.join(profile_pictures_dir, filename)
+#             file.save(file_path)
 
-            # Update user's profile picture URL in database
-            profile_picture_url = url_for('static', filename=f'profile_pictures/{filename}')
-            success, message = smart_home.update_user_profile(user_id, {'profile_picture': profile_picture_url})
+#             # Update user's profile picture URL in database
+#             profile_picture_url = url_for('static', filename=f'profile_pictures/{filename}')
+#             success, message = smart_home.update_user_profile(user_id, {'profile_picture': profile_picture_url})
 
-            if success:
-                return jsonify({
-                    "status": "success",
-                    "message": "Zdjęcie profilowe zostało zaktualizowane",
-                    "profile_picture_url": profile_picture_url
-                })
-            return jsonify({"status": "error", "message": message}), 500
+#             if success:
+#                 return jsonify({
+#                     "status": "success",
+#                     "message": "Zdjęcie profilowe zostało zaktualizowane",
+#                     "profile_picture_url": profile_picture_url
+#                 })
+#             return jsonify({"status": "error", "message": message}), 500
             
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
+#         except Exception as e:
+#             return jsonify({"status": "error", "message": str(e)}), 500
 
 def allowed_file(filename):
     """Sprawdza, czy rozszerzenie pliku jest dozwolone"""
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-class APIManager:
+# class APIManager:
     """Klasa zarządzająca endpointami API"""
     @staticmethod
     @app.route('/weather')
@@ -772,7 +772,7 @@ def set_notifications_settings_api():
     set_notifications_settings({"recipients": recipients})
     return jsonify({"status": "success"})
 
-class SocketManager:
+# class SocketManager:
     """Klasa zarządzająca obsługą WebSocket"""
     @staticmethod
     @socketio.on('connect')
@@ -966,9 +966,9 @@ def execute_action(action):
         })
 
 # Inicjalizacja menedżerów
-routes_manager = RoutesManager()
-api_manager = APIManager()
-socket_manager = SocketManager()
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager)
+api_manager = routes.APIManager(app, socketio, smart_home, auth_manager)
+socket_manager = routes.SocketManager(socketio, smart_home)
 
 if __name__ == '__main__':
     import logging
