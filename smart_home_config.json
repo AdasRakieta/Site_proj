@@ -27,6 +27,13 @@
             "role": "user",
             "email": "d@d.pl",
             "profile_picture": ""
+        },
+        "3f4ea41e-efe9-4b66-98d3-32022f04d61c": {
+            "name": "ddddd1",
+            "password": "scrypt:32768:8:1$f9O91t3scKRjG3z1$b54f1b02007a67b18c83a048ff41d4ee8ebfc2cc3e08b3a9feea0b7aec1f224e271d5892a7e05e96dd8f4accd55cad1c80b6b1715a21cce213e83c54f0389432",
+            "role": "user",
+            "email": "s@d.s",
+            "profile_picture": ""
         }
     },
     "temperature_states": {
