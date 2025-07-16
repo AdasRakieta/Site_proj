@@ -17,6 +17,13 @@
                 <label for="password">Hasło</label>
                 <input type="password" id="password" name="password" required>
             </div>
+            <div class="remember-me-container">
+                <input type="checkbox" id="remember_me" name="remember_me"> 
+                <label for="remember_me">Zapamiętaj mnie</label>
+            </div>
+            <div class="register-form">
+                <p>Nie masz konta? <a href="{{ url_for('register') }}">Zarejestruj się</a></p>
+            </div>
 
             <button type="submit" >Zaloguj</button>
         </form>

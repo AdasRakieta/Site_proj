@@ -20,6 +20,13 @@
             "name": "user",
             "email": "szymon.przybysz@op.pl",
             "profile_picture": ""
+        },
+        "3c08345a-d75c-41ff-8c0d-5072dc2a7fc8": {
+            "name": "sdda",
+            "password": "scrypt:32768:8:1$h3vO8GR84LGIvqIY$531e74f1693035e86cefbfca3137155776b085348be7e2798301299a8f5d63f9f59aaa8e37cbe851c75291d7e9564e8aab7103c02fa1a5fc1222e685b326f87a",
+            "role": "user",
+            "email": "d@d.pl",
+            "profile_picture": ""
         }
     },
     "temperature_states": {
@@ -30,8 +37,8 @@
     "security_state": "Wy\u0142\u0105czony",
     "rooms": [
         "d",
-        "czxc",
-        "pok\u00f3j 1"
+        "pok\u00f3j 1",
+        "dsadasd"
     ],
     "buttons": [
         {
@@ -46,7 +53,7 @@
             "name": "ddd",
             "room": "pok\u00f3j 1",
             "id": "e1390786-089a-4dcb-a303-e170eb89c4d0",
-            "temperature": 22
+            "temperature": 25
         }
     ],
     "automations": [

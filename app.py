@@ -229,10 +229,53 @@ def logout():
 #     def lights():
 #         return render_template('lights.html')
 
+<<<<<<< HEAD
 #     @staticmethod
 #     @app.route('/error')
 #     def error():
 #         return render_template('error.html')
+=======
+    @staticmethod
+    @app.route('/error')
+    def error():
+        return render_template('error.html')
+    
+    @staticmethod
+    @app.route('/register', methods=['GET', 'POST'])
+    def register():
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data:
+                return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            email = data.get('email', '').strip()
+            # Podstawowa walidacja
+            if not username or len(username) < 3:
+                return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
+            if not email or '@' not in email:
+                return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
+            if not password or len(password) < 6:
+                return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
+            # Sprawdź czy użytkownik już istnieje
+            for user in smart_home.users.values():
+                if user.get('name') == username:
+                    return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+            # Dodaj użytkownika z rolą 'user'
+            import uuid
+            user_id = str(uuid.uuid4())
+            from werkzeug.security import generate_password_hash
+            smart_home.users[user_id] = {
+                'name': username,
+                'password': generate_password_hash(password),
+                'role': 'user',
+                'email': email,
+                'profile_picture': ''
+            }
+            smart_home.save_config()
+            return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
+        return render_template('register.html')
+>>>>>>> fba0ed73663661793cfb8c9dedddd4f0d90d15a0
 
 #     @app.route('/test-email')
 #     def test_email():

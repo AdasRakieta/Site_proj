@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}SmartHome - Profil Użytkownika{% endblock %}
+{% block header %}Profil użytkownika{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v={{ range(1, 99999) | random }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
 {% endblock %}
 
@@ -52,8 +52,4 @@
         </form>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/user.js') }}"></script>
 {% endblock %}
