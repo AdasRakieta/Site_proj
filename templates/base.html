@@ -26,14 +26,17 @@
     <div id="notifications-container"></div>
     
     <header>
+        {% if request.endpoint != 'login' and request.endpoint != 'register' %}
         <button class="close-btn" onclick="toggleMenu()">
             <img id="menu-icon" src="{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
+        {% endif %}
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
-        <div style="position: absolute; top: 8px; right: 24px; display: flex; align-items: center; z-index: 1001;">
-            {% if request.endpoint != 'login' %}
+        <div class="user-menu-container">
+
+            {% if request.endpoint != 'login' and request.endpoint != 'register' %}
             <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
-                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" style="position:absolute;top:0;left:0;width:40px;height:40px;border-radius:50%;z-index:3;pointer-events:none;">
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar">
             </div>
             <div class="main-menu" id="user-main-menu">
                 <div class="menu-wrap">
@@ -67,7 +70,7 @@
                 {% if session.role == 'admin' %}
                 <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
                 {% endif %}
-                <li><a href="/settings" class="menu-link"><img id="settings-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Settings"> Ustawienia</a></li>
+                <!-- <li><a href="/settings" class="menu-link"><img id="settings-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Settings"> Ustawienia</a></li> -->
             </ul>
         </nav>
     </div>

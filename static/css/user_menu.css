@@ -111,17 +111,34 @@
     transform: scale(1.05); /* animacja jak w menu głównym */
 }
 
-.menu-handle {
-    position: fixed;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+header {
+    position: relative;
+}
+
+header .menu-handle {
+    position: absolute;
     top: 10px;
     right: 30px;
     background-color: inherit;
-    cursor: pointer;
+    z-index: 2;
+}
+
+.menu-handle {
+    position: absolute;
+    top: 4px;
+    right: 30px;
+    background-color: inherit;
     z-index: 2;
     transition: all .3s ease;
+}
+
+.user-menu-container {
+    position: absolute;
+    top: -2px;
+    right: -5px;
+    display: flex;
+    align-items: center;
+    z-index: 1001;
 }
 
 .menu-handle:hover {
