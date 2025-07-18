@@ -117,221 +117,57 @@ function updateUsersTable(users) {
     users.forEach(user => {
         const row = document.createElement('tr');
         row.className = 'user-row';
+        row.dataset.userId = user.user_id;
+        row.dataset.editing = 'false';
+        
         // Username
         const usernameCell = document.createElement('td');
-        usernameCell.textContent = user.username;
+        usernameCell.className = 'username-cell';
+        usernameCell.innerHTML = `<span class="display-value">${user.username}</span>`;
         row.appendChild(usernameCell);
 
         // Email
         const emailCell = document.createElement('td');
-        emailCell.textContent = user.email || '';
+        emailCell.className = 'email-cell';
+        emailCell.innerHTML = `<span class="display-value">${user.email || ''}</span>`;
         row.appendChild(emailCell);
 
         // Role
         const roleCell = document.createElement('td');
-        roleCell.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
+        roleCell.className = 'role-cell';
+        roleCell.innerHTML = `<span class="display-value">${user.role === 'admin' ? 'Administrator' : 'Użytkownik'}</span>`;
         row.appendChild(roleCell);
+
+        // Password
+        const passwordCell = document.createElement('td');
+        passwordCell.className = 'password-cell';
+        passwordCell.innerHTML = `<span class="display-value">${user.password || '••••••••'}</span>`;
+        row.appendChild(passwordCell);
+
         // Actions
         const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions-cell';
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'action-buttons';
         
-        // Edit username button
-        const editNameBtn = document.createElement('button');
-        editNameBtn.className = 'change-button';
-        editNameBtn.textContent = 'Edytuj nazwę';
-        editNameBtn.addEventListener('click', () => {
-            if (actionsDiv.querySelector('.edit-generic-form')) return;
-            Array.from(actionsDiv.children).forEach(child => {
-                if (child !== editNameBtn) child.style.display = 'none';
-            });
-            editNameBtn.style.display = 'none';
-            window.createEditForm({
-                fields: [
-                    { name: 'newUsername', type: 'text', required: true, minLength: 3, placeholder: 'Nowa nazwa użytkownika', id: 'username_change', className: 'input-edit', removeDefaultMargin: true, value: user.username }
-                ],
-                parent: actionsDiv,
-                saveText: 'Zapisz',
-                cancelText: 'Anuluj',
-                onSave: async (values) => {
-                    const newUsername = values.newUsername;
-                    if (!newUsername || newUsername.length < 3) {
-                        showNotification('Nazwa użytkownika musi mieć co najmniej 3 znaki', 'error');
-                        return;
-                    }
-                    try {
-                        const response = await fetch(`/api/users/${user.user_id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                            body: JSON.stringify({ username: newUsername })
-                        });
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-                        showNotification(`Nazwa użytkownika zmieniona na ${newUsername}`, 'success');
-                        loadUsers();
-                    } catch (error) {
-                        showNotification(`Nie udało się zmienić nazwy użytkownika: ${error.message}`, 'error');
-                    }
-                },
-                onCancel: () => {
-                    loadUsers();
-                }
-            });
-        });
-        actionsDiv.appendChild(editNameBtn);
-
-        // Edit email button
-        const editEmailBtn = document.createElement('button');
-        editEmailBtn.className = 'change-button';
-        editEmailBtn.textContent = 'Edytuj e-mail';
-        editEmailBtn.addEventListener('click', () => {
-            if (actionsDiv.querySelector('.edit-generic-form')) return;
-            Array.from(actionsDiv.children).forEach(child => {
-                if (child !== editEmailBtn) child.style.display = 'none';
-            });
-            editEmailBtn.style.display = 'none';
-            window.createEditForm({
-                fields: [
-                    { name: 'newEmail', type: 'email', required: false, placeholder: 'Nowy adres e-mail', id: 'email_change', className: 'input-edit', removeDefaultMargin: true, value: user.email || '' }
-                ],
-                parent: actionsDiv,
-                saveText: 'Zapisz',
-                cancelText: 'Anuluj',
-                onSave: async (values) => {
-                    const newEmail = values.newEmail.trim();
-                    if (newEmail && (!newEmail.includes('@') || newEmail.length < 5)) {
-                        showNotification('Podaj poprawny adres e-mail', 'error');
-                        return;
-                    }
-                    try {
-                        const response = await fetch(`/api/users/${user.user_id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                            body: JSON.stringify({ email: newEmail })
-                        });
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-                        showNotification(`Adres e-mail zmieniony na ${newEmail || '(brak)'}`, 'success');
-                        loadUsers();
-                    } catch (error) {
-                        showNotification(`Nie udało się zmienić adresu e-mail: ${error.message}`, 'error');
-                    }
-                },
-                onCancel: () => {
-                    loadUsers();
-                }
-            });
-        });
-        actionsDiv.appendChild(editEmailBtn);
+        // Edit button with pencil icon
+        const editBtn = document.createElement('button');
+        editBtn.className = 'icon-button edit-button';
+        editBtn.innerHTML = '✏️';
+        editBtn.title = 'Edytuj';
+        editBtn.addEventListener('click', () => toggleEditMode(row));
+        actionsDiv.appendChild(editBtn);
         
-        // Edit role button (if not current user)
-        if (user.role !== 'admin' || user.username !== 'admin') {
-            const editRoleBtn = document.createElement('button');
-            editRoleBtn.className = 'change-button';
-            editRoleBtn.textContent = 'Zmień rolę';
-            editRoleBtn.addEventListener('click', () => {
-                if (actionsDiv.querySelector('.edit-generic-form')) return;
-                Array.from(actionsDiv.children).forEach(child => {
-                    if (child !== editRoleBtn) child.style.display = 'none';
-                });
-                editRoleBtn.style.display = 'none';
-                window.createEditForm({
-                    fields: [
-                        { 
-                            name: 'newRole', 
-                            type: 'select', 
-                            required: true, 
-                            placeholder: 'Wybierz rolę', 
-                            id: 'role_change', 
-                            className: 'input-edit', 
-                            removeDefaultMargin: true,
-                            options: [
-                                { value: 'user', text: 'Użytkownik' },
-                                { value: 'admin', text: 'Administrator' }
-                            ],
-                            value: user.role
-                        }
-                    ],
-                    parent: actionsDiv,
-                    saveText: 'Zapisz',
-                    cancelText: 'Anuluj',
-                    onSave: async (values) => {
-                        const newRole = values.newRole;
-                        if (!newRole || !['user', 'admin'].includes(newRole)) {
-                            showNotification('Nieprawidłowa rola', 'error');
-                            return;
-                        }
-                        try {
-                            const response = await fetch(`/api/users/${user.user_id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                                body: JSON.stringify({ role: newRole })
-                            });
-                            const data = await response.json();
-                            if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-                            showNotification(`Rola użytkownika ${user.username} zmieniona na ${newRole === 'admin' ? 'Administrator' : 'Użytkownik'}`, 'success');
-                            loadUsers();
-                        } catch (error) {
-                            showNotification(`Nie udało się zmienić roli: ${error.message}`, 'error');
-                        }
-                    },
-                    onCancel: () => {
-                        loadUsers();
-                    }
-                });
-            });
-            actionsDiv.appendChild(editRoleBtn);
-        }
-        const changePassBtn = document.createElement('button');
-        changePassBtn.className = 'change-button';
-        changePassBtn.textContent = 'Zmień hasło';
-        changePassBtn.addEventListener('click', () => {
-            if (actionsDiv.querySelector('.edit-generic-form')) return;
-            Array.from(actionsDiv.children).forEach(child => {
-                if (child !== changePassBtn) child.style.display = 'none';
-            });
-            changePassBtn.style.display = 'none';
-            window.createEditForm({
-                fields: [
-                    { name: 'newPassword', type: 'password', required: true, minLength: 6, placeholder: 'Nowe hasło', id: 'password_change', className: 'input-edit', removeDefaultMargin: true }
-                ],
-                parent: actionsDiv,
-                saveText: 'Zapisz',
-                cancelText: 'Anuluj',
-                onSave: async (values) => {
-                    const newPassword = values.newPassword;
-                    if (!newPassword || newPassword.length < 6) {
-                        showNotification('Hasło musi mieć co najmniej 6 znaków', 'error');
-                        return;
-                    }
-                    try {
-                        const response = await fetch(`/api/users/${user.user_id}/password`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                            body: JSON.stringify({ new_password: newPassword })
-                        });
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-                        showNotification(`Hasło dla użytkownika ${user.username} zostało zmienione`, 'success');
-                        loadUsers();
-                    } catch (error) {
-                        showNotification(`Nie udało się zmienić hasła: ${error.message}`, 'error');
-                    }
-                },
-                onCancel: () => {
-                    loadUsers();
-                }
-            });
-        });
-        actionsDiv.appendChild(changePassBtn);
-        // Delete button (if not admin)
+        // Delete button with X icon (if not admin)
         if (user.role !== 'admin') {
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-button';
-            deleteBtn.textContent = 'Usuń';
+            deleteBtn.className = 'icon-button delete-button';
+            deleteBtn.innerHTML = '✕';
+            deleteBtn.title = 'Usuń';
             deleteBtn.addEventListener('click', (e) => deleteUser(user.user_id, user.username, e));
             actionsDiv.appendChild(deleteBtn);
         }
+
         actionsCell.appendChild(actionsDiv);
         row.appendChild(actionsCell);
         tableBody.appendChild(row);
@@ -341,6 +177,7 @@ function updateUsersTable(users) {
 // Add new user
 async function addUser() {
     const username = document.getElementById('newUsername')?.value.trim();
+    const email = document.getElementById('newEmail')?.value.trim();
     const password = document.getElementById('newPassword')?.value;
     const role = document.getElementById('userRole')?.value;
     if (!username || username.length < 3) {
@@ -349,6 +186,10 @@ async function addUser() {
     }
     if (!password || password.length < 6) {
         showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
+        return;
+    }
+    if (email && !email.includes('@')) {
+        showMessage('addUserMessage', 'Podaj poprawny adres email', true);
         return;
     }
     try {
@@ -368,7 +209,7 @@ async function addUser() {
         }
 
         // DEBUG: log request before sending
-        // console.log('Sending addUser POST', { username, password, role, csrfToken });
+        // console.log('Sending addUser POST', { username, email, password, role, csrfToken });
 
         // Wyślij żądanie POST z CSRF tokenem
         const response = await fetch('/api/users', {
@@ -378,7 +219,7 @@ async function addUser() {
                 'X-CSRFToken': csrfToken
             },
             credentials: 'same-origin',
-            body: JSON.stringify({ username, password, role })
+            body: JSON.stringify({ username, email, password, role })
         });
 
         // Sprawdź, czy fetch został zablokowany przez przeglądarkę (np. przez CORS, brak sesji, itp.)
@@ -407,6 +248,7 @@ async function addUser() {
             showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
             showNotification(`Użytkownik ${username} został dodany`, 'success');
             document.getElementById('newUsername').value = '';
+            document.getElementById('newEmail').value = '';
             document.getElementById('newPassword').value = '';
             loadUsers();
         } else {
@@ -416,6 +258,137 @@ async function addUser() {
         console.error('Błąd dodawania użytkownika:', error);
         showMessage('addUserMessage', `Nie udało się dodać użytkownika: ${error.message}`, true);
         showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
+    }
+}
+
+// Toggle edit mode for a row
+function toggleEditMode(row) {
+    const isEditing = row.dataset.editing === 'true';
+    const userId = row.dataset.userId;
+    
+    if (isEditing) {
+        // Exit edit mode
+        exitEditMode(row);
+    } else {
+        // Enter edit mode
+        enterEditMode(row);
+    }
+}
+
+// Enter edit mode for a row
+function enterEditMode(row) {
+    row.dataset.editing = 'true';
+    
+    // Get current values
+    const usernameSpan = row.querySelector('.username-cell .display-value');
+    const emailSpan = row.querySelector('.email-cell .display-value');
+    const roleSpan = row.querySelector('.role-cell .display-value');
+    
+    const currentUsername = usernameSpan.textContent;
+    const currentEmail = emailSpan.textContent;
+    const currentRole = roleSpan.textContent === 'Administrator' ? 'admin' : 'user';
+    
+    // Replace with input fields
+    usernameSpan.innerHTML = `<input type="text" class="edit-input" data-field="username" value="${currentUsername}" />`;
+    emailSpan.innerHTML = `<input type="email" class="edit-input" data-field="email" value="${currentEmail}" />`;
+    roleSpan.innerHTML = `<select class="edit-input" data-field="role">
+        <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Użytkownik</option>
+        <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrator</option>
+    </select>`;
+    
+    // Update existing buttons instead of replacing them
+    const editBtn = row.querySelector('.edit-button');
+    const deleteBtn = row.querySelector('.delete-button');
+    
+    if (editBtn) {
+        // Change edit button to confirm button
+        editBtn.innerHTML = '✓';
+        editBtn.title = 'Potwierdź';
+        editBtn.className = 'icon-button confirm-button';
+        // Remove old event listeners by cloning the element
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        newEditBtn.addEventListener('click', () => saveEditedUser(row));
+    }
+    
+    if (deleteBtn) {
+        // Change delete button to cancel button
+        deleteBtn.innerHTML = '✕';
+        deleteBtn.title = 'Anuluj';
+        deleteBtn.className = 'icon-button cancel-button';
+        // Remove old event listeners by cloning the element
+        const newDeleteBtn = deleteBtn.cloneNode(true);
+        deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+        newDeleteBtn.addEventListener('click', () => exitEditMode(row));
+    }
+}
+
+// Exit edit mode for a row
+function exitEditMode(row) {
+    row.dataset.editing = 'false';
+    
+    // Get user data to restore the row
+    const userId = row.dataset.userId;
+    
+    // Find the user in the current users list to restore the original state
+    const usernameSpan = row.querySelector('.username-cell .display-value');
+    const emailSpan = row.querySelector('.email-cell .display-value');
+    const roleSpan = row.querySelector('.role-cell .display-value');
+    
+    // Get the original values from the inputs
+    const usernameInput = row.querySelector('.username-cell .edit-input');
+    const emailInput = row.querySelector('.email-cell .edit-input');
+    const roleSelect = row.querySelector('.role-cell .edit-input');
+    
+    // Restore original display values (get from current display or reload from server)
+    // For simplicity, we'll just reload the users table
+    loadUsers();
+}
+
+// Save edited user
+async function saveEditedUser(row) {
+    const userId = row.dataset.userId;
+    const inputs = row.querySelectorAll('.edit-input');
+    
+    const updates = {};
+    inputs.forEach(input => {
+        const field = input.dataset.field;
+        const value = input.value.trim();
+        
+        if (field === 'username') {
+            if (value.length < 3) {
+                showNotification('Nazwa użytkownika musi mieć co najmniej 3 znaki', 'error');
+                return;
+            }
+            updates.username = value;
+        } else if (field === 'email') {
+            if (value && !value.includes('@')) {
+                showNotification('Podaj poprawny adres email', 'error');
+                return;
+            }
+            updates.email = value;
+        } else if (field === 'role') {
+            updates.role = value;
+        }
+    });
+    
+    try {
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': getCSRFToken() 
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
+        
+        showNotification('Dane użytkownika zostały zaktualizowane', 'success');
+        loadUsers();
+    } catch (error) {
+        showNotification(`Nie udało się zaktualizować użytkownika: ${error.message}`, 'error');
     }
 }
 

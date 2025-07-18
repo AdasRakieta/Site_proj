@@ -181,7 +181,7 @@ class SmartHomeSystem:
             pass
         return None
     
-    def add_user(self, username, password, role='user'):
+    def add_user(self, username, password, role='user', email=''):
         """Dodaje nowego użytkownika (login w 'name', klucz to UUID)"""
         # Sprawdź czy login już istnieje
         for user in self.users.values():
@@ -193,12 +193,15 @@ class SmartHomeSystem:
             return False, "Hasło musi mieć co najmniej 6 znaków"
         if role not in ['user', 'admin']:
             return False, "Nieprawidłowa rola użytkownika"
+        # Validate email if provided
+        if email and '@' not in email:
+            return False, "Nieprawidłowy format adresu email"
         user_id = str(uuid.uuid4())
         self.users[user_id] = {
             'name': username,
             'password': generate_password_hash(password),
             'role': role,
-            'email': '',
+            'email': email,
             'profile_picture': ''
         }
         self.save_config()
