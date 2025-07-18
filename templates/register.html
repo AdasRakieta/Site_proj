@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}SmartHome - Profil Użytkownika{% endblock %}
+{% block title %}SmartHome - Rejestracja{% endblock %}
 {% block header %}Rejestracja{% endblock %}
 
 {% block additional_styles %}
@@ -9,29 +9,60 @@
 
 {% block content %}
 <div class="register-profile-container">
-    <h1>Dane użytkownika</h1>
-    <form id="registerProfileForm" class="profile-form">
-        <div class="form-group-register">
-            <label for="registerName">Nazwa użytkownika</label>
-            <input type="text" id="registerName" name="registerName" required>
+    <h1>Rejestracja użytkownika</h1>
+    
+    <!-- Krok 1: Podstawowe dane -->
+    <div id="step1" class="registration-step">
+        <h2>Dane użytkownika</h2>
+        <form id="registerProfileForm" class="profile-form">
+            <div class="form-group-register">
+                <label for="registerName">Nazwa użytkownika</label>
+                <input type="text" id="registerName" name="registerName" required>
+            </div>
+            <div class="form-group-register">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" name="registerEmail" required>
+            </div>
+            <div class="form-group-register">
+                <label for="newPassword">Hasło</label>
+                <input type="password" id="newPassword" name="Password" required>
+            </div>
+            <div class="form-group-register">
+                <label for="confirmPassword">Potwierdź hasło</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required>
+            </div>
+            <div class="form-group-register-buttons">   
+                <button type="submit" class="save-button">Wyślij kod weryfikacyjny</button>
+                <button type="button" class="return-button">Wróć</button>  
+            </div>
+        </form>
+    </div>
+    
+    <!-- Krok 2: Weryfikacja kodu -->
+    <div id="step2" class="registration-step" style="display: none;">
+        <h2>Weryfikacja email</h2>
+        <p>Kod weryfikacyjny został wysłany na podany adres email.</p>
+        <p><strong>Sprawdź swoją skrzynkę odbiorczą i wprowadź 6-cyfrowy kod poniżej:</strong></p>
+        
+        <form id="verificationForm" class="profile-form">
+            <div class="form-group-register">
+                <label for="verificationCode">Kod weryfikacyjny</label>
+                <input type="text" id="verificationCode" name="verificationCode" maxlength="6" placeholder="123456" required>
+            </div>
+            <div class="form-group-register-buttons">
+                <button type="submit" class="save-button">Potwierdź rejestrację</button>
+                <button type="button" class="return-button" id="backToStep1">Wróć do danych</button>
+            </div>
+        </form>
+        
+        <div class="verification-info">
+            <p><small>
+                • Kod jest ważny przez 15 minut<br>
+                • Masz maksymalnie 3 próby wprowadzenia kodu<br>
+                • Nie otrzymałeś kodu? Sprawdź folder SPAM
+            </small></p>
         </div>
-        <div class="form-group-register">
-            <label for="registerEmail">Email</label>
-            <input type="email" id="registerEmail" name="registerEmail" required>
-        </div>
-        <div class="form-group-register">
-            <label for="newPassword">Hasło</label>
-            <input type="password" id="newPassword" name="Password">
-        </div>
-        <div class="form-group-register">
-            <label for="confirmPassword">Potwierdź nowe hasło</label>
-            <input type="password" id="confirmPassword" name="confirmPassword">
-        </div>
-        <div class="form-group-register-buttons">   
-            <button type="submit" class="save-button">Potwierdź</button>
-            <button type="button" class="return-button">Wróć</button>  
-        </div>
-    </form>
+    </div>
 </div>
 {% endblock %}
 
