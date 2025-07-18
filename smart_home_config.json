@@ -9,7 +9,7 @@
         },
         "a67bef9e-b971-417f-8b24-3510184974bb": {
             "password": "scrypt:32768:8:1$UCHmJ23YcdQ0qQEP$8b9dda10320ac6b3df79cac0a506dd830a1d1976efd24578a2c4962c89b27fd1baff6d8f25f49168a76fad7b45f46c1e46563fc01c59841f7d18b8e580160856",
-            "role": "guest",
+            "role": "user",
             "name": "guest",
             "email": "",
             "profile_picture": ""

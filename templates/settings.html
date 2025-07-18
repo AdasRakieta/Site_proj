@@ -26,6 +26,7 @@
                     <h3>Dodaj nowego użytkownika</h3>
                     <div class="new-user-form">
                         <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
+                        <input class="input-settings" type="email" id="newEmail" placeholder="Email (opcjonalnie)">
                         <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
                         <select class="select-settings" id="userRole">
                             <option value="user">Użytkownik</option>
@@ -45,7 +46,8 @@
                                     <th>Nazwa</th>
                                     <th>E-mail</th>
                                     <th>Rola</th>
-                                    <th>Akcja</th>
+                                    <th>Hasło</th>
+                                    <th>Akcje</th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody">
