@@ -1,0 +1,65 @@
+/* ============================== */
+/*            Logowanie           */
+/* ============================== */
+
+.login-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    padding-right: 20px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+}
+
+.login-title {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+.login-form .form-group {
+    margin-bottom: 15px;
+}
+
+.login-form label {
+    display: block;
+    color: var(--text-color);
+}
+
+.login-form input {
+    width: 95%;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: var(--background);
+    color: var(--text-color);
+    border: 1px solid var(--primary);
+    transition: all 0.3s ease;
+    font-size: 12px;
+    box-shadow: var(--box_shd);
+}
+
+.login-form input:focus, 
+.login-form input:hover {
+    border-color: var(--accent-color);
+    outline: none;
+}
+
+.login-form button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--button);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    box-shadow: var(--box_shd);
+    text-decoration: none;
+}
+
+.login-form button:hover {
+    background-color: var(--btn-primary-hover);
+    transform: scale(1.05);
+}

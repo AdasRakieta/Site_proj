@@ -3,6 +3,10 @@
 {% block title %}SmartHome - Logowanie{% endblock %}
 {% block header %}Logowanie{% endblock %}
 
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/login.css') }}">
+{% endblock %}
+
 {% block content %}
     
     <div class="login-container">

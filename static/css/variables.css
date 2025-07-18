@@ -1,0 +1,100 @@
+/* ============================== */
+/*        Zmienne motywów          */
+/* ============================== */
+
+/* Globalne zmienne motywów */
+:root[data-theme="light"] {
+    --text: #050315;
+    --background: #DDE6ED;
+    --primary: #27374D;
+    --secondary: #688699;
+    --accent: #9DB2BF;
+    --automation-hover: var(--input-bg);
+    --button: #9DB2BF;
+    --hover: rgb(182, 206, 223);
+    --btn_text: var(--text);
+    --border: #DDE6ED;
+    --box_shd: 0 3px 5px hsla(0, 0%, 0%, 0.226);
+    --log_txt: #DDE6ED;
+    --log_background: #78a6c9;
+    --log_usr: #050315;
+    --border_side_men: #dde6ed9a;
+    --card-bg: #DDE6ED;
+    --text-secondary: #666;
+    --confirm-btn: rgba(0, 255, 0, 0.253);
+    --confirm-btn-hover: rgba(0, 255, 0, 0.466);
+    --delete-btn: rgba(255, 0, 0, 0.411);
+    --delete-btn-hover: rgba(255, 0, 0, 0.7);
+    --text-delete: #fff;
+    --checkbox-bg: #fff;
+    --checkbox-border: #cccfdb;
+    --checkbox-hover: #717476;
+    --checkbox-checked-bg: #8f949a;
+    --checkbox-checked-border: #212428;
+    --checkbox-checkmark: #fff;
+    --text-color: #000000;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f0f0f0;
+    --accent-color: #007bff;
+    --accent-hover: #0056b3;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0, 0, 0, 0.15);
+    --input-bg: #9DB2BF;
+    --input-border: #ced4da;
+    --input-text-hover: #5e5e5e;
+    --btn-primary: #9DB2BF;
+    --btn-primary-hover: rgb(182, 206, 223);
+    --btn-danger: #f44336;
+    --btn-danger-hover: #f32819;
+    --link-color: #007bff;
+    --link-hover: #0056b3;
+    --nav-bg: #ffffff;
+    --nav-border: #dee2e6;
+}
+
+:root[data-theme="dark"] {
+    --text: #f8f8f2be;
+    --background: #282a36;
+    --primary: #6372a3;
+    --secondary: #343746;
+    --accent: #6170a0;
+    --hover: #f8f8f28c;
+    --automation-hover: var(--hover);
+    --btn_text: var(--text);
+    --border: #222831;
+    --box_shd: 0 2px 5px hsla(0, 0%, 75%, 0.26);
+    --log_txt: #DDE6ED;
+    --log_background: #565b74;
+    --log_usr: #050315;
+    --border_side_men: #dde6ed9a;
+    --card-bg: #282a36;
+    --text-secondary: #aaa;
+    --confirm-btn: rgba(0, 255, 0, 0.253);
+    --confirm-btn-hover: rgba(0, 255, 0, 0.466);
+    --delete-btn: rgba(255, 0, 0, 0.411);
+    --delete-btn-hover: rgba(255, 0, 0, 0.7);
+    --text-delete: #fff;
+    --checkbox-bg: #22242a;
+    --checkbox-border: #44485a;
+    --checkbox-hover: #7a8dcb;
+    --checkbox-checked-bg: #6170a0;
+    --checkbox-checked-border: #56638d;
+    --checkbox-checkmark: #fff;
+    --text-color: #ffffff;
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --accent-color: #0d6efd;
+    --accent-hover: #0b5ed7;
+    --border-color: #404040;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --input-bg: #333333;
+    --input-border: #404040;
+    --btn-primary: #282a36;
+    --btn-primary-hover: #f8f8f28c;
+    --btn-danger: #dc3545;
+    --btn-danger-hover: #bb2d3b;
+    --link-color: #0d6efd;
+    --link-hover: #0b5ed7;
+    --nav-bg: #1a1a1a;
+    --nav-border: #404040;
+}

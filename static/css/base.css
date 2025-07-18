@@ -1,0 +1,91 @@
+/* ============================== */
+/*       Globalne ustawienia       */
+/* ============================== */
+
+/* Reset i podstawowe style */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-primary);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Podstawowe style dla elementów formularza */
+select {
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+select:focus, 
+select:hover {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+input {
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+input:focus, 
+input:hover {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+button {
+    transition: all 0.3s ease !important;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--link-hover);
+}
+
+/* Podstawowe utility classes */
+.text-center {
+    text-align: center;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}

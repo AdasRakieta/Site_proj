@@ -1,0 +1,149 @@
+/* ============================== */
+/*         Utilities              */
+/* ============================== */
+
+/* Input helper classes */
+.input-temp {
+    font-size: 15px;
+    padding: 8px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    max-width: 100px;
+    text-align: center;
+}
+
+.input-user {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--primary);
+    border-radius: 5px;
+    margin: auto;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.input-temp:focus,
+.input-temp:hover,
+.input-user:focus,
+.input-user:hover {
+    border-color: var(--accent-color);
+    color: var(--input-text-hover);
+    outline: none;
+}
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 5px;
+    color: white;
+    z-index: 10000;
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s;
+    box-shadow: 0 3px 10px var(--box_shd);
+    max-width: 350px;
+    font-size: 1.1em;
+}
+
+.notification.success {
+    background-color: #28a745;
+}
+
+.notification.error {
+    background-color: #dc3545;
+}
+
+.notification.warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.notification.info {
+    background-color: #17a2b8;
+}
+
+/* Alert messages */
+.alert-msg {
+    margin-bottom: 1rem; 
+    color: crimson;
+}
+
+/* Camera styles */
+#cameraView {
+    text-align: center;
+    margin-top: 20px;
+}
+
+#cameraView iframe {
+    max-width: 100%;
+    height: auto;
+    border: 0;
+}
+
+/* Temperature display */
+.temp-cont {
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    padding: 15px;
+    margin: 20px auto;
+    text-align: center;
+    max-width: fit-content;
+}
+
+/* User management */
+.user-management {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.user-list {
+    flex: 2;
+    min-width: 300px;
+}
+
+.user-table-container {
+    background: var(--card-bg);
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: var(--box_shd);
+}
+
+/* Form group styles */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text);
+}
+
+/* Remember me checkbox */
+.remember-me-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+    justify-content: center;
+}
+
+.remember-me-container input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    width: auto;
+}
+
+.remember-me-container label {
+    cursor: pointer;
+    font-size: 1rem;
+}
