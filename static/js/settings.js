@@ -46,6 +46,24 @@ function createConfirmButton(user_id, username, deleteBtn) {
     return confirmBtn;
 }
 
+// Helper function to make API calls without app object
+async function makeApiCall(url, options = {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+            ...options.headers
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
 // Helper function to wait for app to be initialized
 function waitForApp() {
     return new Promise((resolve) => {
@@ -69,8 +87,13 @@ let notificationUsersList = [];
 
 async function loadUsers() {
     try {
-        const app = await waitForApp();
-        const response = await app.fetchData('/api/users');
+        let response;
+        if (window.app) {
+            response = await window.app.fetchData('/api/users');
+        } else {
+            response = await makeApiCall('/api/users');
+        }
+        
         if (Array.isArray(response)) {
             updateUsersTable(response);
             notificationUsersList = response;
@@ -358,8 +381,13 @@ function deleteUser(user_id, username, event) {
 // Perform user deletion
 async function performUserDeletion(user_id, username) {
     try {
-        const app = await waitForApp();
-        const response = await app.deleteData(`/api/users/${user_id}`);
+        let response;
+        if (window.app) {
+            response = await window.app.deleteData(`/api/users/${user_id}`);
+        } else {
+            response = await makeApiCall(`/api/users/${user_id}`, { method: 'DELETE' });
+        }
+        
         if (response.status === 'success') {
             showMessage('userActionMessage', `Użytkownik ${username} został usunięty`);
             showNotification(`Użytkownik ${username} został usunięty`, 'success');
@@ -475,8 +503,13 @@ function getAddRecipientEnabledValue() {
 
 async function fillNotificationUserSelect() {
     try {
-        const app = await waitForApp();
-        const users = await app.fetchData('/api/users');
+        let users;
+        if (window.app) {
+            users = await window.app.fetchData('/api/users');
+        } else {
+            users = await makeApiCall('/api/users');
+        }
+        
         const select = document.getElementById('notificationRecipientUser');
         if (select) {
             select.innerHTML = '';
@@ -517,8 +550,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadNotificationSettings() {
     try {
-        const app = await waitForApp();
-        const response = await app.fetchData('/api/notifications/settings');
+        let response;
+        if (window.app) {
+            response = await window.app.fetchData('/api/notifications/settings');
+        } else {
+            response = await makeApiCall('/api/notifications/settings');
+        }
+        
         if (Array.isArray(response.recipients)) {
             notificationRecipients = response.recipients;
             renderNotificationRecipients();
@@ -534,10 +572,18 @@ async function loadNotificationSettings() {
 
 async function saveNotificationSettings() {
     try {
-        const app = await waitForApp();
-        const response = await app.postData('/api/notifications/settings', {
-            recipients: notificationRecipients
-        });
+        let response;
+        if (window.app) {
+            response = await window.app.postData('/api/notifications/settings', {
+                recipients: notificationRecipients
+            });
+        } else {
+            response = await makeApiCall('/api/notifications/settings', {
+                method: 'POST',
+                body: JSON.stringify({ recipients: notificationRecipients })
+            });
+        }
+        
         if (response.status === 'success') {
             showMessage('notificationsMessage', 'Ustawienia powiadomień zapisane');
         } else {
@@ -550,10 +596,18 @@ async function saveNotificationSettings() {
 
 async function saveNotificationRecipientsOnly() {
     try {
-        const app = await waitForApp();
-        const response = await app.postData('/api/notifications/settings', {
-            recipients: notificationRecipients
-        });
+        let response;
+        if (window.app) {
+            response = await window.app.postData('/api/notifications/settings', {
+                recipients: notificationRecipients
+            });
+        } else {
+            response = await makeApiCall('/api/notifications/settings', {
+                method: 'POST',
+                body: JSON.stringify({ recipients: notificationRecipients })
+            });
+        }
+        
         if (response.status !== 'success') {
             throw new Error(response.message || 'Nieznany błąd');
         }
