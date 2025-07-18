@@ -193,9 +193,16 @@ class SmartHomeSystem:
             return False, "Hasło musi mieć co najmniej 6 znaków"
         if role not in ['user', 'admin']:
             return False, "Nieprawidłowa rola użytkownika"
-        # Validate email if provided
-        if email and '@' not in email:
+        # Email is now required
+        if not email or not email.strip():
+            return False, "Adres email jest wymagany"
+        # Validate email format
+        if '@' not in email or '.' not in email.split('@')[1]:
             return False, "Nieprawidłowy format adresu email"
+        # Check if email already exists
+        for user in self.users.values():
+            if user.get('email') == email:
+                return False, "Adres email jest już używany"
         user_id = str(uuid.uuid4())
         self.users[user_id] = {
             'name': username,

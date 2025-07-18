@@ -564,10 +564,12 @@ class APIManager:
                 return jsonify({"status": "error", "message": "Brak danych"}), 400
             username = data.get('username')
             password = data.get('password')
-            email = data.get('email', '')
+            email = data.get('email', '').strip()
             role = data.get('role', 'user')
             if not username or not password:
                 return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
+            if not email:
+                return jsonify({"status": "error", "message": "Adres email jest wymagany"}), 400
             success, message = self.smart_home.add_user(username, password, role, email)
             if success:
                 user_id, user = self.smart_home.get_user_by_login(username)

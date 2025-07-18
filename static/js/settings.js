@@ -184,12 +184,16 @@ async function addUser() {
         showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki', true);
         return;
     }
-    if (!password || password.length < 6) {
-        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
+    if (!email) {
+        showMessage('addUserMessage', 'Adres email jest wymagany', true);
         return;
     }
-    if (email && !email.includes('@')) {
+    if (!email.includes('@') || !email.includes('.')) {
         showMessage('addUserMessage', 'Podaj poprawny adres email', true);
+        return;
+    }
+    if (!password || password.length < 6) {
+        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
         return;
     }
     try {
