@@ -182,15 +182,15 @@ async function addUser() {
     const role = document.getElementById('userRole')?.value;
     if (!username || username.length < 3) {
         showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki', true);
-        return;
+        return false;
     }
     if (!password || password.length < 6) {
         showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
-        return;
+        return false;
     }
     if (email && !email.includes('@')) {
         showMessage('addUserMessage', 'Podaj poprawny adres email', true);
-        return;
+        return false;
     }
     try {
         // Pobierz token CSRF z inputa (najpewniejsze źródło dla Flask)
@@ -205,13 +205,9 @@ async function addUser() {
 
         if (!csrfToken) {
             showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
-            return;
+            return false;
         }
 
-        // DEBUG: log request before sending
-        // console.log('Sending addUser POST', { username, email, password, role, csrfToken });
-
-        // Wyślij żądanie POST z CSRF tokenem
         const response = await fetch('/api/users', {
             method: 'POST',
             headers: {
@@ -222,19 +218,9 @@ async function addUser() {
             body: JSON.stringify({ username, email, password, role })
         });
 
-        // Sprawdź, czy fetch został zablokowany przez przeglądarkę (np. przez CORS, brak sesji, itp.)
         if (response.type === 'opaque' || response.status === 0) {
             showMessage('addUserMessage', 'Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.', true);
             throw new Error('Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.');
-        }
-
-        // Jeśli odpowiedź nie jest ok, spróbuj pobrać tekst błędu
-        if (!response.ok) {
-            let msg = '';
-            try {
-                msg = await response.text();
-            } catch {}
-            throw new Error(msg || `HTTP ${response.status}`);
         }
 
         let data;
@@ -244,20 +230,22 @@ async function addUser() {
             throw new Error('Serwer nie zwrócił poprawnego JSON');
         }
 
-        if (data.status === 'success') {
-            showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
-            showNotification(`Użytkownik ${username} został dodany`, 'success');
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newEmail').value = '';
-            document.getElementById('newPassword').value = '';
-            loadUsers();
-        } else {
-            throw new Error(data.message || 'Nieznany błąd');
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || `HTTP ${response.status}`);
         }
+
+        showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
+        showNotification(`Użytkownik ${username} został dodany`, 'success');
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newEmail').value = '';
+        document.getElementById('newPassword').value = '';
+        loadUsers();
+        return true;
     } catch (error) {
         console.error('Błąd dodawania użytkownika:', error);
         showMessage('addUserMessage', `Nie udało się dodać użytkownika: ${error.message}`, true);
         showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
+        return false;
     }
 }
 
@@ -667,4 +655,14 @@ function initSettingsPage() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', initSettingsPage);
+// Zamień domyślny submit formularza na obsługę JS
+document.addEventListener('DOMContentLoaded', () => {
+    initSettingsPage();
+    const userForm = document.querySelector('.user-form form');
+    if (userForm) {
+        userForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await addUser();
+        });
+    }
+});
