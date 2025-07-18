@@ -46,9 +46,63 @@ class RoutesManager:
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('security.html', user_data=user_data)
 
-        @self.app.route('/settings')
+        @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def settings():
+            if request.method == 'POST':
+                # Handle admin user creation
+                if session.get('role') == 'admin':
+                    username = request.form.get('username', '').strip()
+                    email = request.form.get('email', '').strip()
+                    password = request.form.get('password', '')
+                    role = request.form.get('role', 'user')
+                    
+                    # Basic validation
+                    if not username or len(username) < 3:
+                        flash('Nazwa użytkownika musi mieć co najmniej 3 znaki.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if not email or '@' not in email:
+                        flash('Podaj poprawny adres email.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if not password or len(password) < 6:
+                        flash('Hasło musi mieć co najmniej 6 znaków.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if role not in ['user', 'admin']:
+                        flash('Nieprawidłowa rola użytkownika.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    # Check if user already exists
+                    for user in self.smart_home.users.values():
+                        if user.get('name') == username:
+                            flash('Użytkownik już istnieje.', 'error')
+                            return redirect(url_for('settings'))
+                        if user.get('email') == email:
+                            flash('Adres email jest już używany.', 'error')
+                            return redirect(url_for('settings'))
+                    
+                    # Create user
+                    import uuid
+                    from werkzeug.security import generate_password_hash
+                    
+                    user_id = str(uuid.uuid4())
+                    self.smart_home.users[user_id] = {
+                        'name': username,
+                        'password': generate_password_hash(password),
+                        'role': role,
+                        'email': email,
+                        'profile_picture': ''
+                    }
+                    self.smart_home.save_config()
+                    
+                    flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                    return redirect(url_for('settings'))
+                else:
+                    flash('Brak uprawnień administratora.', 'error')
+                    return redirect(url_for('settings'))
+            
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('settings.html', user_data=user_data)
 

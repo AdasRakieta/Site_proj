@@ -174,79 +174,6 @@ function updateUsersTable(users) {
     });
 }
 
-// Add new user
-async function addUser() {
-    const username = document.getElementById('newUsername')?.value.trim();
-    const email = document.getElementById('newEmail')?.value.trim();
-    const password = document.getElementById('newPassword')?.value;
-    const role = document.getElementById('userRole')?.value;
-    
-    // Use the same validation as registration
-    if (!username || username.length < 3) {
-        showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki.', true);
-        return;
-    }
-    if (!email || !email.includes('@')) {
-        showMessage('addUserMessage', 'Podaj poprawny adres email.', true);
-        return;
-    }
-    if (!password || password.length < 6) {
-        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków.', true);
-        return;
-    }
-    
-    // Get CSRF token (same as registration)
-    function getCSRFToken() {
-        let csrfToken = null;
-        const input = document.querySelector('input[name="_csrf_token"]');
-        if (input) csrfToken = input.value;
-        if (!csrfToken) {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            if (meta) csrfToken = meta.getAttribute('content');
-        }
-        return csrfToken;
-    }
-    
-    const csrfToken = getCSRFToken();
-    if (!csrfToken) {
-        showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
-        return;
-    }
-
-    try {
-        // Send request using the same approach as registration
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ username, email, password, role })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.status === 'success') {
-            showMessage('addUserMessage', 'Użytkownik został dodany pomyślnie!', false);
-            showNotification(`Użytkownik ${username} został dodany`, 'success');
-            loadUsers();
-            // Reset form
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newEmail').value = '';
-            document.getElementById('newPassword').value = '';
-            document.getElementById('userRole').value = 'user';
-        } else {
-            showMessage('addUserMessage', data.message || 'Wystąpił błąd podczas dodawania użytkownika.', true);
-            showNotification(`Nie udało się dodać użytkownika: ${data.message || 'Wystąpił błąd'}`, 'error');
-        }
-    } catch (error) {
-        console.error('Błąd dodawania użytkownika:', error);
-        showMessage('addUserMessage', 'Błąd połączenia z serwerem.', true);
-        showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
-    }
-}
-
 // Toggle edit mode for a row
 function toggleEditMode(row) {
     const isEditing = row.dataset.editing === 'true';
@@ -644,10 +571,6 @@ function initSettingsPage() {
     }
     // Initialize for admin users
     if (window.sessionRole === 'admin') {
-        const addUserBtn = document.getElementById('addUserBtn');
-        if (addUserBtn) {
-            addUserBtn.addEventListener('click', addUser);
-        }
         loadUsers();
         initNotificationSettings();
     }
