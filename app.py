@@ -144,7 +144,6 @@ def login():
             session['role'] = user['role']
             session.permanent = True  # aktywuj timeout sesji
             flash('Zalogowano pomyślnie!', 'success')
-            
             # Jeśli użytkownik chce zapamiętać dane, zwróć informację o tym
             if remember_me:
                 response = redirect(url_for('home'))
@@ -158,6 +157,11 @@ def login():
         # Rejestracja nieudanej próby i wysłanie alertu
         mail_manager.track_and_alert_failed_login(login_name, ip_address)
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
+        # Wygeneruj nowy token CSRF po nieudanym logowaniu
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    else:
+        # GET: zawsze generuj nowy token CSRF
+        session['_csrf_token'] = secrets.token_urlsafe(32)
     return render_template('login.html')
 
 @app.route('/logout')
