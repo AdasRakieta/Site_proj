@@ -43,37 +43,6 @@ def get_allowed_origins():
 
 socketio = SocketIO(app, cors_allowed_origins=get_allowed_origins())
 
-# Add CORS headers to all responses
-@app.after_request
-def after_request(response):
-    # Only add CORS headers for trusted hosts and non-OPTIONS requests
-    # (OPTIONS requests are handled by handle_preflight)
-    if is_trusted_host(request.remote_addr) and request.method != 'OPTIONS':
-        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
-
-# Handle preflight requests
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        print(f"[DEBUG] OPTIONS request from {request.remote_addr} to {request.path}")
-        print(f"[DEBUG] Origin: {request.headers.get('Origin')}")
-        print(f"[DEBUG] Is trusted host: {is_trusted_host(request.remote_addr)}")
-        # Only handle preflight for trusted hosts
-        if is_trusted_host(request.remote_addr):
-            response = jsonify()
-            response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-            return response
-        else:
-            # Return 403 for untrusted hosts
-            return 'Unauthorized host', 403
-
 # --- CSRF token ---
 def generate_csrf_token():
     if '_csrf_token' not in session:
@@ -111,15 +80,11 @@ def is_trusted_host(ip):
 
 @app.before_request
 def csrf_protect():
-    # Debug all requests
-    print(f"[REQUEST DEBUG] {request.method} {request.path} from {request.remote_addr}")
-    
     if request.method in ['POST', 'PUT', 'DELETE']:
         # Sprawdź czy żądanie pochodzi z zaufanego hosta
         if is_trusted_host(request.remote_addr):
             token = request.headers.get('X-CSRFToken') or request.form.get('_csrf_token')
             expected = session.get('_csrf_token')
-            print(f"[CSRF DEBUG] IP: {request.remote_addr} | Sent: {token} | Expected: {expected} | Path: {request.path}")
             if not token or token != expected:
                 print(f"[CSRF] Invalid CSRF token from {request.remote_addr}. Sent: {token}, Expected: {expected}")
                 app.logger.warning(f'Invalid CSRF token from {request.remote_addr}. Token: {token}, Session token: {expected}')
