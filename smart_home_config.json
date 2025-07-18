@@ -6,6 +6,13 @@
             "name": "admin",
             "email": "szymon.przybysz2003@gmail.com",
             "profile_picture": "/static/profile_pictures/32d2fe98-26c2-45f4-a78a-7a1cb9692f6a_1751926399.png"
+        },
+        "4deb1b74-1155-4ff1-ada3-d9e586580590": {
+            "name": "testuser",
+            "password": "scrypt:32768:8:1$ibUH2Vo5h8eF6JIp$0b875d1e8fb70299958b247e8921fb2829544f694b470718ac3e27e38af5b9a4ca8b4424ea753bfacb55ce44e2982b50433c62782a6df1cf10a2413134a8bb59",
+            "role": "user",
+            "email": "testuser@example.com",
+            "profile_picture": ""
         }
     },
     "temperature_states": {

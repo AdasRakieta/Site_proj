@@ -25,9 +25,9 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <h3>Dodaj nowego użytkownika</h3>
                     <div class="new-user-form">
-                        <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
-                        <input class="input-settings" type="email" id="newEmail" placeholder="Email (opcjonalnie)">
-                        <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
+                        <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3" required>
+                        <input class="input-settings" type="email" id="newEmail" placeholder="Email" required>
+                        <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6" required>
                         <select class="select-settings" id="userRole">
                             <option value="user">Użytkownik</option>
                             <option value="admin">Administrator</option>
