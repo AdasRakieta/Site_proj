@@ -6,41 +6,6 @@
             "name": "admin",
             "email": "szymon.przybysz2003@gmail.com",
             "profile_picture": "/static/profile_pictures/32d2fe98-26c2-45f4-a78a-7a1cb9692f6a_1751926399.png"
-        },
-        "a67bef9e-b971-417f-8b24-3510184974bb": {
-            "password": "scrypt:32768:8:1$UCHmJ23YcdQ0qQEP$8b9dda10320ac6b3df79cac0a506dd830a1d1976efd24578a2c4962c89b27fd1baff6d8f25f49168a76fad7b45f46c1e46563fc01c59841f7d18b8e580160856",
-            "role": "user",
-            "name": "guest",
-            "email": "",
-            "profile_picture": ""
-        },
-        "1bad3586-2957-4d29-b1ea-de4b43fb9197": {
-            "password": "scrypt:32768:8:1$3J536Bu3099NsMN0$d492f03c8dacf3d8d0d8fa7c0bfbb9c14bb7abce7b5e8d4670ad0ca84ccecd4b8da84a3a601ca80d3120c715336fb60307a640f0ed4998b946d0aa40ec9a31cb",
-            "role": "user",
-            "name": "user",
-            "email": "szymon.przybysz@op.pl",
-            "profile_picture": ""
-        },
-        "3c08345a-d75c-41ff-8c0d-5072dc2a7fc8": {
-            "name": "sdda",
-            "password": "scrypt:32768:8:1$h3vO8GR84LGIvqIY$531e74f1693035e86cefbfca3137155776b085348be7e2798301299a8f5d63f9f59aaa8e37cbe851c75291d7e9564e8aab7103c02fa1a5fc1222e685b326f87a",
-            "role": "user",
-            "email": "d@d.pl",
-            "profile_picture": ""
-        },
-        "3f4ea41e-efe9-4b66-98d3-32022f04d61c": {
-            "name": "ddddd1",
-            "password": "scrypt:32768:8:1$f9O91t3scKRjG3z1$b54f1b02007a67b18c83a048ff41d4ee8ebfc2cc3e08b3a9feea0b7aec1f224e271d5892a7e05e96dd8f4accd55cad1c80b6b1715a21cce213e83c54f0389432",
-            "role": "user",
-            "email": "s@d.s",
-            "profile_picture": ""
-        },
-        "6cf93d68-a197-4399-86ee-866ef6e67ac7": {
-            "name": "testuser",
-            "password": "scrypt:32768:8:1$ff4uYh0HuGi2BYTG$6afe972327e382cf3afc38cbc5f5da31a1a1071a366f0ee27d22a8c5cf1a37ecfde6ada67358fc8facd4a9f44136ce63c391f6f211ed8fea8141b8ee1e316b3c",
-            "role": "user",
-            "email": "test@example.com",
-            "profile_picture": ""
         }
     },
     "temperature_states": {
