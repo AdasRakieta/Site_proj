@@ -539,13 +539,6 @@ class APIManager:
                                       user_data=user_data)
             return redirect(url_for('error'))
 
-        @self.app.route('/api/test', methods=['GET'])
-        def test_api():
-            print(f"[DEBUG] Test API called from IP: {request.remote_addr}")
-            print(f"[DEBUG] Headers: {dict(request.headers)}")
-            print(f"[DEBUG] Session: {dict(session)}")
-            return jsonify({"status": "success", "message": "API is working", "remote_addr": request.remote_addr})
-
         @self.app.route('/api/users', methods=['GET'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
@@ -566,38 +559,53 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def add_user():
-            # Debug logging
-            print(f"[DEBUG] POST /api/users called from IP: {request.remote_addr}")
-            print(f"[DEBUG] Headers: {dict(request.headers)}")
-            print(f"[DEBUG] Request data: {request.get_data()}")
-            
+            """Add user using the same logic as registration but without email verification"""
             data = request.get_json()
             if not data:
-                print("[DEBUG] No JSON data received")
-                return jsonify({"status": "error", "message": "Brak danych"}), 400
+                return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
             
-            print(f"[DEBUG] Parsed JSON: {data}")
-            username = data.get('username')
-            password = data.get('password')
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
             email = data.get('email', '').strip()
             role = data.get('role', 'user')
             
-            if not username or not password:
-                print("[DEBUG] Missing username or password")
-                return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
-            if not email:
-                print("[DEBUG] Missing email")
-                return jsonify({"status": "error", "message": "Adres email jest wymagany"}), 400
+            # Use the same validation logic as registration
+            if not username or len(username) < 3:
+                return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
+            if not email or '@' not in email:
+                return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
+            if not password or len(password) < 6:
+                return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
+            if role not in ['user', 'admin']:
+                return jsonify({'status': 'error', 'message': 'Nieprawidłowa rola użytkownika.'}), 400
             
-            print(f"[DEBUG] Adding user: {username}, {email}, {role}")
-            success, message = self.smart_home.add_user(username, password, role, email)
-            if success:
-                user_id, user = self.smart_home.get_user_by_login(username)
-                print(f"[DEBUG] User added successfully: {user_id}")
-                return jsonify({"status": "success", "message": message, "user_id": user_id, "username": username})
+            # Check if user already exists (same as registration)
+            for user in self.smart_home.users.values():
+                if user.get('name') == username:
+                    return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+                if user.get('email') == email:
+                    return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
             
-            print(f"[DEBUG] Failed to add user: {message}")
-            return jsonify({"status": "error", "message": message}), 400
+            # Create user using the same logic as registration (without verification)
+            import uuid
+            from werkzeug.security import generate_password_hash
+            
+            user_id = str(uuid.uuid4())
+            self.smart_home.users[user_id] = {
+                'name': username,
+                'password': generate_password_hash(password),
+                'role': role,
+                'email': email,
+                'profile_picture': ''
+            }
+            self.smart_home.save_config()
+            
+            return jsonify({
+                'status': 'success', 
+                'message': 'Użytkownik został dodany pomyślnie!',
+                'user_id': user_id,
+                'username': username
+            }), 200
 
         @self.app.route('/api/users/<user_id>', methods=['PUT'])
         @self.auth_manager.login_required

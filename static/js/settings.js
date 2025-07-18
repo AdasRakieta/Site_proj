@@ -180,101 +180,41 @@ async function addUser() {
     const email = document.getElementById('newEmail')?.value.trim();
     const password = document.getElementById('newPassword')?.value;
     const role = document.getElementById('userRole')?.value;
+    
+    // Use the same validation as registration
     if (!username || username.length < 3) {
-        showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki', true);
+        showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki.', true);
         return;
     }
-    if (!email) {
-        showMessage('addUserMessage', 'Adres email jest wymagany', true);
-        return;
-    }
-    if (!email.includes('@') || !email.includes('.')) {
-        showMessage('addUserMessage', 'Podaj poprawny adres email', true);
+    if (!email || !email.includes('@')) {
+        showMessage('addUserMessage', 'Podaj poprawny adres email.', true);
         return;
     }
     if (!password || password.length < 6) {
-        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
+        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków.', true);
         return;
     }
-    try {
-        // Pobierz token CSRF z inputa (najpewniejsze źródło dla Flask)
+    
+    // Get CSRF token (same as registration)
+    function getCSRFToken() {
         let csrfToken = null;
         const input = document.querySelector('input[name="_csrf_token"]');
-        if (input) {
-            csrfToken = input.value;
-            console.log('CSRF token from input:', csrfToken);
-        }
+        if (input) csrfToken = input.value;
         if (!csrfToken) {
             const meta = document.querySelector('meta[name="csrf-token"]');
-            if (meta) {
-                csrfToken = meta.getAttribute('content');
-                console.log('CSRF token from meta:', csrfToken);
-            }
+            if (meta) csrfToken = meta.getAttribute('content');
         }
-        if (!csrfToken && window.csrf_token) {
-            csrfToken = window.csrf_token;
-            console.log('CSRF token from window:', csrfToken);
-        }
+        return csrfToken;
+    }
+    
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
+        return;
+    }
 
-        if (!csrfToken) {
-            showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
-            return;
-        }
-
-        console.log('Final CSRF token:', csrfToken);
-
-        // DEBUG: log request before sending
-        console.log('Sending addUser POST', { username, email, password, role, csrfToken });
-        console.log('Current URL:', window.location.href);
-        console.log('Request headers:', {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        });
-
-        // Test basic connectivity first
-        console.log('Testing API connectivity...');
-        console.log('Making request to:', '/api/test');
-        console.log('Current location:', window.location.origin);
-        
-        try {
-            const testResponse = await fetch('/api/test', {
-                method: 'GET',
-                credentials: 'same-origin'
-            });
-            console.log('Test API response:', testResponse.status, testResponse.statusText);
-            console.log('Test API headers:', [...testResponse.headers.entries()]);
-            if (testResponse.ok) {
-                const testData = await testResponse.json();
-                console.log('Test API data:', testData);
-            } else {
-                console.error('Test API returned non-OK status:', testResponse.status, testResponse.statusText);
-                throw new Error(`Test API returned status: ${testResponse.status}`);
-            }
-        } catch (testError) {
-            console.error('Test API failed:', testError);
-            console.error('Error details:', testError.message, testError.stack);
-            
-            // Try alternative approach
-            console.log('Trying alternative fetch without credentials...');
-            try {
-                const altResponse = await fetch('/api/test', {
-                    method: 'GET'
-                });
-                console.log('Alternative fetch response:', altResponse.status, altResponse.statusText);
-                if (altResponse.ok) {
-                    const altData = await altResponse.json();
-                    console.log('Alternative fetch data:', altData);
-                } else {
-                    console.error('Alternative fetch also failed:', altResponse.status, altResponse.statusText);
-                    throw new Error(`Alternative fetch returned status: ${altResponse.status}`);
-                }
-            } catch (altError) {
-                console.error('Alternative fetch also failed:', altError);
-                throw new Error('Nie można połączyć się z serwerem API');
-            }
-        }
-
-        // Wyślij żądanie POST z CSRF tokenem
+    try {
+        // Send request using the same approach as registration
         const response = await fetch('/api/users', {
             method: 'POST',
             headers: {
@@ -284,42 +224,25 @@ async function addUser() {
             credentials: 'same-origin',
             body: JSON.stringify({ username, email, password, role })
         });
-
-        // Sprawdź, czy fetch został zablokowany przez przeglądarkę (np. przez CORS, brak sesji, itp.)
-        if (response.type === 'opaque' || response.status === 0) {
-            showMessage('addUserMessage', 'Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.', true);
-            throw new Error('Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.');
-        }
-
-        // Jeśli odpowiedź nie jest ok, spróbuj pobrać tekst błędu
-        if (!response.ok) {
-            let msg = '';
-            try {
-                msg = await response.text();
-            } catch {}
-            throw new Error(msg || `HTTP ${response.status}`);
-        }
-
-        let data;
-        try {
-            data = await response.json();
-        } catch (e) {
-            throw new Error('Serwer nie zwrócił poprawnego JSON');
-        }
-
-        if (data.status === 'success') {
-            showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success') {
+            showMessage('addUserMessage', 'Użytkownik został dodany pomyślnie!', false);
             showNotification(`Użytkownik ${username} został dodany`, 'success');
+            loadUsers();
+            // Reset form
             document.getElementById('newUsername').value = '';
             document.getElementById('newEmail').value = '';
             document.getElementById('newPassword').value = '';
-            loadUsers();
+            document.getElementById('userRole').value = 'user';
         } else {
-            throw new Error(data.message || 'Nieznany błąd');
+            showMessage('addUserMessage', data.message || 'Wystąpił błąd podczas dodawania użytkownika.', true);
+            showNotification(`Nie udało się dodać użytkownika: ${data.message || 'Wystąpił błąd'}`, 'error');
         }
     } catch (error) {
         console.error('Błąd dodawania użytkownika:', error);
-        showMessage('addUserMessage', `Nie udało się dodać użytkownika: ${error.message}`, true);
+        showMessage('addUserMessage', 'Błąd połączenia z serwerem.', true);
         showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
     }
 }
