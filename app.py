@@ -46,8 +46,9 @@ socketio = SocketIO(app, cors_allowed_origins=get_allowed_origins())
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    # Only add CORS headers for trusted hosts
-    if is_trusted_host(request.remote_addr):
+    # Only add CORS headers for trusted hosts and non-OPTIONS requests
+    # (OPTIONS requests are handled by handle_preflight)
+    if is_trusted_host(request.remote_addr) and request.method != 'OPTIONS':
         response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
@@ -58,12 +59,20 @@ def after_request(response):
 @app.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
-        response = jsonify()
-        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        print(f"[DEBUG] OPTIONS request from {request.remote_addr} to {request.path}")
+        print(f"[DEBUG] Origin: {request.headers.get('Origin')}")
+        print(f"[DEBUG] Is trusted host: {is_trusted_host(request.remote_addr)}")
+        # Only handle preflight for trusted hosts
+        if is_trusted_host(request.remote_addr):
+            response = jsonify()
+            response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            return response
+        else:
+            # Return 403 for untrusted hosts
+            return 'Unauthorized host', 403
 
 # --- CSRF token ---
 def generate_csrf_token():
@@ -102,6 +111,9 @@ def is_trusted_host(ip):
 
 @app.before_request
 def csrf_protect():
+    # Debug all requests
+    print(f"[REQUEST DEBUG] {request.method} {request.path} from {request.remote_addr}")
+    
     if request.method in ['POST', 'PUT', 'DELETE']:
         # Sprawdź czy żądanie pochodzi z zaufanego hosta
         if is_trusted_host(request.remote_addr):
@@ -319,6 +331,13 @@ def execute_action(action):
         mail_manager.send_security_alert('automation_notification', {
             'message': action['message']
         })
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"[ERROR] Unhandled exception: {e}")
+    print(f"[ERROR] Request: {request.method} {request.path} from {request.remote_addr}")
+    # Return a generic error response
+    return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
 routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager)

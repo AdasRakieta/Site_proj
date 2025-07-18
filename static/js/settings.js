@@ -233,19 +233,45 @@ async function addUser() {
 
         // Test basic connectivity first
         console.log('Testing API connectivity...');
+        console.log('Making request to:', '/api/test');
+        console.log('Current location:', window.location.origin);
+        
         try {
             const testResponse = await fetch('/api/test', {
                 method: 'GET',
                 credentials: 'same-origin'
             });
             console.log('Test API response:', testResponse.status, testResponse.statusText);
+            console.log('Test API headers:', [...testResponse.headers.entries()]);
             if (testResponse.ok) {
                 const testData = await testResponse.json();
                 console.log('Test API data:', testData);
+            } else {
+                console.error('Test API returned non-OK status:', testResponse.status, testResponse.statusText);
+                throw new Error(`Test API returned status: ${testResponse.status}`);
             }
         } catch (testError) {
             console.error('Test API failed:', testError);
-            throw new Error('Nie można połączyć się z serwerem API');
+            console.error('Error details:', testError.message, testError.stack);
+            
+            // Try alternative approach
+            console.log('Trying alternative fetch without credentials...');
+            try {
+                const altResponse = await fetch('/api/test', {
+                    method: 'GET'
+                });
+                console.log('Alternative fetch response:', altResponse.status, altResponse.statusText);
+                if (altResponse.ok) {
+                    const altData = await altResponse.json();
+                    console.log('Alternative fetch data:', altData);
+                } else {
+                    console.error('Alternative fetch also failed:', altResponse.status, altResponse.statusText);
+                    throw new Error(`Alternative fetch returned status: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('Alternative fetch also failed:', altError);
+                throw new Error('Nie można połączyć się z serwerem API');
+            }
         }
 
         // Wyślij żądanie POST z CSRF tokenem

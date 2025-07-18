@@ -541,7 +541,10 @@ class APIManager:
 
         @self.app.route('/api/test', methods=['GET'])
         def test_api():
-            return jsonify({"status": "success", "message": "API is working"})
+            print(f"[DEBUG] Test API called from IP: {request.remote_addr}")
+            print(f"[DEBUG] Headers: {dict(request.headers)}")
+            print(f"[DEBUG] Session: {dict(session)}")
+            return jsonify({"status": "success", "message": "API is working", "remote_addr": request.remote_addr})
 
         @self.app.route('/api/users', methods=['GET'])
         @self.auth_manager.login_required
