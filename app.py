@@ -932,17 +932,15 @@ def execute_automations():
         current_weekday = datetime.now().weekday()  # 0=Monday
         weekday_map = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         today = weekday_map[current_weekday]
-        print(f"[AUTOMATION] Sprawdzanie automatyzacji o {current_time} ({today})", file=sys.stderr)
         for idx, automation in enumerate(smart_home.automations):
             if automation['enabled']:
                 trigger = automation['trigger']
-                print(f"[AUTOMATION] Sprawdzam: {automation['name']} (trigger: {trigger})", file=sys.stderr)
                 # Sprawdzenie wyzwalacza czasowego z obsługą dni tygodnia
                 if trigger['type'] == 'time':
                     days = trigger.get('days')
                     if days and today not in days:
                         continue  # Pomijamy jeśli dziś nie jest na liście
-                    print(f"[AUTOMATION] Wyzwalacz czasowy: {trigger['time']} == {current_time}?", file=sys.stderr)
+                    # print(f"[AUTOMATION] Wyzwalacz czasowy: {trigger['time']} == {current_time}?", file=sys.stderr)
                     if trigger['time'] == current_time:
                         print(f"[AUTOMATION] Warunek czasowy spełniony! Wykonuję akcje...", file=sys.stderr)
                         for action in automation['actions']:
@@ -957,7 +955,7 @@ def execute_automations():
                         # Nie sprawdzamy w pętli co minutę, bo toggle ma sens tylko przy zmianie
                         pass
                     elif device_state is not None and ((device_state and trigger['state'] == 'on') or (not device_state and trigger['state'] == 'off')):
-                        # print(f"[AUTOMATION] Warunek urządzenia spełniony! Wykonuję akcje...", file=sys.stderr)
+                        print(f"[AUTOMATION] Warunek urządzenia spełniony! Wykonuję akcje...", file=sys.stderr)
                         for action in automation['actions']:
                             execute_action(action)
                 # Sprawdzenie wyzwalacza czujnika
@@ -970,7 +968,7 @@ def execute_automations():
                             (trigger['condition'] == 'below' and sensor_value < trigger['value'])
                         )
                         if condition_met:
-                            # print(f"[AUTOMATION] Warunek czujnika spełniony! Wykonuję akcje...", file=sys.stderr)
+                            print(f"[AUTOMATION] Warunek czujnika spełniony! Wykonuję akcje...", file=sys.stderr)
                             for action in automation['actions']:
                                 execute_action(action)
         time.sleep(60)  # Sprawdzaj co minutę
@@ -989,13 +987,13 @@ def execute_action(action):
                 button['state'] = not button['state']
             else:
                 button['state'] = state == 'on'
-            # print(f"[AUTOMATION] Ustawiam {room}_{name} na {button['state']}", file=sys.stderr)
+            print(f"[AUTOMATION] Ustawiam {room}_{name} na {button['state']}", file=sys.stderr)
             socketio.emit('update_button', {'room': room, 'name': name, 'state': button['state']})
             smart_home.save_config()
-        # else:
-        #     print(f"[AUTOMATION] Nie znaleziono przycisku {device}", file=sys.stderr)
+        else:
+            print(f"[AUTOMATION] Nie znaleziono przycisku {device}", file=sys.stderr)
     elif action['type'] == 'notification':
-        # print(f"[AUTOMATION] Wysyłam powiadomienie: {action['message']}", file=sys.stderr)
+        print(f"[AUTOMATION] Wysyłam powiadomienie: {action['message']}", file=sys.stderr)
         mail_manager.send_security_alert('automation_notification', {
             'message': action['message']
         })
