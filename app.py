@@ -689,7 +689,8 @@ def allowed_file(filename):
             {
                 'user_id': user_id,
                 'username': data['name'],
-                'role': data['role']
+                'role': data['role'],
+                'email': data.get('email', '')
             }
             for user_id, data in smart_home.users.items()
         ]
@@ -726,6 +727,52 @@ def allowed_file(filename):
         if success:
             return jsonify({"status": "success", "message": message})
         return jsonify({"status": "error", "message": message}), 400
+
+    @staticmethod
+    @app.route('/api/users/<user_id>', methods=['PUT'])
+    @auth_manager.login_required
+    @auth_manager.admin_required
+    def update_user(user_id):
+        """Aktualizuje dane użytkownika po user_id (UUID)"""
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "Brak danych"}), 400
+        
+        # Check if user exists
+        if user_id not in smart_home.users:
+            return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 404
+        
+        # Update username if provided
+        if 'username' in data:
+            new_username = data['username'].strip()
+            if not new_username or len(new_username) < 3:
+                return jsonify({"status": "error", "message": "Nazwa użytkownika musi mieć co najmniej 3 znaki"}), 400
+            # Check if username is already taken by another user
+            for uid, user_data in smart_home.users.items():
+                if uid != user_id and user_data.get('name', '').lower() == new_username.lower():
+                    return jsonify({"status": "error", "message": "Nazwa użytkownika jest już zajęta"}), 400
+            smart_home.users[user_id]['name'] = new_username
+        
+        # Update email if provided
+        if 'email' in data:
+            new_email = data['email'].strip()
+            if new_email and '@' not in new_email:
+                return jsonify({"status": "error", "message": "Podaj poprawny adres email"}), 400
+            # Check if email is already taken by another user
+            for uid, user_data in smart_home.users.items():
+                if uid != user_id and user_data.get('email', '').lower() == new_email.lower() and new_email:
+                    return jsonify({"status": "error", "message": "Adres email jest już używany"}), 400
+            smart_home.users[user_id]['email'] = new_email
+        
+        # Update role if provided
+        if 'role' in data:
+            new_role = data['role']
+            if new_role not in ['user', 'admin']:
+                return jsonify({"status": "error", "message": "Nieprawidłowa rola"}), 400
+            smart_home.users[user_id]['role'] = new_role
+        
+        smart_home.save_config()
+        return jsonify({"status": "success", "message": "Dane użytkownika zostały zaktualizowane"})
 
     @staticmethod
     @app.route('/api/users/<user_id>/password', methods=['PUT'])

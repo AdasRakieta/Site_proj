@@ -368,13 +368,18 @@ input{
     background-color: var(--confirm-btn);
     color: var(--text-delete);
     border-radius: 5px;
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-    margin-top: 10px;
-    margin-right: 10px;
+    font-size: 1rem;
+    padding: 0.5rem;
+    margin: 0.5rem 0.5rem 0.5rem 0;
+    min-width: 85px;
+    text-align: center;
+    box-shadow: var(--box_shd);
+    transition: all 0.3s ease;
 }
 .confirm-delete-btn:hover {
     background-color: var(--confirm-btn-hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.08);
 }
 
 .btn-primary {
@@ -508,6 +513,8 @@ input{
     text-decoration: none;
     box-shadow: var(--box_shd);
     transition: all 0.3s ease;
+    min-width: 85px;
+    text-align: center;
 }
 
 .delete-button, .cancel-button {
