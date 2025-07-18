@@ -43,6 +43,28 @@ def get_allowed_origins():
 
 socketio = SocketIO(app, cors_allowed_origins=get_allowed_origins())
 
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    # Only add CORS headers for trusted hosts
+    if is_trusted_host(request.remote_addr):
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Handle preflight requests
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,X-CSRFToken')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+
 # --- CSRF token ---
 def generate_csrf_token():
     if '_csrf_token' not in session:

@@ -200,20 +200,53 @@ async function addUser() {
         // Pobierz token CSRF z inputa (najpewniejsze źródło dla Flask)
         let csrfToken = null;
         const input = document.querySelector('input[name="_csrf_token"]');
-        if (input) csrfToken = input.value;
+        if (input) {
+            csrfToken = input.value;
+            console.log('CSRF token from input:', csrfToken);
+        }
         if (!csrfToken) {
             const meta = document.querySelector('meta[name="csrf-token"]');
-            if (meta) csrfToken = meta.getAttribute('content');
+            if (meta) {
+                csrfToken = meta.getAttribute('content');
+                console.log('CSRF token from meta:', csrfToken);
+            }
         }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        if (!csrfToken && window.csrf_token) {
+            csrfToken = window.csrf_token;
+            console.log('CSRF token from window:', csrfToken);
+        }
 
         if (!csrfToken) {
             showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
             return;
         }
 
+        console.log('Final CSRF token:', csrfToken);
+
         // DEBUG: log request before sending
-        // console.log('Sending addUser POST', { username, email, password, role, csrfToken });
+        console.log('Sending addUser POST', { username, email, password, role, csrfToken });
+        console.log('Current URL:', window.location.href);
+        console.log('Request headers:', {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        });
+
+        // Test basic connectivity first
+        console.log('Testing API connectivity...');
+        try {
+            const testResponse = await fetch('/api/test', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            console.log('Test API response:', testResponse.status, testResponse.statusText);
+            if (testResponse.ok) {
+                const testData = await testResponse.json();
+                console.log('Test API data:', testData);
+            }
+        } catch (testError) {
+            console.error('Test API failed:', testError);
+            throw new Error('Nie można połączyć się z serwerem API');
+        }
 
         // Wyślij żądanie POST z CSRF tokenem
         const response = await fetch('/api/users', {
