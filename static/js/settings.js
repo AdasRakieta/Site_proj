@@ -158,11 +158,11 @@ function updateUsersTable(users) {
         editBtn.addEventListener('click', () => toggleEditMode(row));
         actionsDiv.appendChild(editBtn);
         
-        // Delete button with trash icon (if not admin)
+        // Delete button with X icon (if not admin)
         if (user.role !== 'admin') {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'icon-button delete-button';
-            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.innerHTML = '✕';
             deleteBtn.title = 'Usuń';
             deleteBtn.addEventListener('click', (e) => deleteUser(user.user_id, user.username, e));
             actionsDiv.appendChild(deleteBtn);
@@ -296,31 +296,52 @@ function enterEditMode(row) {
         <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrator</option>
     </select>`;
     
-    // Update action buttons
-    const actionsDiv = row.querySelector('.action-buttons');
-    actionsDiv.innerHTML = '';
+    // Update existing buttons instead of replacing them
+    const editBtn = row.querySelector('.edit-button');
+    const deleteBtn = row.querySelector('.delete-button');
     
-    // Confirm button (checkmark)
-    const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'icon-button confirm-button';
-    confirmBtn.innerHTML = '✓';
-    confirmBtn.title = 'Potwierdź';
-    confirmBtn.addEventListener('click', () => saveEditedUser(row));
-    actionsDiv.appendChild(confirmBtn);
+    if (editBtn) {
+        // Change edit button to confirm button
+        editBtn.innerHTML = '✓';
+        editBtn.title = 'Potwierdź';
+        editBtn.className = 'icon-button confirm-button';
+        // Remove old event listeners by cloning the element
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        newEditBtn.addEventListener('click', () => saveEditedUser(row));
+    }
     
-    // Cancel button (X)
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'icon-button cancel-button';
-    cancelBtn.innerHTML = '✕';
-    cancelBtn.title = 'Anuluj';
-    cancelBtn.addEventListener('click', () => exitEditMode(row));
-    actionsDiv.appendChild(cancelBtn);
+    if (deleteBtn) {
+        // Change delete button to cancel button
+        deleteBtn.innerHTML = '✕';
+        deleteBtn.title = 'Anuluj';
+        deleteBtn.className = 'icon-button cancel-button';
+        // Remove old event listeners by cloning the element
+        const newDeleteBtn = deleteBtn.cloneNode(true);
+        deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+        newDeleteBtn.addEventListener('click', () => exitEditMode(row));
+    }
 }
 
 // Exit edit mode for a row
 function exitEditMode(row) {
     row.dataset.editing = 'false';
-    // Reload the users table to restore original state
+    
+    // Get user data to restore the row
+    const userId = row.dataset.userId;
+    
+    // Find the user in the current users list to restore the original state
+    const usernameSpan = row.querySelector('.username-cell .display-value');
+    const emailSpan = row.querySelector('.email-cell .display-value');
+    const roleSpan = row.querySelector('.role-cell .display-value');
+    
+    // Get the original values from the inputs
+    const usernameInput = row.querySelector('.username-cell .edit-input');
+    const emailInput = row.querySelector('.email-cell .edit-input');
+    const roleSelect = row.querySelector('.role-cell .edit-input');
+    
+    // Restore original display values (get from current display or reload from server)
+    // For simplicity, we'll just reload the users table
     loadUsers();
 }
 
