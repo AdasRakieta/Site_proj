@@ -33,11 +33,39 @@
 {% block scripts %}
 <script>
     function initPage() {
-        console.log('Inicjalizacja strony ustawień');
+        console.log('Inicjalizacja strony logowania');
         
         if (!window.app) {
             console.error('Aplikacja nie została poprawnie zainicjalizowana');
             return;
+        }
+    }
+
+    // Funkcje do zarządzania zapamiętywaniem danych użytkownika
+    function saveUserData(username, rememberMe) {
+        if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+            localStorage.setItem('savedUsername', username);
+        } else {
+            localStorage.removeItem('rememberMe');
+            localStorage.removeItem('savedUsername');
+        }
+    }
+
+    function loadUserData() {
+        const rememberMe = localStorage.getItem('rememberMe') === 'true';
+        const savedUsername = localStorage.getItem('savedUsername');
+        
+        if (rememberMe && savedUsername) {
+            const usernameField = document.getElementById('username');
+            const rememberCheckbox = document.getElementById('remember_me');
+            
+            if (usernameField) {
+                usernameField.value = savedUsername;
+            }
+            if (rememberCheckbox) {
+                rememberCheckbox.checked = true;
+            }
         }
     }
 
@@ -48,6 +76,21 @@
         if (messages && Array.isArray(messages)) {
             messages.forEach(([category, message]) => {
                 window.showNotification(message, category);
+            });
+        }
+
+        // Załaduj zapamiętane dane użytkownika
+        loadUserData();
+
+        // Obsługa formularza logowania
+        const loginForm = document.querySelector('.login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                const username = document.getElementById('username').value;
+                const rememberMe = document.getElementById('remember_me').checked;
+                
+                // Zapisz dane użytkownika jeśli checkbox jest zaznaczony
+                saveUserData(username, rememberMe);
             });
         }
     });
