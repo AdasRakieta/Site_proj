@@ -21,20 +21,19 @@
         <section class="settings-section" id="userManagementSection">
             <h2>Zarządzanie użytkownikami</h2>
             <div class="user-management">
-                <form class="user-form">
+                <form class="user-form" method="POST" action="{{ url_for('settings') }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <h3>Dodaj nowego użytkownika</h3>
                     <div class="new-user-form">
-                        <input class="input-settings" type="text" id="newUsername" placeholder="Nazwa" minlength="3">
-                        <input class="input-settings" type="email" id="newEmail" placeholder="Email (opcjonalnie)">
-                        <input class="input-settings" type="password" id="newPassword" placeholder="Hasło" minlength="6">
-                        <select class="select-settings" id="userRole">
+                        <input class="input-settings" type="text" name="username" placeholder="Nazwa" minlength="3" required>
+                        <input class="input-settings" type="email" name="email" placeholder="Email" required>
+                        <input class="input-settings" type="password" name="password" placeholder="Hasło" minlength="6" required>
+                        <select class="select-settings" name="role">
                             <option value="user">Użytkownik</option>
                             <option value="admin">Administrator</option>
                         </select>
-                        <button class="rooms-button" id="addUserBtn">Dodaj użytkownika</button>
+                        <button class="rooms-button" type="submit">Dodaj użytkownika</button>
                     </div>
-                    <div id="addUserMessage" class="alert-msg" style="display: none;"></div>
                 </form>
                 <div class="user-form">
                     <h3>Lista użytkowników</h3>

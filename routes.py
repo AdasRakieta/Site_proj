@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, request, redirect, url_for, session
+from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 import time
 import os
@@ -46,9 +46,63 @@ class RoutesManager:
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('security.html', user_data=user_data)
 
-        @self.app.route('/settings')
+        @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def settings():
+            if request.method == 'POST':
+                # Handle admin user creation
+                if session.get('role') == 'admin':
+                    username = request.form.get('username', '').strip()
+                    email = request.form.get('email', '').strip()
+                    password = request.form.get('password', '')
+                    role = request.form.get('role', 'user')
+                    
+                    # Basic validation
+                    if not username or len(username) < 3:
+                        flash('Nazwa użytkownika musi mieć co najmniej 3 znaki.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if not email or '@' not in email:
+                        flash('Podaj poprawny adres email.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if not password or len(password) < 6:
+                        flash('Hasło musi mieć co najmniej 6 znaków.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    if role not in ['user', 'admin']:
+                        flash('Nieprawidłowa rola użytkownika.', 'error')
+                        return redirect(url_for('settings'))
+                    
+                    # Check if user already exists
+                    for user in self.smart_home.users.values():
+                        if user.get('name') == username:
+                            flash('Użytkownik już istnieje.', 'error')
+                            return redirect(url_for('settings'))
+                        if user.get('email') == email:
+                            flash('Adres email jest już używany.', 'error')
+                            return redirect(url_for('settings'))
+                    
+                    # Create user
+                    import uuid
+                    from werkzeug.security import generate_password_hash
+                    
+                    user_id = str(uuid.uuid4())
+                    self.smart_home.users[user_id] = {
+                        'name': username,
+                        'password': generate_password_hash(password),
+                        'role': role,
+                        'email': email,
+                        'profile_picture': ''
+                    }
+                    self.smart_home.save_config()
+                    
+                    flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                    return redirect(url_for('settings'))
+                else:
+                    flash('Brak uprawnień administratora.', 'error')
+                    return redirect(url_for('settings'))
+            
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('settings.html', user_data=user_data)
 
@@ -559,20 +613,53 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def add_user():
+            """Add user using the same logic as registration but without email verification"""
             data = request.get_json()
             if not data:
-                return jsonify({"status": "error", "message": "Brak danych"}), 400
-            username = data.get('username')
-            password = data.get('password')
-            email = data.get('email', '')
+                return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+            
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            email = data.get('email', '').strip()
             role = data.get('role', 'user')
-            if not username or not password:
-                return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
-            success, message = self.smart_home.add_user(username, password, role, email)
-            if success:
-                user_id, user = self.smart_home.get_user_by_login(username)
-                return jsonify({"status": "success", "message": message, "user_id": user_id, "username": username})
-            return jsonify({"status": "error", "message": message}), 400
+            
+            # Use the same validation logic as registration
+            if not username or len(username) < 3:
+                return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
+            if not email or '@' not in email:
+                return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
+            if not password or len(password) < 6:
+                return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
+            if role not in ['user', 'admin']:
+                return jsonify({'status': 'error', 'message': 'Nieprawidłowa rola użytkownika.'}), 400
+            
+            # Check if user already exists (same as registration)
+            for user in self.smart_home.users.values():
+                if user.get('name') == username:
+                    return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+                if user.get('email') == email:
+                    return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+            
+            # Create user using the same logic as registration (without verification)
+            import uuid
+            from werkzeug.security import generate_password_hash
+            
+            user_id = str(uuid.uuid4())
+            self.smart_home.users[user_id] = {
+                'name': username,
+                'password': generate_password_hash(password),
+                'role': role,
+                'email': email,
+                'profile_picture': ''
+            }
+            self.smart_home.save_config()
+            
+            return jsonify({
+                'status': 'success', 
+                'message': 'Użytkownik został dodany pomyślnie!',
+                'user_id': user_id,
+                'username': username
+            }), 200
 
         @self.app.route('/api/users/<user_id>', methods=['PUT'])
         @self.auth_manager.login_required

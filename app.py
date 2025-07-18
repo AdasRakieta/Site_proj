@@ -85,7 +85,6 @@ def csrf_protect():
         if is_trusted_host(request.remote_addr):
             token = request.headers.get('X-CSRFToken') or request.form.get('_csrf_token')
             expected = session.get('_csrf_token')
-            print(f"[CSRF DEBUG] IP: {request.remote_addr} | Sent: {token} | Expected: {expected} | Path: {request.path}")
             if not token or token != expected:
                 print(f"[CSRF] Invalid CSRF token from {request.remote_addr}. Sent: {token}, Expected: {expected}")
                 app.logger.warning(f'Invalid CSRF token from {request.remote_addr}. Token: {token}, Session token: {expected}')
@@ -297,6 +296,13 @@ def execute_action(action):
         mail_manager.send_security_alert('automation_notification', {
             'message': action['message']
         })
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"[ERROR] Unhandled exception: {e}")
+    print(f"[ERROR] Request: {request.method} {request.path} from {request.remote_addr}")
+    # Return a generic error response
+    return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
 routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager)
