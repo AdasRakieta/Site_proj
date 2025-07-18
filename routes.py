@@ -616,6 +616,33 @@ class APIManager:
                 return jsonify({"status": "success", "message": message})
             return jsonify({"status": "error", "message": message}), 400
 
+        @self.app.route('/api/users/<user_id>', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def update_user_post(user_id):
+            data = request.get_json()
+            if not data:
+                return jsonify({"status": "error", "message": "Brak danych"}), 400
+            user = self.smart_home.users.get(user_id)
+            if not user:
+                return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 404
+            updates = {}
+            if 'username' in data:
+                # Sprawdź czy nowa nazwa użytkownika nie jest już zajęta
+                for uid, u in self.smart_home.users.items():
+                    if uid != user_id and u.get('name') == data['username']:
+                        return jsonify({"status": "error", "message": "Nazwa użytkownika jest już zajęta"}), 400
+                updates['name'] = data['username']
+            if 'email' in data:
+                updates['email'] = data['email']
+            if 'role' in data and data['role'] in ['user', 'admin']:
+                updates['role'] = data['role']
+            # Aktualizuj dane użytkownika
+            for key, value in updates.items():
+                user[key] = value
+            self.smart_home.save_config()
+            return jsonify({"status": "success", "message": "Użytkownik zaktualizowany (POST)"})
+
         @self.app.route('/api/users/<user_id>/password', methods=['PUT'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
