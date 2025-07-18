@@ -18,8 +18,13 @@
                 <input type="password" id="password" name="password" required>
             </div>
             <div class="remember-me-container">
-                <input type="checkbox" id="remember_me" name="remember_me"> 
-                <label for="remember_me">Zapamiętaj mnie</label>
+                <label class="checkbox-notification-label" for="remember_me">
+                    <input type="checkbox" id="remember_me" name="remember_me" class="checkbox-notification">
+                    <span class="checkbox-notification-custom">
+                        <svg viewBox="0 0 13 10"><polyline points="1 5.5 5 9 12 1"></polyline></svg>
+                    </span>
+                    <span class="checkbox-notification-text">Zapamiętaj mnie</span>
+                </label>
             </div>
             <div class="register-form">
                 <p>Nie masz konta? <a href="{{ url_for('register') }}">Zarejestruj się</a></p>
