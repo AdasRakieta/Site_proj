@@ -122,6 +122,11 @@ function updateUsersTable(users) {
         usernameCell.textContent = user.username;
         row.appendChild(usernameCell);
 
+        // Email
+        const emailCell = document.createElement('td');
+        emailCell.textContent = user.email || '';
+        row.appendChild(emailCell);
+
         // Role
         const roleCell = document.createElement('td');
         roleCell.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
@@ -174,6 +179,51 @@ function updateUsersTable(users) {
             });
         });
         actionsDiv.appendChild(editNameBtn);
+
+        // Edit email button
+        const editEmailBtn = document.createElement('button');
+        editEmailBtn.className = 'change-button';
+        editEmailBtn.textContent = 'Edytuj e-mail';
+        editEmailBtn.addEventListener('click', () => {
+            if (actionsDiv.querySelector('.edit-generic-form')) return;
+            Array.from(actionsDiv.children).forEach(child => {
+                if (child !== editEmailBtn) child.style.display = 'none';
+            });
+            editEmailBtn.style.display = 'none';
+            window.createEditForm({
+                fields: [
+                    { name: 'newEmail', type: 'email', required: false, placeholder: 'Nowy adres e-mail', id: 'email_change', className: 'input-edit', removeDefaultMargin: true, value: user.email || '' }
+                ],
+                parent: actionsDiv,
+                saveText: 'Zapisz',
+                cancelText: 'Anuluj',
+                onSave: async (values) => {
+                    const newEmail = values.newEmail.trim();
+                    if (newEmail && (!newEmail.includes('@') || newEmail.length < 5)) {
+                        showNotification('Podaj poprawny adres e-mail', 'error');
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/api/users/${user.user_id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                            body: JSON.stringify({ email: newEmail })
+                        });
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
+                        showNotification(`Adres e-mail zmieniony na ${newEmail || '(brak)'}`, 'success');
+                        loadUsers();
+                    } catch (error) {
+                        showNotification(`Nie udało się zmienić adresu e-mail: ${error.message}`, 'error');
+                    }
+                },
+                onCancel: () => {
+                    loadUsers();
+                }
+            });
+        });
+        actionsDiv.appendChild(editEmailBtn);
+        
         // Edit role button (if not current user)
         if (user.role !== 'admin' || user.username !== 'admin') {
             const editRoleBtn = document.createElement('button');
