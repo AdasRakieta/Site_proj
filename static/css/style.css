@@ -2014,6 +2014,9 @@ footer {
 .checkbox-notification-label:hover {
     background: color-mix(in srgb, var(--checkbox-hover) 6%, transparent);
 }
+.checkbox-notification-label:hover .checkbox-notification-custom {
+    border-color: var(--accent-color);
+}
 .checkbox-notification {
     position: absolute;
     opacity: 0;
@@ -2024,16 +2027,16 @@ footer {
     position: relative;
     width: 18px;
     height: 18px;
-    border-radius: 4px;
-    border: 1px solid var(--checkbox-border);
-    background: var(--checkbox-bg);
-    transition: all 0.2s;
-    box-shadow: 0 1px 1px rgba(0,16,75,0.05);
+    border-radius: 5px;
+    border: 1px solid var(--primary);
+    background: var(--background);
+    transition: all 0.3s ease;
+    box-shadow: var(--box_shd);
     display: inline-block;
 }
 .checkbox-notification:checked + .checkbox-notification-custom {
-    background: var(--checkbox-checked-bg);
-    border-color: var(--checkbox-checked-border);
+    background: var(--accent);
+    border-color: var(--primary);
     animation: wave-4 0.4s ease;
 }
 .checkbox-notification-custom svg {
@@ -2043,7 +2046,7 @@ footer {
     width: 13px;
     height: 10px;
     fill: none;
-    stroke: var(--checkbox-checkmark);
+    stroke: var(--text-color);
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
