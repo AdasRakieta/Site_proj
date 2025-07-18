@@ -7,6 +7,8 @@ from datetime import datetime
 import socket
 import json
 import time
+import random
+import string
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 
@@ -71,6 +73,7 @@ def set_notifications_settings(settings):
 class MailManager:
     def __init__(self):
         self.failed_attempts = {}
+        self.verification_codes = {}  # Store verification codes: {email: {'code': str, 'expires': timestamp, 'attempts': int}}
         self.smtp_config = {
             'server': os.getenv('SMTP_SERVER'),       # np. smtp.gmail.com
             'port': os.getenv('SMTP_PORT'),      # np. 587
@@ -78,11 +81,99 @@ class MailManager:
             'password': os.getenv('SMTP_PASSWORD')    # hasło SMTP
         }
         self.attempts_expiry = 3600
+        self.verification_expiry = 900  # 15 minut na weryfikację
+        self.max_verification_attempts = 3
         self.config = {
             'sender_email': os.getenv('SMTP_USERNAME'),
             'admin_email': os.getenv('ADMIN_EMAIL')
         }
 
+    def generate_verification_code(self):
+        """Generuje 6-cyfrowy kod weryfikacyjny"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    def store_verification_code(self, email, code):
+        """Przechowuje kod weryfikacyjny dla danego emaila"""
+        self.verification_codes[email] = {
+            'code': code,
+            'expires': time.time() + self.verification_expiry,
+            'attempts': 0
+        }
+    
+    def verify_code(self, email, code):
+        """Weryfikuje kod dla danego emaila"""
+        if email not in self.verification_codes:
+            return False, "Kod weryfikacyjny nie istnieje lub wygasł"
+        
+        stored_data = self.verification_codes[email]
+        
+        # Sprawdź czy kod nie wygasł
+        if time.time() > stored_data['expires']:
+            del self.verification_codes[email]
+            return False, "Kod weryfikacyjny wygasł"
+        
+        # Sprawdź liczbę prób
+        if stored_data['attempts'] >= self.max_verification_attempts:
+            del self.verification_codes[email]
+            return False, "Przekroczono maksymalną liczbę prób weryfikacji"
+        
+        # Zwiększ liczbę prób
+        stored_data['attempts'] += 1
+        
+        # Sprawdź poprawność kodu
+        if stored_data['code'] != code:
+            return False, "Nieprawidłowy kod weryfikacyjny"
+        
+        # Kod poprawny - usuń z pamięci
+        del self.verification_codes[email]
+        return True, "Kod weryfikacyjny poprawny"
+    
+    def send_verification_email(self, email, code):
+        """Wysyła email z kodem weryfikacyjnym"""
+        try:
+            # Check if we're in test mode (no real SMTP config)
+            if not self.smtp_config.get('server') or self.smtp_config.get('server') == 'smtp.gmail.com':
+                print(f"[VERIFICATION] TEST MODE: Kod weryfikacyjny dla {email}: {code}")
+                return True
+            
+            message = MIMEMultipart()
+            message['From'] = self.config['sender_email']
+            message['To'] = email
+            message['Subject'] = '🔐 SmartHome - Kod weryfikacyjny rejestracji'
+            
+            html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50; text-align: center;">Weryfikacja adresu email</h2>
+                <p>Witaj!</p>
+                <p>Aby ukończyć rejestrację w systemie SmartHome, wprowadź poniższy kod weryfikacyjny:</p>
+                <div style="background-color: #ecf0f1; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+                    <h1 style="color: #2c3e50; font-size: 32px; margin: 0; letter-spacing: 8px;">{code}</h1>
+                </div>
+                <p><strong>Uwaga:</strong></p>
+                <ul>
+                    <li>Kod jest ważny przez 15 minut</li>
+                    <li>Masz maksymalnie 3 próby wprowadzenia kodu</li>
+                    <li>Jeśli nie prosiłeś o rejestrację, zignoruj tę wiadomość</li>
+                </ul>
+                <p style="color: #7f8c8d; font-size: 12px; margin-top: 40px;">
+                    Wiadomość wysłana automatycznie z systemu SmartHome<br>
+                    Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                </p>
+            </div>
+            """
+            
+            message.attach(MIMEText(html, 'html'))
+            
+            with smtplib.SMTP(self.smtp_config['server'], self.smtp_config['port']) as server:
+                server.starttls()
+                server.login(self.smtp_config['username'], self.smtp_config['password'])
+                server.sendmail(self.config['sender_email'], email, message.as_string())
+            
+            print(f"[VERIFICATION] Wysłano kod weryfikacyjny na {email}")
+            return True
+        except Exception as e:
+            print(f"[VERIFICATION] Błąd wysyłania kodu na {email}: {str(e)}")
+            return False
     def send_security_alert(self, event_type, details):
         """Wysyła alert przez SMTP do admina i dodatkowych odbiorców"""
         try:

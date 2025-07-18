@@ -175,34 +175,94 @@ class RoutesManager:
                 data = request.get_json()
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
-                username = data.get('username', '').strip()
-                password = data.get('password', '')
-                email = data.get('email', '').strip()
-                # Podstawowa walidacja
-                if not username or len(username) < 3:
-                    return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
-                if not email or '@' not in email:
-                    return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
-                if not password or len(password) < 6:
-                    return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
-                # Sprawdź czy użytkownik już istnieje
-                for user in self.smart_home.users.values():
-                    if user.get('name') == username:
-                        return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
-                # Dodaj użytkownika z rolą 'user'
-                import uuid
-                user_id = str(uuid.uuid4())
-                from werkzeug.security import generate_password_hash
-                self.smart_home.users[user_id] = {
-                    'name': username,
-                    'password': generate_password_hash(password),
-                    'role': 'user',
-                    'email': email,
-                    'profile_picture': ''
-                }
-                self.smart_home.save_config()
-                return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
+                
+                # Sprawdź czy to pierwszy krok (wysłanie kodu) czy drugi (weryfikacja)
+                if 'verification_code' in data:
+                    # Drugi krok - weryfikacja kodu
+                    return self._verify_and_register(data)
+                else:
+                    # Pierwszy krok - wysłanie kodu weryfikacyjnego
+                    return self._send_verification_code(data)
+            
             return render_template('register.html')
+        
+    def _send_verification_code(self, data):
+        """Pierwszy krok rejestracji - wysłanie kodu weryfikacyjnego"""
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        email = data.get('email', '').strip()
+        
+        # Podstawowa walidacja
+        if not username or len(username) < 3:
+            return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
+        if not email or '@' not in email:
+            return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
+        if not password or len(password) < 6:
+            return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
+        
+        # Sprawdź czy użytkownik już istnieje
+        for user in self.smart_home.users.values():
+            if user.get('name') == username:
+                return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+            if user.get('email') == email:
+                return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+        
+        # Wygeneruj i wyślij kod weryfikacyjny
+        verification_code = self.mail_manager.generate_verification_code()
+        self.mail_manager.store_verification_code(email, verification_code)
+        
+        if self.mail_manager.send_verification_email(email, verification_code):
+            return jsonify({
+                'status': 'verification_sent',
+                'message': 'Kod weryfikacyjny został wysłany na podany adres email.'
+            }), 200
+        else:
+            return jsonify({'status': 'error', 'message': 'Błąd podczas wysyłania kodu weryfikacyjnego.'}), 500
+    
+    def _verify_and_register(self, data):
+        """Drugi krok rejestracji - weryfikacja kodu i utworzenie użytkownika"""
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        email = data.get('email', '').strip()
+        verification_code = data.get('verification_code', '').strip()
+        
+        # Podstawowa walidacja
+        if not username or not password or not email or not verification_code:
+            return jsonify({'status': 'error', 'message': 'Wszystkie pola są wymagane.'}), 400
+        
+        # Weryfikuj kod
+        is_valid, message = self.mail_manager.verify_code(email, verification_code)
+        if not is_valid:
+            return jsonify({'status': 'error', 'message': message}), 400
+        
+        # Ponowna walidacja danych (na wszelki wypadek)
+        if len(username) < 3:
+            return jsonify({'status': 'error', 'message': 'Nazwa użytkownika musi mieć co najmniej 3 znaki.'}), 400
+        if '@' not in email:
+            return jsonify({'status': 'error', 'message': 'Podaj poprawny adres email.'}), 400
+        if len(password) < 6:
+            return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
+        
+        # Sprawdź czy użytkownik już istnieje (ponownie)
+        for user in self.smart_home.users.values():
+            if user.get('name') == username:
+                return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+            if user.get('email') == email:
+                return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+        
+        # Utwórz użytkownika
+        import uuid
+        user_id = str(uuid.uuid4())
+        from werkzeug.security import generate_password_hash
+        self.smart_home.users[user_id] = {
+            'name': username,
+            'password': generate_password_hash(password),
+            'role': 'user',
+            'email': email,
+            'profile_picture': ''
+        }
+        self.smart_home.save_config()
+        return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
