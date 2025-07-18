@@ -2030,7 +2030,9 @@ footer {
     transition: all 0.2s;
     box-shadow: 0 1px 1px rgba(0,16,75,0.05);
     display: inline-block;
+    top: 4px;
 }
+
 .checkbox-notification:checked + .checkbox-notification-custom {
     background: var(--checkbox-checked-bg);
     border-color: var(--checkbox-checked-border);
@@ -2038,7 +2040,7 @@ footer {
 }
 .checkbox-notification-custom svg {
     position: absolute;
-    top: 3px;
+    top: 4px;
     left: 2px;
     width: 13px;
     height: 10px;
