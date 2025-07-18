@@ -174,81 +174,6 @@ function updateUsersTable(users) {
     });
 }
 
-// Add new user
-async function addUser() {
-    const username = document.getElementById('newUsername')?.value.trim();
-    const email = document.getElementById('newEmail')?.value.trim();
-    const password = document.getElementById('newPassword')?.value;
-    const role = document.getElementById('userRole')?.value;
-    if (!username || username.length < 3) {
-        showMessage('addUserMessage', 'Nazwa użytkownika musi mieć co najmniej 3 znaki', true);
-        return false;
-    }
-    if (!password || password.length < 6) {
-        showMessage('addUserMessage', 'Hasło musi mieć co najmniej 6 znaków', true);
-        return false;
-    }
-    if (email && !email.includes('@')) {
-        showMessage('addUserMessage', 'Podaj poprawny adres email', true);
-        return false;
-    }
-    try {
-        // Pobierz token CSRF z inputa (najpewniejsze źródło dla Flask)
-        let csrfToken = null;
-        const input = document.querySelector('input[name="_csrf_token"]');
-        if (input) csrfToken = input.value;
-        if (!csrfToken) {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            if (meta) csrfToken = meta.getAttribute('content');
-        }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
-
-        if (!csrfToken) {
-            showMessage('addUserMessage', 'Brak tokena CSRF. Odśwież stronę i spróbuj ponownie.', true);
-            return false;
-        }
-
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ username, email, password, role })
-        });
-
-        if (response.type === 'opaque' || response.status === 0) {
-            showMessage('addUserMessage', 'Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.', true);
-            throw new Error('Żądanie zostało zablokowane przez przeglądarkę lub serwer. Sprawdź CORS, cookies i sesję.');
-        }
-
-        let data;
-        try {
-            data = await response.json();
-        } catch (e) {
-            throw new Error('Serwer nie zwrócił poprawnego JSON');
-        }
-
-        if (!response.ok || data.status !== 'success') {
-            throw new Error(data.message || `HTTP ${response.status}`);
-        }
-
-        showMessage('addUserMessage', `Użytkownik ${username} został dodany pomyślnie`);
-        showNotification(`Użytkownik ${username} został dodany`, 'success');
-        document.getElementById('newUsername').value = '';
-        document.getElementById('newEmail').value = '';
-        document.getElementById('newPassword').value = '';
-        loadUsers();
-        return true;
-    } catch (error) {
-        console.error('Błąd dodawania użytkownika:', error);
-        showMessage('addUserMessage', `Nie udało się dodać użytkownika: ${error.message}`, true);
-        showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
-        return false;
-    }
-}
-
 // Toggle edit mode for a row
 function toggleEditMode(row) {
     const isEditing = row.dataset.editing === 'true';
@@ -646,10 +571,6 @@ function initSettingsPage() {
     }
     // Initialize for admin users
     if (window.sessionRole === 'admin') {
-        const addUserBtn = document.getElementById('addUserBtn');
-        if (addUserBtn) {
-            addUserBtn.addEventListener('click', addUser);
-        }
         loadUsers();
         initNotificationSettings();
     }
