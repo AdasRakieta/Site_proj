@@ -10,15 +10,29 @@ function showMessage(elementId, message, isError = false) {
     }
 }
 
+// Helper function to get CSRF token
+function getCSRFToken() {
+    let csrfToken = null;
+    const input = document.querySelector('input[name="_csrf_token"]');
+    if (input) csrfToken = input.value;
+    if (!csrfToken) {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) csrfToken = meta.getAttribute('content');
+    }
+    if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+    return csrfToken;
+}
+
 // Create confirmation button for delete actions
-function createConfirmButton(username, deleteBtn) {
+function createConfirmButton(user_id, username, deleteBtn) {
     const confirmBtn = document.createElement('button');
     confirmBtn.className = 'confirm-delete-btn';
     confirmBtn.textContent = 'Potwierdź';
+    confirmBtn.dataset.userId = user_id;
     confirmBtn.dataset.username = username;
     deleteBtn.classList.add('hidden');
     confirmBtn.addEventListener('click', () => {
-        performUserDeletion(username);
+        performUserDeletion(user_id, username);
         confirmBtn.remove();
         deleteBtn.classList.remove('hidden');
     });
@@ -32,11 +46,30 @@ function createConfirmButton(username, deleteBtn) {
     return confirmBtn;
 }
 
+// Helper function to wait for app to be initialized
+function waitForApp() {
+    return new Promise((resolve) => {
+        if (window.app) {
+            resolve(window.app);
+        } else {
+            const checkApp = () => {
+                if (window.app) {
+                    resolve(window.app);
+                } else {
+                    setTimeout(checkApp, 100);
+                }
+            };
+            checkApp();
+        }
+    });
+}
+
 // Load users list
 let notificationUsersList = [];
 
 async function loadUsers() {
     try {
+        const app = await waitForApp();
         const response = await app.fetchData('/api/users');
         if (Array.isArray(response)) {
             updateUsersTable(response);
@@ -74,7 +107,108 @@ function updateUsersTable(users) {
         const actionsCell = document.createElement('td');
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'action-buttons';
-        // Change password button
+        
+        // Edit username button
+        const editNameBtn = document.createElement('button');
+        editNameBtn.className = 'change-button';
+        editNameBtn.textContent = 'Edytuj nazwę';
+        editNameBtn.addEventListener('click', () => {
+            if (actionsDiv.querySelector('.edit-generic-form')) return;
+            Array.from(actionsDiv.children).forEach(child => {
+                if (child !== editNameBtn) child.style.display = 'none';
+            });
+            editNameBtn.style.display = 'none';
+            window.createEditForm({
+                fields: [
+                    { name: 'newUsername', type: 'text', required: true, minLength: 3, placeholder: 'Nowa nazwa użytkownika', id: 'username_change', className: 'input-edit', removeDefaultMargin: true, value: user.username }
+                ],
+                parent: actionsDiv,
+                saveText: 'Zapisz',
+                cancelText: 'Anuluj',
+                onSave: async (values) => {
+                    const newUsername = values.newUsername;
+                    if (!newUsername || newUsername.length < 3) {
+                        showNotification('Nazwa użytkownika musi mieć co najmniej 3 znaki', 'error');
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/api/users/${user.user_id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                            body: JSON.stringify({ username: newUsername })
+                        });
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
+                        showNotification(`Nazwa użytkownika zmieniona na ${newUsername}`, 'success');
+                        loadUsers();
+                    } catch (error) {
+                        showNotification(`Nie udało się zmienić nazwy użytkownika: ${error.message}`, 'error');
+                    }
+                },
+                onCancel: () => {
+                    loadUsers();
+                }
+            });
+        });
+        actionsDiv.appendChild(editNameBtn);
+        // Edit role button (if not current user)
+        if (user.role !== 'admin' || user.username !== 'admin') {
+            const editRoleBtn = document.createElement('button');
+            editRoleBtn.className = 'change-button';
+            editRoleBtn.textContent = 'Zmień rolę';
+            editRoleBtn.addEventListener('click', () => {
+                if (actionsDiv.querySelector('.edit-generic-form')) return;
+                Array.from(actionsDiv.children).forEach(child => {
+                    if (child !== editRoleBtn) child.style.display = 'none';
+                });
+                editRoleBtn.style.display = 'none';
+                window.createEditForm({
+                    fields: [
+                        { 
+                            name: 'newRole', 
+                            type: 'select', 
+                            required: true, 
+                            placeholder: 'Wybierz rolę', 
+                            id: 'role_change', 
+                            className: 'input-edit', 
+                            removeDefaultMargin: true,
+                            options: [
+                                { value: 'user', text: 'Użytkownik' },
+                                { value: 'admin', text: 'Administrator' }
+                            ],
+                            value: user.role
+                        }
+                    ],
+                    parent: actionsDiv,
+                    saveText: 'Zapisz',
+                    cancelText: 'Anuluj',
+                    onSave: async (values) => {
+                        const newRole = values.newRole;
+                        if (!newRole || !['user', 'admin'].includes(newRole)) {
+                            showNotification('Nieprawidłowa rola', 'error');
+                            return;
+                        }
+                        try {
+                            const response = await fetch(`/api/users/${user.user_id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                                body: JSON.stringify({ role: newRole })
+                            });
+                            const data = await response.json();
+                            if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
+                            showNotification(`Rola użytkownika ${user.username} zmieniona na ${newRole === 'admin' ? 'Administrator' : 'Użytkownik'}`, 'success');
+                            loadUsers();
+                        } catch (error) {
+                            showNotification(`Nie udało się zmienić roli: ${error.message}`, 'error');
+                        }
+                    },
+                    onCancel: () => {
+                        loadUsers();
+                    }
+                });
+            });
+            actionsDiv.appendChild(editRoleBtn);
+        }
         const changePassBtn = document.createElement('button');
         changePassBtn.className = 'change-button';
         changePassBtn.textContent = 'Zmień hasło';
@@ -98,7 +232,7 @@ function updateUsersTable(users) {
                         return;
                     }
                     try {
-                        const response = await fetch(`/api/users/${user.username}/password`, {
+                        const response = await fetch(`/api/users/${user.user_id}/password`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
                             body: JSON.stringify({ new_password: newPassword })
@@ -118,11 +252,11 @@ function updateUsersTable(users) {
         });
         actionsDiv.appendChild(changePassBtn);
         // Delete button (if not admin)
-        if (user.username !== 'admin') {
+        if (user.role !== 'admin') {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-button';
             deleteBtn.textContent = 'Usuń';
-            deleteBtn.addEventListener('click', (e) => deleteUser(user.username, e));
+            deleteBtn.addEventListener('click', (e) => deleteUser(user.user_id, user.username, e));
             actionsDiv.appendChild(deleteBtn);
         }
         actionsCell.appendChild(actionsDiv);
@@ -213,18 +347,19 @@ async function addUser() {
 }
 
 // Delete user flow
-function deleteUser(username, event) {
-    if (!username) return;
+function deleteUser(user_id, username, event) {
+    if (!user_id || !username) return;
     const deleteBtn = event.target;
     const actionsDiv = deleteBtn.parentNode;
-    const confirmBtn = createConfirmButton(username, deleteBtn);
+    const confirmBtn = createConfirmButton(user_id, username, deleteBtn);
     actionsDiv.appendChild(confirmBtn);
 }
 
 // Perform user deletion
-async function performUserDeletion(username) {
+async function performUserDeletion(user_id, username) {
     try {
-        const response = await app.deleteData(`/api/users/${username}`);
+        const app = await waitForApp();
+        const response = await app.deleteData(`/api/users/${user_id}`);
         if (response.status === 'success') {
             showMessage('userActionMessage', `Użytkownik ${username} został usunięty`);
             showNotification(`Użytkownik ${username} został usunięty`, 'success');
@@ -340,6 +475,7 @@ function getAddRecipientEnabledValue() {
 
 async function fillNotificationUserSelect() {
     try {
+        const app = await waitForApp();
         const users = await app.fetchData('/api/users');
         const select = document.getElementById('notificationRecipientUser');
         if (select) {
@@ -381,6 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadNotificationSettings() {
     try {
+        const app = await waitForApp();
         const response = await app.fetchData('/api/notifications/settings');
         if (Array.isArray(response.recipients)) {
             notificationRecipients = response.recipients;
@@ -397,6 +534,7 @@ async function loadNotificationSettings() {
 
 async function saveNotificationSettings() {
     try {
+        const app = await waitForApp();
         const response = await app.postData('/api/notifications/settings', {
             recipients: notificationRecipients
         });
@@ -412,6 +550,7 @@ async function saveNotificationSettings() {
 
 async function saveNotificationRecipientsOnly() {
     try {
+        const app = await waitForApp();
         const response = await app.postData('/api/notifications/settings', {
             recipients: notificationRecipients
         });

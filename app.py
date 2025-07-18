@@ -135,6 +135,7 @@ def login():
     if request.method == 'POST':
         login_name = request.form.get('username')
         password = request.form.get('password')
+        remember_me = request.form.get('remember_me') == 'on'
         ip_address = request.remote_addr
         user_id, user = smart_home.get_user_by_login(login_name)
         if user and check_password_hash(user['password'], password):
@@ -143,7 +144,17 @@ def login():
             session['role'] = user['role']
             session.permanent = True  # aktywuj timeout sesji
             flash('Zalogowano pomyślnie!', 'success')
-            return redirect(url_for('home'))
+            
+            # Jeśli użytkownik chce zapamiętać dane, zwróć informację o tym
+            if remember_me:
+                response = redirect(url_for('home'))
+                response.set_cookie('remember_user', 'true', max_age=30*24*60*60)  # 30 dni
+                return response
+            else:
+                # Usuń cookie jeśli użytkownik nie chce zapamiętać danych
+                response = redirect(url_for('home'))
+                response.set_cookie('remember_user', '', expires=0)
+                return response
         # Rejestracja nieudanej próby i wysłanie alertu
         mail_manager.track_and_alert_failed_login(login_name, ip_address)
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
