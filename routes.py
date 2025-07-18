@@ -539,6 +539,10 @@ class APIManager:
                                       user_data=user_data)
             return redirect(url_for('error'))
 
+        @self.app.route('/api/test', methods=['GET'])
+        def test_api():
+            return jsonify({"status": "success", "message": "API is working"})
+
         @self.app.route('/api/users', methods=['GET'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
@@ -559,21 +563,37 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def add_user():
+            # Debug logging
+            print(f"[DEBUG] POST /api/users called from IP: {request.remote_addr}")
+            print(f"[DEBUG] Headers: {dict(request.headers)}")
+            print(f"[DEBUG] Request data: {request.get_data()}")
+            
             data = request.get_json()
             if not data:
+                print("[DEBUG] No JSON data received")
                 return jsonify({"status": "error", "message": "Brak danych"}), 400
+            
+            print(f"[DEBUG] Parsed JSON: {data}")
             username = data.get('username')
             password = data.get('password')
             email = data.get('email', '').strip()
             role = data.get('role', 'user')
+            
             if not username or not password:
+                print("[DEBUG] Missing username or password")
                 return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
             if not email:
+                print("[DEBUG] Missing email")
                 return jsonify({"status": "error", "message": "Adres email jest wymagany"}), 400
+            
+            print(f"[DEBUG] Adding user: {username}, {email}, {role}")
             success, message = self.smart_home.add_user(username, password, role, email)
             if success:
                 user_id, user = self.smart_home.get_user_by_login(username)
+                print(f"[DEBUG] User added successfully: {user_id}")
                 return jsonify({"status": "success", "message": message, "user_id": user_id, "username": username})
+            
+            print(f"[DEBUG] Failed to add user: {message}")
             return jsonify({"status": "error", "message": message}), 400
 
         @self.app.route('/api/users/<user_id>', methods=['PUT'])
