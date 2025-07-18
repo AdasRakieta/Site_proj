@@ -547,7 +547,9 @@ class APIManager:
                 {
                     'user_id': user_id,
                     'username': data['name'],
-                    'role': data['role']
+                    'email': data.get('email', ''),
+                    'role': data['role'],
+                    'password': '••••••••'  # Always show dots for password
                 }
                 for user_id, data in self.smart_home.users.items()
             ]
@@ -562,10 +564,11 @@ class APIManager:
                 return jsonify({"status": "error", "message": "Brak danych"}), 400
             username = data.get('username')
             password = data.get('password')
+            email = data.get('email', '')
             role = data.get('role', 'user')
             if not username or not password:
                 return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
-            success, message = self.smart_home.add_user(username, password, role)
+            success, message = self.smart_home.add_user(username, password, role, email)
             if success:
                 user_id, user = self.smart_home.get_user_by_login(username)
                 return jsonify({"status": "success", "message": message, "user_id": user_id, "username": username})
@@ -590,6 +593,9 @@ class APIManager:
                     if uid != user_id and u.get('name') == data['username']:
                         return jsonify({"status": "error", "message": "Nazwa użytkownika jest już zajęta"}), 400
                 updates['name'] = data['username']
+            
+            if 'email' in data:
+                updates['email'] = data['email']
             
             if 'role' in data and data['role'] in ['user', 'admin']:
                 updates['role'] = data['role']
