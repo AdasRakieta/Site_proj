@@ -15,6 +15,7 @@
 11. [Testy i Debugging](#testy-i-debugging)
 12. [Rozszerzalność](#rozszerzalność)
 13. [Potencjalne Usprawnienia](#potencjalne-usprawnienia)
+14. [Podsumowanie](#podsumowanie)
 
 ---
 
@@ -135,9 +136,15 @@ SmartHome/
 ├── configure.py                # Konfiguracja systemu SmartHome
 ├── routes.py                   # Definicje tras i API endpoints
 ├── mail_manager.py             # Zarządzanie powiadomieniami email
+├── run_server.py               # Skrypt uruchamiający serwer (Windows)
+├── run_server_gevent.py        # Skrypt uruchamiający z gevent
+├── run_server.bat              # Skrypt batch dla Windows
 ├── requirements.txt            # Dependencje Python
 ├── README.md                   # Dokumentacja projektu
 ├── *.json                      # Pliki konfiguracyjne
+├── *.env                       # Zmienne środowiskowe
+├── *.enc, *.key               # Pliki szyfrowane
+│
 ├── *.env                       # Zmienne środowiskowe
 ├── *.enc, *.key               # Pliki szyfrowane
 │
@@ -859,19 +866,111 @@ users = {
 
 ### 4. **Uruchamianie**
 
-#### Tryb rozwojowy:
+#### Sposób 1: Skrypt uruchamiający (Windows - zalecane)
 
 ```bash
-python app.py
+# Podstawowe uruchomienie
+python run_server.py
+
+# Z trybem debug
+python run_server.py --debug
+
+# Z innym portem
+python run_server.py --port 8080
 ```
 
-#### Tryb produkcyjny:
+#### Sposób 2: Bezpośrednio przez Flask
 
 ```bash
+# Tryb rozwojowy
+python app.py
+
+# Tryb produkcyjny
+python -m flask run --host=0.0.0.0 --port=5000
+```
+
+#### Sposób 3: Gunicorn (tylko Linux/Unix)
+
+```bash
+# Nie działa na Windows ze względu na brak modułu fcntl
 gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 app:app
 ```
 
-#### Systemd Service:
+#### Sposób 4: Używając pliku .bat (Windows)
+
+```bash
+run_server.bat
+```
+
+#### Sposób 5: Wersja produkcyjna z gevent
+
+```bash
+python run_server_gevent.py
+```
+
+#### Problemy z Gunicorn na Windows:
+
+Gunicorn używa modułu `fcntl` który nie jest dostępny na Windows. Błąd:
+```
+ModuleNotFoundError: No module named 'fcntl'
+```
+
+**Rozwiązanie**: Używaj `run_server.py` który został specjalnie przygotowany dla Windows.
+
+#### Skrypt run_server.py:
+
+```python
+#!/usr/bin/env python3
+"""
+Skrypt uruchamiający serwer Smart Home
+Dostosowany do środowiska Windows z obsługą SocketIO
+"""
+import os
+import sys
+from app import app, socketio
+
+def main():
+    """Główna funkcja uruchamiająca serwer"""
+    print("=== Smart Home Server ===")
+    print("Uruchamianie serwera...")
+    
+    # Sprawdzenie konfiguracji
+    config_files = [
+        'smart_home_config.json',
+        'notifications_settings.json'
+    ]
+    
+    for config_file in config_files:
+        if not os.path.exists(config_file):
+            print(f"UWAGA: Plik konfiguracyjny {config_file} nie istnieje")
+    
+    # Parametry serwera
+    host = "0.0.0.0"
+    port = 5000
+    debug = False
+    
+    # Argumenty wiersza poleceń
+    if "--debug" in sys.argv:
+        debug = True
+    if "--port" in sys.argv:
+        port_idx = sys.argv.index("--port")
+        port = int(sys.argv[port_idx + 1])
+    
+    # Uruchomienie serwera SocketIO
+    socketio.run(
+        app, 
+        debug=debug, 
+        host=host, 
+        port=port,
+        use_reloader=False,
+        allow_unsafe_werkzeug=True
+    )
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+#### Systemd Service (Linux):
 
 ```ini
 [Unit]
@@ -883,12 +982,48 @@ Type=simple
 User=smarthome
 WorkingDirectory=/path/to/smarthome
 Environment=PATH=/path/to/venv/bin
-ExecStart=/path/to/venv/bin/gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 app:app
+ExecStart=/path/to/venv/bin/python run_server.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+### 5. **Weryfikacja Instalacji**
+
+#### Sprawdzenie Uruchomienia:
+
+1. **Otwórz przeglądarkę**: `http://localhost:5000`
+2. **Sprawdź logi**: Brak błędów w konsoli
+3. **Test logowania**: Użyj domyślnych danych
+4. **Test funkcji**: Sprawdź przełączanie urządzeń
+
+#### Debugging:
+
+```bash
+# Sprawdź porty
+netstat -an | findstr :5000
+
+# Sprawdź logi
+python run_server.py --debug
+
+# Sprawdź konfigurację
+python -c "import json; print(json.load(open('smart_home_config.json')))"
+```
+
+#### Rozwiązywanie Problemów:
+
+**Problem**: `ModuleNotFoundError: No module named 'fcntl'`
+**Rozwiązanie**: Używaj `run_server.py` zamiast Gunicorn na Windows
+
+**Problem**: Błąd WebSocket przy użyciu Waitress
+**Rozwiązanie**: Używaj `run_server.py` lub `run_server_gevent.py`
+
+**Problem**: Serwer nie odpowiada
+**Rozwiązanie**: 
+- Sprawdź czy port 5000 jest wolny
+- Sprawdź firewall
+- Uruchom z `--debug` dla szczegółów
 
 ---
 
@@ -1147,6 +1282,8 @@ System SmartHome reprezentuje kompleksowe rozwiązanie do zarządzania domem int
 3. **Użyteczność**: Intuicyjny interfejs użytkownika
 4. **Niezawodność**: Robustne obsługa błędów
 5. **Wydajność**: Optymalizacja dla real-time communication
+6. **Kompatybilność**: Działa na Windows, Linux, macOS
+7. **Rozszerzalność**: Plugin system i API integration
 
 ### Wartość Biznesowa:
 
@@ -1155,9 +1292,25 @@ System SmartHome reprezentuje kompleksowe rozwiązanie do zarządzania domem int
 - **Wygoda użytkowania**: Centralne sterowanie
 - **Analityka**: Dane o użytkowaniu i wzorcach
 
-System jest gotowy do wykorzystania w środowisku produkcyjnym i stanowi solidną podstawę do dalszego rozwoju funkcjonalności smart home.
+### Wdrożenie Produkcyjne:
+
+System jest gotowy do wykorzystania w środowisku produkcyjnym. Skrypt `run_server.py` umożliwia łatwe uruchomienie na systemach Windows, rozwiązując problemy z kompatybilnością Gunicorn. Dla środowisk Linux/Unix można wykorzystać standardowe narzędzia WSGI.
+
+### Rozwiązanie Problemów z Windows:
+
+- **Gunicorn**: Niekompatybilny z Windows (brak modułu fcntl)
+- **Waitress**: Problemy z WebSocket'ami przy SocketIO
+- **Rozwiązanie**: Dedykowany skrypt `run_server.py` z pełnym wsparciem dla Windows
+
+System stanowi solidną podstawę do dalszego rozwoju funkcjonalności smart home i może być łatwo dostosowany do specyficznych wymagań użytkowników.
 
 ---
+
+**Autor**: [Twoje Imię]  
+**Data**: 2025  
+**Wersja**: 1.0  
+**Technologie**: Python, Flask, JavaScript, HTML/CSS  
+**Licencja**: MIT License
 
 **Autor**: Szymon Przybysz
 **Data**: 2025
