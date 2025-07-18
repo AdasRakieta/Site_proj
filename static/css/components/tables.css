@@ -1,0 +1,43 @@
+/* ============================== */
+/*         Style tabel             */
+/* ============================== */
+
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.user-table th,
+.user-table td {
+    padding: 12px 15px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    justify-content: center;
+}
+
+.user-table th {
+    background-color: var(--card-bg);
+    font-weight: bold;
+}
+
+.user-table tr:hover {
+    background-color: var(--hover-bg);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.change-password-btn {
+    background-color: var(--button-bg);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 5px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+}

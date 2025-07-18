@@ -1,0 +1,22 @@
+/* ============================== */
+/*      Smart Home CSS - Main     */
+/* ============================== */
+
+/* Import podstawowych plików CSS w odpowiedniej kolejności */
+@import 'variables.css';
+@import 'base.css';
+@import 'layout.css';
+
+/* Import komponentów */
+@import 'components/navigation.css';
+@import 'components/buttons.css';
+@import 'components/forms.css';
+@import 'components/cards.css';
+@import 'components/tables.css';
+@import 'components/automations.css';
+
+/* Import utilities */
+@import 'utilities.css';
+
+/* Import responsywności */
+@import 'mobile.css';

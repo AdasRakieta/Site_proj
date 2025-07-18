@@ -1,0 +1,243 @@
+/* ============================== */
+/*   Sekcja: Przyciski (obiektowo) */
+/* ============================== */
+
+/* Klasa bazowa dla wszystkich przycisków */
+.btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--button);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s, transform 20s;
+    text-decoration: none;
+    margin: 0.5rem 0.5rem 0.5rem 0;
+}
+
+/* Przyciski główne i specjalne dziedziczą po .btn */
+.rooms-button, 
+.control-button, 
+.map-button, 
+.menu-btn, 
+.action-btn, 
+.delete-button, 
+.cancel-button, 
+.small-button, 
+.logout-btn, 
+.change-button, 
+.confirm-delete-btn, 
+.btn-primary, 
+.btn-secondary {
+    /* dziedziczą po .btn */
+    padding: inherit;
+    font-size: inherit;
+    background-color: inherit;
+    color: inherit;
+    border: inherit;
+    border-radius: inherit;
+    cursor: inherit;
+    transition: inherit;
+    text-decoration: inherit;
+    margin: inherit;
+    box-shadow: var(--box_shd);
+}
+
+/* Specyficzne style dla poszczególnych przycisków */
+.rooms-button:hover, 
+.control-button:hover, 
+.map-button:hover, 
+.menu-btn:hover, 
+.action-btn:hover, 
+.small-button:hover, 
+.logout-btn:hover, 
+.change-button:hover, 
+.btn-primary:hover, 
+.btn-secondary:hover {
+    background-color: var(--hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.05);
+}
+
+.confirm-delete-btn {
+    background-color: var(--confirm-btn);
+    color: var(--text-delete);
+    border-radius: 5px;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+.confirm-delete-btn:hover {
+    background-color: var(--confirm-btn-hover);
+}
+
+.btn-primary {
+    background-color: var(--btn-primary);
+    border-color: var(--btn-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--btn-primary-hover);
+    border-color: var(--btn-primary-hover);
+}
+
+.btn-secondary {
+    background-color: var(--secondary);
+    color: var(--btn_text);
+}
+
+/* Specjalne style dla logout-btn */
+.logout-btn {
+    display: inline-block;
+    border: 2px solid var(--border);
+    font-size: 0.9em;
+    border-radius: 5px;
+    padding: 6px 12px;
+    margin: 0.5rem;
+    transition: transform 20s ease, background-color 0.3s, box-shadow 1.3s;
+}
+
+.logout-btn:hover {
+    background-color: var(--hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.1);
+}
+
+/* Specjalne style dla .small-button */
+.small-button {
+    font-size: 1rem;
+    border-radius: 8px;
+}
+
+/* Specjalne style dla .cancel-button */
+.cancel-button {
+    font-size: 1rem;
+    border-radius: 8px;
+    margin: 0.5rem;
+}
+
+/* Specjalne style dla .map-button */
+.map-button {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--accent);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    text-decoration: none;
+    box-shadow: var(--box_shd);
+}
+
+.map-button:hover {
+    background-color: var(--hover);
+    color: var(--btn_text);
+    box-shadow: var(--box_shd);
+    transform: scale(1.08);
+}
+
+/* Specjalne style dla .action-btn */
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    margin: 0.5rem 0.5rem 0.5rem 0;
+}
+
+/* Specjalne style dla .control-button */
+.control-button {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--accent);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 0.5rem;
+    text-decoration: none;
+    box-shadow: var(--box_shd);
+}
+
+/* Specjalne style dla .rooms-button */
+.rooms-button {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--accent);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 0.5rem;
+    text-decoration: none;
+    box-shadow: var(--box_shd);
+}
+
+/* ============================== */
+/*   Poprawki przycisków akcji w tabeli użytkowników (settings) */
+/* ============================== */
+
+.change-button, 
+.delete-button {
+    display: inline-block;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 0.5rem 0.5rem 0.5rem 0;
+    text-decoration: none;
+    box-shadow: var(--box_shd);
+    transition: all 0.3s ease;
+}
+
+.delete-button, 
+.cancel-button {
+    background-color: var(--btn-danger);
+    border-color: var(--btn-danger);
+    color: var(--text-delete);
+    transition: all 0.3s ease;
+}
+
+.delete-button:hover, 
+.cancel-button:hover {
+    background-color: var(--btn-danger-hover);
+    border-color: var(--btn-danger-hover);
+    color: var(--text-delete);
+    box-shadow: var(--box_shd);
+    transform: scale(1.08);
+}
+
+/* Specjalne style dla .change-button */
+.change-button {
+    background-color: var(--accent);
+    color: var(--btn_text);
+}
+
+.change-button[type="submit"] {
+    background-color: var(--confirm-btn);
+    color: var(--btn_text);
+}
+
+.change-button[type="submit"]:hover {
+    background-color: var(--confirm-btn-hover);
+}
+
+.edit-generic-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}

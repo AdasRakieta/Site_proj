@@ -4,7 +4,7 @@
 {% block header %}Profil użytkownika{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/user.css') }}?v={{ range(1, 99999) | random }}">
 {% endblock %}
 
 {% block content %}

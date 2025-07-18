@@ -1,0 +1,225 @@
+/* ============================== */
+/*         Karty i kontenery       */
+/* ============================== */
+
+/* Układ elementów w centralnym kontenerze */
+.center-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    justify-content: center;
+    padding: 20px;
+    margin-bottom: -15px;
+}
+
+.rooms-container .grid-container,
+.rooms-container .grid-container-list {
+    display: grid;
+    justify-content: center;
+    align-items: center;
+}
+
+.rooms-container.wide .rooms-button {
+    min-width: 90px;
+}
+
+@media (max-width: 992px) {
+    .grid-container-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .grid-container-list,
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Podstawowe style kart */
+.card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    padding: 20px;
+    margin: 20px auto;
+}
+
+/* Kontenery specjalistyczne */
+.notification-form {
+    margin-left: auto;
+    margin-right: auto;
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    max-width: fit-content;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+}
+
+.notification-inside-form {
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    min-width: 300px;
+    max-width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.login-container {
+    margin-left: auto;
+    margin-right: auto;
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    max-width: fit-content;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+}
+
+.users-management-container {
+    margin-left: auto;
+    margin-right: auto;
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    max-width: fit-content;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+}
+
+.salon-temp {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    width: 360px;
+    padding: 20px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    text-align: center;
+    justify-content: center;
+    margin-left: auto; 
+    margin-right: auto; 
+}
+
+.temp-container {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    justify-content: center;
+    max-width: fit-content;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    margin: auto;
+    margin-bottom: 20px;
+}
+
+#map-container {
+    margin: 20px auto;
+    max-width: 800px;
+    padding: 20px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+}
+
+#map { 
+    height: 400px;
+    width: 100%;
+    border-radius: 8px;
+    z-index: 0;
+}
+
+.security-container {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    width: fit-content;
+    padding-bottom: 40px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    margin-right: auto;
+    margin-left: auto;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.edit-container {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    width: fit-content;
+    padding-bottom: 40px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--box_shd);
+    margin-right: auto;
+    margin-left: auto;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* ============================== */
+/*         Automatyzacje          */
+/* ============================== */
+
+.automation-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--box_shd);
+    position: relative;
+}
+
+.automation-card h3 {
+    margin-top: 0;
+    color: var(--text);
+    font-size: 1.2rem;
+}
+
+.automation-card p {
+    margin: 8px 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.status-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+#automation-form-container {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: var(--box_shd);
+}
+
+/* Utility classes */
+.hidden {
+    display: none;
+}
