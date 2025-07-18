@@ -7,6 +7,37 @@
     width: fit-content;
 }
 
+.registration-step {
+    transition: all 0.3s ease;
+}
+
+.registration-step h2 {
+    text-align: center;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+}
+
+.verification-info {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: var(--accent-color);
+    border-radius: 4px;
+    opacity: 0.8;
+}
+
+.verification-info p {
+    margin: 0;
+    text-align: center;
+    color: var(--text-color);
+}
+
+#verificationCode {
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 0.3rem;
+    font-weight: bold;
+}
+
 
 .register-profile-container .profile-section .profile-picture-section .profile-picture-container {
     width: 128px !important;

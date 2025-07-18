@@ -34,6 +34,13 @@
             "role": "user",
             "email": "s@d.s",
             "profile_picture": ""
+        },
+        "6cf93d68-a197-4399-86ee-866ef6e67ac7": {
+            "name": "testuser",
+            "password": "scrypt:32768:8:1$ff4uYh0HuGi2BYTG$6afe972327e382cf3afc38cbc5f5da31a1a1071a366f0ee27d22a8c5cf1a37ecfde6ada67358fc8facd4a9f44136ce63c391f6f211ed8fea8141b8ee1e316b3c",
+            "role": "user",
+            "email": "test@example.com",
+            "profile_picture": ""
         }
     },
     "temperature_states": {
