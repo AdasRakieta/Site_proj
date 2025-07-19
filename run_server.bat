@@ -7,7 +7,7 @@ echo Uruchamianie serwera...
 
 REM Sprawdź czy środowisko wirtualne istnieje
 if exist ".venv\Scripts\python.exe" (
-    echo Używam środowiska wirtualnego
+    echo Uzywam srodowiska wirtualnego
     .venv\Scripts\python.exe run_server.py %*
 ) else (
     echo Używam systemowego Python
