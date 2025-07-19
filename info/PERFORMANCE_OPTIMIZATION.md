@@ -1,302 +1,302 @@
-# Site_proj - Performance Optimization Documentation
+# Site_proj - Dokumentacja Optymalizacji Wydajności
 
-This document describes the performance optimizations implemented for the Site_proj smart home application.
+Ten dokument opisuje optymalizacje wydajności zaimplementowane dla aplikacji smart home Site_proj.
 
-## 📁 File Structure
+## 📁 Struktura Plików
 
-### Core Application Files
-- `app.py` - Main Flask application with integrated optimizations
-- `routes.py` - Application routes and endpoints
-- `configure.py` - Smart home system configuration
-- `mail_manager.py` - Original email functionality
+### Główne Pliki Aplikacji
+- `app.py` - Główna aplikacja Flask ze zintegrowanymi optymalizacjami
+- `routes.py` - Trasy i endpointy aplikacji
+- `configure.py` - Konfiguracja systemu smart home
+- `mail_manager.py` - Oryginalna funkcjonalność email
 
-### Utils Directory (`utils/`)
-The `utils/` directory contains organized utility modules for performance optimizations:
+### Katalog Utils (`utils/`)
+Katalog `utils/` zawiera zorganizowane moduły narzędziowe dla optymalizacji wydajności:
 
 #### `utils/cache_manager.py`
-**Purpose**: Comprehensive caching functionality for improved application performance
+**Cel**: Kompleksowa funkcjonalność cachowania dla poprawy wydajności aplikacji
 
-**Features**:
-- Redis/SimpleCache integration through Flask-Caching
-- Automatic cache invalidation on data updates
-- Cached data access layer for smart home entities
-- API response caching decorators
-- User-specific cache management
+**Funkcje**:
+- Integracja Redis/SimpleCache przez Flask-Caching
+- Automatyczna invalidacja cache przy aktualizacji danych
+- Warstwa dostępu do danych cache dla encji smart home
+- Dekoratory cachowania odpowiedzi API
+- Zarządzanie cache specyficznym dla użytkownika
 
-**Classes**:
-- `CacheManager` - Central cache management with unified interface
-- `CachedDataAccess` - Cached access to rooms, buttons, temperature controls, automations
-- `setup_smart_home_caching()` - Automatic cache integration with SmartHomeSystem
+**Klasy**:
+- `CacheManager` - Centralne zarządzanie cache z ujednoliconym interfejsem
+- `CachedDataAccess` - Dostęp z cache do pokoi, przycisków, kontrolek temperatury, automatyzacji
+- `setup_smart_home_caching()` - Automatyczna integracja cache z SmartHomeSystem
 
-**Cache Types and Timeouts**:
-- User data: 10 minutes (600s)
-- Configuration: 5 minutes (300s)
-- Rooms/Buttons: 5 minutes (300s)
-- Temperature controls: 10 minutes (600s)
-- Automations: 5 minutes (300s)
-- API responses: 5 minutes (300s)
+**Typy Cache i Timeouty**:
+- Dane użytkownika: 10 minut (600s)
+- Konfiguracja: 5 minut (300s)
+- Pokoje/Przyciski: 5 minut (300s)
+- Kontrolki temperatury: 10 minut (600s)
+- Automatyzacje: 5 minut (300s)
+- Odpowiedzi API: 5 minut (300s)
 
 #### `utils/async_manager.py`
-**Purpose**: Asynchronous operations for non-blocking user experience
+**Cel**: Operacje asynchroniczne dla nieblokującego doświadczenia użytkownika
 
-**Features**:
-- Asynchronous email sending with queue-based processing
-- Background task management for non-critical operations
-- Thread-safe queue operations
-- Graceful degradation to synchronous operations on failure
-- Comprehensive error handling and logging
+**Funkcje**:
+- Asynchroniczne wysyłanie emaili z przetwarzaniem opartym na kolejce
+- Zarządzanie zadaniami w tle dla operacji niekrytycznych
+- Operacje kolejki bezpieczne dla wątków
+- Graceful degradation do operacji synchronicznych w przypadku awarii
+- Kompleksowa obsługa błędów i logowanie
 
-**Classes**:
-- `AsyncMailManager` - Non-blocking email operations with worker threads
-- `BackgroundTaskManager` - Background task execution with thread pool
+**Klasy**:
+- `AsyncMailManager` - Nieblokujące operacje email z wątkami roboczymi
+- `BackgroundTaskManager` - Wykonywanie zadań w tle z pulą wątków
 
-**Email Operations**:
-- Verification emails → `send_verification_email_async()`
-- Security alerts → `send_security_alert_async()`
-- Failed login notifications → `track_and_alert_failed_login_async()`
+**Operacje Email**:
+- Emaile weryfikacyjne → `send_verification_email_async()`
+- Alerty bezpieczeństwa → `send_security_alert_async()`
+- Powiadomienia o nieudanych logowaniach → `track_and_alert_failed_login_async()`
 
 #### `utils/asset_manager.py`
-**Purpose**: CSS/JS minification and asset optimization
+**Cel**: Minifikacja CSS/JS i optymalizacja zasobów
 
-**Features**:
-- Automatic CSS/JS minification with compression statistics
-- Intelligent minified asset serving (falls back to original if unavailable)
-- Watch mode for automatic re-minification during development
-- Build integration for production deployments
+**Funkcje**:
+- Automatyczna minifikacja CSS/JS ze statystykami kompresji
+- Inteligentne serwowanie zminifikowanych zasobów (fallback do oryginału jeśli niedostępne)
+- Tryb obserwacji dla automatycznej re-minifikacji podczas rozwoju
+- Integracja z buildem dla wdrożeń produkcyjnych
 
-**Classes**:
-- `AssetManager` - Main minification and optimization engine
-- `AssetWatcher` - File system watcher for development mode
-- `minified_url_for_helper()` - Flask template helper for automatic asset serving
+**Klasy**:
+- `AssetManager` - Główny silnik minifikacji i optymalizacji
+- `AssetWatcher` - Obserwator systemu plików dla trybu deweloperskiego
+- `minified_url_for_helper()` - Helper szablonów Flask dla automatycznego serwowania zasobów
 
-### Legacy Files (to be cleaned up)
-- `cache_helpers.py` - Original cache implementation (replaced by `utils/cache_manager.py`)
-- `async_mail_manager.py` - Original async implementation (replaced by `utils/async_manager.py`)
-- `minify_assets.py` - Original minification script (replaced by `utils/asset_manager.py`)
+### Pliki Legacy (do wyczyszczenia)
+- `cache_helpers.py` - Oryginalna implementacja cache (zastąpiona przez `utils/cache_manager.py`)
+- `async_mail_manager.py` - Oryginalna implementacja async (zastąpiona przez `utils/async_manager.py`)
+- `minify_assets.py` - Oryginalny skrypt minifikacji (zastąpiony przez `utils/asset_manager.py`)
 
-## 🚀 Optimizations Overview
+## 🚀 Przegląd Optymalizacji
 
-### 1. CSS/JS Minification
+### 1. Minifikacja CSS/JS
 
-**Files**: Original files (editable) → Minified files (auto-generated)
+**Pliki**: Pliki oryginalne (edytowalne) → Pliki zminifikowane (auto-generowane)
 
 ```
-static/css/style.css      → static/css/style.min.css      (36.7% smaller)
-static/js/app.js          → static/js/app.min.js          (35.3% smaller)
+static/css/style.css      → static/css/style.min.css      (36.7% mniejsze)
+static/js/app.js          → static/js/app.min.js          (35.3% mniejsze)
 ```
 
-**Process**:
-- **MANUAL**: Edit original files (`style.css`, `app.js`, etc.)
-- **AUTOMATIC**: Run minification script to generate `.min.css` and `.min.js` files
-- **SERVING**: Application automatically serves minified versions when available
+**Proces**:
+- **RĘCZNIE**: Edytuj oryginalne pliki (`style.css`, `app.js`, itp.)
+- **AUTOMATYCZNIE**: Uruchom skrypt minifikacji aby wygenerować pliki `.min.css` i `.min.js`
+- **SERWOWANIE**: Aplikacja automatycznie serwuje zminifikowane wersje gdy dostępne
 
-**Usage Commands**:
+**Komendy Użycia**:
 ```bash
-# One-time minification
+# Jednorazowa minifikacja
 python utils/asset_manager.py
 
-# Development mode with auto-minification
+# Tryb deweloperski z auto-minifikacją
 python utils/asset_manager.py --watch
 
-# Clean and regenerate all minified assets
+# Wyczyść i regeneruj wszystkie zminifikowane zasoby
 python utils/asset_manager.py --clean
 
-# Verbose output
+# Szczegółowe wyjście
 python utils/asset_manager.py --verbose
 ```
 
-**File Update Process**:
-1. You edit `static/css/style.css` (or any original CSS/JS file)
-2. Run `python utils/asset_manager.py` to generate `static/css/style.min.css`
-3. Application automatically serves the minified version
-4. No manual intervention required for asset serving
+**Proces Aktualizacji Plików**:
+1. Edytujesz `static/css/style.css` (lub dowolny oryginalny plik CSS/JS)
+2. Uruchamiasz `python utils/asset_manager.py` aby wygenerować `static/css/style.min.css`
+3. Aplikacja automatycznie serwuje zminifikowaną wersję
+4. Brak konieczności ręcznej interwencji dla serwowania zasobów
 
-### 2. Caching System
+### 2. System Cachowania
 
-**Implementation**: Local SimpleCache (Redis-compatible)
+**Implementacja**: Lokalny SimpleCache (kompatybilny z Redis)
 
-**Cached Data**:
-- User information (10 min TTL)
-- Smart home configuration (5 min TTL)
-- Rooms and buttons (5 min TTL)
-- Temperature controls (10 min TTL)
-- Automations (5 min TTL)
-- API responses (5 min TTL)
+**Dane Cachowane**:
+- Informacje o użytkownikach (TTL 10 min)
+- Konfiguracja smart home (TTL 5 min)
+- Pokoje i przyciski (TTL 5 min)
+- Kontrolki temperatury (TTL 10 min)
+- Automatyzacje (TTL 5 min)
+- Odpowiedzi API (TTL 5 min)
 
-**Features**:
-- Automatic cache invalidation on data updates
-- Transparent caching - no code changes required
-- Cache statistics and monitoring
-- Graceful degradation if cache fails
+**Funkcje**:
+- Automatyczna invalidacja cache przy aktualizacji danych
+- Przezroczyste cachowanie - brak potrzeby zmian w kodzie
+- Statystyki cache i monitoring
+- Graceful degradation jeśli cache zawiedzie
 
-### 3. Asynchronous Operations
+### 3. Operacje Asynchroniczne
 
-**Implementation**: Queue-based background processing
+**Implementacja**: Przetwarzanie w tle oparte na kolejce
 
-**Async Operations**:
-- Email sending (verification, alerts)
-- Security notifications
-- Failed login tracking
-- Background configuration saves
+**Operacje Async**:
+- Wysyłanie emaili (weryfikacja, alerty)
+- Powiadomienia bezpieczeństwa
+- Śledzenie nieudanych logowań
+- Zapisywanie konfiguracji w tle
 
-**Benefits**:
-- Immediate UI response (no waiting for email delivery)
-- Better user experience
-- Improved application responsiveness
-- Automatic retry on failure
+**Korzyści**:
+- Natychmiastowa odpowiedź UI (brak czekania na dostarczenie emaila)
+- Lepsze doświadczenie użytkownika
+- Poprawiona responsywność aplikacji
+- Automatyczne ponowienie przy awarii
 
-## 🛠️ Usage Instructions
+## 🛠️ Instrukcje Użycia
 
-### For Developers
+### Dla Deweloperów
 
-#### Asset Management
+#### Zarządzanie Zasobami
 ```bash
-# During development - watch for changes and auto-minify
+# Podczas rozwoju - obserwuj zmiany i auto-minifikuj
 python utils/asset_manager.py --watch
 
-# Before deployment - minify all assets
+# Przed wdrożeniem - zminifikuj wszystkie zasoby
 python utils/asset_manager.py
 ```
 
-#### File Editing Workflow
-1. Edit original files in `static/css/` and `static/js/`
-2. Minified files are automatically generated when you run the asset manager
-3. Application automatically serves the optimized versions
-4. **No manual updates to minified files required**
+#### Workflow Edycji Plików
+1. Edytuj oryginalne pliki w `static/css/` i `static/js/`
+2. Zminifikowane pliki są automatycznie generowane gdy uruchamiasz asset manager
+3. Aplikacja automatycznie serwuje zoptymalizowane wersje
+4. **Brak potrzeby ręcznej aktualizacji zminifikowanych plików**
 
-#### Cache Management
+#### Zarządzanie Cache
 ```python
-# Cache is automatically managed, but you can interact with it:
+# Cache jest automatycznie zarządzany, ale możesz z nim współpracować:
 from utils.cache_manager import CacheManager
 
-# Manual cache invalidation
+# Ręczna invalidacja cache
 cache_manager.invalidate_config_cache()
 cache_manager.invalidate_user_cache(user_id)
 
-# Cache statistics
+# Statystyki cache
 stats = cache_manager.get_statistics()
 ```
 
-#### Async Operations
+#### Operacje Async
 ```python
-# Email operations are automatically async in login routes
-# But you can use them manually:
+# Operacje email są automatycznie async w trasach logowania
+# Ale możesz ich użyć ręcznie:
 async_mail_manager.send_verification_email_async(email, code)
 async_mail_manager.send_security_alert_async(event_type, details)
 ```
 
-### For Production Deployment
+### Dla Wdrożenia Produkcyjnego
 
-1. **Build assets**:
+1. **Zbuduj zasoby**:
    ```bash
    python utils/asset_manager.py
    ```
 
-2. **Start application**:
+2. **Uruchom aplikację**:
    ```bash
    python app.py
    ```
 
-3. **Monitor performance**:
-   - Check cache hit rates in application logs
-   - Monitor email queue size: `async_mail_manager.get_queue_size()`
-   - Verify minified assets are being served
+3. **Monitoruj wydajność**:
+   - Sprawdź współczynniki trafień cache w logach aplikacji
+   - Monitoruj rozmiar kolejki emaili: `async_mail_manager.get_queue_size()`
+   - Zweryfikuj że zminifikowane zasoby są serwowane
 
-## 📊 Performance Benefits
+## 📊 Korzyści Wydajnościowe
 
-### Asset Optimization
-- **CSS**: 36.7% size reduction
-- **JS**: 35.3% size reduction
-- **Total**: 109KB less data transfer
-- **Result**: Faster page loading, reduced bandwidth usage
+### Optymalizacja Zasobów
+- **CSS**: 36.7% redukcji rozmiaru
+- **JS**: 35.3% redukcji rozmiaru
+- **Łącznie**: 109KB mniej transferu danych
+- **Rezultat**: Szybsze ładowanie stron, zmniejszone użycie przepustowości
 
-### Caching Benefits
-- **Database queries**: ~50ms faster response on cache hits
-- **API endpoints**: Immediate response for cached data
-- **User data**: Reduced database load for frequently accessed information
+### Korzyści Cachowania
+- **Zapytania do bazy danych**: ~50ms szybsza odpowiedź przy trafieniach cache
+- **Endpointy API**: Natychmiastowa odpowiedź dla danych z cache
+- **Dane użytkownika**: Zmniejszone obciążenie bazy danych dla często dostępnych informacji
 
-### Async Operations
-- **Email sending**: Non-blocking (immediate UI response)
-- **Background tasks**: Improved responsiveness
-- **User experience**: No waiting for slow operations
+### Operacje Async
+- **Wysyłanie emaili**: Nieblokujące (natychmiastowa odpowiedź UI)
+- **Zadania w tle**: Poprawiona responsywność
+- **Doświadczenie użytkownika**: Brak czekania na wolne operacje
 
-## 🔧 Configuration
+## 🔧 Konfiguracja
 
-### Cache Configuration (app.py)
+### Konfiguracja Cache (app.py)
 ```python
-app.config['CACHE_TYPE'] = 'SimpleCache'  # or 'RedisCache'
+app.config['CACHE_TYPE'] = 'SimpleCache'  # lub 'RedisCache'
 app.config['CACHE_REDIS_HOST'] = 'localhost'
 app.config['CACHE_REDIS_PORT'] = 6379
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 ```
 
-### Asset Manager Configuration
-Edit timeout values in `utils/cache_manager.py`:
+### Konfiguracja Asset Manager
+Edytuj wartości timeout w `utils/cache_manager.py`:
 ```python
 self._cache_timeouts = {
-    'user_data': 600,       # 10 minutes
-    'config': 300,          # 5 minutes
-    'rooms': 300,           # 5 minutes
-    # ... etc
+    'user_data': 600,       # 10 minut
+    'config': 300,          # 5 minut
+    'rooms': 300,           # 5 minut
+    # ... itp
 }
 ```
 
-## 🧪 Testing
+## 🧪 Testowanie
 
-### Verify Minification
+### Weryfikacja Minifikacji
 ```bash
-# Check if minified files exist
+# Sprawdź czy zminifikowane pliki istnieją
 ls static/css/*.min.css
 ls static/js/*.min.js
 
-# Test asset serving
+# Testuj serwowanie zasobów
 curl -I http://localhost:5000/static/css/style.css
-# Should serve style.min.css if available
+# Powinno serwować style.min.css jeśli dostępny
 ```
 
-### Verify Caching
+### Weryfikacja Cachowania
 ```bash
-# First request (cache miss)
+# Pierwsze żądanie (cache miss)
 curl http://localhost:5000/api/rooms
 
-# Second request (cache hit - should be faster)
+# Drugie żądanie (cache hit - powinno być szybsze)
 curl http://localhost:5000/api/rooms
 ```
 
-### Verify Async Operations
+### Weryfikacja Operacji Async
 ```bash
-# Test async email (should return immediately)
+# Testuj async email (powinno zwrócić natychmiast)
 curl -X POST http://localhost:5000/send-test-email
-# Check logs for background email processing
+# Sprawdź logi dla przetwarzania emaila w tle
 ```
 
-## 🚨 Important Notes
+## 🚨 Ważne Uwagi
 
-### File Update Workflow
-- **Edit**: Original files (`style.css`, `app.js`)
-- **Generate**: Minified files using `python utils/asset_manager.py`
-- **Serve**: Application automatically uses minified versions
-- **DO NOT**: Manually edit `.min.css` or `.min.js` files
+### Workflow Aktualizacji Plików
+- **Edytuj**: Oryginalne pliki (`style.css`, `app.js`)
+- **Generuj**: Zminifikowane pliki używając `python utils/asset_manager.py`
+- **Serwuj**: Aplikacja automatycznie używa zminifikowanych wersji
+- **NIE**: Nie edytuj ręcznie plików `.min.css` lub `.min.js`
 
-### Cache Invalidation
-- Cache is automatically invalidated on data updates
-- Manual invalidation available through CacheManager methods
-- Local SimpleCache used for simplicity (Redis compatible)
+### Invalidacja Cache
+- Cache jest automatycznie invalidowany przy aktualizacji danych
+- Ręczna invalidacja dostępna przez metody CacheManager
+- Używany lokalny SimpleCache dla prostoty (kompatybilny z Redis)
 
-### Async Operations
-- All email operations are automatically async
-- Graceful degradation to sync mode on errors
-- Background tasks are processed by thread pool
+### Operacje Async
+- Wszystkie operacje email są automatycznie async
+- Graceful degradation do trybu sync przy błędach
+- Zadania w tle są przetwarzane przez pulę wątków
 
-### Development vs Production
-- **Development**: Use `--watch` mode for automatic asset regeneration
-- **Production**: Run minification once before deployment
-- **Monitoring**: Check logs for cache hits and async operation statistics
+### Rozwój vs Produkcja
+- **Rozwój**: Użyj trybu `--watch` dla automatycznej regeneracji zasobów
+- **Produkcja**: Uruchom minifikację raz przed wdrożeniem
+- **Monitoring**: Sprawdź logi dla trafień cache i statystyk operacji async
 
-## 🛡️ Backward Compatibility
+## 🛡️ Kompatybilność Wsteczna
 
-All optimizations maintain 100% backward compatibility:
-- Original functionality preserved 1:1
-- Fallback mechanisms for all optimizations
-- No changes to existing API or user interface
-- Safe to disable optimizations without breaking functionality
+Wszystkie optymalizacje zachowują 100% kompatybilności wstecznej:
+- Oryginalna funkcjonalność zachowana 1:1
+- Mechanizmy fallback dla wszystkich optymalizacji
+- Brak zmian w istniejącym API lub interfejsie użytkownika
+- Bezpieczne wyłączenie optymalizacji bez psucia funkcjonalności
