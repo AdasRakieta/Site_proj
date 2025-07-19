@@ -14,11 +14,12 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.mail_manager = mail_manager
+        self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
         self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
         self.register_routes()
@@ -141,7 +142,8 @@ class RoutesManager:
 
         @self.app.route('/test-email')
         def test_email():
-            result = self.mail_manager.send_security_alert('failed_login', {
+            # Use async mail manager for non-critical test emails
+            result = self.async_mail_manager.send_security_alert_async('failed_login', {
                 'username': 'testuser',
                 'ip_address': '127.0.0.1',
                 'attempt_count': 3
@@ -268,7 +270,8 @@ class RoutesManager:
         verification_code = self.mail_manager.generate_verification_code()
         self.mail_manager.store_verification_code(email, verification_code)
         
-        if self.mail_manager.send_verification_email(email, verification_code):
+        # Use async mail sending for verification emails to improve response time
+        if self.async_mail_manager.send_verification_email_async(email, verification_code):
             return jsonify({
                 'status': 'verification_sent',
                 'message': 'Kod weryfikacyjny został wysłany na podany adres email.'

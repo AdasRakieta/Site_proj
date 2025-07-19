@@ -8,6 +8,7 @@ import os
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
+from async_mail_manager import AsyncMailManager, BackgroundTaskManager
 import time
 from datetime import datetime, timedelta
 import routes
@@ -198,6 +199,9 @@ class AuthManager:
 smart_home = SmartHomeSystem()
 auth_manager = AuthManager()
 mail_manager = MailManager()
+async_mail_manager = AsyncMailManager(mail_manager)
+background_task_manager = BackgroundTaskManager()
+background_task_manager.start_background_processing()
 
 # --- Cached wrapper functions ---
 def get_cached_user_data(user_id):
@@ -220,8 +224,18 @@ original_save_config = smart_home.save_config
 def cached_save_config():
     result = original_save_config()
     invalidate_config_cache()
+    # Queue background config save task for improved performance
+    background_task_manager.add_task(lambda: None)  # Config already saved, just cache invalidation
     return result
 smart_home.save_config = cached_save_config
+
+# Create async config save method for non-critical saves
+def async_save_config():
+    """Queue config save as background task"""
+    background_task_manager.add_task(original_save_config)
+    invalidate_config_cache()
+
+smart_home.async_save_config = async_save_config
 
 original_update_user_profile = smart_home.update_user_profile
 def cached_update_user_profile(username, updates):
@@ -259,8 +273,8 @@ def login():
                 response = redirect(url_for('home'))
                 response.set_cookie('remember_user', '', expires=0)
                 return response
-        # Rejestracja nieudanej próby i wysłanie alertu
-        mail_manager.track_and_alert_failed_login(login_name, ip_address)
+        # Rejestracja nieudanej próby i wysłanie alertu (async)
+        async_mail_manager.track_and_alert_failed_login_async(login_name, ip_address)
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
         # Wygeneruj nowy token CSRF po nieudanym logowaniu
         session['_csrf_token'] = secrets.token_urlsafe(32)
@@ -399,7 +413,7 @@ def execute_action(action):
             print(f"[AUTOMATION] Nie znaleziono przycisku {device}", file=sys.stderr)
     elif action['type'] == 'notification':
         print(f"[AUTOMATION] Wysyłam powiadomienie: {action['message']}", file=sys.stderr)
-        mail_manager.send_security_alert('automation_notification', {
+        async_mail_manager.send_security_alert_async('automation_notification', {
             'message': action['message']
         })
 
@@ -411,7 +425,7 @@ def handle_exception(e):
     return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
-routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache)
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager)
 api_manager = routes.APIManager(app, socketio, smart_home, auth_manager)
 socket_manager = routes.SocketManager(socketio, smart_home)
 
