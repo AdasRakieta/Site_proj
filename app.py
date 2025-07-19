@@ -8,11 +8,15 @@ import os
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
-from async_mail_manager import AsyncMailManager, BackgroundTaskManager
 import time
 from datetime import datetime, timedelta
 import routes
 import socket
+
+# Import new organized utilities
+from utils.cache_manager import CacheManager, CachedDataAccess, setup_smart_home_caching
+from utils.async_manager import AsyncMailManager, BackgroundTaskManager
+from utils.asset_manager import minified_url_for_helper
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -62,66 +66,12 @@ def generate_csrf_token():
     return session['_csrf_token']
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
-# --- Minified asset helper ---
-def minified_url_for(endpoint, **values):
-    """
-    Custom url_for function that serves minified assets when available
-    Falls back to original if minified version doesn't exist
-    """
-    if endpoint == 'static' and 'filename' in values:
-        filename = values['filename']
-        
-        # Check if it's a CSS or JS file
-        if filename.endswith('.css') or filename.endswith('.js'):
-            # Don't process already minified files
-            if not filename.endswith('.min.css') and not filename.endswith('.min.js'):
-                # Create minified filename
-                name, ext = os.path.splitext(filename)
-                minified_filename = f"{name}.min{ext}"
-                
-                # Check if minified version exists
-                minified_path = os.path.join(app.static_folder, minified_filename)
-                if os.path.exists(minified_path):
-                    values['filename'] = minified_filename
-    
-    return url_for(endpoint, **values)
+# --- Setup minified asset serving ---
+app.jinja_env.globals['url_for'] = minified_url_for_helper(app)
 
-app.jinja_env.globals['url_for'] = minified_url_for
-
-# --- Cache invalidation helpers ---
-def invalidate_user_cache(user_id):
-    """Invalidate cache for a specific user"""
-    cache.delete(f"user_data_{user_id}")
-    cache.delete("smart_home_config")
-
-def invalidate_config_cache():
-    """Invalidate configuration cache"""
-    cache.delete("smart_home_config")
-    cache.delete("rooms_list")
-    cache.delete("buttons_list")
-    cache.delete("temperature_controls")
-    cache.delete("automations_list")
-
-# --- Cached data access functions ---
-@cache.cached(timeout=300, key_prefix='smart_home_config')
-def get_cached_config():
-    """Get cached smart home configuration"""
-    return smart_home.config
-
-@cache.cached(timeout=300, key_prefix='rooms_list')
-def get_cached_rooms():
-    """Get cached rooms list"""
-    return smart_home.rooms
-
-@cache.cached(timeout=600, key_prefix='temperature_controls')
-def get_cached_temperature_controls():
-    """Get cached temperature controls"""
-    return smart_home.temperature_controls
-
-@cache.cached(timeout=300, key_prefix='automations_list')
-def get_cached_automations():
-    """Get cached automations list"""
-    return smart_home.automations
+# --- Initialize Cache Management ---
+cache_manager = CacheManager(cache)
+cached_data_access = CachedDataAccess(cache, None)  # smart_home will be set later
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
@@ -195,7 +145,7 @@ class AuthManager:
             return f(*args, **kwargs)
         return decorated_function
 
-# Inicjalizacja systemu SmartHome
+# --- Initialize Smart Home System and Managers ---
 smart_home = SmartHomeSystem()
 auth_manager = AuthManager()
 mail_manager = MailManager()
@@ -203,47 +153,20 @@ async_mail_manager = AsyncMailManager(mail_manager)
 background_task_manager = BackgroundTaskManager()
 background_task_manager.start_background_processing()
 
-# --- Cached wrapper functions ---
-def get_cached_user_data(user_id):
-    """Get cached user data with fallback to database"""
-    cache_key = f"user_data_{user_id}"
-    user_data = cache.get(cache_key)
-    if user_data is None:
-        user_data = original_get_user_data(user_id)
-        cache.set(cache_key, user_data, timeout=600)  # Cache for 10 minutes
-    return user_data
+# --- Setup Cache Integration ---
+# Update cached_data_access with smart_home reference
+cached_data_access.smart_home = smart_home
 
-# Monkey patch the smart_home object to use caching
-original_get_user_data = smart_home.get_user_data
-smart_home.get_user_data = get_cached_user_data
+# Setup automatic cache invalidation for smart_home methods
+original_methods = setup_smart_home_caching(smart_home, cache_manager)
 
-# Cache invalidation hooks - monkey patch save methods
-original_save_config = smart_home.save_config
-def cached_save_config():
-    result = original_save_config()
-    invalidate_config_cache()
-    # Queue background config save task for improved performance
-    background_task_manager.add_task(lambda: None)  # Config already saved, just cache invalidation
-    return result
-smart_home.save_config = cached_save_config
-
-# Create async config save method for non-critical saves
+# Add async config save method for non-critical saves
 def async_save_config():
     """Queue config save as background task"""
-    background_task_manager.add_task(original_save_config)
-    invalidate_config_cache()
+    background_task_manager.add_task(original_methods.get('save_config', lambda: None))
+    cache_manager.invalidate_config_cache()
 
 smart_home.async_save_config = async_save_config
-
-original_update_user_profile = smart_home.update_user_profile
-def cached_update_user_profile(username, updates):
-    result = original_update_user_profile(username, updates)
-    # Invalidate user cache for old and new username
-    cache.delete(f"user_data_{username}")
-    if 'username' in updates:
-        cache.delete(f"user_data_{updates['username']}")
-    return result
-smart_home.update_user_profile = cached_update_user_profile
 
 # Trasy dla uwierzytelniania
 @app.route('/login', methods=['GET', 'POST'])
