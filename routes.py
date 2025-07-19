@@ -127,6 +127,34 @@ class RoutesManager:
         def edit():
             return render_template('edit.html')
 
+        @self.app.route('/admin_dashboard')
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def admin_dashboard():
+            # Przygotowanie statystyk dla dashboardu
+            stats = self._generate_dashboard_stats()
+            device_states = self._get_device_states()
+            management_logs = self._get_management_logs()
+            
+            return render_template('admin_dashboard.html', 
+                                 stats=stats, 
+                                 device_states=device_states,
+                                 management_logs=management_logs)
+
+        @self.app.route('/api/admin/device-states')
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_device_states():
+            device_states = self._get_device_states()
+            return jsonify(device_states)
+
+        @self.app.route('/api/admin/logs')
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_logs():
+            logs = self._get_management_logs()
+            return jsonify(logs)
+
         @self.app.route('/lights')
         @self.auth_manager.login_required
         def lights():
@@ -317,6 +345,90 @@ class RoutesManager:
         }
         self.smart_home.save_config()
         return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
+
+    def _generate_dashboard_stats(self):
+        """Generuje statystyki dla dashboardu administratora"""
+        from datetime import datetime
+        import random
+        
+        # Podstawowe statystyki
+        users_count = len(self.smart_home.users)
+        devices_count = len(self.smart_home.buttons) + len(self.smart_home.temperature_controls)
+        automations_count = len(self.smart_home.automations)
+        active_automations = sum(1 for auto in self.smart_home.automations if auto.get('enabled', False))
+        
+        # Symulowane dane energii (w rzeczywistości pobierane z urządzeń)
+        energy_today = round(random.uniform(10, 30), 1)
+        energy_month = round(random.uniform(200, 500), 1)
+        
+        # Symulowane dane automatyzacji
+        automations_executed_today = random.randint(5, 25)
+        automation_errors = random.randint(0, 3)
+        
+        return {
+            'users_count': users_count,
+            'devices_count': devices_count,
+            'automations_count': automations_count,
+            'active_automations': active_automations,
+            'energy_today': energy_today,
+            'energy_month': energy_month,
+            'automations_executed_today': automations_executed_today,
+            'automation_errors': automation_errors
+        }
+
+    def _get_device_states(self):
+        """Pobiera aktualny stan wszystkich urządzeń"""
+        device_states = []
+        
+        # Dodaj przyciski
+        for button in self.smart_home.buttons:
+            device_states.append({
+                'name': button['name'],
+                'room': button['room'],
+                'state': button['state'],
+                'type': 'button'
+            })
+        
+        # Dodaj kontrolery temperatury
+        for control in self.smart_home.temperature_controls:
+            device_states.append({
+                'name': control['name'],
+                'room': control['room'],
+                'state': True,  # Kontrolery temperatury są zawsze aktywne
+                'type': 'temperature',
+                'temperature': control.get('temperature', 22)
+            })
+        
+        return device_states
+
+    def _get_management_logs(self):
+        """Pobiera logi zarządzania systemem"""
+        from datetime import datetime, timedelta
+        import random
+        
+        # Symulowane logi (w rzeczywistości pobierane z pliku logów lub bazy danych)
+        log_types = ['info', 'warning', 'error']
+        log_messages = [
+            'Użytkownik admin zalogował się do systemu',
+            'Automatyzacja "Wieczorne światła" została wykonana',
+            'Urządzenie "Światło 1" przestało odpowiadać',
+            'Konfiguracja systemu została zapisana',
+            'Nowy użytkownik został dodany do systemu',
+            'Błąd połączenia z urządzeniem "Termostat salon"',
+            'Backup konfiguracji wykonany pomyślnie',
+            'Użytkownik user wylogował się z systemu'
+        ]
+        
+        logs = []
+        for i in range(10):
+            log_time = datetime.now() - timedelta(minutes=random.randint(1, 1440))
+            logs.append({
+                'timestamp': log_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'level': random.choice(log_types),
+                'message': random.choice(log_messages)
+            })
+        
+        return sorted(logs, key=lambda x: x['timestamp'], reverse=True)
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
