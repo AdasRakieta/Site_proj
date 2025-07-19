@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
 from flask_socketio import SocketIO
+from flask_caching import Cache
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 import secrets
@@ -14,6 +15,15 @@ import socket
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
+
+# --- Cache Configuration ---
+app.config['CACHE_TYPE'] = 'RedisCache'
+app.config['CACHE_REDIS_HOST'] = 'localhost'
+app.config['CACHE_REDIS_PORT'] = 6379
+app.config['CACHE_REDIS_DB'] = 0
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes default
+cache = Cache(app)
+
 # --- Bezpieczne ustawienia cookies i timeout sesji ---
 app.config['SESSION_COOKIE_SECURE'] = False  # wyłącz wymóg HTTPS dla środowiska lokalnego
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # niedostępne dla JS
@@ -76,6 +86,41 @@ def minified_url_for(endpoint, **values):
     return url_for(endpoint, **values)
 
 app.jinja_env.globals['url_for'] = minified_url_for
+
+# --- Cache invalidation helpers ---
+def invalidate_user_cache(user_id):
+    """Invalidate cache for a specific user"""
+    cache.delete(f"user_data_{user_id}")
+    cache.delete("smart_home_config")
+
+def invalidate_config_cache():
+    """Invalidate configuration cache"""
+    cache.delete("smart_home_config")
+    cache.delete("rooms_list")
+    cache.delete("buttons_list")
+    cache.delete("temperature_controls")
+    cache.delete("automations_list")
+
+# --- Cached data access functions ---
+@cache.cached(timeout=300, key_prefix='smart_home_config')
+def get_cached_config():
+    """Get cached smart home configuration"""
+    return smart_home.config
+
+@cache.cached(timeout=300, key_prefix='rooms_list')
+def get_cached_rooms():
+    """Get cached rooms list"""
+    return smart_home.rooms
+
+@cache.cached(timeout=600, key_prefix='temperature_controls')
+def get_cached_temperature_controls():
+    """Get cached temperature controls"""
+    return smart_home.temperature_controls
+
+@cache.cached(timeout=300, key_prefix='automations_list')
+def get_cached_automations():
+    """Get cached automations list"""
+    return smart_home.automations
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
@@ -153,6 +198,40 @@ class AuthManager:
 smart_home = SmartHomeSystem()
 auth_manager = AuthManager()
 mail_manager = MailManager()
+
+# --- Cached wrapper functions ---
+def get_cached_user_data(user_id):
+    """Get cached user data with fallback to database"""
+    cache_key = f"user_data_{user_id}"
+    user_data = cache.get(cache_key)
+    
+    if user_data is None:
+        user_data = smart_home.get_user_data(user_id)
+        cache.set(cache_key, user_data, timeout=600)  # Cache for 10 minutes
+    
+    return user_data
+
+# Monkey patch the smart_home object to use caching
+original_get_user_data = smart_home.get_user_data
+smart_home.get_user_data = get_cached_user_data
+
+# Cache invalidation hooks - monkey patch save methods
+original_save_config = smart_home.save_config
+def cached_save_config():
+    result = original_save_config()
+    invalidate_config_cache()
+    return result
+smart_home.save_config = cached_save_config
+
+original_update_user_profile = smart_home.update_user_profile
+def cached_update_user_profile(username, updates):
+    result = original_update_user_profile(username, updates)
+    # Invalidate user cache for old and new username
+    cache.delete(f"user_data_{username}")
+    if 'username' in updates:
+        cache.delete(f"user_data_{updates['username']}")
+    return result
+smart_home.update_user_profile = cached_update_user_profile
 
 # Trasy dla uwierzytelniania
 @app.route('/login', methods=['GET', 'POST'])
@@ -332,7 +411,7 @@ def handle_exception(e):
     return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
-routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager)
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache)
 api_manager = routes.APIManager(app, socketio, smart_home, auth_manager)
 socket_manager = routes.SocketManager(socketio, smart_home)
 
