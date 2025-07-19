@@ -3,6 +3,7 @@ from flask_socketio import SocketIO
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 import secrets
+import os
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
@@ -49,6 +50,32 @@ def generate_csrf_token():
         session['_csrf_token'] = secrets.token_urlsafe(32)
     return session['_csrf_token']
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+# --- Minified asset helper ---
+def minified_url_for(endpoint, **values):
+    """
+    Custom url_for function that serves minified assets when available
+    Falls back to original if minified version doesn't exist
+    """
+    if endpoint == 'static' and 'filename' in values:
+        filename = values['filename']
+        
+        # Check if it's a CSS or JS file
+        if filename.endswith('.css') or filename.endswith('.js'):
+            # Don't process already minified files
+            if not filename.endswith('.min.css') and not filename.endswith('.min.js'):
+                # Create minified filename
+                name, ext = os.path.splitext(filename)
+                minified_filename = f"{name}.min{ext}"
+                
+                # Check if minified version exists
+                minified_path = os.path.join(app.static_folder, minified_filename)
+                if os.path.exists(minified_path):
+                    values['filename'] = minified_filename
+    
+    return url_for(endpoint, **values)
+
+app.jinja_env.globals['url_for'] = minified_url_for
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
