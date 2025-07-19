@@ -1,6 +1,6 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
-from cache_helpers import CachedDataAccess, cache_json_response
+from deprecated.cache_helpers import CachedDataAccess, cache_json_response
 import time
 import os
 import uuid
