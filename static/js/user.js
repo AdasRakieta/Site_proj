@@ -67,7 +67,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (response.ok) {
                 await refreshUserData();
-                showMessage('Zdjęcie profilowe zostało zaktualizowane.', 'success');
+                // Use global notification for profile picture update success
+                if (typeof showNotification === 'function') {
+                    showNotification('Zdjęcie profilowe zostało zaktualizowane.', 'success');
+                } else {
+                    showMessage('Zdjęcie profilowe zostało zaktualizowane.', 'success');
+                }
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas aktualizacji zdjęcia.', 'error');
             }
@@ -123,7 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = '/logout?changed=1';
                 return;
             } else if (response.ok) {
-                showMessage(data.message || 'Zapisano zmiany.', 'success');
+                // Use global notification for profile update success
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message || 'Zapisano zmiany.', 'success');
+                } else {
+                    showMessage(data.message || 'Zapisano zmiany.', 'success');
+                }
                 await refreshUserData();
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas aktualizacji profilu.', 'error');
