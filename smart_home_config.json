@@ -7,18 +7,11 @@
             "email": "szymon.przybysz2003@gmail.com",
             "profile_picture": "/static/profile_pictures/32d2fe98-26c2-45f4-a78a-7a1cb9692f6a_1751926399.png"
         },
-        "4deb1b74-1155-4ff1-ada3-d9e586580590": {
-            "name": "testuser",
-            "password": "scrypt:32768:8:1$ibUH2Vo5h8eF6JIp$0b875d1e8fb70299958b247e8921fb2829544f694b470718ac3e27e38af5b9a4ca8b4424ea753bfacb55ce44e2982b50433c62782a6df1cf10a2413134a8bb59",
+        "dc4768d4-7bf2-47e7-aa5e-0696ada73d28": {
+            "name": "sdsad",
+            "password": "scrypt:32768:8:1$6gvq4Cp49R7MVS4J$89da61b9367b2285b47883811f3b3223f5f2d4db68f3ab49a3c376b09f2ac8c16886b7b5106007330b3ecdce22e03d317bce1a4d453b5107788d53250163936e",
             "role": "user",
-            "email": "testuser@example.com",
-            "profile_picture": ""
-        },
-        "6e77e3c9-b400-479d-a7a7-29fdea1c5403": {
-            "name": "admin1",
-            "password": "scrypt:32768:8:1$HxYOrtgWonCYsfpy$29c476ae4f91dece1f7851deef03793fec60965a78224d0c3fdd48e74c8f818648befeb1b11c82c0881758e8fdcb36b62f9544ff53d5e4d61fff81106dd4ae4b",
-            "role": "user",
-            "email": "dd@dd.dd",
+            "email": "szymon.przybysz@op.pl",
             "profile_picture": ""
         }
     },
