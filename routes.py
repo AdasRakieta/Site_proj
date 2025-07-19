@@ -1,5 +1,6 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
+from cache_helpers import CachedDataAccess, cache_json_response
 import time
 import os
 import uuid
@@ -13,11 +14,13 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.mail_manager = mail_manager
+        self.cache = cache
+        self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
         self.register_routes()
 
     def register_routes(self):
@@ -341,7 +344,12 @@ class APIManager:
         def manage_rooms():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                return jsonify(self.smart_home.rooms)
+                # Use cached data if available
+                if self.cached_data:
+                    rooms = self.cached_data.get_rooms()
+                else:
+                    rooms = self.smart_home.rooms
+                return jsonify(rooms)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
@@ -350,6 +358,9 @@ class APIManager:
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     self.smart_home.save_config()
+                    # Invalidate cache after modification
+                    if self.cached_data:
+                        self.cached_data.invalidate_rooms_cache()
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
 
@@ -369,6 +380,9 @@ class APIManager:
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 self.smart_home.save_config()
+                # Invalidate cache after modification
+                if self.cached_data:
+                    self.cached_data.invalidate_rooms_cache()
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Room not found"}), 404
 
@@ -466,7 +480,12 @@ class APIManager:
         def manage_buttons():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                return jsonify(self.smart_home.buttons)
+                # Use cached data if available
+                if self.cached_data:
+                    buttons = self.cached_data.get_buttons()
+                else:
+                    buttons = self.smart_home.buttons
+                return jsonify(buttons)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
