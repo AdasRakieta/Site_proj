@@ -1,8 +1,10 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
 from flask_socketio import SocketIO
+from flask_caching import Cache
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 import secrets
+import os
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
@@ -11,8 +13,22 @@ from datetime import datetime, timedelta
 import routes
 import socket
 
+# Import new organized utilities
+from utils.cache_manager import CacheManager, CachedDataAccess, setup_smart_home_caching
+from utils.async_manager import AsyncMailManager, BackgroundTaskManager
+from utils.asset_manager import minified_url_for_helper
+
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
+
+# --- Cache Configuration ---
+app.config['CACHE_TYPE'] = 'SimpleCache'
+app.config['CACHE_REDIS_HOST'] = 'localhost'
+app.config['CACHE_REDIS_PORT'] = 6379
+app.config['CACHE_REDIS_DB'] = 0
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes default
+cache = Cache(app)
+
 # --- Bezpieczne ustawienia cookies i timeout sesji ---
 app.config['SESSION_COOKIE_SECURE'] = False  # wyłącz wymóg HTTPS dla środowiska lokalnego
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # niedostępne dla JS
@@ -49,6 +65,13 @@ def generate_csrf_token():
         session['_csrf_token'] = secrets.token_urlsafe(32)
     return session['_csrf_token']
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+# --- Setup minified asset serving ---
+app.jinja_env.globals['url_for'] = minified_url_for_helper(app)
+
+# --- Initialize Cache Management ---
+cache_manager = CacheManager(cache)
+cached_data_access = CachedDataAccess(cache, None)  # smart_home will be set later
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
@@ -122,10 +145,28 @@ class AuthManager:
             return f(*args, **kwargs)
         return decorated_function
 
-# Inicjalizacja systemu SmartHome
+# --- Initialize Smart Home System and Managers ---
 smart_home = SmartHomeSystem()
 auth_manager = AuthManager()
 mail_manager = MailManager()
+async_mail_manager = AsyncMailManager(mail_manager)
+background_task_manager = BackgroundTaskManager()
+background_task_manager.start_background_processing()
+
+# --- Setup Cache Integration ---
+# Update cached_data_access with smart_home reference
+cached_data_access.smart_home = smart_home
+
+# Setup automatic cache invalidation for smart_home methods
+original_methods = setup_smart_home_caching(smart_home, cache_manager)
+
+# Add async config save method for non-critical saves
+def async_save_config():
+    """Queue config save as background task"""
+    background_task_manager.add_task(original_methods.get('save_config', lambda: None))
+    cache_manager.invalidate_config_cache()
+
+smart_home.async_save_config = async_save_config
 
 # Trasy dla uwierzytelniania
 @app.route('/login', methods=['GET', 'POST'])
@@ -153,8 +194,8 @@ def login():
                 response = redirect(url_for('home'))
                 response.set_cookie('remember_user', '', expires=0)
                 return response
-        # Rejestracja nieudanej próby i wysłanie alertu
-        mail_manager.track_and_alert_failed_login(login_name, ip_address)
+        # Rejestracja nieudanej próby i wysłanie alertu (async)
+        async_mail_manager.track_and_alert_failed_login_async(login_name, ip_address)
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
         # Wygeneruj nowy token CSRF po nieudanym logowaniu
         session['_csrf_token'] = secrets.token_urlsafe(32)
@@ -293,7 +334,7 @@ def execute_action(action):
             print(f"[AUTOMATION] Nie znaleziono przycisku {device}", file=sys.stderr)
     elif action['type'] == 'notification':
         print(f"[AUTOMATION] Wysyłam powiadomienie: {action['message']}", file=sys.stderr)
-        mail_manager.send_security_alert('automation_notification', {
+        async_mail_manager.send_security_alert_async('automation_notification', {
             'message': action['message']
         })
 
@@ -305,7 +346,7 @@ def handle_exception(e):
     return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
-routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager)
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager)
 api_manager = routes.APIManager(app, socketio, smart_home, auth_manager)
 socket_manager = routes.SocketManager(socketio, smart_home)
 

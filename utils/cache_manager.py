@@ -1,0 +1,356 @@
+"""
+Cache Manager for Site_proj
+
+This file provides comprehensive caching functionality for the smart home application.
+It handles caching of frequently accessed data like user information, configuration,
+and API responses to improve application performance.
+
+Features:
+- Redis/SimpleCache integration through Flask-Caching
+- Automatic cache invalidation on data updates
+- Cached data access layer for smart home entities
+- API response caching decorators
+- User-specific cache management
+
+Usage:
+    The caching is automatically integrated into the application through
+    monkey-patching of SmartHomeSystem methods. No manual cache management
+    is required for basic operations.
+
+Dependencies:
+    - Flask-Caching
+    - Redis (optional, falls back to SimpleCache)
+"""
+from functools import wraps
+import logging
+
+# Flask imports (optional for standalone usage)
+try:
+    from flask import jsonify, request, session
+except ImportError:
+    # Allow module to be imported without Flask for testing
+    jsonify = request = session = None
+
+logger = logging.getLogger(__name__)
+
+
+class CacheManager:
+    """
+    Central cache management class for the application
+    Provides unified interface for all caching operations
+    """
+    
+    def __init__(self, cache, smart_home=None):
+        """
+        Initialize cache manager
+        
+        Args:
+            cache: Flask-Caching instance
+            smart_home: SmartHomeSystem instance (optional)
+        """
+        self.cache = cache
+        self.smart_home = smart_home
+        self._cache_timeouts = {
+            'user_data': 600,       # 10 minutes
+            'config': 300,          # 5 minutes
+            'rooms': 300,           # 5 minutes
+            'buttons': 300,         # 5 minutes
+            'temperature': 600,     # 10 minutes
+            'automations': 300,     # 5 minutes
+            'api_response': 300     # 5 minutes
+        }
+    
+    def get_timeout(self, cache_type):
+        """Get cache timeout for specific data type"""
+        return self._cache_timeouts.get(cache_type, 300)
+    
+    def invalidate_user_cache(self, user_id):
+        """Invalidate cache for a specific user"""
+        logger.info(f"Invalidating cache for user: {user_id}")
+        self.cache.delete(f"user_data_{user_id}")
+        self.cache.delete("smart_home_config")
+    
+    def invalidate_config_cache(self):
+        """Invalidate configuration-related cache"""
+        logger.info("Invalidating configuration cache")
+        cache_keys = [
+            "smart_home_config",
+            "rooms_list", 
+            "buttons_list",
+            "temperature_controls",
+            "automations_list"
+        ]
+        self.cache.delete_many(cache_keys)
+    
+    def invalidate_api_cache(self, pattern=None):
+        """
+        Invalidate API response cache
+        
+        Args:
+            pattern: Optional pattern to match specific cache keys
+        """
+        logger.info(f"Invalidating API cache with pattern: {pattern}")
+        # Note: This is a simplified version. In production with Redis,
+        # you would use SCAN or maintain a list of cache keys
+        if pattern:
+            # For now, just log the pattern - implement Redis SCAN if needed
+            logger.warning("Pattern-based cache invalidation not implemented for SimpleCache")
+    
+    def cache_json_response(self, timeout=None):
+        """
+        Decorator to cache JSON responses based on URL and user
+        
+        Args:
+            timeout: Cache timeout in seconds (uses default if None)
+        """
+        if timeout is None:
+            timeout = self.get_timeout('api_response')
+            
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                # Create cache key based on endpoint, args, and user
+                user_id = session.get('user_id', 'anonymous')
+                cache_key = f"api_{f.__name__}_{user_id}_{request.method}_{args}_{request.args.to_dict()}"
+                
+                # Try to get from cache
+                cached_response = self.cache.get(cache_key)
+                if cached_response is not None:
+                    logger.debug(f"Cache hit for {cache_key}")
+                    return cached_response
+                
+                # Execute the function and cache the result
+                response = f(*args, **kwargs)
+                
+                # Only cache successful GET responses
+                if request.method == 'GET' and hasattr(response, 'status_code') and response.status_code == 200:
+                    self.cache.set(cache_key, response, timeout=timeout)
+                    logger.debug(f"Cached response for {cache_key}")
+                
+                return response
+            return decorated_function
+        return decorator
+
+
+class CachedDataAccess:
+    """
+    Cached data access layer for frequently used smart home data
+    
+    This class provides cached access to smart home entities like rooms,
+    buttons, temperature controls, and automations. It automatically
+    handles cache misses by fetching from the source and updating cache.
+    
+    All methods return the same data format as the original SmartHomeSystem
+    methods, ensuring 1:1 functionality preservation.
+    """
+    
+    def __init__(self, cache, smart_home):
+        """
+        Initialize cached data access
+        
+        Args:
+            cache: Flask-Caching instance
+            smart_home: SmartHomeSystem instance
+        """
+        self.cache = cache
+        self.smart_home = smart_home
+        self.cache_manager = CacheManager(cache, smart_home)
+    
+    def get_rooms(self):
+        """
+        Get cached rooms list
+        
+        Returns:
+            List of room objects, same format as smart_home.rooms
+        """
+        cache_key = "rooms_list"
+        rooms = self.cache.get(cache_key)
+        if rooms is None:
+            logger.debug("Cache miss for rooms, fetching from source")
+            rooms = self.smart_home.rooms
+            timeout = self.cache_manager.get_timeout('rooms')
+            self.cache.set(cache_key, rooms, timeout=timeout)
+            logger.debug(f"Cached rooms data for {timeout}s")
+        else:
+            logger.debug("Cache hit for rooms")
+        return rooms
+    
+    def get_buttons(self):
+        """
+        Get cached buttons list
+        
+        Returns:
+            List of button objects, same format as smart_home.buttons
+        """
+        cache_key = "buttons_list"
+        buttons = self.cache.get(cache_key)
+        if buttons is None:
+            logger.debug("Cache miss for buttons, fetching from source")
+            buttons = self.smart_home.buttons
+            timeout = self.cache_manager.get_timeout('buttons')
+            self.cache.set(cache_key, buttons, timeout=timeout)
+            logger.debug(f"Cached buttons data for {timeout}s")
+        else:
+            logger.debug("Cache hit for buttons")
+        return buttons
+    
+    def get_temperature_controls(self):
+        """
+        Get cached temperature controls
+        
+        Returns:
+            List of temperature control objects, same format as smart_home.temperature_controls
+        """
+        cache_key = "temperature_controls"
+        controls = self.cache.get(cache_key)
+        if controls is None:
+            logger.debug("Cache miss for temperature controls, fetching from source")
+            controls = self.smart_home.temperature_controls
+            timeout = self.cache_manager.get_timeout('temperature')
+            self.cache.set(cache_key, controls, timeout=timeout)
+            logger.debug(f"Cached temperature controls for {timeout}s")
+        else:
+            logger.debug("Cache hit for temperature controls")
+        return controls
+    
+    def get_automations(self):
+        """
+        Get cached automations list
+        
+        Returns:
+            List of automation objects, same format as smart_home.automations
+        """
+        cache_key = "automations_list"
+        automations = self.cache.get(cache_key)
+        if automations is None:
+            logger.debug("Cache miss for automations, fetching from source")
+            automations = self.smart_home.automations
+            timeout = self.cache_manager.get_timeout('automations')
+            self.cache.set(cache_key, automations, timeout=timeout)
+            logger.debug(f"Cached automations data for {timeout}s")
+        else:
+            logger.debug("Cache hit for automations")
+        return automations
+    
+    def get_config(self):
+        """
+        Get cached configuration
+        
+        Returns:
+            Configuration object, same format as smart_home.config
+        """
+        cache_key = "smart_home_config"
+        config = self.cache.get(cache_key)
+        if config is None:
+            logger.debug("Cache miss for config, fetching from source")
+            config = self.smart_home.config
+            timeout = self.cache_manager.get_timeout('config')
+            self.cache.set(cache_key, config, timeout=timeout)
+            logger.debug(f"Cached config data for {timeout}s")
+        else:
+            logger.debug("Cache hit for config")
+        return config
+    
+    def invalidate_rooms_cache(self):
+        """Invalidate rooms-related cache"""
+        logger.info("Invalidating rooms cache")
+        self.cache.delete_many([
+            "rooms_list",
+            "buttons_list", 
+            "temperature_controls"
+        ])
+    
+    def invalidate_buttons_cache(self):
+        """Invalidate buttons cache"""
+        logger.info("Invalidating buttons cache")
+        self.cache.delete("buttons_list")
+    
+    def invalidate_temperature_cache(self):
+        """Invalidate temperature controls cache"""
+        logger.info("Invalidating temperature cache")
+        self.cache.delete("temperature_controls")
+    
+    def invalidate_automations_cache(self):
+        """Invalidate automations cache"""
+        logger.info("Invalidating automations cache")
+        self.cache.delete("automations_list")
+    
+    def invalidate_config_cache(self):
+        """Invalidate configuration cache"""
+        logger.info("Invalidating config cache")
+        self.cache.delete("smart_home_config")
+
+
+def setup_smart_home_caching(smart_home, cache_manager):
+    """
+    Setup caching for SmartHomeSystem methods
+    
+    This function monkey-patches SmartHomeSystem methods to include
+    automatic cache invalidation. This ensures data consistency
+    while maintaining the original API.
+    
+    Args:
+        smart_home: SmartHomeSystem instance to patch
+        cache_manager: CacheManager instance for invalidation
+        
+    Returns:
+        Dictionary of original methods for potential restoration
+    """
+    logger.info("Setting up smart home caching")
+    
+    # Store original methods for potential restoration
+    original_methods = {}
+    
+    # Cache user data getter
+    if hasattr(smart_home, 'get_user_data'):
+        original_methods['get_user_data'] = smart_home.get_user_data
+        
+        def cached_get_user_data(user_id):
+            """Cached version of get_user_data"""
+            cache_key = f"user_data_{user_id}"
+            user_data = cache_manager.cache.get(cache_key)
+            if user_data is None:
+                logger.debug(f"Cache miss for user data: {user_id}")
+                user_data = original_methods['get_user_data'](user_id)
+                timeout = cache_manager.get_timeout('user_data')
+                cache_manager.cache.set(cache_key, user_data, timeout=timeout)
+                logger.debug(f"Cached user data for {user_id} for {timeout}s")
+            else:
+                logger.debug(f"Cache hit for user data: {user_id}")
+            return user_data
+        
+        smart_home.get_user_data = cached_get_user_data
+    
+    # Cache config save method
+    if hasattr(smart_home, 'save_config'):
+        original_methods['save_config'] = smart_home.save_config
+        
+        def cached_save_config():
+            """Config save with cache invalidation"""
+            logger.info("Saving config and invalidating cache")
+            result = original_methods['save_config']()
+            cache_manager.invalidate_config_cache()
+            return result
+        
+        smart_home.save_config = cached_save_config
+    
+    # Cache user profile update method
+    if hasattr(smart_home, 'update_user_profile'):
+        original_methods['update_user_profile'] = smart_home.update_user_profile
+        
+        def cached_update_user_profile(username, updates):
+            """User profile update with cache invalidation"""
+            logger.info(f"Updating user profile for {username}")
+            result = original_methods['update_user_profile'](username, updates)
+            
+            # Invalidate user cache for old and potentially new username
+            cache_manager.invalidate_user_cache(username)
+            if 'username' in updates:
+                cache_manager.invalidate_user_cache(updates['username'])
+            
+            return result
+        
+        smart_home.update_user_profile = cached_update_user_profile
+    
+    logger.info("Smart home caching setup complete")
+    return original_methods

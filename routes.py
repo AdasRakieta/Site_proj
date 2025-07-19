@@ -1,5 +1,6 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
+from deprecated.cache_helpers import CachedDataAccess, cache_json_response
 import time
 import os
 import uuid
@@ -13,11 +14,14 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.mail_manager = mail_manager
+        self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
+        self.cache = cache
+        self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
         self.register_routes()
 
     def register_routes(self):
@@ -166,7 +170,8 @@ class RoutesManager:
 
         @self.app.route('/test-email')
         def test_email():
-            result = self.mail_manager.send_security_alert('failed_login', {
+            # Use async mail manager for non-critical test emails
+            result = self.async_mail_manager.send_security_alert_async('failed_login', {
                 'username': 'testuser',
                 'ip_address': '127.0.0.1',
                 'attempt_count': 3
@@ -293,7 +298,8 @@ class RoutesManager:
         verification_code = self.mail_manager.generate_verification_code()
         self.mail_manager.store_verification_code(email, verification_code)
         
-        if self.mail_manager.send_verification_email(email, verification_code):
+        # Use async mail sending for verification emails to improve response time
+        if self.async_mail_manager.send_verification_email_async(email, verification_code):
             return jsonify({
                 'status': 'verification_sent',
                 'message': 'Kod weryfikacyjny został wysłany na podany adres email.'
@@ -437,6 +443,7 @@ class APIManager:
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
+        self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
         self.register_routes()
 
     def register_routes(self):
@@ -453,7 +460,12 @@ class APIManager:
         def manage_rooms():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                return jsonify(self.smart_home.rooms)
+                # Use cached data if available
+                if self.cached_data:
+                    rooms = self.cached_data.get_rooms()
+                else:
+                    rooms = self.smart_home.rooms
+                return jsonify(rooms)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
@@ -462,6 +474,9 @@ class APIManager:
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     self.smart_home.save_config()
+                    # Invalidate cache after modification
+                    if self.cached_data:
+                        self.cached_data.invalidate_rooms_cache()
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
 
@@ -481,6 +496,9 @@ class APIManager:
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 self.smart_home.save_config()
+                # Invalidate cache after modification
+                if self.cached_data:
+                    self.cached_data.invalidate_rooms_cache()
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Room not found"}), 404
 
@@ -578,7 +596,12 @@ class APIManager:
         def manage_buttons():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                return jsonify(self.smart_home.buttons)
+                # Use cached data if available
+                if self.cached_data:
+                    buttons = self.cached_data.get_buttons()
+                else:
+                    buttons = self.smart_home.buttons
+                return jsonify(buttons)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
