@@ -74,17 +74,27 @@ class MailManager:
     def __init__(self):
         self.failed_attempts = {}
         self.verification_codes = {}  # Store verification codes: {email: {'code': str, 'expires': timestamp, 'attempts': int}}
+        # Wymuś obecność wszystkich danych SMTP
+        smtp_server = os.getenv('SMTP_SERVER')
+        smtp_port = os.getenv('SMTP_PORT')
+        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        # Port musi być liczbą
+        try:
+            smtp_port = int(smtp_port) if smtp_port else None
+        except Exception:
+            smtp_port = None
         self.smtp_config = {
-            'server': os.getenv('SMTP_SERVER'),       # np. smtp.gmail.com
-            'port': os.getenv('SMTP_PORT'),      # np. 587
-            'username': os.getenv('SMTP_USERNAME'),   # np. twój@gmail.com
-            'password': os.getenv('SMTP_PASSWORD')    # hasło SMTP
+            'server': smtp_server,
+            'port': smtp_port,
+            'username': smtp_username,
+            'password': smtp_password
         }
         self.attempts_expiry = 3600
         self.verification_expiry = 900  # 15 minut na weryfikację
         self.max_verification_attempts = 3
         self.config = {
-            'sender_email': os.getenv('SMTP_USERNAME'),
+            'sender_email': smtp_username,
             'admin_email': os.getenv('ADMIN_EMAIL')
         }
 
@@ -131,16 +141,18 @@ class MailManager:
     def send_verification_email(self, email, code):
         """Wysyła email z kodem weryfikacyjnym"""
         try:
-            # Check if we're in test mode (no real SMTP config)
-            if not self.smtp_config.get('server') or self.smtp_config.get('server') == 'smtp.gmail.com':
+            # Sprawdź czy mamy pełną konfigurację SMTP
+            smtp = self.smtp_config
+            if not (smtp.get('server') and smtp.get('port') and smtp.get('username') and smtp.get('password')):
                 print(f"[VERIFICATION] TEST MODE: Kod weryfikacyjny dla {email}: {code}")
-                return True
-            
+                print("[VERIFICATION] Brak pełnej konfiguracji SMTP. Uzupełnij SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD w pliku email_conf.env")
+                return False
+
             message = MIMEMultipart()
             message['From'] = self.config['sender_email']
             message['To'] = email
             message['Subject'] = '🔐 SmartHome - Kod weryfikacyjny rejestracji'
-            
+
             html = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #2c3e50; text-align: center;">Weryfikacja adresu email</h2>
@@ -161,16 +173,21 @@ class MailManager:
                 </p>
             </div>
             """
-            
+
             message.attach(MIMEText(html, 'html'))
-            
-            with smtplib.SMTP(self.smtp_config['server'], self.smtp_config['port']) as server:
+
+            with smtplib.SMTP(smtp['server'], smtp['port']) as server:
+                server.ehlo()
                 server.starttls()
-                server.login(self.smtp_config['username'], self.smtp_config['password'])
+                server.ehlo()
+                server.login(smtp['username'], smtp['password'])
                 server.sendmail(self.config['sender_email'], email, message.as_string())
-            
+
             print(f"[VERIFICATION] Wysłano kod weryfikacyjny na {email}")
             return True
+        except smtplib.SMTPAuthenticationError:
+            print("[VERIFICATION] Błąd autentykacji SMTP - sprawdź login i hasło SMTP w email_conf.env")
+            return False
         except Exception as e:
             print(f"[VERIFICATION] Błąd wysyłania kodu na {email}: {str(e)}")
             return False
