@@ -52,10 +52,12 @@ Site_proj/
 ├── static/
 │   ├── css/
 │   │   ├── style.css              # ✏️ Edytuj te pliki
-│   │   └── style.min.css          # 🤖 Auto-generowane
+│   │   └── min/                   # 🤖 Folder z plikami zminifikowanymi
+│   │       └── style.min.css      # Auto-generowane
 │   └── js/
 │       ├── app.js                 # ✏️ Edytuj te pliki
-│       └── app.min.js             # 🤖 Auto-generowane
+│       └── min/                   # 🤖 Folder z plikami zminifikowanymi
+│           └── app.min.js         # Auto-generowane
 └── PERFORMANCE_OPTIMIZATION.md    # 📖 Szczegółowa dokumentacja
 ```
 
