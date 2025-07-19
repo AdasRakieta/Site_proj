@@ -18,7 +18,7 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # --- Cache Configuration ---
-app.config['CACHE_TYPE'] = 'RedisCache'
+app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_REDIS_HOST'] = 'localhost'
 app.config['CACHE_REDIS_PORT'] = 6379
 app.config['CACHE_REDIS_DB'] = 0
@@ -208,11 +208,9 @@ def get_cached_user_data(user_id):
     """Get cached user data with fallback to database"""
     cache_key = f"user_data_{user_id}"
     user_data = cache.get(cache_key)
-    
     if user_data is None:
-        user_data = smart_home.get_user_data(user_id)
+        user_data = original_get_user_data(user_id)
         cache.set(cache_key, user_data, timeout=600)  # Cache for 10 minutes
-    
     return user_data
 
 # Monkey patch the smart_home object to use caching
