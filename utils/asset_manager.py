@@ -171,8 +171,10 @@ class AssetManager:
             # Minify content
             minified_content = cssmin(original_content)
             
-            # Create minified filename
-            minified_file = css_file.with_suffix('.min.css')
+            # Create minified directory and filename
+            min_dir = css_file.parent / 'min'
+            min_dir.mkdir(exist_ok=True)
+            minified_file = min_dir / f"{css_file.stem}.min.css"
             
             # Write minified file
             with open(minified_file, 'w', encoding='utf-8') as f:
@@ -226,8 +228,10 @@ class AssetManager:
                 # If minification fails, copy original content
                 minified_content = original_content
             
-            # Create minified filename
-            minified_file = js_file.with_suffix('.min.js')
+            # Create minified directory and filename
+            min_dir = js_file.parent / 'min'
+            min_dir.mkdir(exist_ok=True)
+            minified_file = min_dir / f"{js_file.stem}.min.js"
             
             # Write minified file
             with open(minified_file, 'w', encoding='utf-8') as f:
@@ -406,9 +410,18 @@ def minified_url_for_helper(app):
             if filename.endswith('.css') or filename.endswith('.js'):
                 # Don't process already minified files
                 if not filename.endswith('.min.css') and not filename.endswith('.min.js'):
-                    # Create minified filename
-                    name, ext = os.path.splitext(filename)
-                    minified_filename = f"{name}.min{ext}"
+                    # Create minified filename with new folder structure
+                    path_parts = filename.split('/')
+                    if len(path_parts) > 1:
+                        # For files in subdirectories (e.g., css/style.css, js/app.js)
+                        folder = path_parts[0]  # css or js
+                        file_name = '/'.join(path_parts[1:])  # style.css or app.js
+                        name, ext = os.path.splitext(file_name)
+                        minified_filename = f"{folder}/min/{name}.min{ext}"
+                    else:
+                        # For files in root static folder
+                        name, ext = os.path.splitext(filename)
+                        minified_filename = f"min/{name}.min{ext}"
                     
                     # Check if minified version exists
                     minified_path = os.path.join(app.static_folder, minified_filename)

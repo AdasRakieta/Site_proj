@@ -81,8 +81,8 @@ Katalog `utils/` zawiera zorganizowane moduły narzędziowe dla optymalizacji wy
 **Pliki**: Pliki oryginalne (edytowalne) → Pliki zminifikowane (auto-generowane)
 
 ```
-static/css/style.css      → static/css/style.min.css      (36.7% mniejsze)
-static/js/app.js          → static/js/app.min.js          (35.3% mniejsze)
+static/css/style.css      → static/css/min/style.min.css      (36.7% mniejsze)
+static/js/app.js          → static/js/min/app.min.js          (35.3% mniejsze)
 ```
 
 **Proces**:
@@ -107,7 +107,7 @@ python utils/asset_manager.py --verbose
 
 **Proces Aktualizacji Plików**:
 1. Edytujesz `static/css/style.css` (lub dowolny oryginalny plik CSS/JS)
-2. Uruchamiasz `python utils/asset_manager.py` aby wygenerować `static/css/style.min.css`
+2. Uruchamiasz `python utils/asset_manager.py` aby wygenerować `static/css/min/style.min.css`
 3. Aplikacja automatycznie serwuje zminifikowaną wersję
 4. Brak konieczności ręcznej interwencji dla serwowania zasobów
 
@@ -246,12 +246,12 @@ self._cache_timeouts = {
 ### Weryfikacja Minifikacji
 ```bash
 # Sprawdź czy zminifikowane pliki istnieją
-ls static/css/*.min.css
-ls static/js/*.min.js
+ls static/css/min/*.min.css
+ls static/js/min/*.min.js
 
 # Testuj serwowanie zasobów
 curl -I http://localhost:5000/static/css/style.css
-# Powinno serwować style.min.css jeśli dostępny
+# Powinno serwować css/min/style.min.css jeśli dostępny
 ```
 
 ### Weryfikacja Cachowania
