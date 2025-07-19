@@ -1,78 +1,78 @@
-# Site_proj - Quick Start Guide
+# Site_proj - Przewodnik Szybkiego Startu
 
-## 🚀 Performance Optimizations Quick Reference
+## 🚀 Szybkie Odniesienie Optymalizacji Wydajności
 
-### CSS/JS Minification
+### Minifikacja CSS/JS
 
-#### For Development (Auto-watch for changes)
+#### Dla Rozwoju (Auto-obserwacja zmian)
 ```bash
 python utils/asset_manager.py --watch
 ```
 
-#### For Production (One-time minification)
+#### Dla Produkcji (Jednorazowa minifikacja)
 ```bash
 python utils/asset_manager.py
 ```
 
-#### Clean and Rebuild All Assets
+#### Wyczyść i Odbuduj Wszystkie Zasoby
 ```bash
 python utils/asset_manager.py --clean
 ```
 
-### File Editing Workflow
+### Workflow Edycji Plików
 
-1. **Edit original files**: `static/css/style.css`, `static/js/app.js`, etc.
-2. **Run minification**: `python utils/asset_manager.py`
-3. **Application automatically serves** the minified versions
+1. **Edytuj oryginalne pliki**: `static/css/style.css`, `static/js/app.js`, itp.
+2. **Uruchom minifikację**: `python utils/asset_manager.py`
+3. **Aplikacja automatycznie serwuje** zminifikowane wersje
 
-**DO NOT manually edit .min.css or .min.js files** - they are auto-generated!
+**NIE edytuj ręcznie plików .min.css lub .min.js** - są auto-generowane!
 
-### Application Startup
+### Uruchamianie Aplikacji
 
 ```bash
 python app.py
 ```
 
-The application automatically:
-- ✅ Serves minified CSS/JS when available (falls back to originals)
-- ✅ Uses local caching for improved performance
-- ✅ Sends emails asynchronously (non-blocking UI)
-- ✅ Processes background tasks
+Aplikacja automatycznie:
+- ✅ Serwuje zminifikowane CSS/JS gdy dostępne (fallback do oryginałów)
+- ✅ Używa lokalnego cachowania dla poprawy wydajności
+- ✅ Wysyła emaile asynchronicznie (nieblokujące UI)
+- ✅ Przetwarza zadania w tle
 
-### File Structure
+### Struktura Plików
 
 ```
 Site_proj/
-├── app.py                          # Main application
-├── utils/                          # 🆕 Organized utilities
-│   ├── cache_manager.py           # Caching functionality
-│   ├── async_manager.py           # Async operations
-│   └── asset_manager.py           # CSS/JS minification
-├── deprecated/                     # Old files (for reference)
+├── app.py                          # Główna aplikacja
+├── utils/                          # 🆕 Zorganizowane narzędzia
+│   ├── cache_manager.py           # Funkcjonalność cachowania
+│   ├── async_manager.py           # Operacje async
+│   └── asset_manager.py           # Minifikacja CSS/JS
+├── deprecated/                     # Stare pliki (do odniesienia)
 ├── static/
 │   ├── css/
-│   │   ├── style.css              # ✏️ Edit these files
-│   │   └── style.min.css          # 🤖 Auto-generated
+│   │   ├── style.css              # ✏️ Edytuj te pliki
+│   │   └── style.min.css          # 🤖 Auto-generowane
 │   └── js/
-│       ├── app.js                 # ✏️ Edit these files
-│       └── app.min.js             # 🤖 Auto-generated
-└── PERFORMANCE_OPTIMIZATION.md    # 📖 Detailed documentation
+│       ├── app.js                 # ✏️ Edytuj te pliki
+│       └── app.min.js             # 🤖 Auto-generowane
+└── PERFORMANCE_OPTIMIZATION.md    # 📖 Szczegółowa dokumentacja
 ```
 
-### Performance Benefits
+### Korzyści Wydajnościowe
 
-- **36.1% smaller** CSS/JS files
-- **~50ms faster** API responses (caching)
-- **Non-blocking** email sending
-- **Improved** user experience
+- **36.1% mniejsze** pliki CSS/JS
+- **~50ms szybsze** odpowiedzi API (cachowanie)
+- **Nieblokujące** wysyłanie emaili
+- **Poprawione** doświadczenie użytkownika
 
 ### Monitoring
 
-Check application logs for:
-- Cache hit/miss statistics
-- Async email queue status
-- Asset serving information
+Sprawdź logi aplikacji dla:
+- Statystyki trafień/chybień cache
+- Status kolejki async emaili
+- Informacje serwowania zasobów
 
 ---
 
-📖 **For detailed documentation**: See `PERFORMANCE_OPTIMIZATION.md`
+📖 **Dla szczegółowej dokumentacji**: Zobacz `PERFORMANCE_OPTIMIZATION.md`
