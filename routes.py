@@ -331,6 +331,7 @@ class APIManager:
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
+        self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
         self.register_routes()
 
     def register_routes(self):
