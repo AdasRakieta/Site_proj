@@ -103,7 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             
             if (response.ok && data.status === 'verification_sent') {
-                showMessage('Kod weryfikacyjny wysłany na email!', 'success');
+                // Use global notification for verification code sent success
+                if (typeof showNotification === 'function') {
+                    showNotification('Kod weryfikacyjny wysłany na email!', 'success');
+                } else {
+                    showMessage('Kod weryfikacyjny wysłany na email!', 'success');
+                }
                 setTimeout(() => {
                     showStep2();
                 }, 1000);
@@ -153,7 +158,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             
             if (response.ok && data.status === 'success') {
-                showMessage('Rejestracja zakończona sukcesem! Możesz się zalogować.', 'success');
+                // Use global notification for registration success
+                if (typeof showNotification === 'function') {
+                    showNotification('Rejestracja zakończona sukcesem! Możesz się zalogować.', 'success');
+                } else {
+                    showMessage('Rejestracja zakończona sukcesem! Możesz się zalogować.', 'success');
+                }
                 setTimeout(() => { window.location.href = '/login'; }, 1500);
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas weryfikacji.');
