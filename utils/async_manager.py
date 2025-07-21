@@ -172,6 +172,11 @@ class AsyncMailManager:
                     mail_task['username'],
                     mail_task['ip_address']
                 )
+            elif task_type == 'password_reset':
+                success = self._send_password_reset_email_sync(
+                    mail_task['email'],
+                    mail_task['code']
+                )
             else:
                 logger.warning(f"Unknown mail task type: {task_type}")
                 return
@@ -252,6 +257,19 @@ class AsyncMailManager:
         """
         return self._queue_mail_task('failed_login_alert', username=username, ip_address=ip_address)
     
+    def send_password_reset_email_async(self, email: str, code: str) -> bool:
+        """
+        Queue password reset email to be sent asynchronously
+        
+        Args:
+            email: Recipient email address
+            code: Password reset verification code
+            
+        Returns:
+            True if email was queued successfully
+        """
+        return self._queue_mail_task('password_reset', email=email, code=code)
+    
     # === SYNC EMAIL METHODS (Internal) ===
     
     def _send_verification_email_sync(self, email: str, code: str) -> bool:
@@ -303,6 +321,23 @@ class AsyncMailManager:
             return self.mail_manager.track_and_alert_failed_login(username, ip_address)
         except Exception as e:
             logger.error(f"Failed to send failed login alert for {username}: {e}")
+            return False
+
+    def _send_password_reset_email_sync(self, email: str, code: str) -> bool:
+        """
+        Send password reset email synchronously (used by worker)
+        
+        Args:
+            email: Recipient email address
+            code: Password reset verification code
+            
+        Returns:
+            True if email was sent successfully
+        """
+        try:
+            return self.mail_manager.send_password_reset_email(email, code)
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {email}: {e}")
             return False
     
     # === FALLBACK METHODS ===

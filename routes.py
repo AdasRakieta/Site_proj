@@ -272,6 +272,78 @@ class RoutesManager:
                     return self._send_verification_code(data)
             
             return render_template('register.html')
+
+        @self.app.route('/forgot_password', methods=['GET', 'POST'])
+        def forgot_password():
+            if request.method == 'POST':
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+                
+                email_or_username = data.get('email_or_username', '').strip()
+                if not email_or_username:
+                    return jsonify({'status': 'error', 'message': 'Wprowadź email lub nazwę użytkownika'}), 400
+                
+                # Znajdź użytkownika po email lub nazwie użytkownika
+                user_id, user, email = self._find_user_by_email_or_username(email_or_username)
+                if not user:
+                    # Ze względów bezpieczeństwa, nie ujawniamy czy użytkownik istnieje
+                    return jsonify({
+                        'status': 'verification_sent',
+                        'message': 'Jeśli podany email/użytkownik istnieje, kod weryfikacyjny został wysłany.'
+                    }), 200
+                
+                # Wygeneruj i wyślij kod resetowania hasła
+                verification_code = self.mail_manager.generate_verification_code()
+                self.mail_manager.store_password_reset_code(email, verification_code, user_id)
+                
+                # Use async mail sending for password reset emails
+                if self.async_mail_manager.send_password_reset_email_async(email, verification_code):
+                    return jsonify({
+                        'status': 'verification_sent',
+                        'message': 'Kod resetowania hasła został wysłany na podany adres email.'
+                    }), 200
+                else:
+                    return jsonify({'status': 'error', 'message': 'Błąd podczas wysyłania kodu resetowania hasła.'}), 500
+            
+            return render_template('forgot_password.html')
+
+        @self.app.route('/reset_password', methods=['POST'])
+        def reset_password():
+            data = request.get_json()
+            if not data:
+                return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+            
+            email_or_username = data.get('email_or_username', '').strip()
+            verification_code = data.get('verification_code', '').strip()
+            new_password = data.get('new_password', '')
+            
+            if not email_or_username or not verification_code or not new_password:
+                return jsonify({'status': 'error', 'message': 'Wszystkie pola są wymagane'}), 400
+            
+            if len(new_password) < 6:
+                return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków'}), 400
+            
+            # Znajdź użytkownika po email lub nazwie użytkownika
+            user_id, user, email = self._find_user_by_email_or_username(email_or_username)
+            if not user:
+                return jsonify({'status': 'error', 'message': 'Nieprawidłowy użytkownik'}), 400
+            
+            # Weryfikuj kod resetowania hasła
+            is_valid, message, verified_user_id = self.mail_manager.verify_password_reset_code(email, verification_code)
+            if not is_valid:
+                return jsonify({'status': 'error', 'message': message}), 400
+            
+            # Sprawdź czy user_id się zgadza (dodatkowe zabezpieczenie)
+            if verified_user_id != user_id:
+                return jsonify({'status': 'error', 'message': 'Błąd weryfikacji użytkownika'}), 400
+            
+            # Zmień hasło
+            success, msg = self.smart_home.change_password(user_id, new_password)
+            if success:
+                return jsonify({'status': 'success', 'message': 'Hasło zostało pomyślnie zresetowane. Możesz się teraz zalogować.'}), 200
+            else:
+                return jsonify({'status': 'error', 'message': msg}), 500
         
     def _send_verification_code(self, data):
         """Pierwszy krok rejestracji - wysłanie kodu weryfikacyjnego"""
@@ -351,6 +423,20 @@ class RoutesManager:
         }
         self.smart_home.save_config()
         return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
+
+    def _find_user_by_email_or_username(self, email_or_username):
+        """Znajduje użytkownika po email lub nazwie użytkownika"""
+        # Najpierw spróbuj znaleźć po email
+        for user_id, user in self.smart_home.users.items():
+            if user.get('email') == email_or_username:
+                return user_id, user, user.get('email')
+        
+        # Jeśli nie znaleziono po email, spróbuj po nazwie użytkownika
+        for user_id, user in self.smart_home.users.items():
+            if user.get('name') == email_or_username:
+                return user_id, user, user.get('email')
+        
+        return None, None, None
 
     def _generate_dashboard_stats(self):
         """Generuje statystyki dla dashboardu administratora"""
