@@ -425,7 +425,8 @@ def minified_url_for_helper(app):
                     
                     # Check if minified version exists
                     minified_path = os.path.join(app.static_folder, minified_filename)
-                    if os.path.exists(minified_path):
+                    # Temporarily disable minified assets for testing
+                    if False:  # os.path.exists(minified_path):
                         values['filename'] = minified_filename
                         logger.debug(f"Serving minified asset: {minified_filename}")
                     else:

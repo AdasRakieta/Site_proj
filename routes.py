@@ -912,31 +912,43 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def modify_automation(index):
-            if request.method == 'PUT':
-                if 0 <= index < len(self.smart_home.automations):
-                    updated_automation = request.json
-                    if updated_automation:
-                        name_exists = any(
-                            i != index and auto['name'].lower() == updated_automation['name'].lower()
-                            for i, auto in enumerate(self.smart_home.automations)
-                        )
-                        if name_exists:
-                            return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
-                        self.smart_home.automations[index] = updated_automation
-                        self.socketio.emit('update_automations', self.smart_home.automations)
+            try:
+                if request.method == 'PUT':
+                    if 0 <= index < len(self.smart_home.automations):
+                        updated_automation = request.json
+                        if updated_automation:
+                            name_exists = any(
+                                i != index and auto['name'].lower() == updated_automation['name'].lower()
+                                for i, auto in enumerate(self.smart_home.automations)
+                            )
+                            if name_exists:
+                                return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                            self.smart_home.automations[index] = updated_automation
+                            # Temporarily disable socket emission to debug
+                            try:
+                                self.socketio.emit('update_automations', self.smart_home.automations)
+                            except Exception as e:
+                                print(f"Socket emission error: {e}")
+                            if not self.smart_home.save_config():
+                                return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                            return jsonify({"status": "success"})
+                        return jsonify({"status": "error", "message": "Invalid data"}), 400
+                    return jsonify({"status": "error", "message": "Automation not found"}), 404
+                elif request.method == 'DELETE':
+                    if 0 <= index < len(self.smart_home.automations):
+                        del self.smart_home.automations[index]
+                        try:
+                            self.socketio.emit('update_automations', self.smart_home.automations)
+                        except Exception as e:
+                            print(f"Socket emission error: {e}")
                         if not self.smart_home.save_config():
-                            return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                            return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
                         return jsonify({"status": "success"})
-                    return jsonify({"status": "error", "message": "Invalid data"}), 400
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
-            elif request.method == 'DELETE':
-                if 0 <= index < len(self.smart_home.automations):
-                    del self.smart_home.automations[index]
-                    self.socketio.emit('update_automations', self.smart_home.automations)
-                    if not self.smart_home.save_config():
-                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
-                    return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
+                    return jsonify({"status": "error", "message": "Automation not found"}), 404
+            except Exception as e:
+                import traceback
+                print(f"[ERROR] Full traceback: {traceback.format_exc()}")
+                return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
 
 class SocketManager:

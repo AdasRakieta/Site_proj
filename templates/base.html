@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SmartHome{% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', filename='icons/site_icon.png') }}" type="image/x-icon">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""/>
+    <!-- Leaflet CSS removed due to CDN restrictions -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
       (function() {
@@ -83,9 +81,7 @@
     <footer>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket.io-fallback.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/automations.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setup.js') }}"></script>
