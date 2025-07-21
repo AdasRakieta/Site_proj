@@ -1097,7 +1097,6 @@ footer {
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-top: 1rem;
     box-shadow: var(--box_shd);
     text-decoration: none;
 }
@@ -1115,7 +1114,7 @@ footer {
 .remember-me-container {
     display: flex;
     align-items: center;
-    gap: 8px; /* Odstęp między checkboxem a napisem */
+    gap: 56px; /* Odstęp między checkboxem a napisem */
     margin-bottom: 1rem; /* Opcjonalny margines dolny, aby oddzielić od innych elementów */
     justify-content: center;
 }
