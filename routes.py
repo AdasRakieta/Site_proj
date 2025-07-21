@@ -473,7 +473,8 @@ class APIManager:
                 if new_room and new_room.lower() not in [room.lower() for room in self.smart_home.rooms]:
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
-                    self.smart_home.save_config()
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać nowego pokoju"}), 500
                     # Invalidate cache after modification
                     if self.cached_data:
                         self.cached_data.invalidate_rooms_cache()
@@ -495,7 +496,8 @@ class APIManager:
                 self.socketio.emit('update_rooms', self.smart_home.rooms)
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                self.smart_home.save_config()
+                if not self.smart_home.save_config():
+                    return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu pokoju"}), 500
                 # Invalidate cache after modification
                 if self.cached_data:
                     self.cached_data.invalidate_rooms_cache()
@@ -612,7 +614,8 @@ class APIManager:
                     new_button['state'] = False
                     self.smart_home.buttons.append(new_button)
                     self.socketio.emit('update_buttons', self.smart_home.buttons)
-                    self.smart_home.save_config()
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać przycisku"}), 500
                     return jsonify({"status": "success", "id": new_button['id']})
                 return jsonify({"status": "error", "message": "Invalid button data"}), 400
 
@@ -631,12 +634,14 @@ class APIManager:
                     self.smart_home.buttons[idx]['name'] = data['name']
                 if 'room' in data:
                     self.smart_home.buttons[idx]['room'] = data['room']
-                self.smart_home.save_config()
+                if not self.smart_home.save_config():
+                    return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 return jsonify({'status': 'success'})
             elif request.method == 'DELETE':
                 self.smart_home.buttons.pop(idx)
-                self.smart_home.save_config()
+                if not self.smart_home.save_config():
+                    return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 return jsonify({'status': 'success'})
 
@@ -898,7 +903,8 @@ class APIManager:
                         return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
                     self.smart_home.automations.append(new_automation)
                     self.socketio.emit('update_automations', self.smart_home.automations)
-                    self.smart_home.save_config()
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Invalid automation data"}), 400
 
@@ -918,7 +924,8 @@ class APIManager:
                             return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
                         self.smart_home.automations[index] = updated_automation
                         self.socketio.emit('update_automations', self.smart_home.automations)
-                        self.smart_home.save_config()
+                        if not self.smart_home.save_config():
+                            return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                         return jsonify({"status": "success"})
                     return jsonify({"status": "error", "message": "Invalid data"}), 400
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
@@ -926,7 +933,8 @@ class APIManager:
                 if 0 <= index < len(self.smart_home.automations):
                     del self.smart_home.automations[index]
                     self.socketio.emit('update_automations', self.smart_home.automations)
-                    self.smart_home.save_config()
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
@@ -979,11 +987,29 @@ class SocketManager:
                     button['state'] = state
                     self.socketio.emit('update_button', {'room': room, 'name': button_name, 'state': state})
                     self.socketio.emit('sync_button_states', {f"{b['room']}_{b['name']}": b['state'] for b in self.smart_home.buttons})
-                    self.smart_home.save_config()
-                    print(f"[AUTOMATION] Wywołanie check_device_triggers dla {room}_{button_name} => {state}")
-                    # Zakładam, że funkcja check_device_triggers jest zdefiniowana w app.py
-                    from app import check_device_triggers
-                    check_device_triggers(room, button_name, state)
+                    
+                    # Zapisz konfigurację z obsługą błędów
+                    if not self.smart_home.save_config():
+                        print(f"[ERROR] Nie udało się zapisać stanu przycisku {room}_{button_name}")
+                        # Wyślij powiadomienie o błędzie do klienta
+                        self.socketio.emit('error_message', {
+                            'message': f'Nie udało się zapisać stanu przycisku {button_name}',
+                            'type': 'warning'
+                        })
+                    else:
+                        print(f"[AUTOMATION] Wywołanie check_device_triggers dla {room}_{button_name} => {state}")
+                        # Zakładam, że funkcja check_device_triggers jest zdefiniowana w app.py
+                        try:
+                            from app import check_device_triggers
+                            check_device_triggers(room, button_name, state)
+                        except Exception as e:
+                            print(f"[ERROR] Błąd w check_device_triggers: {e}")
+                else:
+                    print(f"[ERROR] Nie znaleziono przycisku {button_name} w pokoju {room}")
+                    self.socketio.emit('error_message', {
+                        'message': f'Nie znaleziono przycisku {button_name}',
+                        'type': 'error'
+                    })
 
         @self.socketio.on('get_button_states')
         def handle_get_button_states():

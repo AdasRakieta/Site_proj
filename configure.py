@@ -4,6 +4,8 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 import uuid
+import threading
+import time
 
 
 class SmartHomeSystem:
@@ -16,6 +18,10 @@ class SmartHomeSystem:
         self.first_config_file = os.path.join(self.base_dir, 'smart_home_1st_conf.json')
         self.save_interval = save_interval
         self.last_save_time = datetime.now()
+        
+        # Dodanie blokady dla zapisu konfiguracji
+        self._save_lock = threading.RLock()
+        self._save_in_progress = False
         
         # Domyślna konfiguracja z niezahaszowanymi hasłami
         self.default_config = {
@@ -133,37 +139,69 @@ class SmartHomeSystem:
             data['password'] = generate_password_hash(data['password'])
         
         print("Użyto domyślnej konfiguracji")
+        # Ensure automations is initialized
+        if not hasattr(self, 'automations'):
+            self.automations = self.default_config['automations'].copy()
         self.save_config()
 
     def save_config(self):
-        """Zapisuje aktualną konfigurację do pliku"""
-        try:
-            # MIGRACJA: nadaj brakujące id przed zapisem
-            for device in self.buttons:
-                if 'id' not in device:
-                    device['id'] = str(uuid.uuid4())
-            for device in self.temperature_controls:
-                if 'id' not in device:
-                    device['id'] = str(uuid.uuid4())
+        """Zapisuje aktualną konfigurację do pliku z obsługą współbieżności"""
+        with self._save_lock:
+            if self._save_in_progress:
+                print("Zapis konfiguracji już w toku, pomijam duplikujący zapis")
+                return True
             
-            config = {
-                'users': self.users,
-                'temperature_states': self.temperature_states,
-                'security_state': self.security_state,
-                'rooms': self.rooms,
-                'buttons': self.buttons,
-                'temperature_controls': self.temperature_controls,
-                'automations': self.automations
-            }
+            self._save_in_progress = True
+            max_retries = 3
+            retry_delay = 0.1
             
-            with open(self.config_file, 'w') as f:
-                json.dump(config, f, indent=4)
-            
-            self.last_save_time = datetime.now()
-            print(f"Zapisano konfigurację do {self.config_file}")
-            
-        except Exception as e:
-            print(f"Błąd podczas zapisywania konfiguracji: {str(e)}")
+            try:
+                # MIGRACJA: nadaj brakujące id przed zapisem
+                for device in self.buttons:
+                    if 'id' not in device:
+                        device['id'] = str(uuid.uuid4())
+                for device in self.temperature_controls:
+                    if 'id' not in device:
+                        device['id'] = str(uuid.uuid4())
+                
+                config = {
+                    'users': self.users,
+                    'temperature_states': self.temperature_states,
+                    'security_state': self.security_state,
+                    'rooms': self.rooms,
+                    'buttons': self.buttons,
+                    'temperature_controls': self.temperature_controls,
+                    'automations': self.automations
+                }
+                
+                # Spróbuj zapisać z mechanizmem ponawiania
+                for attempt in range(max_retries):
+                    try:
+                        # Zapisz do tymczasowego pliku, potem przenieś
+                        temp_file = self.config_file + '.tmp'
+                        with open(temp_file, 'w') as f:
+                            json.dump(config, f, indent=4, ensure_ascii=False)
+                        
+                        # Atomowe przeniesienie pliku
+                        os.replace(temp_file, self.config_file)
+                        
+                        self.last_save_time = datetime.now()
+                        print(f"Zapisano konfigurację do {self.config_file} (próba {attempt + 1})")
+                        return True
+                        
+                    except (OSError, IOError, json.JSONEncodeError) as e:
+                        print(f"Błąd podczas zapisywania konfiguracji (próba {attempt + 1}/{max_retries}): {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay * (attempt + 1))  # Zwiększaj opóźnienie
+                        else:
+                            print("Nie udało się zapisać konfiguracji po wszystkich próbach")
+                            return False
+                
+            except Exception as e:
+                print(f"Krytyczny błąd podczas zapisywania konfiguracji: {str(e)}")
+                return False
+            finally:
+                self._save_in_progress = False
 
     def check_and_save(self):
         """Sprawdza czy należy zapisać konfigurację"""
@@ -211,7 +249,8 @@ class SmartHomeSystem:
             'email': email,
             'profile_picture': ''
         }
-        self.save_config()
+        if not self.save_config():
+            return False, "Błąd podczas zapisywania konfiguracji"
         return True, "Użytkownik dodany pomyślnie"
 
     def delete_user(self, user_id):
@@ -225,7 +264,8 @@ class SmartHomeSystem:
             if admin_count <= 1:
                 return False, "Nie można usunąć głównego administratora"
         del self.users[user_id]
-        self.save_config()
+        if not self.save_config():
+            return False, "Błąd podczas zapisywania konfiguracji"
         return True, "Użytkownik usunięty pomyślnie"
 
     def change_password(self, user_id, new_password):
@@ -236,7 +276,8 @@ class SmartHomeSystem:
         if len(new_password) < 6:
             return False, "Hasło musi mieć co najmniej 6 znaków"
         user['password'] = generate_password_hash(new_password)
-        self.save_config()
+        if not self.save_config():
+            return False, "Błąd podczas zapisywania konfiguracji"
         return True, "Hasło zmienione pomyślnie"
 
     def update_user_profile(self, user_id, updates):
@@ -259,7 +300,8 @@ class SmartHomeSystem:
             if len(updates['password']) < 6:
                 return False, "Hasło musi mieć co najmniej 6 znaków"
             user['password'] = generate_password_hash(updates['password'])
-        self.save_config()
+        if not self.save_config():
+            return False, "Błąd podczas zapisywania konfiguracji"
         return True, "Profil zaktualizowany pomyślnie"
 
     def migrate_users_to_uuid(self):
