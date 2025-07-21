@@ -297,8 +297,8 @@ class RoutesManager:
                 verification_code = self.mail_manager.generate_verification_code()
                 self.mail_manager.store_password_reset_code(email, verification_code, user_id)
                 
-                # Use async mail sending for password reset emails
-                if self.async_mail_manager.send_password_reset_email_async(email, verification_code):
+                # Send password reset email
+                if self.mail_manager.send_password_reset_email(email, verification_code):
                     return jsonify({
                         'status': 'verification_sent',
                         'message': 'Kod resetowania hasła został wysłany na podany adres email.'
