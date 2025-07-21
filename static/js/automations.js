@@ -17,6 +17,8 @@ class AutomationsManager {
         this.initPage = this.initPage.bind(this);
         this.renderAutomations = this.renderAutomations.bind(this);
         this.onAutomationsUpdate = this.onAutomationsUpdate.bind(this);
+        this.showLoading = this.showLoading.bind(this);
+        this.hideLoading = this.hideLoading.bind(this);
     }
 
     async initPage() {
@@ -299,6 +301,14 @@ class AutomationsManager {
             e.preventDefault();
             const automationData = this.getFormData();
             
+            // Client-side validation
+            const validationErrors = this.validateFormData(automationData);
+            if (validationErrors.length > 0) {
+                const errorMessage = 'Błędy walidacji:\n• ' + validationErrors.join('\n• ');
+                this.app.showNotification(errorMessage, 'error');
+                return;
+            }
+            
             try {
                 if (index !== null) {
                     await this.updateAutomation(index, automationData);
@@ -308,6 +318,7 @@ class AutomationsManager {
                 formContainer.remove();
             } catch (error) {
                 console.error('Błąd zapisywania automatyzacji:', error);
+                // Error is already handled in the create/update methods
             }
         });
     }
@@ -576,51 +587,157 @@ class AutomationsManager {
         return formData;
     }
 
+    validateFormData(formData) {
+        const errors = [];
+        
+        // Validate name
+        if (!formData.name || formData.name.trim().length === 0) {
+            errors.push('Nazwa automatyzacji jest wymagana.');
+        } else if (formData.name.trim().length < 3) {
+            errors.push('Nazwa automatyzacji musi mieć co najmniej 3 znaki.');
+        } else if (formData.name.trim().length > 50) {
+            errors.push('Nazwa automatyzacji nie może przekraczać 50 znaków.');
+        }
+        
+        // Validate trigger
+        if (!formData.trigger || !formData.trigger.type) {
+            errors.push('Typ wyzwalacza jest wymagany.');
+        } else {
+            switch (formData.trigger.type) {
+                case 'time':
+                    if (!formData.trigger.time) {
+                        errors.push('Godzina wyzwalacza jest wymagana.');
+                    }
+                    // Validate time format
+                    if (formData.trigger.time && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.trigger.time)) {
+                        errors.push('Nieprawidłowy format godziny (wymagany HH:MM).');
+                    }
+                    break;
+                case 'device':
+                    if (!formData.trigger.device) {
+                        errors.push('Urządzenie wyzwalacza jest wymagane.');
+                    }
+                    if (!formData.trigger.state || !['on', 'off', 'toggle'].includes(formData.trigger.state)) {
+                        errors.push('Stan urządzenia wyzwalacza jest wymagany.');
+                    }
+                    break;
+                case 'sensor':
+                    if (!formData.trigger.sensor) {
+                        errors.push('Czujnik wyzwalacza jest wymagany.');
+                    }
+                    if (formData.trigger.value === undefined || formData.trigger.value === null || isNaN(formData.trigger.value)) {
+                        errors.push('Wartość czujnika jest wymagana i musi być liczbą.');
+                    }
+                    if (!formData.trigger.condition || !['above', 'below'].includes(formData.trigger.condition)) {
+                        errors.push('Warunek czujnika jest wymagany.');
+                    }
+                    break;
+            }
+        }
+        
+        // Validate actions
+        if (!formData.actions || formData.actions.length === 0) {
+            errors.push('Co najmniej jedna akcja jest wymagana.');
+        } else {
+            formData.actions.forEach((action, index) => {
+                if (!action.type) {
+                    errors.push(`Typ akcji #${index + 1} jest wymagany.`);
+                } else {
+                    switch (action.type) {
+                        case 'device':
+                            if (!action.device) {
+                                errors.push(`Urządzenie dla akcji #${index + 1} jest wymagane.`);
+                            }
+                            if (!action.state || !['on', 'off', 'toggle'].includes(action.state)) {
+                                errors.push(`Stan urządzenia dla akcji #${index + 1} jest wymagany.`);
+                            }
+                            break;
+                        case 'notification':
+                            if (!action.message || action.message.trim().length === 0) {
+                                errors.push(`Treść powiadomienia dla akcji #${index + 1} jest wymagana.`);
+                            } else if (action.message.trim().length > 200) {
+                                errors.push(`Treść powiadomienia dla akcji #${index + 1} nie może przekraczać 200 znaków.`);
+                            }
+                            break;
+                    }
+                }
+            });
+        }
+        
+        return errors;
+    }
+
     async createAutomation(automationData) {
         try {
+            this.showLoading('Tworzenie automatyzacji...');
             const response = await this.app.postData('/api/automations', automationData);
             if (response.status === 'success') {
                 this.app.showNotification('Automatyzacja została utworzona', 'success');
                 return response;
             } else {
-                this.app.showNotification(response.message || 'Błąd podczas tworzenia automatyzacji', 'error');
+                let errorMessage = response.message || 'Błąd podczas tworzenia automatyzacji';
+                this.app.showNotification(errorMessage, 'error');
                 throw new Error(response.message || 'Unknown error');
             }
         } catch (error) {
-            this.app.showNotification('Błąd podczas tworzenia automatyzacji: ' + error.message, 'error');
+            console.error('Błąd tworzenia automatyzacji:', error);
+            let errorMessage = 'Błąd podczas tworzenia automatyzacji';
+            
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = 'Błąd połączenia z serwerem. Sprawdź połączenie internetowe.';
+            } else if (error.message.includes('403')) {
+                errorMessage = 'Brak uprawnień do tworzenia automatyzacji.';
+            } else if (error.message.includes('400')) {
+                errorMessage = 'Nieprawidłowe dane automatyzacji. Sprawdź wszystkie pola.';
+            } else if (error.message) {
+                errorMessage += ': ' + error.message;
+            }
+            
+            this.app.showNotification(errorMessage, 'error');
             throw error;
+        } finally {
+            this.hideLoading();
         }
     }
 
     async updateAutomation(index, automationData) {
         try {
-            const response = await fetch(`/api/automations/${index}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                },
-                body: JSON.stringify(automationData),
-            });
-
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-
-            if (data.status === 'success') {
+            this.showLoading('Aktualizowanie automatyzacji...');
+            const response = await this.app.putData(`/api/automations/${index}`, automationData);
+            if (response.status === 'success') {
                 this.app.showNotification('Automatyzacja została zaktualizowana', 'success');
-                return data;
+                return response;
             } else {
-                this.app.showNotification(data.message || 'Błąd podczas aktualizacji automatyzacji', 'error');
-                throw new Error(data.message || 'Unknown error');
+                let errorMessage = response.message || 'Błąd podczas aktualizacji automatyzacji';
+                this.app.showNotification(errorMessage, 'error');
+                throw new Error(response.message || 'Unknown error');
             }
         } catch (error) {
-            this.app.showNotification('Błąd podczas aktualizacji automatyzacji: ' + error.message, 'error');
+            console.error('Błąd aktualizacji automatyzacji:', error);
+            let errorMessage = 'Błąd podczas aktualizacji automatyzacji';
+            
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = 'Błąd połączenia z serwerem. Sprawdź połączenie internetowe.';
+            } else if (error.message.includes('403')) {
+                errorMessage = 'Brak uprawnień do edycji automatyzacji.';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Automatyzacja nie została znaleziona.';
+            } else if (error.message.includes('400')) {
+                errorMessage = 'Nieprawidłowe dane automatyzacji. Sprawdź wszystkie pola.';
+            } else if (error.message) {
+                errorMessage += ': ' + error.message;
+            }
+            
+            this.app.showNotification(errorMessage, 'error');
             throw error;
+        } finally {
+            this.hideLoading();
         }
     }
 
     async deleteAutomation(index) {
         try {
+            this.showLoading('Usuwanie automatyzacji...');
             const response = await this.app.deleteData(`/api/automations/${index}`);
             
             if (response.status === 'success') {
@@ -630,13 +747,71 @@ class AutomationsManager {
                 const card = document.querySelector(`.automation-card[data-index="${index}"]`);
                 if (card) {
                     const container = card.querySelector('.delete-btn-container');
-                    container.querySelector('.delete-automation').classList.remove('hidden');
-                    container.querySelector('.confirm-delete-btn').classList.add('hidden');
+                    if (container) {
+                        const deleteBtn = container.querySelector('.delete-automation');
+                        const confirmBtn = container.querySelector('.confirm-delete-btn');
+                        if (deleteBtn) deleteBtn.classList.remove('hidden');
+                        if (confirmBtn) confirmBtn.classList.add('hidden');
+                    }
                 }
             }
         } catch (error) {
-            this.app.showNotification('Błąd podczas usuwania automatyzacji: ' + error.message, 'error');
-            console.error('Błąd usuwania:', error);
+            console.error('Błąd usuwania automatyzacji:', error);
+            let errorMessage = 'Błąd podczas usuwania automatyzacji';
+            
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = 'Błąd połączenia z serwerem. Sprawdź połączenie internetowe.';
+            } else if (error.message.includes('403')) {
+                errorMessage = 'Brak uprawnień do usuwania automatyzacji.';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Automatyzacja nie została znaleziona.';
+            } else if (error.message) {
+                errorMessage += ': ' + error.message;
+            }
+            
+            this.app.showNotification(errorMessage, 'error');
+            
+            // Reset delete button state on error
+            const card = document.querySelector(`.automation-card[data-index="${index}"]`);
+            if (card) {
+                const container = card.querySelector('.delete-btn-container');
+                if (container) {
+                    const deleteBtn = container.querySelector('.delete-automation');
+                    const confirmBtn = container.querySelector('.confirm-delete-btn');
+                    if (deleteBtn) deleteBtn.classList.remove('hidden');
+                    if (confirmBtn) confirmBtn.classList.add('hidden');
+                }
+            }
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    showLoading(message = 'Ładowanie...') {
+        let loader = document.getElementById('automation-loading-indicator');
+        if (!loader) {
+            loader = this.app.createElement('div', {
+                id: 'automation-loading-indicator',
+                class: 'loading-indicator'
+            }, [
+                this.app.createElement('div', { class: 'spinner' }),
+                this.app.createElement('div', { textContent: message })
+            ]);
+            
+            const container = document.querySelector('.automations-container');
+            if (container) {
+                container.appendChild(loader);
+            }
+        } else {
+            loader.querySelector('div:last-child').textContent = message;
+            loader.style.display = 'flex';
+        }
+    }
+
+    hideLoading() {
+        const loader = document.getElementById('automation-loading-indicator');
+        if (loader) {
+            loader.style.display = 'none';
         }
     }
 }

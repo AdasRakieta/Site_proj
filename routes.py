@@ -898,15 +898,30 @@ class APIManager:
                 if new_automation:
                     required_fields = ['name', 'trigger', 'actions', 'enabled']
                     if not all(field in new_automation for field in required_fields):
-                        return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
+                        missing_fields = [field for field in required_fields if field not in new_automation]
+                        return jsonify({"status": "error", "message": f"Brak wymaganych pól: {', '.join(missing_fields)}"}), 400
+                    
+                    # Validate name
+                    if not isinstance(new_automation['name'], str) or len(new_automation['name'].strip()) < 3:
+                        return jsonify({"status": "error", "message": "Nazwa automatyzacji musi mieć co najmniej 3 znaki"}), 400
+                    
+                    if len(new_automation['name'].strip()) > 50:
+                        return jsonify({"status": "error", "message": "Nazwa automatyzacji nie może przekraczać 50 znaków"}), 400
+                    
+                    # Check for duplicate names
                     if any(auto['name'].lower() == new_automation['name'].lower() for auto in self.smart_home.automations):
                         return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                    
+                    # Validate actions
+                    if not isinstance(new_automation['actions'], list) or len(new_automation['actions']) == 0:
+                        return jsonify({"status": "error", "message": "Co najmniej jedna akcja jest wymagana"}), 400
+                    
                     self.smart_home.automations.append(new_automation)
                     self.socketio.emit('update_automations', self.smart_home.automations)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                     return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Invalid automation data"}), 400
+                return jsonify({"status": "error", "message": "Nieprawidłowe dane automatyzacji"}), 400
 
         @self.app.route('/api/automations/<int:index>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
@@ -916,19 +931,38 @@ class APIManager:
                 if 0 <= index < len(self.smart_home.automations):
                     updated_automation = request.json
                     if updated_automation:
+                        # Validate required fields
+                        required_fields = ['name', 'trigger', 'actions', 'enabled']
+                        if not all(field in updated_automation for field in required_fields):
+                            missing_fields = [field for field in required_fields if field not in updated_automation]
+                            return jsonify({"status": "error", "message": f"Brak wymaganych pól: {', '.join(missing_fields)}"}), 400
+                        
+                        # Validate name
+                        if not isinstance(updated_automation['name'], str) or len(updated_automation['name'].strip()) < 3:
+                            return jsonify({"status": "error", "message": "Nazwa automatyzacji musi mieć co najmniej 3 znaki"}), 400
+                        
+                        if len(updated_automation['name'].strip()) > 50:
+                            return jsonify({"status": "error", "message": "Nazwa automatyzacji nie może przekraczać 50 znaków"}), 400
+                        
+                        # Check for duplicate names (excluding current automation)
                         name_exists = any(
                             i != index and auto['name'].lower() == updated_automation['name'].lower()
                             for i, auto in enumerate(self.smart_home.automations)
                         )
                         if name_exists:
                             return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                        
+                        # Validate actions
+                        if not isinstance(updated_automation['actions'], list) or len(updated_automation['actions']) == 0:
+                            return jsonify({"status": "error", "message": "Co najmniej jedna akcja jest wymagana"}), 400
+                        
                         self.smart_home.automations[index] = updated_automation
                         self.socketio.emit('update_automations', self.smart_home.automations)
                         if not self.smart_home.save_config():
                             return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                         return jsonify({"status": "success"})
-                    return jsonify({"status": "error", "message": "Invalid data"}), 400
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
+                    return jsonify({"status": "error", "message": "Nieprawidłowe dane automatyzacji"}), 400
+                return jsonify({"status": "error", "message": "Automatyzacja nie została znaleziona"}), 404
             elif request.method == 'DELETE':
                 if 0 <= index < len(self.smart_home.automations):
                     del self.smart_home.automations[index]
@@ -936,7 +970,7 @@ class APIManager:
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
                     return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
+                return jsonify({"status": "error", "message": "Automatyzacja nie została znaleziona"}), 404
 
 
 class SocketManager:
