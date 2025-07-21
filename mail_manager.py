@@ -283,6 +283,12 @@ class MailManager:
         except smtplib.SMTPAuthenticationError:
             print("[PASSWORD_RESET] Błąd autentykacji SMTP - sprawdź login i hasło SMTP w email_conf.env")
             return False
+        except socket.gaierror as e:
+            print(f"[PASSWORD_RESET] Błąd połączenia z serwerem SMTP - sprawdź połączenie internetowe i ustawienia serwera: {str(e)}")
+            return False
+        except ConnectionRefusedError as e:
+            print(f"[PASSWORD_RESET] Odmowa połączenia z serwerem SMTP - sprawdź port i ustawienia: {str(e)}")
+            return False
         except Exception as e:
             print(f"[PASSWORD_RESET] Błąd wysyłania kodu na {email}: {str(e)}")
             return False
