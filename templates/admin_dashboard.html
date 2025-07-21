@@ -182,8 +182,8 @@ function createAutomationChart() {
     const ctx = canvas.getContext('2d');
     
     // Dane dla wykresu kołowego: wykonane/nieudane automatyzacje
-    const total = {{ stats.automations_executed_today }};
-    const errors = {{ stats.automation_errors }};
+    const total = {{ stats.automations_executed_today if stats.automations_executed_today is defined else 0 }};
+    const errors = {{ stats.automation_errors if stats.automation_errors is defined else 0 }};
     const successful = total - errors;
     
     const centerX = canvas.width / 2;
