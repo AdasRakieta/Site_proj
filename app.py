@@ -361,7 +361,7 @@ def handle_exception(e):
 
 # Inicjalizacja menedżerów
 routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager)
-api_manager = routes.APIManager(app, socketio, smart_home, auth_manager)
+api_manager = routes.APIManager(app, socketio, smart_home, auth_manager, cache)
 socket_manager = routes.SocketManager(socketio, smart_home)
 
 if __name__ == '__main__':

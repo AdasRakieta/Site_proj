@@ -208,6 +208,28 @@ class SmartHomeSystem:
         if (datetime.now() - self.last_save_time).total_seconds() >= self.save_interval:
             self.save_config()
 
+    def validate_and_fix_data(self):
+        """Sprawdza i naprawia strukturę danych"""
+        # Fix rooms - ensure it's a list of strings
+        if not isinstance(self.rooms, list):
+            self.rooms = []
+        else:
+            self.rooms = [room for room in self.rooms if isinstance(room, str) and room.strip()]
+        
+        # Fix buttons - ensure proper structure
+        if not isinstance(self.buttons, list):
+            self.buttons = []
+        
+        # Fix temperature_controls - ensure proper structure
+        if not isinstance(self.temperature_controls, list):
+            self.temperature_controls = []
+            
+        # Fix automations - ensure proper structure
+        if not isinstance(self.automations, list):
+            self.automations = []
+            
+        print(f"[INFO] Data validation completed. Rooms: {len(self.rooms)}, Buttons: {len(self.buttons)}, Controls: {len(self.temperature_controls)}")
+
     def fetch_weather_data(self):
         """Pobiera dane pogodowe z API IMGW"""
         url = "https://danepubliczne.imgw.pl/api/data/synop/id/12330"

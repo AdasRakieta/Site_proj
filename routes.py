@@ -4,6 +4,7 @@ from deprecated.cache_helpers import CachedDataAccess, cache_json_response
 import time
 import os
 import uuid
+import random
 
 
 def allowed_file(filename):
@@ -88,7 +89,6 @@ class RoutesManager:
                             return redirect(url_for('settings'))
                     
                     # Create user
-                    import uuid
                     from werkzeug.security import generate_password_hash
                     
                     user_id = str(uuid.uuid4())
@@ -411,7 +411,6 @@ class RoutesManager:
                 return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
         
         # Utwórz użytkownika
-        import uuid
         user_id = str(uuid.uuid4())
         from werkzeug.security import generate_password_hash
         self.smart_home.users[user_id] = {
@@ -441,7 +440,6 @@ class RoutesManager:
     def _generate_dashboard_stats(self):
         """Generuje statystyki dla dashboardu administratora"""
         from datetime import datetime
-        import random
         
         # Podstawowe statystyki
         users_count = len(self.smart_home.users)
@@ -496,7 +494,6 @@ class RoutesManager:
     def _get_management_logs(self):
         """Pobiera logi zarządzania systemem"""
         from datetime import datetime, timedelta
-        import random
         
         # Symulowane logi (w rzeczywistości pobierane z pliku logów lub bazy danych)
         log_types = ['info', 'warning', 'error']
@@ -524,12 +521,13 @@ class RoutesManager:
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
-    def __init__(self, app, socketio, smart_home, auth_manager):
+    def __init__(self, app, socketio, smart_home, auth_manager, cache=None):
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
-        self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
+        self.cache = cache
+        self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
         self.register_routes()
 
     def register_routes(self):
@@ -544,19 +542,73 @@ class APIManager:
         @self.app.route('/api/rooms', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_rooms():
-            self.smart_home.check_and_save()
-            if request.method == 'GET':
-                # Use cached data if available
-                if self.cached_data:
-                    rooms = self.cached_data.get_rooms()
-                else:
-                    rooms = self.smart_home.rooms
-                return jsonify(rooms)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_room = request.json.get('room')
-                if new_room and new_room.lower() not in [room.lower() for room in self.smart_home.rooms]:
+            try:
+                self.smart_home.check_and_save()
+                self.smart_home.validate_and_fix_data()  # Ensure data integrity
+                
+                print(f"[DEBUG] manage_rooms: Method={request.method}")
+                print(f"[DEBUG] manage_rooms: smart_home.rooms type={type(self.smart_home.rooms)}")
+                print(f"[DEBUG] manage_rooms: smart_home.rooms value={self.smart_home.rooms}")
+                
+                if request.method == 'GET':
+                    # Use cached data if available
+                    if self.cached_data:
+                        rooms = self.cached_data.get_rooms()
+                    else:
+                        rooms = self.smart_home.rooms
+                    
+                    # Ensure we only return string rooms
+                    if isinstance(rooms, list):
+                        rooms = [room for room in rooms if isinstance(room, str)]
+                    else:
+                        rooms = []
+                    
+                    return jsonify(rooms)
+                elif request.method == 'POST':
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                    
+                    new_room = data.get('room')
+                    if not new_room or not new_room.strip():
+                        return jsonify({"status": "error", "message": "Nazwa pokoju nie może być pusta"}), 400
+                    
+                    new_room = new_room.strip()
+                    
+                    print(f"[DEBUG] manage_rooms POST: new_room='{new_room}'")
+                    print(f"[DEBUG] manage_rooms POST: smart_home.rooms type={type(self.smart_home.rooms)}")
+                    print(f"[DEBUG] manage_rooms POST: smart_home.rooms value={self.smart_home.rooms}")
+                    
+                    # Ensure rooms is a list and contains only strings
+                    if not isinstance(self.smart_home.rooms, list):
+                        print(f"[DEBUG] manage_rooms POST: Converting rooms to list, was {type(self.smart_home.rooms)}")
+                        self.smart_home.rooms = []
+                    
+                    # Filter out non-string elements and check for duplicates
+                    existing_rooms = [room for room in self.smart_home.rooms if isinstance(room, str)]
+                    print(f"[DEBUG] manage_rooms POST: existing_rooms={existing_rooms}")
+                    
+                    try:
+                        room_lower_list = [room.lower() for room in existing_rooms]
+                        print(f"[DEBUG] manage_rooms POST: room_lower_list={room_lower_list}")
+                        print(f"[DEBUG] manage_rooms POST: new_room.lower()='{new_room.lower()}'")
+                        
+                        if new_room.lower() not in room_lower_list:
+                            print(f"[DEBUG] manage_rooms POST: Room not found, adding...")
+                        else:
+                            print(f"[DEBUG] manage_rooms POST: Room already exists!")
+                            return jsonify({"status": "error", "message": "Pokój już istnieje"}), 400
+                    except Exception as comparison_error:
+                        print(f"[ERROR] manage_rooms POST comparison: {comparison_error}")
+                        print(f"[ERROR] existing_rooms content: {existing_rooms}")
+                        print(f"[ERROR] types in existing_rooms: {[type(room) for room in existing_rooms]}")
+                        return jsonify({"status": "error", "message": f"Błąd porównania: {str(comparison_error)}"}), 500
+                    
+                    # Room doesn't exist, add it
+                    print(f"[DEBUG] manage_rooms POST: Room not found, adding...")
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     if not self.smart_home.save_config():
@@ -565,136 +617,217 @@ class APIManager:
                     if self.cached_data:
                         self.cached_data.invalidate_rooms_cache()
                     return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
+            except Exception as e:
+                print(f"[ERROR] manage_rooms: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/rooms/<room>', methods=['DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def delete_room(room):
-            print("DELETE /api/rooms/<room> room:", room)
-            if not room or room not in self.smart_home.rooms:
-                print("Błąd: pokój nie istnieje:", room)
-                return jsonify({"status": "error", "message": "Pokój nie istnieje"}), 400
-            if room.lower() in [r.lower() for r in self.smart_home.rooms]:
-                self.smart_home.rooms.remove(next(r for r in self.smart_home.rooms if r.lower() == room.lower()))
+            try:
+                print("DELETE /api/rooms/<room> room:", room)
+                
+                # Ensure rooms is a list and contains only strings
+                if not isinstance(self.smart_home.rooms, list):
+                    return jsonify({"status": "error", "message": "Błąd struktury danych pokoi"}), 500
+                
+                existing_rooms = [r for r in self.smart_home.rooms if isinstance(r, str)]
+                if not room or room.lower() not in [r.lower() for r in existing_rooms]:
+                    print("Błąd: pokój nie istnieje:", room)
+                    return jsonify({"status": "error", "message": "Pokój nie istnieje"}), 400
+                
+                # Remove the room
+                self.smart_home.rooms = [r for r in self.smart_home.rooms if isinstance(r, str) and r.lower() != room.lower()]
                 self.smart_home.buttons = [button for button in self.smart_home.buttons if button['room'].lower() != room.lower()]
                 self.smart_home.temperature_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() != room.lower()]
+                
                 self.socketio.emit('update_rooms', self.smart_home.rooms)
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                
                 if not self.smart_home.save_config():
                     return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu pokoju"}), 500
                 # Invalidate cache after modification
                 if self.cached_data:
                     self.cached_data.invalidate_rooms_cache()
                 return jsonify({"status": "success"})
-            return jsonify({"status": "error", "message": "Room not found"}), 404
+            except Exception as e:
+                print(f"[ERROR] delete_room: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/rooms/<room>', methods=['PUT'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def edit_room(room):
-            data = request.get_json()
-            new_name = data.get('new_name') if data else None
-            if not new_name or new_name.lower() in [r.lower() for r in self.smart_home.rooms]:
-                return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
-            for i, r in enumerate(self.smart_home.rooms):
-                if r.lower() == room.lower():
-                    self.smart_home.rooms[i] = new_name
-                    break
-            for button in self.smart_home.buttons:
-                if button['room'].lower() == room.lower():
-                    button['room'] = new_name
-            for control in self.smart_home.temperature_controls:
-                if control['room'].lower() == room.lower():
-                    control['room'] = new_name
-            self.smart_home.save_config()
-            self.socketio.emit('update_rooms', self.smart_home.rooms)
-            self.socketio.emit('update_buttons', self.smart_home.buttons)
-            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-            return jsonify({"status": "success"})
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                
+                new_name = data.get('new_name')
+                if not new_name or not new_name.strip():
+                    return jsonify({"status": "error", "message": "Nowa nazwa pokoju nie może być pusta"}), 400
+                
+                new_name = new_name.strip()
+                
+                # Ensure rooms is a list and contains only strings
+                if not isinstance(self.smart_home.rooms, list):
+                    return jsonify({"status": "error", "message": "Błąd struktury danych pokoi"}), 500
+                
+                existing_rooms = [r for r in self.smart_home.rooms if isinstance(r, str)]
+                if new_name.lower() in [r.lower() for r in existing_rooms]:
+                    return jsonify({"status": "error", "message": "Pokój o tej nazwie już istnieje"}), 400
+                
+                # Find and update the room
+                room_found = False
+                for i, r in enumerate(self.smart_home.rooms):
+                    if isinstance(r, str) and r.lower() == room.lower():
+                        self.smart_home.rooms[i] = new_name
+                        room_found = True
+                        break
+                
+                if not room_found:
+                    return jsonify({"status": "error", "message": "Pokój nie został znaleziony"}), 404
+                
+                # Update room name in buttons and temperature controls
+                for button in self.smart_home.buttons:
+                    if button['room'].lower() == room.lower():
+                        button['room'] = new_name
+                for control in self.smart_home.temperature_controls:
+                    if control['room'].lower() == room.lower():
+                        control['room'] = new_name
+                
+                if not self.smart_home.save_config():
+                    return jsonify({"status": "error", "message": "Nie udało się zapisać zmian"}), 500
+                
+                self.socketio.emit('update_rooms', self.smart_home.rooms)
+                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                return jsonify({"status": "success"})
+            except Exception as e:
+                print(f"[ERROR] edit_room: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/rooms/order', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_rooms_order():
-            data = request.get_json()
-            rooms = data.get('rooms')
-            if not isinstance(rooms, list):
-                return jsonify({'status': 'error', 'message': 'Brak listy pokoi'}), 400
-            self.smart_home.rooms = [r for r in rooms if r in self.smart_home.rooms]
-            self.socketio.emit('update_rooms', self.smart_home.rooms)
-            self.smart_home.save_config()
-            return jsonify({'status': 'success'})
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych JSON'}), 400
+                
+                rooms = data.get('rooms')
+                if not isinstance(rooms, list):
+                    return jsonify({'status': 'error', 'message': 'Brak listy pokoi'}), 400
+                
+                # Ensure all rooms are strings and exist in current rooms
+                existing_rooms = [r for r in self.smart_home.rooms if isinstance(r, str)]
+                valid_rooms = [r for r in rooms if isinstance(r, str) and r in existing_rooms]
+                
+                self.smart_home.rooms = valid_rooms
+                self.socketio.emit('update_rooms', self.smart_home.rooms)
+                if not self.smart_home.save_config():
+                    return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności pokoi'}), 500
+                return jsonify({'status': 'success'})
+            except Exception as e:
+                print(f"[ERROR] set_rooms_order: {e}")
+                return jsonify({'status': 'error', 'message': f'Błąd serwera: {str(e)}'}), 500
 
         @self.app.route('/api/buttons/order', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_buttons_order():
-            data = request.get_json()
-            if 'room' in data and 'order' in data:
-                room = data['room']
-                order = data['order']
-                room_buttons = [b for b in self.smart_home.buttons if b.get('room') == room]
-                new_room_buttons = []
-                for btn_id in order:
-                    found = next((b for b in room_buttons if str(b.get('id')) == str(btn_id)), None)
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych JSON'}), 400
+                
+                if 'room' in data and 'order' in data:
+                    room = data['room']
+                    order = data['order']
+                    room_buttons = [b for b in self.smart_home.buttons if b.get('room') == room]
+                    new_room_buttons = []
+                    for btn_id in order:
+                        found = next((b for b in room_buttons if str(b.get('id')) == str(btn_id)), None)
+                        if found:
+                            new_room_buttons.append(found)
+                    other_buttons = [b for b in self.smart_home.buttons if b.get('room') != room]
+                    self.smart_home.buttons = other_buttons + new_room_buttons
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
+                    if not self.smart_home.save_config():
+                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności przycisków'}), 500
+                    return jsonify({'status': 'success'})
+                    
+                buttons = data.get('buttons')
+                if not isinstance(buttons, list):
+                    return jsonify({'status': 'error', 'message': 'Brak listy przycisków'}), 400
+                    
+                new_order = []
+                for btn in buttons:
+                    found = next((b for b in self.smart_home.buttons if b['name'] == btn.get('name') and b['room'] == btn.get('room')), None)
                     if found:
-                        new_room_buttons.append(found)
-                other_buttons = [b for b in self.smart_home.buttons if b.get('room') != room]
-                self.smart_home.buttons = other_buttons + new_room_buttons
+                        new_order.append(found)
+                        
+                self.smart_home.buttons = new_order
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
-                self.smart_home.save_config()
+                if not self.smart_home.save_config():
+                    return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności przycisków'}), 500
                 return jsonify({'status': 'success'})
-            buttons = data.get('buttons')
-            if not isinstance(buttons, list):
-                return jsonify({'status': 'error', 'message': 'Brak listy przycisków'}), 400
-            new_order = []
-            for btn in buttons:
-                found = next((b for b in self.smart_home.buttons if b['name'] == btn.get('name') and b['room'] == btn.get('room')), None)
-                if found:
-                    new_order.append(found)
-            self.smart_home.buttons = new_order
-            self.socketio.emit('update_buttons', self.smart_home.buttons)
-            self.smart_home.save_config()
-            return jsonify({'status': 'success'})
+            except Exception as e:
+                print(f"[ERROR] set_buttons_order: {e}")
+                return jsonify({'status': 'error', 'message': f'Błąd serwera: {str(e)}'}), 500
 
         @self.app.route('/api/temperature_controls/order', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_temp_controls_order():
-            data = request.get_json()
-            if 'room' in data and 'order' in data:
-                room = data['room']
-                order = data['order']
-                room_controls = [c for c in self.smart_home.temperature_controls if c.get('room') == room]
-                new_room_controls = []
-                for ctrl_id in order:
-                    found = next((c for c in room_controls if c['id'] == ctrl_id), None)
-                    if found:
-                        new_room_controls.append(found)
-                self.smart_home.temperature_controls = [c for c in self.smart_home.temperature_controls if c.get('room') != room] + new_room_controls
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                self.smart_home.save_config()
-                return jsonify({'status': 'success'})
-            return jsonify({'status': 'error', 'message': 'Brak danych lub nieprawidłowy format'}), 400
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych JSON'}), 400
+                
+                if 'room' in data and 'order' in data:
+                    room = data['room']
+                    order = data['order']
+                    room_controls = [c for c in self.smart_home.temperature_controls if c.get('room') == room]
+                    new_room_controls = []
+                    for ctrl_id in order:
+                        found = next((c for c in room_controls if c['id'] == ctrl_id), None)
+                        if found:
+                            new_room_controls.append(found)
+                    self.smart_home.temperature_controls = [c for c in self.smart_home.temperature_controls if c.get('room') != room] + new_room_controls
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                    if not self.smart_home.save_config():
+                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności kontrolerów'}), 500
+                    return jsonify({'status': 'success'})
+                return jsonify({'status': 'error', 'message': 'Brak wymaganych danych pokoju i kolejności'}), 400
+            except Exception as e:
+                print(f"[ERROR] set_temp_controls_order: {e}")
+                return jsonify({'status': 'error', 'message': f'Błąd serwera: {str(e)}'}), 500
 
         @self.app.route('/api/buttons', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_buttons():
-            self.smart_home.check_and_save()
-            if request.method == 'GET':
-                # Use cached data if available
-                if self.cached_data:
-                    buttons = self.cached_data.get_buttons()
-                else:
-                    buttons = self.smart_home.buttons
-                return jsonify(buttons)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_button = request.json
-                if new_button:
+            try:
+                self.smart_home.check_and_save()
+                if request.method == 'GET':
+                    # Use cached data if available
+                    if self.cached_data:
+                        buttons = self.cached_data.get_buttons()
+                    else:
+                        buttons = self.smart_home.buttons
+                    return jsonify(buttons)
+                elif request.method == 'POST':
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                    
+                    new_button = data
                     if 'id' not in new_button:
                         new_button['id'] = str(uuid.uuid4())
                     new_button['state'] = False
@@ -703,54 +836,70 @@ class APIManager:
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać przycisku"}), 500
                     return jsonify({"status": "success", "id": new_button['id']})
-                return jsonify({"status": "error", "message": "Invalid button data"}), 400
+            except Exception as e:
+                print(f"[ERROR] manage_buttons: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def button_by_id(id):
-            idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
-            if idx is None:
-                return jsonify({'status': 'error', 'message': 'Button not found'}), 404
-            if request.method == 'PUT':
-                data = request.get_json()
-                if not data:
-                    return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
-                if 'name' in data:
-                    self.smart_home.buttons[idx]['name'] = data['name']
-                if 'room' in data:
-                    self.smart_home.buttons[idx]['room'] = data['room']
-                if not self.smart_home.save_config():
-                    return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
-                return jsonify({'status': 'success'})
-            elif request.method == 'DELETE':
-                self.smart_home.buttons.pop(idx)
-                if not self.smart_home.save_config():
-                    return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
-                return jsonify({'status': 'success'})
+            try:
+                idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
+                if idx is None:
+                    return jsonify({'status': 'error', 'message': 'Przycisk nie został znaleziony'}), 404
+                
+                if request.method == 'PUT':
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+                    if 'name' in data:
+                        self.smart_home.buttons[idx]['name'] = data['name']
+                    if 'room' in data:
+                        self.smart_home.buttons[idx]['room'] = data['room']
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
+                    return jsonify({'status': 'success'})
+                    
+                elif request.method == 'DELETE':
+                    self.smart_home.buttons.pop(idx)
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
+                    return jsonify({'status': 'success'})
+            except Exception as e:
+                print(f"[ERROR] button_by_id: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/temperature_controls', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_temperature_controls():
-            self.smart_home.check_and_save()
-            if request.method == 'GET':
-                return jsonify(self.smart_home.temperature_controls)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_control = request.json
-                if new_control:
+            try:
+                self.smart_home.check_and_save()
+                if request.method == 'GET':
+                    return jsonify(self.smart_home.temperature_controls)
+                elif request.method == 'POST':
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                    
+                    new_control = data
                     if 'id' not in new_control:
                         new_control['id'] = str(uuid.uuid4())
                     new_control['temperature'] = 22
                     self.smart_home.temperature_controls.append(new_control)
                     self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                     self.socketio.emit('update_room_temperature_controls', new_control)
-                    self.smart_home.save_config()
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać kontrolera temperatury"}), 500
                     return jsonify({"status": "success", "id": new_control['id']})
-                return jsonify({"status": "error", "message": "Invalid control data"}), 400
+            except Exception as e:
+                print(f"[ERROR] manage_temperature_controls: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/temperature_controls/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
@@ -867,7 +1016,6 @@ class APIManager:
                     return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
             
             # Create user using the same logic as registration (without verification)
-            import uuid
             from werkzeug.security import generate_password_hash
             
             user_id = str(uuid.uuid4())
@@ -974,55 +1122,72 @@ class APIManager:
         @self.app.route('/api/automations', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_automations():
-            self.smart_home.check_and_save()
-            if request.method == 'GET':
-                return jsonify(self.smart_home.automations)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_automation = request.json
-                if new_automation:
+            try:
+                self.smart_home.check_and_save()
+                if request.method == 'GET':
+                    return jsonify(self.smart_home.automations)
+                elif request.method == 'POST':
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                    
+                    new_automation = data
                     required_fields = ['name', 'trigger', 'actions', 'enabled']
                     if not all(field in new_automation for field in required_fields):
                         return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
+                    
                     if any(auto['name'].lower() == new_automation['name'].lower() for auto in self.smart_home.automations):
                         return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                    
                     self.smart_home.automations.append(new_automation)
                     self.socketio.emit('update_automations', self.smart_home.automations)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                     return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Invalid automation data"}), 400
+            except Exception as e:
+                print(f"[ERROR] manage_automations: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
         @self.app.route('/api/automations/<int:index>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def modify_automation(index):
-            if request.method == 'PUT':
-                if 0 <= index < len(self.smart_home.automations):
-                    updated_automation = request.json
-                    if updated_automation:
+            try:
+                if request.method == 'PUT':
+                    if 0 <= index < len(self.smart_home.automations):
+                        data = request.get_json()
+                        if not data:
+                            return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
+                        
+                        updated_automation = data
                         name_exists = any(
                             i != index and auto['name'].lower() == updated_automation['name'].lower()
                             for i, auto in enumerate(self.smart_home.automations)
                         )
                         if name_exists:
                             return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                        
                         self.smart_home.automations[index] = updated_automation
                         self.socketio.emit('update_automations', self.smart_home.automations)
                         if not self.smart_home.save_config():
                             return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
                         return jsonify({"status": "success"})
-                    return jsonify({"status": "error", "message": "Invalid data"}), 400
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
-            elif request.method == 'DELETE':
-                if 0 <= index < len(self.smart_home.automations):
-                    del self.smart_home.automations[index]
-                    self.socketio.emit('update_automations', self.smart_home.automations)
-                    if not self.smart_home.save_config():
-                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
-                    return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
+                    return jsonify({"status": "error", "message": "Automatyzacja nie została znaleziona"}), 404
+                    
+                elif request.method == 'DELETE':
+                    if 0 <= index < len(self.smart_home.automations):
+                        del self.smart_home.automations[index]
+                        self.socketio.emit('update_automations', self.smart_home.automations)
+                        if not self.smart_home.save_config():
+                            return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
+                        return jsonify({"status": "success"})
+                    return jsonify({"status": "error", "message": "Automatyzacja nie została znaleziona"}), 404
+            except Exception as e:
+                print(f"[ERROR] modify_automation: {e}")
+                return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
 
 
 class SocketManager:
