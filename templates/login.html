@@ -27,11 +27,12 @@
                 </label>
             </div>
             <div class="register-form">
-                <p>Nie masz konta? <a href="{{ url_for('register') }}">Zarejestruj się</a></p>
                 <p><a href="{{ url_for('forgot_password') }}">Zapomniałeś hasła?</a></p>
+                <div class="login-buttons-row">
+                    <button type="submit" style="margin-right: 25px;" class="login-btn">Zaloguj</button>
+                    <button type="button" class="register-btn" id="registerBtn">Zarejestruj się</button>
+                </div>
             </div>
-
-            <button type="submit" >Zaloguj</button>
         </form>
     </div>
 {% endblock %}
@@ -77,6 +78,13 @@
 
     // Wyświetlenie komunikatów flash jako notyfikacji
     document.addEventListener('DOMContentLoaded', () => {
+        // Obsługa przycisku rejestracji
+        const registerBtn = document.getElementById('registerBtn');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', function() {
+                window.location.href = "{{ url_for('register') }}";
+            });
+        }
         // Wyświetl komunikaty flash jako notyfikacje
         const messages = JSON.parse('{{ get_flashed_messages(with_categories=true) | tojson | safe }}');
         if (messages && Array.isArray(messages)) {
