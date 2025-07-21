@@ -74,6 +74,7 @@ class MailManager:
     def __init__(self):
         self.failed_attempts = {}
         self.verification_codes = {}  # Store verification codes: {email: {'code': str, 'expires': timestamp, 'attempts': int}}
+        self.password_reset_codes = {}  # Store password reset codes: {email: {'code': str, 'expires': timestamp, 'attempts': int, 'user_id': str}}
         # Wymuś obecność wszystkich danych SMTP
         smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = os.getenv('SMTP_PORT')
@@ -109,6 +110,44 @@ class MailManager:
             'expires': time.time() + self.verification_expiry,
             'attempts': 0
         }
+    
+    def store_password_reset_code(self, email, code, user_id):
+        """Przechowuje kod resetowania hasła dla danego emaila"""
+        self.password_reset_codes[email] = {
+            'code': code,
+            'expires': time.time() + self.verification_expiry,
+            'attempts': 0,
+            'user_id': user_id
+        }
+    
+    def verify_password_reset_code(self, email, code):
+        """Weryfikuje kod resetowania hasła dla danego emaila"""
+        if email not in self.password_reset_codes:
+            return False, "Kod resetowania hasła nie istnieje lub wygasł", None
+        
+        stored_data = self.password_reset_codes[email]
+        
+        # Sprawdź czy kod nie wygasł
+        if time.time() > stored_data['expires']:
+            del self.password_reset_codes[email]
+            return False, "Kod resetowania hasła wygasł", None
+        
+        # Sprawdź liczbę prób
+        if stored_data['attempts'] >= self.max_verification_attempts:
+            del self.password_reset_codes[email]
+            return False, "Przekroczono maksymalną liczbę prób weryfikacji", None
+        
+        # Zwiększ liczbę prób
+        stored_data['attempts'] += 1
+        
+        # Sprawdź poprawność kodu
+        if stored_data['code'] != code:
+            return False, "Nieprawidłowy kod resetowania hasła", None
+        
+        # Kod poprawny - pobierz user_id i usuń z pamięci
+        user_id = stored_data['user_id']
+        del self.password_reset_codes[email]
+        return True, "Kod resetowania hasła poprawny", user_id
     
     def verify_code(self, email, code):
         """Weryfikuje kod dla danego emaila"""
@@ -190,6 +229,62 @@ class MailManager:
             return False
         except Exception as e:
             print(f"[VERIFICATION] Błąd wysyłania kodu na {email}: {str(e)}")
+            return False
+
+    def send_password_reset_email(self, email, code):
+        """Wysyła email z kodem resetowania hasła"""
+        try:
+            # Sprawdź czy mamy pełną konfigurację SMTP
+            smtp = self.smtp_config
+            if not (smtp.get('server') and smtp.get('port') and smtp.get('username') and smtp.get('password')):
+                print(f"[PASSWORD_RESET] TEST MODE: Kod resetowania hasła dla {email}: {code}")
+                print("[PASSWORD_RESET] Brak pełnej konfiguracji SMTP. Uzupełnij SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD w pliku email_conf.env")
+                return False
+
+            message = MIMEMultipart()
+            message['From'] = self.config['sender_email']
+            message['To'] = email
+            message['Subject'] = '🔑 SmartHome - Resetowanie hasła'
+
+            html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50; text-align: center;">Resetowanie hasła</h2>
+                <p>Witaj!</p>
+                <p>Otrzymałeś tę wiadomość, ponieważ złożono prośbę o zresetowanie hasła do Twojego konta SmartHome.</p>
+                <p>Aby zresetować hasło, wprowadź poniższy kod weryfikacyjny:</p>
+                <div style="background-color: #ecf0f1; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+                    <h1 style="color: #2c3e50; font-size: 32px; margin: 0; letter-spacing: 8px;">{code}</h1>
+                </div>
+                <p><strong>Uwaga:</strong></p>
+                <ul>
+                    <li>Kod jest ważny przez 15 minut</li>
+                    <li>Masz maksymalnie 3 próby wprowadzenia kodu</li>
+                    <li>Jeśli nie prosiłeś o reset hasła, zignoruj tę wiadomość</li>
+                    <li>Twoje hasło nie zostanie zmienione dopóki nie wprowadzisz prawidłowego kodu</li>
+                </ul>
+                <p style="color: #7f8c8d; font-size: 12px; margin-top: 40px;">
+                    Wiadomość wysłana automatycznie z systemu SmartHome<br>
+                    Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                </p>
+            </div>
+            """
+
+            message.attach(MIMEText(html, 'html'))
+
+            with smtplib.SMTP(smtp['server'], smtp['port']) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp['username'], smtp['password'])
+                server.sendmail(self.config['sender_email'], email, message.as_string())
+
+            print(f"[PASSWORD_RESET] Wysłano kod resetowania hasła na {email}")
+            return True
+        except smtplib.SMTPAuthenticationError:
+            print("[PASSWORD_RESET] Błąd autentykacji SMTP - sprawdź login i hasło SMTP w email_conf.env")
+            return False
+        except Exception as e:
+            print(f"[PASSWORD_RESET] Błąd wysyłania kodu na {email}: {str(e)}")
             return False
     def send_security_alert(self, event_type, details):
         """Wysyła alert przez SMTP do admina i dodatkowych odbiorców"""
