@@ -8,6 +8,7 @@ import os
 from functools import wraps
 from configure import SmartHomeSystem
 from mail_manager import MailManager, get_notifications_settings, set_notifications_settings
+from management_logger import ManagementLogger
 import time
 from datetime import datetime, timedelta
 import routes
@@ -152,6 +153,7 @@ mail_manager = MailManager()
 async_mail_manager = AsyncMailManager(mail_manager)
 background_task_manager = BackgroundTaskManager()
 background_task_manager.start_background_processing()
+management_logger = ManagementLogger()
 
 # --- Setup Cache Integration ---
 # Update cached_data_access with smart_home reference
@@ -183,6 +185,10 @@ def login():
             session['username'] = user['name']  # login
             session['role'] = user['role']
             session.permanent = True  # aktywuj timeout sesji
+            
+            # Log successful login
+            management_logger.log_login(user['name'], ip_address, success=True)
+            
             flash('Zalogowano pomyślnie!', 'success')
             # Jeśli użytkownik chce zapamiętać dane, zwróć informację o tym
             if remember_me:
@@ -196,6 +202,10 @@ def login():
                 return response
         # Rejestracja nieudanej próby i wysłanie alertu (async)
         async_mail_manager.track_and_alert_failed_login_async(login_name, ip_address)
+        
+        # Log failed login attempt
+        management_logger.log_failed_login_with_ip(login_name or 'unknown', ip_address)
+        
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
         # Wygeneruj nowy token CSRF po nieudanym logowaniu
         session['_csrf_token'] = secrets.token_urlsafe(32)
@@ -208,6 +218,11 @@ def login():
 @auth_manager.login_required
 def logout():
     """Wylogowanie użytkownika"""
+    username = session.get('username', 'unknown')
+    
+    # Log logout
+    management_logger.log_logout(username, request.remote_addr)
+    
     session.clear()
     if request.args.get('changed') == '1':
         flash('Pomyślnie zmieniono dane', 'success')
@@ -360,9 +375,15 @@ def handle_exception(e):
     return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
 # Inicjalizacja menedżerów
+<<<<<<< HEAD
 routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager)
 api_manager = routes.APIManager(app, socketio, smart_home, auth_manager, cache)
 socket_manager = routes.SocketManager(socketio, smart_home)
+=======
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager, management_logger)
+api_manager = routes.APIManager(app, socketio, smart_home, auth_manager, management_logger)
+socket_manager = routes.SocketManager(socketio, smart_home, management_logger)
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
 
 if __name__ == '__main__':
     import logging

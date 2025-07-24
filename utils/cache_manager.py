@@ -80,7 +80,7 @@ class CacheManager:
             "temperature_controls",
             "automations_list"
         ]
-        self.cache.delete_many(cache_keys)
+        self.cache.delete_many(*cache_keys)
     
     def invalidate_api_cache(self, pattern=None):
         """

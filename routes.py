@@ -1,6 +1,7 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 from deprecated.cache_helpers import CachedDataAccess, cache_json_response
+from management_logger import ManagementLogger
 import time
 import os
 import uuid
@@ -15,7 +16,7 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None, management_logger=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
@@ -23,6 +24,8 @@ class RoutesManager:
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
         self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
+        # Initialize management logger
+        self.management_logger = management_logger or ManagementLogger()
         self.register_routes()
 
     def register_routes(self):
@@ -159,6 +162,87 @@ class RoutesManager:
             logs = self._get_management_logs()
             return jsonify(logs)
 
+        @self.app.route('/api/admin/logs/clear', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_clear_logs():
+            """Clear all logs"""
+            try:
+                self.management_logger.clear_logs()
+                
+                # Log the clearing action
+                self.management_logger.log_event(
+                    'info',
+                    f'Administrator {session.get("username", "unknown")} wyczyścił wszystkie logi',
+                    'admin_action',
+                    session.get('username', 'unknown'),
+                    request.remote_addr
+                )
+                
+                return jsonify({'status': 'success', 'message': 'Wszystkie logi zostały usunięte'})
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd przy usuwaniu logów: {str(e)}'}), 500
+
+        @self.app.route('/api/admin/logs/delete', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_delete_logs():
+            """Delete logs by date range or number of days"""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych w żądaniu'}), 400
+                
+                deleted_count = 0
+                
+                if 'days' in data:
+                    # Delete logs older than specified days
+                    days = int(data['days'])
+                    if days < 0:
+                        return jsonify({'status': 'error', 'message': 'Liczba dni musi być dodatnia'}), 400
+                    
+                    deleted_count = self.management_logger.delete_logs_older_than(days)
+                    action_msg = f'Usunięto {deleted_count} logów starszych niż {days} dni'
+                    
+                elif 'start_date' in data or 'end_date' in data:
+                    # Delete logs by date range
+                    start_date = data.get('start_date')
+                    end_date = data.get('end_date')
+                    
+                    deleted_count = self.management_logger.delete_logs_by_date_range(start_date, end_date)
+                    
+                    if start_date and end_date:
+                        action_msg = f'Usunięto {deleted_count} logów z okresu {start_date} - {end_date}'
+                    elif start_date:
+                        action_msg = f'Usunięto {deleted_count} logów od {start_date}'
+                    elif end_date:
+                        action_msg = f'Usunięto {deleted_count} logów do {end_date}'
+                    else:
+                        action_msg = f'Usunięto {deleted_count} logów'
+                else:
+                    return jsonify({'status': 'error', 'message': 'Brak parametrów usuwania (days, start_date lub end_date)'}), 400
+                
+                # Log the deletion action
+                self.management_logger.log_event(
+                    'info',
+                    f'Administrator {session.get("username", "unknown")}: {action_msg}',
+                    'admin_action',
+                    session.get('username', 'unknown'),
+                    request.remote_addr,
+                    {'deleted_count': deleted_count, 'action': 'delete_logs'}
+                )
+                
+                return jsonify({
+                    'status': 'success', 
+                    'message': action_msg,
+                    'deleted_count': deleted_count
+                })
+                
+            except ValueError as e:
+                return jsonify({'status': 'error', 'message': f'Błąd formatu daty: {str(e)}'}), 400
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd przy usuwaniu logów: {str(e)}'}), 500
+
         @self.app.route('/lights')
         @self.auth_manager.login_required
         def lights():
@@ -212,6 +296,16 @@ class RoutesManager:
                     updates['password'] = data['new_password']
                 success, message = self.smart_home.update_user_profile(user_id, updates)
                 if success:
+                    # Log user profile change
+                    action = 'password_change' if 'password' in updates else 'edit'
+                    self.management_logger.log_user_change(
+                        username=user['name'],
+                        action=action,
+                        target_user=user['name'],
+                        ip_address=request.remote_addr,
+                        details={'fields_updated': list(updates.keys())}
+                    )
+                    
                     if any(k in updates for k in ['name', 'email', 'password']):
                         return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
                     return jsonify({"status": "success", "message": message})
@@ -421,6 +515,16 @@ class RoutesManager:
             'profile_picture': ''
         }
         self.smart_home.save_config()
+        
+        # Log user registration
+        self.management_logger.log_user_change(
+            username=username, 
+            action='register', 
+            target_user=username,
+            ip_address=request.remote_addr,
+            details={'email': email}
+        )
+        
         return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
 
     def _find_user_by_email_or_username(self, email_or_username):
@@ -492,6 +596,7 @@ class RoutesManager:
         return device_states
 
     def _get_management_logs(self):
+<<<<<<< HEAD
         """Pobiera logi zarządzania systemem"""
         from datetime import datetime, timedelta
         
@@ -522,12 +627,25 @@ class RoutesManager:
 class APIManager:
     """Klasa zarządzająca endpointami API"""
     def __init__(self, app, socketio, smart_home, auth_manager, cache=None):
+=======
+        """Pobiera rzeczywiste logi zarządzania systemem"""
+        return self.management_logger.get_logs(limit=50)
+
+class APIManager:
+    """Klasa zarządzająca endpointami API"""
+    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None):
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
+<<<<<<< HEAD
         self.cache = cache
         self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
+=======
+        self.management_logger = management_logger or ManagementLogger()
+        self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
         self.register_routes()
 
     def register_routes(self):
@@ -613,6 +731,15 @@ class APIManager:
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać nowego pokoju"}), 500
+                    
+                    # Log room addition
+                    self.management_logger.log_room_change(
+                        username=session.get('username', 'unknown'),
+                        action='add',
+                        room_name=new_room,
+                        ip_address=request.remote_addr
+                    )
+                    
                     # Invalidate cache after modification
                     if self.cached_data:
                         self.cached_data.invalidate_rooms_cache()
@@ -648,6 +775,15 @@ class APIManager:
                 
                 if not self.smart_home.save_config():
                     return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu pokoju"}), 500
+                
+                # Log room deletion
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='delete',
+                    room_name=room,
+                    ip_address=request.remote_addr
+                )
+                
                 # Invalidate cache after modification
                 if self.cached_data:
                     self.cached_data.invalidate_rooms_cache()
@@ -660,6 +796,7 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def edit_room(room):
+<<<<<<< HEAD
             try:
                 data = request.get_json()
                 if not data:
@@ -708,6 +845,40 @@ class APIManager:
             except Exception as e:
                 print(f"[ERROR] edit_room: {e}")
                 return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
+=======
+            data = request.get_json()
+            new_name = data.get('new_name') if data else None
+            if not new_name or new_name.lower() in [r.lower() for r in self.smart_home.rooms]:
+                return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
+            
+            old_name = room
+            for i, r in enumerate(self.smart_home.rooms):
+                if r.lower() == room.lower():
+                    self.smart_home.rooms[i] = new_name
+                    old_name = r
+                    break
+            for button in self.smart_home.buttons:
+                if button['room'].lower() == room.lower():
+                    button['room'] = new_name
+            for control in self.smart_home.temperature_controls:
+                if control['room'].lower() == room.lower():
+                    control['room'] = new_name
+            self.smart_home.save_config()
+            
+            # Log room rename
+            self.management_logger.log_room_change(
+                username=session.get('username', 'unknown'),
+                action='rename',
+                room_name=new_name,
+                ip_address=request.remote_addr,
+                old_name=old_name
+            )
+            
+            self.socketio.emit('update_rooms', self.smart_home.rooms)
+            self.socketio.emit('update_buttons', self.smart_home.buttons)
+            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+            return jsonify({"status": "success"})
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
 
         @self.app.route('/api/rooms/order', methods=['POST'])
         @self.auth_manager.login_required
@@ -875,6 +1046,7 @@ class APIManager:
         @self.app.route('/api/temperature_controls', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_temperature_controls():
+<<<<<<< HEAD
             try:
                 self.smart_home.check_and_save()
                 if request.method == 'GET':
@@ -900,6 +1072,30 @@ class APIManager:
             except Exception as e:
                 print(f"[ERROR] manage_temperature_controls: {e}")
                 return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
+=======
+            self.smart_home.check_and_save()
+            if request.method == 'GET':
+                return jsonify(self.smart_home.temperature_controls)
+            elif request.method == 'POST':
+                try:
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    new_control = request.json
+                    if new_control:
+                        if 'id' not in new_control:
+                            new_control['id'] = str(uuid.uuid4())
+                        new_control['temperature'] = 22
+                        self.smart_home.temperature_controls.append(new_control)
+                        self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                        self.socketio.emit('update_room_temperature_controls', new_control)
+                        self.smart_home.save_config()
+                        return jsonify({"status": "success", "id": new_control['id']})
+                    return jsonify({"status": "error", "message": "Invalid control data"}), 400
+                except Exception as e:
+                    import traceback
+                    print(f"[ERROR] Exception in POST /api/temperature_controls: {e}\n{traceback.format_exc()}")
+                    return jsonify({"status": "error", "message": f"Server error: {e}"}), 500
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
 
         @self.app.route('/api/temperature_controls/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
@@ -1028,6 +1224,15 @@ class APIManager:
             }
             self.smart_home.save_config()
             
+            # Log admin user creation
+            self.management_logger.log_user_change(
+                username=session.get('username', 'unknown'),
+                action='add',
+                target_user=username,
+                ip_address=request.remote_addr,
+                details={'email': email, 'role': role}
+            )
+            
             return jsonify({
                 'status': 'success', 
                 'message': 'Użytkownik został dodany pomyślnie!',
@@ -1146,6 +1351,15 @@ class APIManager:
                     self.socketio.emit('update_automations', self.smart_home.automations)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                    
+                    # Log automation addition
+                    self.management_logger.log_automation_change(
+                        username=session.get('username', 'unknown'),
+                        action='add',
+                        automation_name=new_automation['name'],
+                        ip_address=request.remote_addr
+                    )
+                    
                     return jsonify({"status": "success"})
             except Exception as e:
                 print(f"[ERROR] manage_automations: {e}")
@@ -1174,7 +1388,17 @@ class APIManager:
                         self.socketio.emit('update_automations', self.smart_home.automations)
                         if not self.smart_home.save_config():
                             return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                        
+                        # Log automation edit
+                        self.management_logger.log_automation_change(
+                            username=session.get('username', 'unknown'),
+                            action='edit',
+                            automation_name=updated_automation['name'],
+                            ip_address=request.remote_addr
+                        )
+                        
                         return jsonify({"status": "success"})
+<<<<<<< HEAD
                     return jsonify({"status": "error", "message": "Automatyzacja nie została znaleziona"}), 404
                     
                 elif request.method == 'DELETE':
@@ -1188,13 +1412,36 @@ class APIManager:
             except Exception as e:
                 print(f"[ERROR] modify_automation: {e}")
                 return jsonify({"status": "error", "message": f"Błąd serwera: {str(e)}"}), 500
+=======
+                    return jsonify({"status": "error", "message": "Invalid data"}), 400
+                return jsonify({"status": "error", "message": "Automation not found"}), 404
+            elif request.method == 'DELETE':
+                if 0 <= index < len(self.smart_home.automations):
+                    automation_name = self.smart_home.automations[index].get('name', 'unknown')
+                    del self.smart_home.automations[index]
+                    self.socketio.emit('update_automations', self.smart_home.automations)
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
+                    
+                    # Log automation deletion
+                    self.management_logger.log_automation_change(
+                        username=session.get('username', 'unknown'),
+                        action='delete',
+                        automation_name=automation_name,
+                        ip_address=request.remote_addr
+                    )
+                    
+                    return jsonify({"status": "success"})
+                return jsonify({"status": "error", "message": "Automation not found"}), 404
+>>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
 
 
 class SocketManager:
     """Klasa zarządzająca obsługą WebSocket"""
-    def __init__(self, socketio, smart_home):
+    def __init__(self, socketio, smart_home, management_logger=None):
         self.socketio = socketio
         self.smart_home = smart_home
+        self.management_logger = management_logger or ManagementLogger()
         self.register_handlers()
 
     def register_handlers(self):
@@ -1238,6 +1485,16 @@ class SocketManager:
                     button['state'] = state
                     self.socketio.emit('update_button', {'room': room, 'name': button_name, 'state': state})
                     self.socketio.emit('sync_button_states', {f"{b['room']}_{b['name']}": b['state'] for b in self.smart_home.buttons})
+                    
+                    # Log button state change
+                    from flask import request
+                    self.management_logger.log_button_change(
+                        username=session.get('username', 'unknown'),
+                        room=room,
+                        button_name=button_name,
+                        new_state=state,
+                        ip_address=getattr(request, 'remote_addr', 'unknown')
+                    )
                     
                     # Zapisz konfigurację z obsługą błędów
                     if not self.smart_home.save_config():
