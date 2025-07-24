@@ -15,14 +15,15 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None, management_logger=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None, management_logger=None, cached_data_access=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.mail_manager = mail_manager
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
-        self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
+        # Use injected cached_data_access if provided, else fallback
+        self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
         # Initialize management logger
         self.management_logger = management_logger or ManagementLogger()
         self.register_routes()
@@ -81,7 +82,16 @@ class RoutesManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def edit():
-            return render_template('edit.html')
+            # Use cached data for performance
+            rooms = self.cached_data.get_rooms() if self.cached_data else self.smart_home.rooms
+            buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
+            temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
+            return render_template(
+                'edit.html',
+                rooms=rooms,
+                buttons=buttons,
+                temperature_controls=temperature_controls
+            )
 
         @self.app.route('/admin_dashboard', methods=['GET', 'POST'])
         @self.auth_manager.login_required

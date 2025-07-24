@@ -22,6 +22,9 @@ from typing import Dict, List, Optional, Tuple, Any
 from utils.smart_home_db_manager import SmartHomeDatabaseManager, DatabaseError
 
 class SmartHomeSystemDB:
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """Get user by ID (compatible method)"""
+        return self.db.get_user_by_id(user_id)
     """
     SmartHome System with PostgreSQL Database Backend
     
