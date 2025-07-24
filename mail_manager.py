@@ -177,8 +177,10 @@ class MailManager:
         del self.verification_codes[email]
         return True, "Kod weryfikacyjny poprawny"
     
-    def send_verification_email(self, email, code):
+    def send_verification_email(self, email: str, code: str):
         """Wysyła email z kodem weryfikacyjnym"""
+        email = email or ""
+        code = code or ""
         try:
             # Sprawdź czy mamy pełną konfigurację SMTP
             smtp = self.smtp_config
@@ -188,7 +190,7 @@ class MailManager:
                 return False
 
             message = MIMEMultipart()
-            message['From'] = self.config['sender_email']
+            message['From'] = self.config['sender_email'] or ""
             message['To'] = email
             message['Subject'] = '🔐 SmartHome - Kod weryfikacyjny rejestracji'
 
@@ -220,7 +222,7 @@ class MailManager:
                 server.starttls()
                 server.ehlo()
                 server.login(smtp['username'], smtp['password'])
-                server.sendmail(self.config['sender_email'], email, message.as_string())
+                server.sendmail(self.config['sender_email'] or "", email, message.as_string())
 
             print(f"[VERIFICATION] Wysłano kod weryfikacyjny na {email}")
             return True
@@ -231,8 +233,10 @@ class MailManager:
             print(f"[VERIFICATION] Błąd wysyłania kodu na {email}: {str(e)}")
             return False
 
-    def send_password_reset_email(self, email, code):
+    def send_password_reset_email(self, email: str, code: str):
         """Wysyła email z kodem resetowania hasła"""
+        email = email or ""
+        code = code or ""
         try:
             # Sprawdź czy mamy pełną konfigurację SMTP
             smtp = self.smtp_config
@@ -242,7 +246,7 @@ class MailManager:
                 return False
 
             message = MIMEMultipart()
-            message['From'] = self.config['sender_email']
+            message['From'] = self.config['sender_email'] or ""
             message['To'] = email
             message['Subject'] = '🔑 SmartHome - Resetowanie hasła'
 
@@ -276,7 +280,7 @@ class MailManager:
                 server.starttls()
                 server.ehlo()
                 server.login(smtp['username'], smtp['password'])
-                server.sendmail(self.config['sender_email'], email, message.as_string())
+                server.sendmail(self.config['sender_email'] or "", email, message.as_string())
 
             print(f"[PASSWORD_RESET] Wysłano kod resetowania hasła na {email}")
             return True
@@ -292,12 +296,14 @@ class MailManager:
         except Exception as e:
             print(f"[PASSWORD_RESET] Błąd wysyłania kodu na {email}: {str(e)}")
             return False
-    def send_security_alert(self, event_type, details):
+    def send_security_alert(self, event_type: str, details: str):
         """Wysyła alert przez SMTP do admina i dodatkowych odbiorców"""
+        event_type = event_type or ""
+        details = details or ""
         try:
             # Przygotowanie wiadomości
             message = MIMEMultipart()
-            message['From'] = self.config['sender_email']
+            message['From'] = self.config['sender_email'] or ""
             message['Subject'] = self._prepare_subject(event_type)
             html = self._prepare_body(event_type, details)
             message.attach(MIMEText(html, 'html'))
@@ -323,7 +329,7 @@ class MailManager:
                 print(f"[MAIL DEBUG] Przygotowuję e-mail do: {email}")
                 # Tworzymy nowy obiekt wiadomości dla każdego odbiorcy, aby nie duplikować nagłówków
                 msg = MIMEMultipart()
-                msg['From'] = self.config['sender_email']
+                msg['From'] = self.config['sender_email'] or ""
                 msg['To'] = email
                 msg['Subject'] = message['Subject']
                 for part in message.get_payload():
@@ -332,7 +338,7 @@ class MailManager:
                     server.starttls()
                     server.login(self.smtp_config['username'], self.smtp_config['password'])
                     print(f"[MAIL DEBUG] Wysyłam e-mail do: {email}")
-                    server.sendmail(self.config['sender_email'], email, msg.as_string())
+                    server.sendmail(self.config['sender_email'] or "", email, msg.as_string())
                     print(f"Wysłano e-mail na {email}")
             print("[MAIL DEBUG] Wysyłka zakończona.")
             return True
@@ -411,5 +417,5 @@ class MailManager:
                 'attempt_count': self.failed_attempts[ip_address]['count'],
                 'time_since_first_attempt': now - self.failed_attempts[ip_address]['last_attempt']
             }
-            return self.send_security_alert('failed_login', details)
+            return self.send_security_alert('failed_login', str(details))
         return False

@@ -57,59 +57,6 @@ class RoutesManager:
         @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def settings():
-            if request.method == 'POST':
-                # Handle admin user creation
-                if session.get('role') == 'admin':
-                    username = request.form.get('username', '').strip()
-                    email = request.form.get('email', '').strip()
-                    password = request.form.get('password', '')
-                    role = request.form.get('role', 'user')
-                    
-                    # Basic validation
-                    if not username or len(username) < 3:
-                        flash('Nazwa użytkownika musi mieć co najmniej 3 znaki.', 'error')
-                        return redirect(url_for('settings'))
-                    
-                    if not email or '@' not in email:
-                        flash('Podaj poprawny adres email.', 'error')
-                        return redirect(url_for('settings'))
-                    
-                    if not password or len(password) < 6:
-                        flash('Hasło musi mieć co najmniej 6 znaków.', 'error')
-                        return redirect(url_for('settings'))
-                    
-                    if role not in ['user', 'admin']:
-                        flash('Nieprawidłowa rola użytkownika.', 'error')
-                        return redirect(url_for('settings'))
-                    
-                    # Check if user already exists
-                    for user in self.smart_home.users.values():
-                        if user.get('name') == username:
-                            flash('Użytkownik już istnieje.', 'error')
-                            return redirect(url_for('settings'))
-                        if user.get('email') == email:
-                            flash('Adres email jest już używany.', 'error')
-                            return redirect(url_for('settings'))
-                    
-                    # Create user
-                    from werkzeug.security import generate_password_hash
-                    
-                    user_id = str(uuid.uuid4())
-                    self.smart_home.users[user_id] = {
-                        'name': username,
-                        'password': generate_password_hash(password),
-                        'role': role,
-                        'email': email,
-                        'profile_picture': ''
-                    }
-                    self.smart_home.save_config()
-                    
-                    flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
-                    return redirect(url_for('settings'))
-                else:
-                    flash('Brak uprawnień administratora.', 'error')
-                    return redirect(url_for('settings'))
-            
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             return render_template('settings.html', user_data=user_data)
 
@@ -134,10 +81,60 @@ class RoutesManager:
         def edit():
             return render_template('edit.html')
 
-        @self.app.route('/admin_dashboard')
+        @self.app.route('/admin_dashboard', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def admin_dashboard():
+            if request.method == 'POST':
+                # Handle admin user creation
+                username = request.form.get('username', '').strip()
+                email = request.form.get('email', '').strip()
+                password = request.form.get('password', '')
+                role = request.form.get('role', 'user')
+                
+                # Basic validation
+                if not username or len(username) < 3:
+                    flash('Nazwa użytkownika musi mieć co najmniej 3 znaki.', 'error')
+                    return redirect(url_for('admin_dashboard'))
+                
+                if not email or '@' not in email:
+                    flash('Podaj poprawny adres email.', 'error')
+                    return redirect(url_for('admin_dashboard'))
+                
+                if not password or len(password) < 6:
+                    flash('Hasło musi mieć co najmniej 6 znaków.', 'error')
+                    return redirect(url_for('admin_dashboard'))
+                
+                if role not in ['user', 'admin']:
+                    flash('Nieprawidłowa rola użytkownika.', 'error')
+                    return redirect(url_for('admin_dashboard'))
+                
+                # Check if user already exists
+                for user in self.smart_home.users.values():
+                    if user.get('name') == username:
+                        flash('Użytkownik już istnieje.', 'error')
+                        return redirect(url_for('admin_dashboard'))
+                    if user.get('email') == email:
+                        flash('Adres email jest już używany.', 'error')
+                        return redirect(url_for('admin_dashboard'))
+                
+                # Create user
+                import uuid
+                from werkzeug.security import generate_password_hash
+                
+                user_id = str(uuid.uuid4())
+                self.smart_home.users[user_id] = {
+                    'name': username,
+                    'password': generate_password_hash(password),
+                    'role': role,
+                    'email': email,
+                    'profile_picture': ''
+                }
+                self.smart_home.save_config()
+                
+                flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                return redirect(url_for('admin_dashboard'))
+            
             # Przygotowanie statystyk dla dashboardu
             stats = self._generate_dashboard_stats()
             device_states = self._get_device_states()
@@ -302,7 +299,7 @@ class RoutesManager:
                         username=user['name'],
                         action=action,
                         target_user=user['name'],
-                        ip_address=request.remote_addr,
+                        ip_address=request.remote_addr or "",
                         details={'fields_updated': list(updates.keys())}
                     )
                     
@@ -328,7 +325,7 @@ class RoutesManager:
                 user_id, user = self.smart_home.get_user_by_login(session['username'])
                 if not user:
                     return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-                filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
+                filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename or '')[1]}")
                 profile_pictures_dir = os.path.join(self.app.static_folder, 'profile_pictures')
                 if not os.path.exists(profile_pictures_dir):
                     os.makedirs(profile_pictures_dir)
@@ -521,7 +518,7 @@ class RoutesManager:
             username=username, 
             action='register', 
             target_user=username,
-            ip_address=request.remote_addr,
+            ip_address=request.remote_addr or "",
             details={'email': email}
         )
         
@@ -660,73 +657,19 @@ class APIManager:
         @self.app.route('/api/rooms', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_rooms():
-            try:
-                self.smart_home.check_and_save()
-                self.smart_home.validate_and_fix_data()  # Ensure data integrity
-                
-                print(f"[DEBUG] manage_rooms: Method={request.method}")
-                print(f"[DEBUG] manage_rooms: smart_home.rooms type={type(self.smart_home.rooms)}")
-                print(f"[DEBUG] manage_rooms: smart_home.rooms value={self.smart_home.rooms}")
-                
-                if request.method == 'GET':
-                    # Use cached data if available
-                    if self.cached_data:
-                        rooms = self.cached_data.get_rooms()
-                    else:
-                        rooms = self.smart_home.rooms
-                    
-                    # Ensure we only return string rooms
-                    if isinstance(rooms, list):
-                        rooms = [room for room in rooms if isinstance(room, str)]
-                    else:
-                        rooms = []
-                    
-                    return jsonify(rooms)
-                elif request.method == 'POST':
-                    if session.get('role') != 'admin':
-                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                    
-                    data = request.get_json()
-                    if not data:
-                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
-                    
-                    new_room = data.get('room')
-                    if not new_room or not new_room.strip():
-                        return jsonify({"status": "error", "message": "Nazwa pokoju nie może być pusta"}), 400
-                    
-                    new_room = new_room.strip()
-                    
-                    print(f"[DEBUG] manage_rooms POST: new_room='{new_room}'")
-                    print(f"[DEBUG] manage_rooms POST: smart_home.rooms type={type(self.smart_home.rooms)}")
-                    print(f"[DEBUG] manage_rooms POST: smart_home.rooms value={self.smart_home.rooms}")
-                    
-                    # Ensure rooms is a list and contains only strings
-                    if not isinstance(self.smart_home.rooms, list):
-                        print(f"[DEBUG] manage_rooms POST: Converting rooms to list, was {type(self.smart_home.rooms)}")
-                        self.smart_home.rooms = []
-                    
-                    # Filter out non-string elements and check for duplicates
-                    existing_rooms = [room for room in self.smart_home.rooms if isinstance(room, str)]
-                    print(f"[DEBUG] manage_rooms POST: existing_rooms={existing_rooms}")
-                    
-                    try:
-                        room_lower_list = [room.lower() for room in existing_rooms]
-                        print(f"[DEBUG] manage_rooms POST: room_lower_list={room_lower_list}")
-                        print(f"[DEBUG] manage_rooms POST: new_room.lower()='{new_room.lower()}'")
-                        
-                        if new_room.lower() not in room_lower_list:
-                            print(f"[DEBUG] manage_rooms POST: Room not found, adding...")
-                        else:
-                            print(f"[DEBUG] manage_rooms POST: Room already exists!")
-                            return jsonify({"status": "error", "message": "Pokój już istnieje"}), 400
-                    except Exception as comparison_error:
-                        print(f"[ERROR] manage_rooms POST comparison: {comparison_error}")
-                        print(f"[ERROR] existing_rooms content: {existing_rooms}")
-                        print(f"[ERROR] types in existing_rooms: {[type(room) for room in existing_rooms]}")
-                        return jsonify({"status": "error", "message": f"Błąd porównania: {str(comparison_error)}"}), 500
-                    
-                    # Room doesn't exist, add it
-                    print(f"[DEBUG] manage_rooms POST: Room not found, adding...")
+            self.smart_home.check_and_save()
+            if request.method == 'GET':
+                # Use cached data if available
+                if self.cached_data:
+                    rooms = self.cached_data.get_rooms()
+                else:
+                    rooms = self.smart_home.rooms
+                return jsonify(rooms)
+            elif request.method == 'POST':
+                if session.get('role') != 'admin':
+                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                new_room = request.json.get('room')
+                if new_room and new_room.lower() not in [room.lower() for room in self.smart_home.rooms]:
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     if not self.smart_home.save_config():
@@ -737,12 +680,14 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='add',
                         room_name=new_room,
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     # Invalidate cache after modification
                     if self.cached_data:
-                        self.cached_data.invalidate_rooms_cache()
+                        invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                        if callable(invalidate):
+                            invalidate()
                     return jsonify({"status": "success"})
             except Exception as e:
                 print(f"[ERROR] manage_rooms: {e}")
@@ -781,12 +726,14 @@ class APIManager:
                     username=session.get('username', 'unknown'),
                     action='delete',
                     room_name=room,
-                    ip_address=request.remote_addr
+                    ip_address=request.remote_addr or ""
                 )
                 
                 # Invalidate cache after modification
                 if self.cached_data:
-                    self.cached_data.invalidate_rooms_cache()
+                    invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                    if callable(invalidate):
+                        invalidate()
                 return jsonify({"status": "success"})
             except Exception as e:
                 print(f"[ERROR] delete_room: {e}")
@@ -870,7 +817,7 @@ class APIManager:
                 username=session.get('username', 'unknown'),
                 action='rename',
                 room_name=new_name,
-                ip_address=request.remote_addr,
+                ip_address=request.remote_addr or "",
                 old_name=old_name
             )
             
@@ -981,24 +928,19 @@ class APIManager:
         @self.app.route('/api/buttons', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_buttons():
-            try:
-                self.smart_home.check_and_save()
-                if request.method == 'GET':
-                    # Use cached data if available
-                    if self.cached_data:
-                        buttons = self.cached_data.get_buttons()
-                    else:
-                        buttons = self.smart_home.buttons
-                    return jsonify(buttons)
-                elif request.method == 'POST':
-                    if session.get('role') != 'admin':
-                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                    
-                    data = request.get_json()
-                    if not data:
-                        return jsonify({"status": "error", "message": "Brak danych JSON"}), 400
-                    
-                    new_button = data
+            self.smart_home.check_and_save()
+            if request.method == 'GET':
+                # Use cached data if available
+                if self.cached_data:
+                    buttons = self.cached_data.get_buttons()
+                else:
+                    buttons = self.smart_home.buttons
+                return jsonify(buttons)
+            elif request.method == 'POST':
+                if session.get('role') != 'admin':
+                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                new_button = request.json
+                if new_button:
                     if 'id' not in new_button:
                         new_button['id'] = str(uuid.uuid4())
                     new_button['state'] = False
@@ -1229,7 +1171,7 @@ class APIManager:
                 username=session.get('username', 'unknown'),
                 action='add',
                 target_user=username,
-                ip_address=request.remote_addr,
+                ip_address=request.remote_addr or "",
                 details={'email': email, 'role': role}
             )
             
@@ -1357,7 +1299,7 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='add',
                         automation_name=new_automation['name'],
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     return jsonify({"status": "success"})
@@ -1394,7 +1336,7 @@ class APIManager:
                             username=session.get('username', 'unknown'),
                             action='edit',
                             automation_name=updated_automation['name'],
-                            ip_address=request.remote_addr
+                            ip_address=request.remote_addr or ""
                         )
                         
                         return jsonify({"status": "success"})
@@ -1428,7 +1370,7 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='delete',
                         automation_name=automation_name,
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     return jsonify({"status": "success"})
@@ -1455,7 +1397,7 @@ class SocketManager:
 
         @self.socketio.on('disconnect')
         def handle_disconnect():
-            print(f'Klient {request.sid} rozłączony. Powód: {request.args.get("error")}')
+            print(f'Klient {getattr(request, "sid", "?")} rozłączony. Powód: {getattr(getattr(request, "args", None), "get", lambda x: None)("error")}')
 
         @self.socketio.on('set_security_state')
         def handle_set_security_state(data):
@@ -1488,7 +1430,9 @@ class SocketManager:
                     
                     # Log button state change
                     from flask import request
-                    self.management_logger.log_button_change(
+                    log_btn = getattr(self.management_logger, 'log_button_change', None)
+                    if callable(log_btn):
+                        log_btn(
                         username=session.get('username', 'unknown'),
                         room=room,
                         button_name=button_name,

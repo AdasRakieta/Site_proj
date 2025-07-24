@@ -506,15 +506,18 @@ class BackgroundTaskManager:
             task: Task dictionary with function and parameters
         """
         try:
-            future = self.executor.submit(
-                self._execute_task, 
-                task['func'], 
-                *task['args'], 
-                **task['kwargs']
-            )
-            
-            # Add callback to handle task completion
-            future.add_done_callback(lambda f: self._task_completed(f, task))
+            if self.executor is not None:
+                # submit(self._execute_task, func, *args, **kwargs)
+                future = self.executor.submit(
+                    self._execute_task,
+                    task['func'],
+                    *task.get('args', []),
+                    **task.get('kwargs', {})
+                )
+                future.add_done_callback(lambda f: self._task_completed(f, task))
+                return future
+            else:
+                raise RuntimeError("Executor is not initialized")
             
         except Exception as e:
             logger.error(f"Error submitting background task: {e}")

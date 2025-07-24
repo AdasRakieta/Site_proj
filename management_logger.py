@@ -80,21 +80,16 @@ class ManagementLogger:
         """
         with self._lock:
             logs = self._load_logs()
-            
             log_entry = {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'level': level,
                 'message': message,
                 'event_type': event_type,
-                'user': user,
-                'ip_address': ip_address,
-                'details': details or {}
+                'user': user or "",
+                'ip_address': ip_address or "",
+                'details': details if details is not None else {}
             }
-            
-            # Add to beginning of logs (most recent first)
             logs.insert(0, log_entry)
-            
-            # Limit log size
             if len(logs) > self.max_logs:
                 logs = logs[:self.max_logs]
             
@@ -135,7 +130,7 @@ class ManagementLogger:
         with self._lock:
             self._save_logs([])
     
-    def delete_logs_by_date_range(self, start_date: str = None, end_date: str = None) -> int:
+    def delete_logs_by_date_range(self, start_date: str = "", end_date: str = "") -> int:
         """
         Delete logs within a specific date range
         
@@ -236,21 +231,14 @@ class ManagementLogger:
                           'failed_login', username, ip_address)
     
     def log_logout(self, username: str, ip_address: str):
-        """Log a logout"""
-        self.log_event('info', f'Użytkownik {username} wylogował się', 
-                      'logout', username, ip_address)
-    
-    def log_button_change(self, username: str, room: str, button_name: str, 
-                         new_state: bool, ip_address: str):
-        """Log a button state change"""
-        state_text = 'włączony' if new_state else 'wyłączony'
-        self.log_event('info', f'Przycisk {button_name} w pokoju {room} został {state_text}', 
-                      'button_change', username, ip_address, 
-                      {'room': room, 'button': button_name, 'state': new_state})
+        self.log_event('info', f'Użytkownik {username or ""} wylogował się', 'logout', username or '', ip_address or '')
     
     def log_room_change(self, username: str, action: str, room_name: str, 
-                       ip_address: str, old_name: str = None):
+                       ip_address: str = "", old_name: str = ""):
         """Log a room change"""
+        ip_address = ip_address or ""
+        if old_name is None:
+            old_name = ""
         if action == 'add':
             message = f'Dodano nowy pokój: {room_name}'
         elif action == 'delete':
@@ -259,13 +247,13 @@ class ManagementLogger:
             message = f'Zmieniono nazwę pokoju z {old_name} na {room_name}'
         else:
             message = f'Zmodyfikowano pokój: {room_name}'
-        
         self.log_event('info', message, 'room_change', username, ip_address,
                       {'action': action, 'room': room_name, 'old_name': old_name})
     
     def log_automation_change(self, username: str, action: str, automation_name: str, 
-                             ip_address: str):
+                             ip_address: str = ""):
         """Log an automation change"""
+        ip_address = ip_address or ""
         if action == 'add':
             message = f'Dodano nową automatyzację: {automation_name}'
         elif action == 'delete':
@@ -283,8 +271,11 @@ class ManagementLogger:
                       {'action': action, 'automation': automation_name})
     
     def log_user_change(self, username: str, action: str, target_user: str, 
-                       ip_address: str, details: Dict = None):
+                       ip_address: str = "", details: Dict = {}):
+        if details is None:
+            details = {}
         """Log a user data change"""
+        ip_address = ip_address or ""
         if action == 'register':
             message = f'Nowy użytkownik zarejestrował się: {target_user}'
         elif action == 'add':

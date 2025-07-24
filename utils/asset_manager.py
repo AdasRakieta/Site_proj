@@ -159,42 +159,57 @@ class AssetManager:
         """
         if not self.cssmin_available:
             logger.error("cssmin not available for CSS minification")
-            return False, AssetStats(0, 0, 0.0, 0)
+            # Fallback: copy original file as minified
+            try:
+                with open(css_file, 'r', encoding='utf-8') as f:
+                    original_content = f.read()
+                min_dir = css_file.parent / 'min'
+                min_dir.mkdir(exist_ok=True)
+                minified_file = min_dir / f"{css_file.stem}.min.css"
+                with open(minified_file, 'w', encoding='utf-8') as f:
+                    f.write(original_content)
+                original_size = len(original_content)
+                stats = AssetStats(
+                    original_size=original_size,
+                    minified_size=original_size,
+                    compression_ratio=0.0,
+                    files_processed=1
+                )
+                logger.info(f"  {css_file.name}: {original_size} → {original_size} bytes (no minification)")
+                return True, stats
+            except Exception as e:
+                logger.error(f"Failed to fallback-copy CSS {css_file.name}: {e}")
+                return False, AssetStats(0, 0, 0.0, 0)
         
         try:
             logger.info(f"Minifying CSS: {css_file.name}")
-            
             # Read original file
             with open(css_file, 'r', encoding='utf-8') as f:
                 original_content = f.read()
-            
             # Minify content
-            minified_content = cssmin(original_content)
-            
+            if cssmin is not None:
+                minified_content = cssmin(original_content)
+            else:
+                minified_content = original_content
             # Create minified directory and filename
             min_dir = css_file.parent / 'min'
             min_dir.mkdir(exist_ok=True)
             minified_file = min_dir / f"{css_file.stem}.min.css"
-            
             # Write minified file
             with open(minified_file, 'w', encoding='utf-8') as f:
                 f.write(minified_content)
-            
             # Calculate statistics
             original_size = len(original_content)
             minified_size = len(minified_content)
             compression_ratio = (1 - minified_size / original_size) * 100 if original_size > 0 else 0
-            
             stats = AssetStats(
                 original_size=original_size,
                 minified_size=minified_size,
                 compression_ratio=compression_ratio,
                 files_processed=1
             )
-            
             logger.info(f"  {css_file.name}: {original_size} → {minified_size} bytes ({compression_ratio:.1f}% reduction)")
             return True, stats
-            
         except Exception as e:
             logger.error(f"Failed to minify CSS {css_file.name}: {e}")
             return False, AssetStats(0, 0, 0.0, 0)
@@ -211,47 +226,61 @@ class AssetManager:
         """
         if not self.jsmin_available:
             logger.error("jsmin not available for JS minification")
-            return False, AssetStats(0, 0, 0.0, 0)
+            # Fallback: copy original file as minified
+            try:
+                with open(js_file, 'r', encoding='utf-8') as f:
+                    original_content = f.read()
+                min_dir = js_file.parent / 'min'
+                min_dir.mkdir(exist_ok=True)
+                minified_file = min_dir / f"{js_file.stem}.min.js"
+                with open(minified_file, 'w', encoding='utf-8') as f:
+                    f.write(original_content)
+                original_size = len(original_content)
+                stats = AssetStats(
+                    original_size=original_size,
+                    minified_size=original_size,
+                    compression_ratio=0.0,
+                    files_processed=1
+                )
+                logger.info(f"  {js_file.name}: {original_size} → {original_size} bytes (no minification)")
+                return True, stats
+            except Exception as e:
+                logger.error(f"Failed to fallback-copy JS {js_file.name}: {e}")
+                return False, AssetStats(0, 0, 0.0, 0)
         
         try:
             logger.info(f"Minifying JS: {js_file.name}")
-            
             # Read original file
             with open(js_file, 'r', encoding='utf-8') as f:
                 original_content = f.read()
-            
             # Minify content with error handling
-            try:
-                minified_content = jsmin(original_content)
-            except Exception as e:
-                logger.warning(f"JS minification failed for {js_file.name}: {e}")
-                # If minification fails, copy original content
+            if jsmin is not None:
+                try:
+                    minified_content = jsmin(original_content)
+                except Exception as e:
+                    logger.warning(f"JS minification failed for {js_file.name}: {e}")
+                    minified_content = original_content
+            else:
                 minified_content = original_content
-            
             # Create minified directory and filename
             min_dir = js_file.parent / 'min'
             min_dir.mkdir(exist_ok=True)
             minified_file = min_dir / f"{js_file.stem}.min.js"
-            
             # Write minified file
             with open(minified_file, 'w', encoding='utf-8') as f:
                 f.write(minified_content)
-            
             # Calculate statistics
             original_size = len(original_content)
             minified_size = len(minified_content)
             compression_ratio = (1 - minified_size / original_size) * 100 if original_size > 0 else 0
-            
             stats = AssetStats(
                 original_size=original_size,
                 minified_size=minified_size,
                 compression_ratio=compression_ratio,
                 files_processed=1
             )
-            
             logger.info(f"  {js_file.name}: {original_size} → {minified_size} bytes ({compression_ratio:.1f}% reduction)")
             return True, stats
-            
         except Exception as e:
             logger.error(f"Failed to minify JS {js_file.name}: {e}")
             return False, AssetStats(0, 0, 0.0, 0)
@@ -436,61 +465,62 @@ def minified_url_for_helper(app):
     return minified_url_for
 
 
+
 # Define AssetWatcher conditionally based on availability
 if WATCHDOG_AVAILABLE:
     from watchdog.events import FileSystemEventHandler
-    
+
     class AssetWatcher(FileSystemEventHandler):
         """
         File system watcher for automatic asset minification during development
-        
+
         Watches for changes to CSS and JS files and automatically triggers
         minification when files are modified.
         """
-        
+
         def __init__(self, asset_manager: AssetManager):
             """
             Initialize asset watcher
-            
+
             Args:
                 asset_manager: AssetManager instance for processing files
             """
             self.asset_manager = asset_manager
             self.last_processed = {}
-        
+
         def on_modified(self, event):
             """
             Handle file modification events
-            
+
             Args:
                 event: File system event
             """
             if event.is_directory:
                 return
-            
+
             file_path = Path(event.src_path)
-            
+
             # Check if it's a CSS or JS file (but not minified)
-            if (file_path.suffix in ['.css', '.js'] and 
-                not file_path.name.endswith('.min.css') and 
+            if (file_path.suffix in ['.css', '.js'] and
+                not file_path.name.endswith('.min.css') and
                 not file_path.name.endswith('.min.js')):
-                
+
                 # Debounce rapid file changes
                 now = time.time()
                 if file_path in self.last_processed:
                     if now - self.last_processed[file_path] < 1.0:  # 1 second debounce
                         return
-                
+
                 self.last_processed[file_path] = now
-                
+
                 logger.info(f"Detected change in {file_path.name}, reprocessing...")
-                
+
                 # Process the changed file
                 if file_path.suffix == '.css':
                     success, stats = self.asset_manager.minify_css_file(file_path)
                 else:  # .js
                     success, stats = self.asset_manager.minify_js_file(file_path)
-                
+
                 if success:
                     logger.info(f"Successfully reprocessed {file_path.name}")
                 else:
@@ -498,7 +528,7 @@ if WATCHDOG_AVAILABLE:
 
 else:
     # Dummy class when watchdog is not available
-    class AssetWatcher:
+    class DummyAssetWatcher:
         def __init__(self, asset_manager):
             raise ImportError("watchdog package required for file watching functionality")
 

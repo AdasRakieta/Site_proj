@@ -110,8 +110,14 @@ class CacheManager:
             @wraps(f)
             def decorated_function(*args, **kwargs):
                 # Create cache key based on endpoint, args, and user
-                user_id = session.get('user_id', 'anonymous')
-                cache_key = f"api_{f.__name__}_{user_id}_{request.method}_{args}_{request.args.to_dict()}"
+                user_id = (session or {}).get('user_id', 'anonymous')
+                # Convert args dict to string to make it hashable
+                req_args = getattr(getattr(request, 'args', None), 'to_dict', lambda :{})()
+                if isinstance(req_args, dict):
+                    req_args_str = '&'.join(f"{k}={v}" for k, v in sorted(req_args.items()))
+                else:
+                    req_args_str = str(req_args)
+                cache_key = f"api_{f.__name__}_{user_id}_{getattr(request, 'method', '')}_{args}_{req_args_str}"
                 
                 # Try to get from cache
                 cached_response = self.cache.get(cache_key)
@@ -123,7 +129,7 @@ class CacheManager:
                 response = f(*args, **kwargs)
                 
                 # Only cache successful GET responses
-                if request.method == 'GET' and hasattr(response, 'status_code') and response.status_code == 200:
+                if getattr(request, 'method', None) == 'GET' and hasattr(response, 'status_code') and response.status_code == 200:
                     self.cache.set(cache_key, response, timeout=timeout)
                     logger.debug(f"Cached response for {cache_key}")
                 

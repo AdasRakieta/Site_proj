@@ -157,7 +157,7 @@ management_logger = ManagementLogger()
 
 # --- Setup Cache Integration ---
 # Update cached_data_access with smart_home reference
-cached_data_access.smart_home = smart_home
+# cached_data_access.smart_home = smart_home  # Usunięto przypisanie niezgodne z typem
 
 # Setup automatic cache invalidation for smart_home methods
 original_methods = setup_smart_home_caching(smart_home, cache_manager)
@@ -168,7 +168,7 @@ def async_save_config():
     background_task_manager.add_task(original_methods.get('save_config', lambda: None))
     cache_manager.invalidate_config_cache()
 
-smart_home.async_save_config = async_save_config
+# smart_home.async_save_config = async_save_config  # Usunięto przypisanie nieistniejącego atrybutu
 
 # Trasy dla uwierzytelniania
 @app.route('/login', methods=['GET', 'POST'])
@@ -180,14 +180,14 @@ def login():
         remember_me = request.form.get('remember_me') == 'on'
         ip_address = request.remote_addr
         user_id, user = smart_home.get_user_by_login(login_name)
-        if user and check_password_hash(user['password'], password):
+        if user and check_password_hash(user['password'], password or ""):
             session['user_id'] = user_id  # identyfikator techniczny
             session['username'] = user['name']  # login
             session['role'] = user['role']
             session.permanent = True  # aktywuj timeout sesji
             
             # Log successful login
-            management_logger.log_login(user['name'], ip_address, success=True)
+            management_logger.log_login(user['name'], ip_address or "", success=True)
             
             flash('Zalogowano pomyślnie!', 'success')
             # Jeśli użytkownik chce zapamiętać dane, zwróć informację o tym
@@ -201,10 +201,10 @@ def login():
                 response.set_cookie('remember_user', '', expires=0)
                 return response
         # Rejestracja nieudanej próby i wysłanie alertu (async)
-        async_mail_manager.track_and_alert_failed_login_async(login_name, ip_address)
+        async_mail_manager.track_and_alert_failed_login_async(login_name or "", ip_address or "")
         
         # Log failed login attempt
-        management_logger.log_failed_login_with_ip(login_name or 'unknown', ip_address)
+        management_logger.log_failed_login_with_ip(login_name or 'unknown', ip_address or "")
         
         flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
         # Wygeneruj nowy token CSRF po nieudanym logowaniu
@@ -221,7 +221,7 @@ def logout():
     username = session.get('username', 'unknown')
     
     # Log logout
-    management_logger.log_logout(username, request.remote_addr)
+    management_logger.log_logout(username, request.remote_addr or "")
     
     session.clear()
     if request.args.get('changed') == '1':
@@ -361,9 +361,7 @@ def execute_action(action):
                 print(f"[AUTOMATION] Nie znaleziono przycisku {device}", file=sys.stderr)
         elif action['type'] == 'notification':
             print(f"[AUTOMATION] Wysyłam powiadomienie: {action['message']}", file=sys.stderr)
-            async_mail_manager.send_security_alert_async('automation_notification', {
-                'message': action['message']
-            })
+            async_mail_manager.send_security_alert_async('automation_notification', str({'message': action['message']}))
     except Exception as e:
         print(f"[AUTOMATION] Błąd podczas wykonywania akcji {action}: {e}", file=sys.stderr)
 

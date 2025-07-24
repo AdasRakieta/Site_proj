@@ -22,31 +22,15 @@
     },
     "security_state": "Wyłączony",
     "rooms": [
-<<<<<<< HEAD
-        "d",
-        "pokój 1",
-        "dsadasd",
-        "dasd",
-        "dasdd",
-        "ada",
-        "dsa"
-    ],
-    "buttons": [
-        {
-            "name": "światło 1",
-            "room": "pokój 1",
-            "id": "a3925d2c-d73c-4d45-8e69-31a116f7ad21",
-=======
         "pok\u00f3j 1",
         "dsadasd",
         "ddd",
-        "ddddad",
         "dasd"
     ],
     "buttons": [
         {
-            "name": "sdasda",
-            "room": "pok\u00f3j 1",
+            "name": "sdasdadad",
+            "room": "pok�j 1",
             "id": "6f613d8c-6fe9-4d74-85a4-46057c7fe14c",
             "state": false
         },
@@ -54,7 +38,6 @@
             "name": "dasddasd",
             "room": "pok\u00f3j 1",
             "id": "1f9dbb04-65a3-43e1-94b8-2021d3d94324",
->>>>>>> 2821d35f3fbd01da02812ba815399b51861b72ba
             "state": false
         }
     ],

@@ -1,5 +1,27 @@
 [
   {
+    "timestamp": "2025-07-24 17:00:23",
+    "level": "info",
+    "message": "Usunięto pokój: ddddad",
+    "event_type": "room_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "delete",
+      "room": "ddddad",
+      "old_name": ""
+    }
+  },
+  {
+    "timestamp": "2025-07-24 17:00:16",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-24 12:52:41",
     "level": "info",
     "message": "Test log after improvements",
