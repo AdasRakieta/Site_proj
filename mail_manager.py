@@ -5,70 +5,37 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import socket
-import json
-import time
+
+
+# Nowa obsługa powiadomień i odbiorców przez bazę danych
 import random
 import string
-from dotenv import load_dotenv
-from cryptography.fernet import Fernet
+import time
+from utils.db_manager import (
+    get_notification_settings,
+    set_notification_settings,
+    get_notification_recipients,
+    set_notification_recipients
+)
 
-NOTIFICATIONS_SETTINGS_PATH = "notifications_settings.json"
-ENCRYPTED_RECIPIENTS_PATH = "notification_recipients.enc"
-FERNET_KEY_PATH = "notification_recipients.key"
+def get_notifications_settings(home_id=None):
+    """
+    Zwraca słownik z kluczem 'recipients' (lista odbiorców) oraz innymi ustawieniami z bazy.
+    """
+    settings = get_notification_settings(home_id)
+    recipients = get_notification_recipients(home_id)
+    return {"recipients": recipients, **settings}
 
-# Ładuje zmienne z email_conf.env (ścieżka względna/bezwzględna)
-load_dotenv('email_conf.env')  # Jeśli plik jest w głównym folderze
-
-def get_fernet():
-    if not os.path.exists(FERNET_KEY_PATH):
-        key = Fernet.generate_key()
-        with open(FERNET_KEY_PATH, "wb") as f:
-            f.write(key)
-    else:
-        with open(FERNET_KEY_PATH, "rb") as f:
-            key = f.read()
-    return Fernet(key)
-
-def get_notifications_settings():
-    settings = {"recipients": []}
-    if os.path.exists(NOTIFICATIONS_SETTINGS_PATH):
-        try:
-            with open(NOTIFICATIONS_SETTINGS_PATH, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-                if isinstance(loaded, dict):
-                    pass  # ignoruj pole enabled
-        except Exception as e:
-            print(f"[NOTIFY] Błąd odczytu settings.json: {e}")
-    recipients = []
-    if os.path.exists(ENCRYPTED_RECIPIENTS_PATH):
-        try:
-            fernet = get_fernet()
-            with open(ENCRYPTED_RECIPIENTS_PATH, "rb") as f:
-                encrypted = f.read()
-                if encrypted:
-                    decrypted = fernet.decrypt(encrypted).decode("utf-8")
-                    loaded_recipients = json.loads(decrypted)
-                    if isinstance(loaded_recipients, list):
-                        recipients = loaded_recipients
-        except Exception as e:
-            print(f"[NOTIFY] Błąd odczytu odbiorców: {e}")
-    settings["recipients"] = recipients
-    return settings
-
-def set_notifications_settings(settings):
+def set_notifications_settings(settings, home_id=None):
+    """
+    Zapisuje ustawienia i odbiorców do bazy.
+    """
     recipients = settings.get("recipients", [])
-    try:
-        with open(NOTIFICATIONS_SETTINGS_PATH, "w", encoding="utf-8") as f:
-            json.dump({}, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[NOTIFY] Błąd zapisu settings.json: {e}")
-    try:
-        fernet = get_fernet()
-        encrypted = fernet.encrypt(json.dumps(recipients, ensure_ascii=False).encode("utf-8"))
-        with open(ENCRYPTED_RECIPIENTS_PATH, "wb") as f:
-            f.write(encrypted)
-    except Exception as e:
-        print(f"[NOTIFY] Błąd zapisu odbiorców: {e}")
+    set_notification_recipients(recipients, home_id)
+    # Pozostałe ustawienia (jeśli są)
+    other_settings = {k: v for k, v in settings.items() if k != "recipients"}
+    if other_settings:
+        set_notification_settings(other_settings, home_id)
 
 class MailManager:
     def __init__(self):
