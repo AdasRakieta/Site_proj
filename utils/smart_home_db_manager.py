@@ -42,7 +42,7 @@ class SmartHomeDatabaseManager:
         self.db_config = db_config or {
             'host': os.getenv('DB_HOST', '192.168.1.219'),
             'port': os.getenv('DB_PORT', '5432'),
-            'dbname': os.getenv('DB_NAME', 'admin'),
+            'dbname': os.getenv('DB_NAME', 'admin'),  # ensure 'dbname' not 'database'
             'user': os.getenv('DB_USER', 'admin'),
             'password': os.getenv('DB_PASSWORD', 'Qwuizzy123.')
         }
@@ -67,12 +67,26 @@ class SmartHomeDatabaseManager:
     def _get_connection(self):
         """Get database connection"""
         try:
-            return psycopg2.connect(**self.db_config)
+            # Only allow valid psycopg2 keys
+            allowed_keys = {'host', 'port', 'dbname', 'user', 'password'}
+            filtered_config = {}
+            for k, v in self.db_config.items():
+                if k in allowed_keys:
+                    if k == 'port':
+                        try:
+                            filtered_config[k] = int(v)
+                        except Exception:
+                            filtered_config[k] = v
+                    else:
+                        filtered_config[k] = str(v)
+            return psycopg2.connect(**filtered_config)
         except Exception as e:
             logger.error(f"Failed to get database connection: {e}")
             raise DatabaseError(f"Database connection failed: {e}")
     
-    def _execute_query(self, query: str, params: tuple = None, fetch: str = None):
+    from typing import Optional
+
+    def _execute_query(self, query: str, params: Optional[tuple] = None, fetch: Optional[str] = None):
         """
         Execute database query with error handling
         
@@ -88,19 +102,20 @@ class SmartHomeDatabaseManager:
         try:
             conn = self._get_connection()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(query, params)
-                
+                if params is not None:
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
                 if fetch == 'one':
                     result = cur.fetchone()
                     return dict(result) if result else None
                 elif fetch == 'all':
                     results = cur.fetchall()
-                    return [dict(row) for row in results]
+                    return [dict(row) for row in results] if results else []
                 else:
                     # For INSERT/UPDATE/DELETE operations
                     conn.commit()
                     return cur.rowcount
-                    
         except Exception as e:
             if conn:
                 conn.rollback()
@@ -154,16 +169,15 @@ class SmartHomeDatabaseManager:
         
         user = self._execute_query(query, (user_id,), fetch='one')
         
-        if user:
+        if user and isinstance(user, dict):
             return {
-                'user_id': user['id'],
-                'name': user['name'],
-                'email': user['email'],
-                'password': user['password_hash'],
-                'role': user['role'],
-                'profile_picture': user['profile_picture']
+                'user_id': user.get('id'),
+                'name': user.get('name'),
+                'email': user.get('email'),
+                'password': user.get('password_hash'),
+                'role': user.get('role'),
+                'profile_picture': user.get('profile_picture')
             }
-        
         return None
     
     def get_user_by_login(self, login: str) -> Tuple[Optional[str], Optional[Dict]]:
@@ -176,16 +190,15 @@ class SmartHomeDatabaseManager:
         
         user = self._execute_query(query, (login,), fetch='one')
         
-        if user:
+        if user and isinstance(user, dict):
             user_dict = {
-                'name': user['name'],
-                'email': user['email'],
-                'password': user['password_hash'],
-                'role': user['role'],
-                'profile_picture': user['profile_picture']
+                'name': user.get('name'),
+                'email': user.get('email'),
+                'password': user.get('password_hash'),
+                'role': user.get('role'),
+                'profile_picture': user.get('profile_picture')
             }
-            return user['id'], user_dict
-        
+            return user.get('id'), user_dict
         return None, None
     
     def add_user(self, username: str, password: str, role: str = 'user', email: str = '') -> str:
@@ -206,33 +219,26 @@ class SmartHomeDatabaseManager:
             # Build dynamic UPDATE query
             set_clauses = []
             params = []
-            
             for key, value in updates.items():
                 if key in ['name', 'email', 'password', 'role', 'profile_picture']:
                     # Map 'password' to 'password_hash'
                     db_key = 'password_hash' if key == 'password' else key
                     set_clauses.append(f"{db_key} = %s")
                     params.append(value)
-            
             if not set_clauses:
                 return False, "No valid fields to update"
-            
             set_clauses.append("updated_at = NOW()")
             params.append(user_id)
-            
             query = f"""
                 UPDATE users 
                 SET {', '.join(set_clauses)}
                 WHERE id = %s
             """
-            
             rows_affected = self._execute_query(query, tuple(params))
-            
-            if rows_affected > 0:
+            if isinstance(rows_affected, int) and rows_affected > 0:
                 return True, "Profile updated successfully"
             else:
                 return False, "User not found"
-                
         except Exception as e:
             return False, f"Update failed: {str(e)}"
     
@@ -240,16 +246,16 @@ class SmartHomeDatabaseManager:
         """Delete user"""
         query = "DELETE FROM users WHERE id = %s"
         rows_affected = self._execute_query(query, (user_id,))
-        return rows_affected > 0
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     def verify_password(self, user_id: str, password: str) -> bool:
         """Verify user password using proper password hash checking"""
         from werkzeug.security import check_password_hash
         
         user = self.get_user_by_id(user_id)
-        if user and user.get('password'):
-            # Use proper password hash verification
-            return check_password_hash(user.get('password'), password)
+        pw_hash = user.get('password') if user and isinstance(user, dict) else None
+        if pw_hash and isinstance(pw_hash, str):
+            return check_password_hash(pw_hash, password)
         return False
     
     # ========================================================================
@@ -265,7 +271,7 @@ class SmartHomeDatabaseManager:
         """
         
         rooms = self._execute_query(query, fetch='all')
-        return [room['name'] for room in rooms]
+        return [str(room.get('name')) for room in (rooms or []) if isinstance(room, dict) and 'name' in room and room.get('name') is not None]
     
     def get_rooms_with_ids(self) -> List[Dict]:
         """Get all rooms with IDs"""
@@ -275,22 +281,22 @@ class SmartHomeDatabaseManager:
             ORDER BY display_order, name
         """
         
-        return self._execute_query(query, fetch='all')
+        result = self._execute_query(query, fetch='all')
+        return result if isinstance(result, list) else []
     
     def add_room(self, room_name: str) -> str:
         """Add new room and return room ID"""
         room_id = str(uuid.uuid4())
         
         # Get next display order
-        query_order = "SELECT COALESCE(MAX(display_order), 0) + 1 FROM rooms"
+        query_order = "SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM rooms"
         next_order = self._execute_query(query_order, fetch='one')
-        
+        order_value = next_order.get('next_order') if next_order and isinstance(next_order, dict) else 0
         query = """
             INSERT INTO rooms (id, name, display_order)
             VALUES (%s, %s, %s)
         """
-        
-        self._execute_query(query, (room_id, room_name, next_order['coalesce']))
+        self._execute_query(query, (room_id, room_name, order_value))
         return room_id
     
     def update_room(self, old_name: str, new_name: str) -> bool:
@@ -301,8 +307,8 @@ class SmartHomeDatabaseManager:
             WHERE name = %s
         """
         
-        rows_affected = self._execute_query(query, (new_name, old_name))
-        return rows_affected > 0
+        rows_affected = self._execute_query(query, (old_name, new_name))
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     def delete_room(self, room_name: str) -> bool:
         """Delete room and all associated devices"""
@@ -312,7 +318,7 @@ class SmartHomeDatabaseManager:
         """
         
         rows_affected = self._execute_query(query, (room_name,))
-        return rows_affected > 0
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     def reorder_rooms(self, room_names: List[str]) -> bool:
         """Reorder rooms based on provided list"""
@@ -354,14 +360,14 @@ class SmartHomeDatabaseManager:
         
         # Convert to original format
         result = []
-        for button in buttons:
-            result.append({
-                'id': button['id'],
-                'name': button['name'],
-                'room': button['room'],
-                'state': button['state']
-            })
-        
+        for button in (buttons or []):
+            if button and isinstance(button, dict):
+                result.append({
+                    'id': button.get('id'),
+                    'name': button.get('name'),
+                    'room': button.get('room'),
+                    'state': button.get('state')
+                })
         return result
     
     def get_temperature_controls(self) -> List[Dict]:
@@ -378,13 +384,19 @@ class SmartHomeDatabaseManager:
         
         # Convert to original format
         result = []
-        for control in controls:
-            result.append({
-                'id': control['id'],
-                'name': control['name'],
-                'room': control['room'],
-                'temperature': float(control['temperature'])
-            })
+        for control in (controls or []):
+            if control and isinstance(control, dict):
+                temp_val = control.get('temperature')
+                try:
+                    temp_float = float(temp_val) if temp_val is not None else None
+                except (TypeError, ValueError):
+                    temp_float = None
+                result.append({
+                    'id': control.get('id'),
+                    'name': control.get('name'),
+                    'room': control.get('room'),
+                    'temperature': temp_float
+                })
         
         return result
     
@@ -394,7 +406,7 @@ class SmartHomeDatabaseManager:
         room_query = "SELECT id FROM rooms WHERE name = %s"
         room = self._execute_query(room_query, (room_name,), fetch='one')
         
-        if not room:
+        if not room or not isinstance(room, dict) or 'id' not in room:
             raise DatabaseError(f"Room '{room_name}' not found")
         
         device_id = str(uuid.uuid4())
@@ -404,7 +416,7 @@ class SmartHomeDatabaseManager:
             VALUES (%s, %s, %s, 'button', %s)
         """
         
-        self._execute_query(query, (device_id, name, room['id'], state))
+        self._execute_query(query, (device_id, name, room.get('id'), state))
         return device_id
     
     def add_temperature_control(self, name: str, room_name: str, temperature: float = 22.0) -> Optional[str]:
@@ -413,7 +425,7 @@ class SmartHomeDatabaseManager:
         room_query = "SELECT id FROM rooms WHERE name = %s"
         room = self._execute_query(room_query, (room_name,), fetch='one')
         
-        if not room:
+        if not room or not isinstance(room, dict) or 'id' not in room:
             raise DatabaseError(f"Room '{room_name}' not found")
         
         device_id = str(uuid.uuid4())
@@ -423,7 +435,7 @@ class SmartHomeDatabaseManager:
             VALUES (%s, %s, %s, 'temperature_control', %s)
         """
         
-        self._execute_query(query, (device_id, name, room['id'], temperature))
+        self._execute_query(query, (device_id, name, room.get('id'), temperature))
         return device_id
     
     def update_device(self, device_id: str, updates: Dict) -> bool:
@@ -438,9 +450,9 @@ class SmartHomeDatabaseManager:
                         # Convert room name to room_id
                         room_query = "SELECT id FROM rooms WHERE name = %s"
                         room = self._execute_query(room_query, (value,), fetch='one')
-                        if room:
+                        if room and isinstance(room, dict) and 'id' in room:
                             set_clauses.append("room_id = %s")
-                            params.append(room['id'])
+                            params.append(room.get('id'))
                     else:
                         set_clauses.append(f"{key} = %s")
                         params.append(value)
@@ -458,7 +470,7 @@ class SmartHomeDatabaseManager:
             """
             
             rows_affected = self._execute_query(query, tuple(params))
-            return rows_affected > 0
+            return isinstance(rows_affected, int) and rows_affected > 0
             
         except Exception as e:
             logger.error(f"Failed to update device {device_id}: {e}")
@@ -468,7 +480,7 @@ class SmartHomeDatabaseManager:
         """Delete device"""
         query = "DELETE FROM devices WHERE id = %s"
         rows_affected = self._execute_query(query, (device_id,))
-        return rows_affected > 0
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     def get_device_by_id(self, device_id: str) -> Optional[Dict]:
         """Get device by ID"""
@@ -481,21 +493,24 @@ class SmartHomeDatabaseManager:
         
         device = self._execute_query(query, (device_id,), fetch='one')
         
-        if device:
+        if device and isinstance(device, dict):
             result = {
-                'id': device['id'],
-                'name': device['name'],
-                'room': device['room'],
-                'device_type': device['device_type']
+                'id': device.get('id'),
+                'name': device.get('name'),
+                'room': device.get('room'),
+                'device_type': device.get('device_type')
             }
-            
-            if device['device_type'] == 'button':
-                result['state'] = device['state']
-            elif device['device_type'] == 'temperature_control':
-                result['temperature'] = float(device['temperature'])
-            
+            dtype = device.get('device_type')
+            if dtype == 'button':
+                result['state'] = device.get('state')
+            elif dtype == 'temperature_control':
+                temp_val = device.get('temperature')
+                try:
+                    temp_float = float(temp_val) if temp_val is not None else None
+                except (TypeError, ValueError):
+                    temp_float = None
+                result['temperature'] = temp_float
             return result
-        
         return None
     
     # ========================================================================
@@ -515,17 +530,20 @@ class SmartHomeDatabaseManager:
         
         # Convert to original format
         result = []
-        for auto in automations:
-            result.append({
-                'name': auto['name'],
-                'trigger': json.loads(auto['trigger_config']),
-                'actions': json.loads(auto['actions_config']),
-                'enabled': auto['enabled'],
-                'execution_count': auto['execution_count'] or 0,
-                'last_executed': auto['last_executed'].isoformat() if auto['last_executed'] else None,
-                'error_count': auto['error_count'] or 0
-            })
-        
+        for auto in (automations or []):
+            if auto and isinstance(auto, dict):
+                trigger_cfg = auto.get('trigger_config')
+                actions_cfg = auto.get('actions_config')
+                last_executed = auto.get('last_executed')
+                result.append({
+                    'name': auto.get('name'),
+                    'trigger': json.loads(trigger_cfg) if isinstance(trigger_cfg, str) else {},
+                    'actions': json.loads(actions_cfg) if isinstance(actions_cfg, str) else [],
+                    'enabled': auto.get('enabled'),
+                    'execution_count': auto.get('execution_count') or 0,
+                    'last_executed': last_executed.isoformat() if last_executed is not None and hasattr(last_executed, 'isoformat') else None,
+                    'error_count': auto.get('error_count') or 0
+                })
         return result
     
     def add_automation(self, name: str, trigger: Dict, actions: List[Dict], enabled: bool = True) -> str:
@@ -577,7 +595,7 @@ class SmartHomeDatabaseManager:
             """
             
             rows_affected = self._execute_query(query, tuple(params))
-            return rows_affected > 0
+            return isinstance(rows_affected, int) and rows_affected > 0
             
         except Exception as e:
             logger.error(f"Failed to update automation {automation_name}: {e}")
@@ -587,7 +605,7 @@ class SmartHomeDatabaseManager:
         """Delete automation"""
         query = "DELETE FROM automations WHERE name = %s"
         rows_affected = self._execute_query(query, (automation_name,))
-        return rows_affected > 0
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     # ========================================================================
     # SYSTEM SETTINGS METHODS
@@ -603,12 +621,12 @@ class SmartHomeDatabaseManager:
         
         result = self._execute_query(query, (key,), fetch='one')
         
-        if result:
-            return json.loads(result['setting_value'])
-        
+        if result and isinstance(result, dict) and 'setting_value' in result:
+            setting_val = result.get('setting_value')
+            return json.loads(setting_val) if isinstance(setting_val, str) else setting_val
         return None
     
-    def set_system_setting(self, key: str, value: Any, description: str = None) -> bool:
+    def set_system_setting(self, key: str, value: Any, description: Optional[str] = None) -> bool:
         """Set system setting value"""
         query = """
             INSERT INTO system_settings (setting_key, setting_value, description)
@@ -620,7 +638,7 @@ class SmartHomeDatabaseManager:
         """
         
         rows_affected = self._execute_query(query, (key, json.dumps(value), description))
-        return rows_affected > 0
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     def get_security_state(self) -> str:
         """Get current security state"""
@@ -646,9 +664,14 @@ class SmartHomeDatabaseManager:
         
         # Convert to original format (room_name: temperature)
         result = {}
-        for state in states:
-            result[state['name']] = float(state['current_temperature'])
-        
+        for state in (states or []):
+            if state and isinstance(state, dict) and 'name' in state and 'current_temperature' in state:
+                temp_val = state.get('current_temperature')
+                try:
+                    temp = float(temp_val) if temp_val is not None and (isinstance(temp_val, (int, float, str)) and str(temp_val).replace('.','',1).isdigit()) else None
+                except (TypeError, ValueError):
+                    temp = None
+                result[state.get('name')] = temp
         return result
     
     def set_room_temperature(self, room_name: str, temperature: float) -> bool:
@@ -656,10 +679,13 @@ class SmartHomeDatabaseManager:
         # Get room ID
         room_query = "SELECT id FROM rooms WHERE name = %s"
         room = self._execute_query(room_query, (room_name,), fetch='one')
-        
-        if not room:
+        room_id = None
+        if isinstance(room, dict):
+            room_id = room.get('id')
+        elif isinstance(room, list) and room and isinstance(room[0], dict):
+            room_id = room[0].get('id')
+        if not room_id:
             return False
-        
         query = """
             INSERT INTO room_temperature_states (room_id, current_temperature, target_temperature)
             VALUES (%s, %s, %s)
@@ -668,17 +694,16 @@ class SmartHomeDatabaseManager:
                 target_temperature = EXCLUDED.target_temperature,
                 last_updated = NOW()
         """
-        
-        rows_affected = self._execute_query(query, (room['id'], temperature, temperature))
-        return rows_affected > 0
+        rows_affected = self._execute_query(query, (room_id, temperature, temperature))
+        return isinstance(rows_affected, int) and rows_affected > 0
     
     # ========================================================================
     # LOGGING METHODS
     # ========================================================================
     
-    def add_management_log(self, level: str, message: str, event_type: str = None, 
-                          user_id: str = None, username: str = None, 
-                          ip_address: str = None, details: Dict = None) -> str:
+    def add_management_log(self, level: str, message: str, event_type: Optional[str] = None, 
+                          user_id: Optional[str] = None, username: Optional[str] = None, 
+                          ip_address: Optional[str] = None, details: Optional[Dict] = None) -> str:
         """Add management log entry"""
         log_id = str(uuid.uuid4())
         
@@ -695,8 +720,8 @@ class SmartHomeDatabaseManager:
         
         return log_id
     
-    def get_management_logs(self, limit: int = 100, level: str = None, 
-                           event_type: str = None) -> List[Dict]:
+    def get_management_logs(self, limit: int = 100, level: Optional[str] = None, 
+                           event_type: Optional[str] = None) -> List[Dict]:
         """Get management logs"""
         query = """
             SELECT id, timestamp, level, message, event_type, username, ip_address, details
@@ -724,24 +749,33 @@ class SmartHomeDatabaseManager:
         
         # Convert to original format
         result = []
-        for log in logs:
-            result.append({
-                'timestamp': log['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
-                'level': log['level'],
-                'message': log['message'],
-                'event_type': log['event_type'],
-                'user': log['username'],
-                'ip_address': log['ip_address'],
-                'details': json.loads(log['details']) if log['details'] else {}
-            })
-        
+        for log in (logs or []):
+            if log and isinstance(log, dict):
+                ts = log.get('timestamp')
+                details_val = log.get('details')
+                if isinstance(details_val, str) and details_val:
+                    details_val_stripped = details_val.strip()
+                    details = json.loads(details_val_stripped) if details_val_stripped.startswith('{') else {}
+                elif isinstance(details_val, dict):
+                    details = details_val
+                else:
+                    details = {}
+                result.append({
+                    'timestamp': ts.strftime('%Y-%m-%d %H:%M:%S') if ts is not None and hasattr(ts, 'strftime') else None,
+                    'level': log.get('level'),
+                    'message': log.get('message'),
+                    'event_type': log.get('event_type'),
+                    'user': log.get('username'),
+                    'ip_address': log.get('ip_address'),
+                    'details': details
+                })
         return result
     
     def clear_management_logs(self) -> bool:
         """Clear all management logs"""
         query = "DELETE FROM management_logs"
         rows_affected = self._execute_query(query)
-        return rows_affected >= 0
+        return isinstance(rows_affected, int) and rows_affected >= 0
     
     # ========================================================================
     # COMPATIBILITY METHODS (for existing SmartHomeSystem interface)
@@ -790,6 +824,6 @@ class SmartHomeDatabaseManager:
         for table in tables:
             query = f"SELECT COUNT(*) as count FROM {table}"
             result = self._execute_query(query, fetch='one')
-            stats[table] = result['count'] if result else 0
+            stats[table] = result.get('count') if result and isinstance(result, dict) and 'count' in result else 0
         
         return stats
