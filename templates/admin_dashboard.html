@@ -4,6 +4,7 @@
 {% block header %}Dashboard Administratora{% endblock %}
 
 {% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <style>
 .dashboard-container {
     padding: 20px;
@@ -281,10 +282,91 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- User Management Section -->
+    <div class="dashboard-card">
+        <h3>Zarządzanie użytkownikami</h3>
+        <div class="user-management">
+            <div class="user-form">
+                <form method="POST" action="{{ url_for('admin_dashboard') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <h4>Dodaj nowego użytkownika</h4>
+                    <div class="new-user-form">
+                        <input class="input-settings" type="text" name="username" placeholder="Nazwa" minlength="3" required>
+                        <input class="input-settings" type="email" name="email" placeholder="Email" required>
+                        <input class="input-settings" type="password" name="password" placeholder="Hasło" minlength="6" required>
+                        <select class="select-settings" name="role">
+                            <option value="user">Użytkownik</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <button class="rooms-button" type="submit">Dodaj użytkownika</button>
+                    </div>
+                </form>
+            </div>
+            <div class="user-form">
+                <h4>Lista użytkowników</h4>
+                <div id="userActionMessage" class="alert-msg" style="display: none;"></div>
+                <div class="user-table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>Nazwa</th>
+                                <th>E-mail</th>
+                                <th>Rola</th>
+                                <th>Hasło</th>
+                                <th>Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Tabela będzie wypełniona dynamicznie -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Management Section -->
+    <div class="dashboard-card">
+        <h3>Powiadomienia</h3>
+        <div class="user-management" style="display: flex; gap: 16px;">
+            <div class="user-form" style="flex: 1;">
+                <h4>Dodaj odbiorcę powiadomień</h4>
+                <div class="input-group" style="gap: 8px; margin-bottom: 12px;">
+                    <input type="email" id="notificationRecipientEmail" placeholder="e-mail" class="input-settings" style="min-width: 300px; justify-content: center;">
+                    <select id="notificationRecipientUser" class="select-settings"></select>
+                    <button type="button" id="addNotificationRecipientBtn" class="rooms-button">Dodaj</button>
+                </div>
+                <div id="notificationsMessage" class="alert-msg" style="display: none;"></div>
+            </div>
+            <div class="user-form" style="flex: 1;">
+                <h4>Lista odbiorców powiadomień</h4>
+                <div class="user-table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>E-mail</th>
+                                <th>Użytkownik</th>
+                                <th>Powiadomienia</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="notificationRecipientsTableBody">
+                            <!-- Tabela będzie wypełniona dynamicznie -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+  window.sessionRole = "{{ session.role }}";
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
 // Funkcje do odświeżania danych
 function refreshDeviceStates() {
