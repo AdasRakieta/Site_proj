@@ -22,24 +22,32 @@
     },
     "security_state": "Wy\u0142\u0105czony",
     "rooms": [
-        "d",
         "pok\u00f3j 1",
-        "dsadasd"
+        "dsadasd",
+        "ddd",
+        "ddddad",
+        "dasd"
     ],
     "buttons": [
         {
-            "name": "\u015bwiat\u0142o 1",
+            "name": "sdasda",
             "room": "pok\u00f3j 1",
-            "id": "a3925d2c-d73c-4d45-8e69-31a116f7ad21",
+            "id": "6f613d8c-6fe9-4d74-85a4-46057c7fe14c",
+            "state": false
+        },
+        {
+            "name": "dasddasd",
+            "room": "pok\u00f3j 1",
+            "id": "1f9dbb04-65a3-43e1-94b8-2021d3d94324",
             "state": false
         }
     ],
     "temperature_controls": [
         {
-            "name": "ddd",
-            "room": "pok\u00f3j 1",
-            "id": "e1390786-089a-4dcb-a303-e170eb89c4d0",
-            "temperature": 25
+            "name": "sdasdasad",
+            "room": "dsadasd",
+            "id": "ac33b484-c0ba-4e77-8353-5452ff04d55c",
+            "temperature": 22
         }
     ],
     "automations": [
