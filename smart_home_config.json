@@ -20,16 +20,14 @@
         "bedroom": 22,
         "bathroom": 22
     },
-    "security_state": "Wy\u0142\u0105czony",
+    "security_state": "Wyłączony",
     "rooms": [
-        "d",
-        "pok\u00f3j 1",
-        "dsadasd"
+        "pokój 1"
     ],
     "buttons": [
         {
-            "name": "\u015bwiat\u0142o 1",
-            "room": "pok\u00f3j 1",
+            "name": "światło 1",
+            "room": "pokój 1",
             "id": "a3925d2c-d73c-4d45-8e69-31a116f7ad21",
             "state": false
         }
@@ -37,7 +35,7 @@
     "temperature_controls": [
         {
             "name": "ddd",
-            "room": "pok\u00f3j 1",
+            "room": "pokój 1",
             "id": "e1390786-089a-4dcb-a303-e170eb89c4d0",
             "temperature": 25
         }
@@ -54,6 +52,24 @@
                 {
                     "type": "device",
                     "device": "Sypialnia_ddadad",
+                    "state": "toggle"
+                }
+            ],
+            "enabled": false
+        },
+        {
+            "name": "fsdfsfs",
+            "trigger": {
+                "type": "time",
+                "time": "11:01",
+                "days": [
+                    "thu"
+                ]
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "pokój 1_światło 1",
                     "state": "toggle"
                 }
             ],
