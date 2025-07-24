@@ -7,7 +7,6 @@
     
     <div class="login-container">
         <form class="login-form" method="POST" action="{{ url_for('login') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="username">Nazwa użytkownika</label>
                 <input type="text" id="username" name="username" required>
