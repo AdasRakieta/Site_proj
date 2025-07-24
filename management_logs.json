@@ -1,0 +1,11 @@
+[
+  {
+    "timestamp": "2025-07-24 12:52:41",
+    "level": "info",
+    "message": "Test log after improvements",
+    "event_type": "test",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  }
+]
