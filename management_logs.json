@@ -1,5 +1,50 @@
 [
   {
+    "timestamp": "2025-07-24 20:19:22",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 20:17:14",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 20:17:02",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 20:16:42",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 20:16:36",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-24 17:00:23",
     "level": "info",
     "message": "Usunięto pokój: ddddad",

@@ -30,9 +30,12 @@ class RoutesManager:
     def register_routes(self):
         @self.app.route('/')
         def home():
+            print(f"[DEBUG] Session on /: {dict(session)}")
             if 'username' not in session:
+                print("[DEBUG] Brak username w sesji, redirect na login")
                 return redirect(url_for('login'))
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
             return render_template('index.html', user_data=user_data)
 
         @self.app.route('/temp')
@@ -356,39 +359,60 @@ class RoutesManager:
                     remember_me = request.form.get('remember_me') == 'on'
                     ip_address = request.remote_addr
                     
+                    print(f"[DEBUG] Login attempt: username='{login_name}', password_length={len(password) if password else 0}")
+                    
                     # Get user by name/email
-                    users = self.smart_home.get_users()
+                    users = self.smart_home.users
+                    print(f"[DEBUG] Got users: {list(users.keys())}")
                     user = None
                     user_id = None
                     
-                    for u in users:
-                        if u.get('name') == login_name or u.get('email') == login_name:
-                            user = u
-                            user_id = u.get('id')
+                    for uid, user_data in users.items():
+                        print(f"[DEBUG] Checking user {uid}: name='{user_data.get('name')}', email='{user_data.get('email')}'")
+                        if user_data.get('name') == login_name or user_data.get('email') == login_name:
+                            user = user_data
+                            user_id = uid
+                            print(f"[DEBUG] Found matching user: {uid}")
                             break
                     
-                    # For now, simplified password check (TODO: implement proper hash checking)
-                    if user and user.get('password'):  # Password exists
+                    if user:
+                        print(f"[DEBUG] User found, checking password...")
+                        password_check = self.smart_home.verify_password(user_id, password)
+                        print(f"[DEBUG] Password verification result: {password_check}")
+                    else:
+                        print(f"[DEBUG] No user found for login_name: '{login_name}'")
+                    
+                    # Proper password verification
+                    if user and user.get('password') and self.smart_home.verify_password(user_id, password):
                         session['user_id'] = user_id
                         session['username'] = user['name']
                         session['role'] = user.get('role', 'user')
                         session.permanent = True
                         
+                        print(f"[DEBUG] Login successful for user: {user['name']}")
+                        
                         # Log successful login
                         if self.management_logger:
-                            self.management_logger.log_info(
-                                f"User {user['name']} logged in from {ip_address}",
-                                event_type='login',
-                                user_id=user_id
-                            )
+                            self.management_logger.log_login(user['name'], ip_address or 'unknown', success=True)
                         
                         flash('Zalogowano pomyślnie!', 'success')
                         return redirect(url_for('home'))
                     else:
+                        print(f"[DEBUG] Login failed - user exists: {user is not None}, has password: {user.get('password') is not None if user else False}")
+                        
+                        # Log failed login attempt
+                        if self.management_logger:
+                            self.management_logger.log_login(
+                                login_name or 'unknown', ip_address or 'unknown', success=False
+                            )
+                        
                         flash('Nieprawidłowa nazwa użytkownika lub hasło!', 'error')
                         return render_template('login.html')
                         
                 except Exception as e:
+                    print(f"[DEBUG] Exception during login: {e}")
+                    import traceback
+                    traceback.print_exc()
                     flash('Błąd podczas logowania!', 'error')
                     return render_template('login.html')
             

@@ -124,19 +124,24 @@ class SmartHomeDatabaseManager:
             ORDER BY created_at
         """
         
+        print(f"[DEBUG] get_users() - executing query: {query}")
         users = self._execute_query(query, fetch='all')
+        print(f"[DEBUG] get_users() - got {len(users) if users else 0} users from database")
         
         # Convert to original format (id as key)
         result = {}
-        for user in users:
-            result[user['id']] = {
-                'name': user['name'],
-                'email': user['email'],
-                'password': user['password_hash'],
-                'role': user['role'],
-                'profile_picture': user['profile_picture']
-            }
+        if users:
+            for user in users:
+                print(f"[DEBUG] Processing user: {user['id']} - {user['name']}")
+                result[user['id']] = {
+                    'name': user['name'],
+                    'email': user['email'],
+                    'password': user['password_hash'],
+                    'role': user['role'],
+                    'profile_picture': user['profile_picture']
+                }
         
+        print(f"[DEBUG] get_users() - returning {len(result)} users: {list(result.keys())}")
         return result
     
     def get_user_by_id(self, user_id: str) -> Optional[Dict]:
@@ -238,11 +243,14 @@ class SmartHomeDatabaseManager:
         return rows_affected > 0
     
     def verify_password(self, user_id: str, password: str) -> bool:
-        """Verify user password (this would need to be implemented with proper hashing)"""
-        # Note: This is a simplified version. In production, you'd want to use
-        # proper password hashing verification like werkzeug.security.check_password_hash
+        """Verify user password using proper password hash checking"""
+        from werkzeug.security import check_password_hash
+        
         user = self.get_user_by_id(user_id)
-        return user and user.get('password') == password
+        if user and user.get('password'):
+            # Use proper password hash verification
+            return check_password_hash(user.get('password'), password)
+        return False
     
     # ========================================================================
     # ROOM MANAGEMENT METHODS
