@@ -1,0 +1,64 @@
+{
+    "users": {
+        "32d2fe98-26c2-45f4-a78a-7a1cb9692f6a": {
+            "password": "scrypt:32768:8:1$iSZSTD11WOcYSi74$921a65b5d0fc92cf1113ea72a31835ba3eb63cd0c59e3d2e6d6b814ccb3308b73ee0a64bef7f24acaa9104bf166debd99c2a4f044e254ad1ff816ee3e58581d1",
+            "role": "admin",
+            "name": "admin",
+            "email": "szymon.przybysz2003@gmail.com",
+            "profile_picture": "/static/profile_pictures/32d2fe98-26c2-45f4-a78a-7a1cb9692f6a_1751926399.png"
+        },
+        "dc4768d4-7bf2-47e7-aa5e-0696ada73d28": {
+            "name": "sdsad",
+            "password": "scrypt:32768:8:1$6gvq4Cp49R7MVS4J$89da61b9367b2285b47883811f3b3223f5f2d4db68f3ab49a3c376b09f2ac8c16886b7b5106007330b3ecdce22e03d317bce1a4d453b5107788d53250163936e",
+            "role": "user",
+            "email": "szymon.przybysz@op.pl",
+            "profile_picture": ""
+        }
+    },
+    "temperature_states": {
+        "salon": 22,
+        "bedroom": 22,
+        "bathroom": 22
+    },
+    "security_state": "Wy³¹czony",
+    "rooms": [
+        "pokój 1",
+        "dsadasd",
+        "ddd",
+        "dasd"
+    ],
+    "buttons": [
+        {
+            "name": "sdasdadad",
+            "room": "pokój 1",
+            "id": "6f613d8c-6fe9-4d74-85a4-46057c7fe14c",
+            "state": false
+        }
+    ],
+    "temperature_controls": [
+        {
+            "name": "sdasdasad",
+            "room": "dsadasd",
+            "id": "ac33b484-c0ba-4e77-8353-5452ff04d55c",
+            "temperature": 22
+        }
+    ],
+    "automations": [
+        {
+            "name": "powiado",
+            "trigger": {
+                "type": "device",
+                "device": "Sypialnia_e",
+                "state": "off"
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "Sypialnia_ddadad",
+                    "state": "toggle"
+                }
+            ],
+            "enabled": false
+        }
+    ]
+}
