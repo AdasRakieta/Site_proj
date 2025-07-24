@@ -298,7 +298,7 @@ class RoutesManager:
                         username=user['name'],
                         action=action,
                         target_user=user['name'],
-                        ip_address=request.remote_addr,
+                        ip_address=request.remote_addr or "",
                         details={'fields_updated': list(updates.keys())}
                     )
                     
@@ -324,7 +324,7 @@ class RoutesManager:
                 user_id, user = self.smart_home.get_user_by_login(session['username'])
                 if not user:
                     return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-                filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename)[1]}")
+                filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename or '')[1]}")
                 profile_pictures_dir = os.path.join(self.app.static_folder, 'profile_pictures')
                 if not os.path.exists(profile_pictures_dir):
                     os.makedirs(profile_pictures_dir)
@@ -518,7 +518,7 @@ class RoutesManager:
             username=username, 
             action='register', 
             target_user=username,
-            ip_address=request.remote_addr,
+            ip_address=request.remote_addr or "",
             details={'email': email}
         )
         
@@ -624,14 +624,14 @@ class APIManager:
             if request.method == 'GET':
                 # Use cached data if available
                 if self.cached_data:
-                    rooms = self.cached_data.get_rooms()
+                    rooms = self.cached_data.get('rooms', []) if isinstance(self.cached_data, dict) else self.cached_data.get_rooms()
                 else:
                     rooms = self.smart_home.rooms
                 return jsonify(rooms)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_room = request.json.get('room')
+                new_room = (request.json or {}).get('room')
                 if new_room and new_room.lower() not in [room.lower() for room in self.smart_home.rooms]:
                     self.smart_home.rooms.append(new_room)
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
@@ -643,12 +643,14 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='add',
                         room_name=new_room,
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     # Invalidate cache after modification
                     if self.cached_data:
-                        self.cached_data.invalidate_rooms_cache()
+                        invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                        if callable(invalidate):
+                            invalidate()
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
 
@@ -675,12 +677,14 @@ class APIManager:
                     username=session.get('username', 'unknown'),
                     action='delete',
                     room_name=room,
-                    ip_address=request.remote_addr
+                    ip_address=request.remote_addr or ""
                 )
                 
                 # Invalidate cache after modification
                 if self.cached_data:
-                    self.cached_data.invalidate_rooms_cache()
+                    invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                    if callable(invalidate):
+                        invalidate()
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Room not found"}), 404
 
@@ -712,7 +716,7 @@ class APIManager:
                 username=session.get('username', 'unknown'),
                 action='rename',
                 room_name=new_name,
-                ip_address=request.remote_addr,
+                ip_address=request.remote_addr or "",
                 old_name=old_name
             )
             
@@ -793,7 +797,7 @@ class APIManager:
             if request.method == 'GET':
                 # Use cached data if available
                 if self.cached_data:
-                    buttons = self.cached_data.get_buttons()
+                    buttons = self.cached_data.get('buttons', []) if isinstance(self.cached_data, dict) else self.cached_data.get_buttons()
                 else:
                     buttons = self.smart_home.buttons
                 return jsonify(buttons)
@@ -997,7 +1001,7 @@ class APIManager:
                 username=session.get('username', 'unknown'),
                 action='add',
                 target_user=username,
-                ip_address=request.remote_addr,
+                ip_address=request.remote_addr or "",
                 details={'email': email, 'role': role}
             )
             
@@ -1118,7 +1122,7 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='add',
                         automation_name=new_automation['name'],
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     return jsonify({"status": "success"})
@@ -1148,7 +1152,7 @@ class APIManager:
                             username=session.get('username', 'unknown'),
                             action='edit',
                             automation_name=updated_automation['name'],
-                            ip_address=request.remote_addr
+                            ip_address=request.remote_addr or ""
                         )
                         
                         return jsonify({"status": "success"})
@@ -1167,7 +1171,7 @@ class APIManager:
                         username=session.get('username', 'unknown'),
                         action='delete',
                         automation_name=automation_name,
-                        ip_address=request.remote_addr
+                        ip_address=request.remote_addr or ""
                     )
                     
                     return jsonify({"status": "success"})
@@ -1193,7 +1197,7 @@ class SocketManager:
 
         @self.socketio.on('disconnect')
         def handle_disconnect():
-            print(f'Klient {request.sid} rozłączony. Powód: {request.args.get("error")}')
+            print(f'Klient {getattr(request, "sid", "?")} rozłączony. Powód: {getattr(getattr(request, "args", None), "get", lambda x: None)("error")}')
 
         @self.socketio.on('set_security_state')
         def handle_set_security_state(data):
@@ -1226,7 +1230,9 @@ class SocketManager:
                     
                     # Log button state change
                     from flask import request
-                    self.management_logger.log_button_change(
+                    log_btn = getattr(self.management_logger, 'log_button_change', None)
+                    if callable(log_btn):
+                        log_btn(
                         username=session.get('username', 'unknown'),
                         room=room,
                         button_name=button_name,

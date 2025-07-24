@@ -20,25 +20,18 @@
         "bedroom": 22,
         "bathroom": 22
     },
-    "security_state": "Wy\u0142\u0105czony",
+    "security_state": "Wy³¹czony",
     "rooms": [
-        "pok\u00f3j 1",
+        "pokój 1",
         "dsadasd",
         "ddd",
-        "ddddad",
         "dasd"
     ],
     "buttons": [
         {
-            "name": "sdasda",
-            "room": "pok\u00f3j 1",
+            "name": "sdasdadad",
+            "room": "pokój 1",
             "id": "6f613d8c-6fe9-4d74-85a4-46057c7fe14c",
-            "state": false
-        },
-        {
-            "name": "dasddasd",
-            "room": "pok\u00f3j 1",
-            "id": "1f9dbb04-65a3-43e1-94b8-2021d3d94324",
             "state": false
         }
     ],
