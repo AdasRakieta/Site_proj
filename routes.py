@@ -603,18 +603,23 @@ class APIManager:
                     buttons = self.smart_home.buttons
                 return jsonify(buttons)
             elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_button = request.json
-                if new_button:
-                    if 'id' not in new_button:
-                        new_button['id'] = str(uuid.uuid4())
-                    new_button['state'] = False
-                    self.smart_home.buttons.append(new_button)
-                    self.socketio.emit('update_buttons', self.smart_home.buttons)
-                    self.smart_home.save_config()
-                    return jsonify({"status": "success", "id": new_button['id']})
-                return jsonify({"status": "error", "message": "Invalid button data"}), 400
+                try:
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    new_button = request.json
+                    if new_button:
+                        if 'id' not in new_button:
+                            new_button['id'] = str(uuid.uuid4())
+                        new_button['state'] = False
+                        self.smart_home.buttons.append(new_button)
+                        self.socketio.emit('update_buttons', self.smart_home.buttons)
+                        self.smart_home.save_config()
+                        return jsonify({"status": "success", "id": new_button['id']})
+                    return jsonify({"status": "error", "message": "Invalid button data"}), 400
+                except Exception as e:
+                    import traceback
+                    print(f"[ERROR] Exception in POST /api/buttons: {e}\n{traceback.format_exc()}")
+                    return jsonify({"status": "error", "message": f"Server error: {e}"}), 500
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
@@ -647,19 +652,24 @@ class APIManager:
             if request.method == 'GET':
                 return jsonify(self.smart_home.temperature_controls)
             elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_control = request.json
-                if new_control:
-                    if 'id' not in new_control:
-                        new_control['id'] = str(uuid.uuid4())
-                    new_control['temperature'] = 22
-                    self.smart_home.temperature_controls.append(new_control)
-                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                    self.socketio.emit('update_room_temperature_controls', new_control)
-                    self.smart_home.save_config()
-                    return jsonify({"status": "success", "id": new_control['id']})
-                return jsonify({"status": "error", "message": "Invalid control data"}), 400
+                try:
+                    if session.get('role') != 'admin':
+                        return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+                    new_control = request.json
+                    if new_control:
+                        if 'id' not in new_control:
+                            new_control['id'] = str(uuid.uuid4())
+                        new_control['temperature'] = 22
+                        self.smart_home.temperature_controls.append(new_control)
+                        self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                        self.socketio.emit('update_room_temperature_controls', new_control)
+                        self.smart_home.save_config()
+                        return jsonify({"status": "success", "id": new_control['id']})
+                    return jsonify({"status": "error", "message": "Invalid control data"}), 400
+                except Exception as e:
+                    import traceback
+                    print(f"[ERROR] Exception in POST /api/temperature_controls: {e}\n{traceback.format_exc()}")
+                    return jsonify({"status": "error", "message": f"Server error: {e}"}), 500
 
         @self.app.route('/api/temperature_controls/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
