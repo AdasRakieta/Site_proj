@@ -4,7 +4,7 @@ Handles persistent logging of management events for admin dashboard
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import threading
 
@@ -12,9 +12,10 @@ import threading
 class ManagementLogger:
     """Persistent logging system for admin dashboard events"""
     
-    def __init__(self, log_file: str = 'management_logs.json', max_logs: int = 1000):
+    def __init__(self, log_file: str = 'management_logs.json', max_logs: int = 1000, max_days: int = 7):
         self.log_file = log_file
         self.max_logs = max_logs
+        self.max_days = max_days  # Maximum days to keep logs
         self._lock = threading.RLock()
         self._ensure_log_file_exists()
     
@@ -32,6 +33,32 @@ class ManagementLogger:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
     
+    def _parse_timestamp(self, timestamp_str: str) -> datetime:
+        """Parse timestamp string to datetime object"""
+        try:
+            return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            # Fallback for different timestamp formats
+            try:
+                return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                return datetime.now()  # Return current time if parsing fails
+    
+    def _auto_cleanup_old_logs(self):
+        """Remove logs older than max_days"""
+        logs = self._load_logs()
+        if not logs:
+            return
+        
+        cutoff_date = datetime.now() - timedelta(days=self.max_days)
+        
+        # Filter out old logs
+        filtered_logs = []
+        for log in logs:
+            log_date = self._parse_timestamp(log.get('timestamp', ''))
+            if log_date >= cutoff_date:
+                filtered_logs.append(log)
+        
     def _save_logs(self, logs: List[Dict]):
         """Save logs to file"""
         with open(self.log_file, 'w', encoding='utf-8') as f:
@@ -72,6 +99,9 @@ class ManagementLogger:
                 logs = logs[:self.max_logs]
             
             self._save_logs(logs)
+            
+            # Auto-cleanup old logs after adding new ones
+            self._auto_cleanup_old_logs()
     
     def get_logs(self, limit: Optional[int] = None, 
                  level_filter: Optional[str] = None,
@@ -104,6 +134,96 @@ class ManagementLogger:
         """Clear all logs"""
         with self._lock:
             self._save_logs([])
+    
+    def delete_logs_by_date_range(self, start_date: str = None, end_date: str = None) -> int:
+        """
+        Delete logs within a specific date range
+        
+        Args:
+            start_date: Start date in 'YYYY-MM-DD' format (inclusive)
+            end_date: End date in 'YYYY-MM-DD' format (inclusive)
+            
+        Returns:
+            Number of logs deleted
+        """
+        with self._lock:
+            logs = self._load_logs()
+            original_count = len(logs)
+            
+            if not logs:
+                return 0
+            
+            # Parse date parameters
+            start_dt = None
+            end_dt = None
+            
+            if start_date:
+                try:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                except ValueError:
+                    raise ValueError("start_date must be in YYYY-MM-DD format")
+            
+            if end_date:
+                try:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)  # Include end date
+                except ValueError:
+                    raise ValueError("end_date must be in YYYY-MM-DD format")
+            
+            # Filter logs
+            filtered_logs = []
+            for log in logs:
+                log_date = self._parse_timestamp(log.get('timestamp', ''))
+                
+                # Check if log should be kept
+                keep_log = True
+                
+                if start_dt and log_date < start_dt:
+                    keep_log = True  # Before start date, keep
+                elif end_dt and log_date >= end_dt:
+                    keep_log = True  # After end date, keep
+                elif start_dt and end_dt and start_dt <= log_date < end_dt:
+                    keep_log = False  # Within range, delete
+                elif start_dt and not end_dt and log_date >= start_dt:
+                    keep_log = False  # From start date onwards, delete
+                elif end_dt and not start_dt and log_date < end_dt:
+                    keep_log = False  # Up to end date, delete
+                
+                if keep_log:
+                    filtered_logs.append(log)
+            
+            # Save filtered logs
+            self._save_logs(filtered_logs)
+            return original_count - len(filtered_logs)
+    
+    def delete_logs_older_than(self, days: int) -> int:
+        """
+        Delete logs older than specified number of days
+        
+        Args:
+            days: Number of days to keep (delete older logs)
+            
+        Returns:
+            Number of logs deleted
+        """
+        with self._lock:
+            logs = self._load_logs()
+            original_count = len(logs)
+            
+            if not logs:
+                return 0
+            
+            cutoff_date = datetime.now() - timedelta(days=days)
+            
+            # Filter out old logs
+            filtered_logs = []
+            for log in logs:
+                log_date = self._parse_timestamp(log.get('timestamp', ''))
+                if log_date >= cutoff_date:
+                    filtered_logs.append(log)
+            
+            # Save filtered logs
+            self._save_logs(filtered_logs)
+            return original_count - len(filtered_logs)
     
     # Convenience methods for common events
     def log_login(self, username: str, ip_address: str, success: bool = True):

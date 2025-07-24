@@ -162,6 +162,87 @@ class RoutesManager:
             logs = self._get_management_logs()
             return jsonify(logs)
 
+        @self.app.route('/api/admin/logs/clear', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_clear_logs():
+            """Clear all logs"""
+            try:
+                self.management_logger.clear_logs()
+                
+                # Log the clearing action
+                self.management_logger.log_event(
+                    'info',
+                    f'Administrator {session.get("username", "unknown")} wyczyścił wszystkie logi',
+                    'admin_action',
+                    session.get('username', 'unknown'),
+                    request.remote_addr
+                )
+                
+                return jsonify({'status': 'success', 'message': 'Wszystkie logi zostały usunięte'})
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd przy usuwaniu logów: {str(e)}'}), 500
+
+        @self.app.route('/api/admin/logs/delete', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_delete_logs():
+            """Delete logs by date range or number of days"""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'status': 'error', 'message': 'Brak danych w żądaniu'}), 400
+                
+                deleted_count = 0
+                
+                if 'days' in data:
+                    # Delete logs older than specified days
+                    days = int(data['days'])
+                    if days < 0:
+                        return jsonify({'status': 'error', 'message': 'Liczba dni musi być dodatnia'}), 400
+                    
+                    deleted_count = self.management_logger.delete_logs_older_than(days)
+                    action_msg = f'Usunięto {deleted_count} logów starszych niż {days} dni'
+                    
+                elif 'start_date' in data or 'end_date' in data:
+                    # Delete logs by date range
+                    start_date = data.get('start_date')
+                    end_date = data.get('end_date')
+                    
+                    deleted_count = self.management_logger.delete_logs_by_date_range(start_date, end_date)
+                    
+                    if start_date and end_date:
+                        action_msg = f'Usunięto {deleted_count} logów z okresu {start_date} - {end_date}'
+                    elif start_date:
+                        action_msg = f'Usunięto {deleted_count} logów od {start_date}'
+                    elif end_date:
+                        action_msg = f'Usunięto {deleted_count} logów do {end_date}'
+                    else:
+                        action_msg = f'Usunięto {deleted_count} logów'
+                else:
+                    return jsonify({'status': 'error', 'message': 'Brak parametrów usuwania (days, start_date lub end_date)'}), 400
+                
+                # Log the deletion action
+                self.management_logger.log_event(
+                    'info',
+                    f'Administrator {session.get("username", "unknown")}: {action_msg}',
+                    'admin_action',
+                    session.get('username', 'unknown'),
+                    request.remote_addr,
+                    {'deleted_count': deleted_count, 'action': 'delete_logs'}
+                )
+                
+                return jsonify({
+                    'status': 'success', 
+                    'message': action_msg,
+                    'deleted_count': deleted_count
+                })
+                
+            except ValueError as e:
+                return jsonify({'status': 'error', 'message': f'Błąd formatu daty: {str(e)}'}), 400
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd przy usuwaniu logów: {str(e)}'}), 500
+
         @self.app.route('/lights')
         @self.auth_manager.login_required
         def lights():

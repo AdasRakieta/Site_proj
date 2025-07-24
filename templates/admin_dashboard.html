@@ -236,7 +236,32 @@
     <!-- Logi zarządzania -->
     <div class="dashboard-card">
         <h3>Logi Zarządzania</h3>
-        <button class="refresh-btn" onclick="refreshLogs()">Odśwież logi</button>
+        <div style="margin-bottom: 15px;">
+            <button class="refresh-btn" onclick="refreshLogs()">Odśwież logi</button>
+            <button class="refresh-btn" onclick="showLogManagement()" style="background: #ffc107; margin-left: 10px;">Zarządzanie logami</button>
+        </div>
+        
+        <!-- Log Management Panel (initially hidden) -->
+        <div id="log-management-panel" style="display: none; margin-bottom: 15px; padding: 15px; background: var(--background-secondary); border-radius: 4px;">
+            <h4>Zarządzanie logami</h4>
+            <div style="margin-bottom: 10px;">
+                <label>Usuń logi starsze niż:</label>
+                <input type="number" id="delete-days" placeholder="liczba dni" min="1" style="width: 80px; margin: 0 5px;">
+                <button onclick="deleteLogsByDays()" class="refresh-btn" style="background: #dc3545;">Usuń</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Usuń logi z okresu:</label><br>
+                <input type="date" id="delete-start-date" style="margin: 5px 5px 5px 0;">
+                <span>do</span>
+                <input type="date" id="delete-end-date" style="margin: 5px;">
+                <button onclick="deleteLogsByRange()" class="refresh-btn" style="background: #dc3545;">Usuń</button>
+            </div>
+            <div>
+                <button onclick="clearAllLogs()" class="refresh-btn" style="background: #dc3545;">Wyczyść wszystkie logi</button>
+                <button onclick="hideLogManagement()" class="refresh-btn" style="background: #6c757d; margin-left: 10px;">Anuluj</button>
+            </div>
+        </div>
+        
         <div class="logs-container" id="logs-container">
             {% for log in management_logs %}
             <div class="log-entry">
@@ -285,13 +310,129 @@ function refreshLogs() {
                 logEntry.className = 'log-entry';
                 logEntry.innerHTML = `
                     <span class="log-timestamp">${log.timestamp}</span>
-                    <span class="log-level ${log.level}">${log.level.upper()}</span>
+                    <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
                     <span class="log-message">${log.message}</span>
                 `;
                 container.appendChild(logEntry);
             });
         })
         .catch(error => console.error('Error refreshing logs:', error));
+}
+
+// Log management functions
+function showLogManagement() {
+    document.getElementById('log-management-panel').style.display = 'block';
+}
+
+function hideLogManagement() {
+    document.getElementById('log-management-panel').style.display = 'none';
+}
+
+function deleteLogsByDays() {
+    const days = document.getElementById('delete-days').value;
+    if (!days || days < 1) {
+        alert('Podaj poprawną liczbę dni');
+        return;
+    }
+    
+    if (!confirm(`Czy na pewno chcesz usunąć wszystkie logi starsze niż ${days} dni?`)) {
+        return;
+    }
+    
+    fetch('/api/admin/logs/delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ days: parseInt(days) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            refreshLogs();
+            hideLogManagement();
+        } else {
+            alert('Błąd: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting logs:', error);
+        alert('Błąd podczas usuwania logów');
+    });
+}
+
+function deleteLogsByRange() {
+    const startDate = document.getElementById('delete-start-date').value;
+    const endDate = document.getElementById('delete-end-date').value;
+    
+    if (!startDate && !endDate) {
+        alert('Podaj co najmniej jedną datę');
+        return;
+    }
+    
+    let confirmText = 'Czy na pewno chcesz usunąć logi';
+    if (startDate && endDate) {
+        confirmText += ` z okresu od ${startDate} do ${endDate}?`;
+    } else if (startDate) {
+        confirmText += ` od ${startDate}?`;
+    } else if (endDate) {
+        confirmText += ` do ${endDate}?`;
+    }
+    
+    if (!confirm(confirmText)) {
+        return;
+    }
+    
+    const requestData = {};
+    if (startDate) requestData.start_date = startDate;
+    if (endDate) requestData.end_date = endDate;
+    
+    fetch('/api/admin/logs/delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            refreshLogs();
+            hideLogManagement();
+        } else {
+            alert('Błąd: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting logs:', error);
+        alert('Błąd podczas usuwania logów');
+    });
+}
+
+function clearAllLogs() {
+    if (!confirm('Czy na pewno chcesz usunąć WSZYSTKIE logi? Ta operacja jest nieodwracalna!')) {
+        return;
+    }
+    
+    fetch('/api/admin/logs/clear', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            refreshLogs();
+            hideLogManagement();
+        } else {
+            alert('Błąd: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error clearing logs:', error);
+        alert('Błąd podczas czyszczenia logów');
+    });
 }
 
 // Proste wykresy energii
