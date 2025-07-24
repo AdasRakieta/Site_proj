@@ -189,7 +189,7 @@ class SmartHomeSystem:
                         print(f"Zapisano konfigurację do {self.config_file} (próba {attempt + 1})")
                         return True
                         
-                    except (OSError, IOError, json.JSONEncodeError) as e:
+                    except (OSError, IOError, ValueError) as e:
                         print(f"Błąd podczas zapisywania konfiguracji (próba {attempt + 1}/{max_retries}): {str(e)}")
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay * (attempt + 1))  # Zwiększaj opóźnienie
@@ -346,32 +346,10 @@ class SmartHomeSystem:
             return True
         return False
 
-    def update_user_profile(self, username, updates):
-        """Aktualizuje profil użytkownika, w tym login (nazwę użytkownika)"""
-        if username not in self.users:
-            return False, "Użytkownik nie istnieje"
-
-        user = self.users[username]
-        new_username = updates.get('username')
-        # Jeśli zmieniamy login (nazwę użytkownika)
-        if new_username and new_username != username:
-            if new_username in self.users:
-                return False, "Taki użytkownik już istnieje"
-            # Przenieś WSZYSTKIE dane pod nowy klucz
-            self.users[new_username] = user.copy()
-            # Zaktualizuj tylko te pola, które są w updates
-            for key in ['name', 'email', 'profile_picture']:
-                if key in updates:
-                    self.users[new_username][key] = updates[key]
-            if 'password' in updates:
-                if len(updates['password']) < 6:
-                    return False, "Hasło musi mieć co najmniej 6 znaków"
-                self.users[new_username]['password'] = generate_password_hash(updates['password'])
-            # Usuń starego użytkownika
-            del self.users[username]
-            self.save_config()
-            self.load_config()  # Dodaj: odśwież użytkowników w pamięci po zmianie loginu
-            return True, "Login użytkownika został zmieniony"
+    # Usunięto duplikat update_user_profile (pozostawiono wersję z user_id)
+        self.save_config()
+        self.load_config()  # Dodaj: odśwież użytkowników w pamięci po zmianie loginu
+        return True, "Login użytkownika został zmieniony"
         # Standardowa aktualizacja bez zmiany loginu
         for key in ['name', 'email', 'profile_picture']:
             if key in updates:
