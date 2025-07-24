@@ -1,5 +1,14 @@
 [
   {
+    "timestamp": "2025-07-24 22:15:44",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-24 23:06:47",
     "level": "info",
     "message": "Użytkownik admin zalogował się pomyślnie",

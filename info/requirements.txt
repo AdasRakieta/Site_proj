@@ -43,6 +43,9 @@ certifi==2024.12.14
 charset-normalizer==3.4.1
 idna==3.10
 
+# Database
+psycopg2-binary==2.9.10
+
 # Server options
 gunicorn==23.0.0
 gevent==25.5.1

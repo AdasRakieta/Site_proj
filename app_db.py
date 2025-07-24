@@ -75,8 +75,16 @@ class SmartHomeApp:
         try:
             # Initialize SmartHome system (with database or JSON backend)
             if DATABASE_MODE:
-                self.smart_home = SmartHomeSystem()
-                print("✓ SmartHome system initialized with PostgreSQL backend")
+                try:
+                    self.smart_home = SmartHomeSystem()
+                    print("✓ SmartHome system initialized with PostgreSQL backend")
+                except Exception as e:
+                    print(f"⚠ Failed to initialize PostgreSQL backend: {e}")
+                    print("⚠ Falling back to JSON file backend")
+                    # Import JSON backend as fallback
+                    from configure import SmartHomeSystem as JSONSmartHomeSystem
+                    self.smart_home = JSONSmartHomeSystem()
+                    print("✓ SmartHome system initialized with JSON backend (fallback)")
             else:
                 self.smart_home = SmartHomeSystem()
                 print("✓ SmartHome system initialized with JSON backend")

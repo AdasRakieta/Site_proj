@@ -68,7 +68,7 @@ class SmartHomeDatabaseManager:
         """Get database connection"""
         try:
             # Only allow valid psycopg2 keys
-            allowed_keys = {'host', 'port', 'dbname', 'user', 'password'}
+            allowed_keys = {'host', 'port', 'dbname', 'user', 'password', 'connect_timeout'}
             filtered_config = {}
             for k, v in self.db_config.items():
                 if k in allowed_keys:
@@ -79,6 +79,11 @@ class SmartHomeDatabaseManager:
                             filtered_config[k] = v
                     else:
                         filtered_config[k] = str(v)
+            
+            # Add connection timeout if not specified
+            if 'connect_timeout' not in filtered_config:
+                filtered_config['connect_timeout'] = 5  # 5 second timeout
+                
             return psycopg2.connect(**filtered_config)
         except Exception as e:
             logger.error(f"Failed to get database connection: {e}")
