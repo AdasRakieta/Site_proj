@@ -70,9 +70,10 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 # --- Setup minified asset serving ---
 app.jinja_env.globals['url_for'] = minified_url_for_helper(app)
 
-# --- Initialize Cache Management ---
+ # --- Initialize Cache Management ---
 cache_manager = CacheManager(cache)
-cached_data_access = CachedDataAccess(cache, None)  # smart_home will be set later
+# cached_data_access will be initialized after smart_home
+cached_data_access = None
 
 def is_trusted_host(ip):
     """Sprawdza, czy adres IP jest zaufany"""
@@ -146,6 +147,7 @@ class AuthManager:
             return f(*args, **kwargs)
         return decorated_function
 
+
 # --- Initialize Smart Home System and Managers ---
 smart_home = SmartHomeSystem()
 auth_manager = AuthManager()
@@ -155,10 +157,14 @@ background_task_manager = BackgroundTaskManager()
 background_task_manager.start_background_processing()
 management_logger = ManagementLogger()
 
-# --- Setup Cache Integration ---
-# Update cached_data_access with smart_home reference
-# cached_data_access.smart_home = smart_home  # Usunięto przypisanie niezgodne z typem
+# --- Setup cache-backed data access ---
+cached_data_access = CachedDataAccess(cache, smart_home)
+# Preload cache with DB data at startup
+_ = cached_data_access.get_rooms()
+_ = cached_data_access.get_buttons()
+_ = cached_data_access.get_temperature_controls()
 
+ # --- Setup Cache Integration ---
 # Setup automatic cache invalidation for smart_home methods
 original_methods = setup_smart_home_caching(smart_home, cache_manager)
 
@@ -372,8 +378,9 @@ def handle_exception(e):
     # Return a generic error response
     return jsonify({"status": "error", "message": "Błąd serwera"}), 500
 
+
 # Inicjalizacja menedżerów
-routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager, management_logger)
+routes_manager = routes.RoutesManager(app, smart_home, auth_manager, mail_manager, cache, async_mail_manager, management_logger, cached_data_access)
 api_manager = routes.APIManager(app, socketio, smart_home, auth_manager, management_logger)
 socket_manager = routes.SocketManager(socketio, smart_home, management_logger)
 

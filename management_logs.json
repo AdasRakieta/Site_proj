@@ -1,5 +1,50 @@
 [
   {
+    "timestamp": "2025-07-24 23:06:47",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 23:03:21",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 22:56:54",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 22:50:58",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-24 22:06:28",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-24 20:19:22",
     "level": "info",
     "message": "Użytkownik admin zalogował się pomyślnie",
