@@ -41,6 +41,9 @@ class SmartHomeApp:
         self.app.secret_key = os.urandom(24)
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         
+        # Add context processors
+        self.setup_context_processors()
+        
         # Initialize core components
         self.initialize_components()
         
@@ -49,6 +52,23 @@ class SmartHomeApp:
         self.setup_socket_events()
         
         print(f"SmartHome Application initialized (Database mode: {DATABASE_MODE})")
+    
+    def setup_context_processors(self):
+        """Setup template context processors"""
+        @self.app.context_processor
+        def inject_csrf_token():
+            """Inject CSRF token into templates"""
+            import secrets
+            return dict(csrf_token=lambda: secrets.token_hex(16))
+        
+        @self.app.template_global()
+        def modify_query(**new_values):
+            """Modify query parameters for pagination"""
+            from flask import request
+            args = request.args.copy()
+            for key, value in new_values.items():
+                args[key] = value
+            return f'{request.path}?{args.to_query_string()}'
     
     def initialize_components(self):
         """Initialize all application components"""
@@ -270,7 +290,7 @@ class SmartHomeApp:
         
         print("✓ Socket events configured successfully")
     
-    def run(self, host='0.0.0.0', port=5000, debug=False):
+    def run(self, host='0.0.0.0', port=5001, debug=False):
         """Run the application"""
         print(f"\n🚀 Starting SmartHome Application")
         print(f"📊 Database mode: {'PostgreSQL' if DATABASE_MODE else 'JSON Files'}")
