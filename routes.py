@@ -1,6 +1,7 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 from deprecated.cache_helpers import CachedDataAccess, cache_json_response
+from management_logger import ManagementLogger
 import time
 import os
 import uuid
@@ -14,7 +15,7 @@ def allowed_file(filename):
 
 class RoutesManager:
     """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None, management_logger=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
@@ -22,6 +23,8 @@ class RoutesManager:
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
         self.cached_data = CachedDataAccess(cache, smart_home) if cache else None
+        # Initialize management logger
+        self.management_logger = management_logger or ManagementLogger()
         self.register_routes()
 
     def register_routes(self):
@@ -212,6 +215,16 @@ class RoutesManager:
                     updates['password'] = data['new_password']
                 success, message = self.smart_home.update_user_profile(user_id, updates)
                 if success:
+                    # Log user profile change
+                    action = 'password_change' if 'password' in updates else 'edit'
+                    self.management_logger.log_user_change(
+                        username=user['name'],
+                        action=action,
+                        target_user=user['name'],
+                        ip_address=request.remote_addr,
+                        details={'fields_updated': list(updates.keys())}
+                    )
+                    
                     if any(k in updates for k in ['name', 'email', 'password']):
                         return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
                     return jsonify({"status": "success", "message": message})
@@ -422,6 +435,16 @@ class RoutesManager:
             'profile_picture': ''
         }
         self.smart_home.save_config()
+        
+        # Log user registration
+        self.management_logger.log_user_change(
+            username=username, 
+            action='register', 
+            target_user=username,
+            ip_address=request.remote_addr,
+            details={'email': email}
+        )
+        
         return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
 
     def _find_user_by_email_or_username(self, email_or_username):
@@ -494,41 +517,17 @@ class RoutesManager:
         return device_states
 
     def _get_management_logs(self):
-        """Pobiera logi zarządzania systemem"""
-        from datetime import datetime, timedelta
-        import random
-        
-        # Symulowane logi (w rzeczywistości pobierane z pliku logów lub bazy danych)
-        log_types = ['info', 'warning', 'error']
-        log_messages = [
-            'Użytkownik admin zalogował się do systemu',
-            'Automatyzacja "Wieczorne światła" została wykonana',
-            'Urządzenie "Światło 1" przestało odpowiadać',
-            'Konfiguracja systemu została zapisana',
-            'Nowy użytkownik został dodany do systemu',
-            'Błąd połączenia z urządzeniem "Termostat salon"',
-            'Backup konfiguracji wykonany pomyślnie',
-            'Użytkownik user wylogował się z systemu'
-        ]
-        
-        logs = []
-        for i in range(10):
-            log_time = datetime.now() - timedelta(minutes=random.randint(1, 1440))
-            logs.append({
-                'timestamp': log_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'level': random.choice(log_types),
-                'message': random.choice(log_messages)
-            })
-        
-        return sorted(logs, key=lambda x: x['timestamp'], reverse=True)
+        """Pobiera rzeczywiste logi zarządzania systemem"""
+        return self.management_logger.get_logs(limit=50)
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
-    def __init__(self, app, socketio, smart_home, auth_manager):
+    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None):
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
+        self.management_logger = management_logger or ManagementLogger()
         self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
         self.register_routes()
 
@@ -561,6 +560,15 @@ class APIManager:
                     self.socketio.emit('update_rooms', self.smart_home.rooms)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać nowego pokoju"}), 500
+                    
+                    # Log room addition
+                    self.management_logger.log_room_change(
+                        username=session.get('username', 'unknown'),
+                        action='add',
+                        room_name=new_room,
+                        ip_address=request.remote_addr
+                    )
+                    
                     # Invalidate cache after modification
                     if self.cached_data:
                         self.cached_data.invalidate_rooms_cache()
@@ -584,6 +592,15 @@ class APIManager:
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 if not self.smart_home.save_config():
                     return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu pokoju"}), 500
+                
+                # Log room deletion
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='delete',
+                    room_name=room,
+                    ip_address=request.remote_addr
+                )
+                
                 # Invalidate cache after modification
                 if self.cached_data:
                     self.cached_data.invalidate_rooms_cache()
@@ -598,9 +615,12 @@ class APIManager:
             new_name = data.get('new_name') if data else None
             if not new_name or new_name.lower() in [r.lower() for r in self.smart_home.rooms]:
                 return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
+            
+            old_name = room
             for i, r in enumerate(self.smart_home.rooms):
                 if r.lower() == room.lower():
                     self.smart_home.rooms[i] = new_name
+                    old_name = r
                     break
             for button in self.smart_home.buttons:
                 if button['room'].lower() == room.lower():
@@ -609,6 +629,16 @@ class APIManager:
                 if control['room'].lower() == room.lower():
                     control['room'] = new_name
             self.smart_home.save_config()
+            
+            # Log room rename
+            self.management_logger.log_room_change(
+                username=session.get('username', 'unknown'),
+                action='rename',
+                room_name=new_name,
+                ip_address=request.remote_addr,
+                old_name=old_name
+            )
+            
             self.socketio.emit('update_rooms', self.smart_home.rooms)
             self.socketio.emit('update_buttons', self.smart_home.buttons)
             self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
@@ -885,6 +915,15 @@ class APIManager:
             }
             self.smart_home.save_config()
             
+            # Log admin user creation
+            self.management_logger.log_user_change(
+                username=session.get('username', 'unknown'),
+                action='add',
+                target_user=username,
+                ip_address=request.remote_addr,
+                details={'email': email, 'role': role}
+            )
+            
             return jsonify({
                 'status': 'success', 
                 'message': 'Użytkownik został dodany pomyślnie!',
@@ -996,6 +1035,15 @@ class APIManager:
                     self.socketio.emit('update_automations', self.smart_home.automations)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                    
+                    # Log automation addition
+                    self.management_logger.log_automation_change(
+                        username=session.get('username', 'unknown'),
+                        action='add',
+                        automation_name=new_automation['name'],
+                        ip_address=request.remote_addr
+                    )
+                    
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Invalid automation data"}), 400
 
@@ -1017,24 +1065,44 @@ class APIManager:
                         self.socketio.emit('update_automations', self.smart_home.automations)
                         if not self.smart_home.save_config():
                             return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
+                        
+                        # Log automation edit
+                        self.management_logger.log_automation_change(
+                            username=session.get('username', 'unknown'),
+                            action='edit',
+                            automation_name=updated_automation['name'],
+                            ip_address=request.remote_addr
+                        )
+                        
                         return jsonify({"status": "success"})
                     return jsonify({"status": "error", "message": "Invalid data"}), 400
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
             elif request.method == 'DELETE':
                 if 0 <= index < len(self.smart_home.automations):
+                    automation_name = self.smart_home.automations[index].get('name', 'unknown')
                     del self.smart_home.automations[index]
                     self.socketio.emit('update_automations', self.smart_home.automations)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
+                    
+                    # Log automation deletion
+                    self.management_logger.log_automation_change(
+                        username=session.get('username', 'unknown'),
+                        action='delete',
+                        automation_name=automation_name,
+                        ip_address=request.remote_addr
+                    )
+                    
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
 
 class SocketManager:
     """Klasa zarządzająca obsługą WebSocket"""
-    def __init__(self, socketio, smart_home):
+    def __init__(self, socketio, smart_home, management_logger=None):
         self.socketio = socketio
         self.smart_home = smart_home
+        self.management_logger = management_logger or ManagementLogger()
         self.register_handlers()
 
     def register_handlers(self):
@@ -1078,6 +1146,16 @@ class SocketManager:
                     button['state'] = state
                     self.socketio.emit('update_button', {'room': room, 'name': button_name, 'state': state})
                     self.socketio.emit('sync_button_states', {f"{b['room']}_{b['name']}": b['state'] for b in self.smart_home.buttons})
+                    
+                    # Log button state change
+                    from flask import request
+                    self.management_logger.log_button_change(
+                        username=session.get('username', 'unknown'),
+                        room=room,
+                        button_name=button_name,
+                        new_state=state,
+                        ip_address=getattr(request, 'remote_addr', 'unknown')
+                    )
                     
                     # Zapisz konfigurację z obsługą błędów
                     if not self.smart_home.save_config():
