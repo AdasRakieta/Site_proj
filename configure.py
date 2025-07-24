@@ -367,3 +367,11 @@ class SmartHomeSystem:
             if user.get('name') == login:
                 return user_id, user
         return None, None
+
+    def get_user_by_id(self, user_id):
+        """Zwraca user_dict na podstawie user_id (compatibility method for database backend)"""
+        if user_id in self.users:
+            user_data = self.users[user_id].copy()
+            user_data['user_id'] = user_id  # Add user_id field for consistency
+            return user_data
+        return None

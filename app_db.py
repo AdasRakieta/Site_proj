@@ -124,7 +124,7 @@ class SmartHomeApp:
                 smart_home=self.smart_home,
                 auth_manager=self.auth_manager,
                 mail_manager=self.mail_manager,
-                cache=self.cache_manager,
+                cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger
             )
             print("✓ Routes configured successfully")
