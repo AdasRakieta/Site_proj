@@ -6,8 +6,7 @@ SmartHome JSON to PostgreSQL Migration Script
 
 This script migrates all data from JSON files to PostgreSQL database.
 It handles:
-- Users from smart_home_config.json
-- Rooms, devices, automations from smart_home_config.json
+                print("🔥 Force mode enabled - will overwrite existing data")
 - Management logs from management_logs.json
 - Notification settings from notifications_settings.json
 - System settings and temperature states
@@ -30,7 +29,7 @@ from pathlib import Path
 DB_CONFIG = {
     'host': '192.168.1.219',
     'port': 5432,
-    'database': 'admin',
+    'dbname': 'admin',  # psycopg2 expects 'dbname', not 'database'
     'user': 'admin',
     'password': 'Qwuizzy123.'
 }
@@ -39,18 +38,12 @@ class SmartHomeMigrator:
     def __init__(self, dry_run=False, force=False):
         self.dry_run = dry_run
         self.force = force
-        self.conn = None
-        self.home_id = str(uuid.uuid4())  # Generate unique home ID
-        
-        # File paths
         self.config_file = 'smart_home_config.json'
         self.logs_file = 'management_logs.json'
         self.notifications_file = 'notifications_settings.json'
-        
-        print(f"Migration mode: {'DRY RUN' if dry_run else 'LIVE'}")
-        print(f"Force mode: {'ENABLED' if force else 'DISABLED'}")
-        print(f"Home ID: {self.home_id}")
-        print("-" * 60)
+        self.home_id = str(uuid.uuid4())
+        self.conn = None
+        self.connect_database()
 
     def connect_database(self):
         """Connect to PostgreSQL database"""
@@ -77,37 +70,41 @@ class SmartHomeMigrator:
         except Exception as e:
             print(f"✗ Error loading {filename}: {e}")
             return default or {}
-
     def check_existing_data(self):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Check if data already exists in database"""
         try:
             with self.conn.cursor() as cur:
                 # Check if users exist
                 cur.execute("SELECT COUNT(*) FROM users")
                 user_count = cur.fetchone()[0]
-                
+
                 # Check if rooms exist
                 cur.execute("SELECT COUNT(*) FROM rooms")
                 room_count = cur.fetchone()[0]
-                
+
                 # Check if devices exist
                 cur.execute("SELECT COUNT(*) FROM devices")
                 device_count = cur.fetchone()[0]
-                
+
                 if user_count > 0 or room_count > 0 or device_count > 0:
                     print(f"⚠ Existing data found: {user_count} users, {room_count} rooms, {device_count} devices")
                     if not self.force:
                         print("✗ Use --force to overwrite existing data")
                         return False
-                    else:
-                        print("🔥 Force mode enabled - will overwrite existing data")
-                
+                    print("🔥 Force mode enabled - will overwrite existing data")
                 return True
         except Exception as e:
             print(f"✗ Error checking existing data: {e}")
             return False
 
+
     def clear_existing_data(self):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Clear existing data if force mode is enabled"""
         if not self.force:
             return True
@@ -154,6 +151,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_users(self, config_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate users from JSON to database"""
         print("\n📋 Migrating users...")
         
@@ -211,6 +211,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_rooms(self, config_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return {}
         """Migrate rooms from JSON to database"""
         print("\n🏠 Migrating rooms...")
         
@@ -250,6 +253,9 @@ class SmartHomeMigrator:
             return {}
 
     def migrate_devices(self, config_data, room_mapping):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate buttons and temperature controls to devices table"""
         print("\n🔌 Migrating devices...")
         
@@ -341,6 +347,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_automations(self, config_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate automations from JSON to database"""
         print("\n🤖 Migrating automations...")
         
@@ -389,6 +398,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_temperature_states(self, config_data, room_mapping):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate temperature states from JSON to database"""
         print("\n🌡️ Migrating temperature states...")
         
@@ -440,6 +452,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_system_settings(self, config_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate system settings"""
         print("\n⚙️ Migrating system settings...")
         
@@ -484,6 +499,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_management_logs(self, logs_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate management logs from JSON to database"""
         print("\n📝 Migrating management logs...")
         
@@ -542,6 +560,9 @@ class SmartHomeMigrator:
             return False
 
     def migrate_notification_settings(self, notifications_data):
+        if not self.conn:
+            print("✗ No database connection.")
+            return False
         """Migrate notification settings from JSON to database"""
         print("\n📧 Migrating notification settings...")
         
@@ -608,8 +629,11 @@ class SmartHomeMigrator:
         try:
             # Start transaction
             if not self.dry_run:
+                if not self.conn:
+                    print("✗ No database connection.")
+                    return False
                 self.conn.autocommit = False
-            
+
             # Migration steps
             steps = [
                 ("Users", lambda: self.migrate_users(config_data)),
@@ -618,12 +642,12 @@ class SmartHomeMigrator:
                 ("Management Logs", lambda: self.migrate_management_logs(logs_data)),
                 ("Notification Settings", lambda: self.migrate_notification_settings(notifications_data))
             ]
-            
+
             room_mapping = {}
-            
+
             for step_name, step_func in steps:
                 print(f"\n🔄 Step: {step_name}")
-                
+
                 if step_name == "Rooms":
                     room_mapping = step_func()
                     if not room_mapping and config_data.get('rooms'):
@@ -633,38 +657,42 @@ class SmartHomeMigrator:
                     if not step_func():
                         print(f"✗ Failed to migrate {step_name}")
                         return False
-            
+
             # Migrate devices and temperature states after rooms are created
             if room_mapping:
                 print(f"\n🔄 Step: Devices")
                 if not self.migrate_devices(config_data, room_mapping):
                     return False
-                
+
                 print(f"\n🔄 Step: Temperature States")
                 if not self.migrate_temperature_states(config_data, room_mapping):
                     return False
-            
+
             # Migrate automations last
             print(f"\n🔄 Step: Automations")
             if not self.migrate_automations(config_data):
                 return False
-            
+
             # Final commit
             if not self.dry_run:
+                if not self.conn:
+                    print("✗ No database connection.")
+                    return False
                 self.conn.commit()
                 print("\n✅ All data committed to database")
             else:
                 print("\n🔍 DRY RUN completed - no data was actually written")
-            
+
             print("\n🎉 Migration completed successfully!")
             return True
-            
+
         except Exception as e:
             print(f"\n✗ Migration failed: {e}")
             if not self.dry_run:
-                self.conn.rollback()
+                if self.conn:
+                    self.conn.rollback()
             return False
-        
+
         finally:
             if self.conn:
                 self.conn.close()
