@@ -1,5 +1,122 @@
 [
   {
+    "timestamp": "2025-07-25 10:41:02",
+    "level": "info",
+    "message": "Dodano nową automatyzację: dfsdafsdf",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "dfsdafsdf"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 10:40:51",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-25 10:38:10",
+    "level": "info",
+    "message": "Dodano nową automatyzację: d",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "d"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 10:38:02",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-25 10:37:36",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-25 09:50:38",
+    "level": "info",
+    "message": "Dodano nową automatyzację: dasdasd123",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "dasdasd123"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 09:50:03",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-25 09:44:51",
+    "level": "info",
+    "message": "Dodano nową automatyzację: dddddd",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "dddddd"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 09:44:19",
+    "level": "info",
+    "message": "Dodano nową automatyzację: dasd",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "dasd"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 09:44:10",
+    "level": "info",
+    "message": "Dodano nową automatyzację: dad",
+    "event_type": "automation_change",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "action": "add",
+      "automation": "dad"
+    }
+  },
+  {
+    "timestamp": "2025-07-25 09:44:01",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-25 09:32:40",
     "level": "info",
     "message": "Użytkownik admin zalogował się pomyślnie",

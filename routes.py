@@ -1202,6 +1202,7 @@ class APIManager:
         def manage_automations():
             self.smart_home.check_and_save()
             if request.method == 'GET':
+                # Always fetch fresh automations from DB-backed property
                 return jsonify(self.smart_home.automations)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
@@ -1211,13 +1212,27 @@ class APIManager:
                     required_fields = ['name', 'trigger', 'actions', 'enabled']
                     if not all(field in new_automation for field in required_fields):
                         return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
+                    # Always check for duplicates using the DB-backed property
                     if any(auto['name'].lower() == new_automation['name'].lower() for auto in self.smart_home.automations):
                         return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
-                    self.smart_home.automations.append(new_automation)
-                    self.socketio.emit('update_automations', self.smart_home.automations)
-                    if not self.smart_home.save_config():
-                        return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
-                    
+                    try:
+                        from app_db import DATABASE_MODE
+                    except ImportError:
+                        DATABASE_MODE = False
+                    if DATABASE_MODE:
+                        self.smart_home.add_automation(
+                            name=new_automation['name'],
+                            trigger=new_automation['trigger'],
+                            actions=new_automation['actions'],
+                            enabled=new_automation['enabled']
+                        )
+                        # Always fetch updated automations from DB after insert
+                        automations = self.smart_home.automations
+                    else:
+                        self.smart_home.automations.append(new_automation)
+                        self.smart_home.save_config()
+                        automations = self.smart_home.automations
+                    self.socketio.emit('update_automations', automations)
                     # Log automation addition
                     self.management_logger.log_automation_change(
                         username=session.get('username', 'unknown'),
@@ -1225,14 +1240,17 @@ class APIManager:
                         automation_name=new_automation['name'],
                         ip_address=request.remote_addr or ""
                     )
-                    
-                    return jsonify({"status": "success"})
+                    return jsonify({"status": "success", "automations": automations})
                 return jsonify({"status": "error", "message": "Invalid automation data"}), 400
 
         @self.app.route('/api/automations/<int:index>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def modify_automation(index):
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
             if request.method == 'PUT':
                 if 0 <= index < len(self.smart_home.automations):
                     updated_automation = request.json
@@ -1243,11 +1261,12 @@ class APIManager:
                         )
                         if name_exists:
                             return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
-                        self.smart_home.automations[index] = updated_automation
+                        if DATABASE_MODE:
+                            self.smart_home.update_automation_by_index(index, updated_automation)
+                        else:
+                            self.smart_home.automations[index] = updated_automation
+                            self.smart_home.save_config()
                         self.socketio.emit('update_automations', self.smart_home.automations)
-                        if not self.smart_home.save_config():
-                            return jsonify({"status": "error", "message": "Nie udało się zapisać automatyzacji"}), 500
-                        
                         # Log automation edit
                         self.management_logger.log_automation_change(
                             username=session.get('username', 'unknown'),
@@ -1255,18 +1274,18 @@ class APIManager:
                             automation_name=updated_automation['name'],
                             ip_address=request.remote_addr or ""
                         )
-                        
                         return jsonify({"status": "success"})
                     return jsonify({"status": "error", "message": "Invalid data"}), 400
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
             elif request.method == 'DELETE':
                 if 0 <= index < len(self.smart_home.automations):
                     automation_name = self.smart_home.automations[index].get('name', 'unknown')
-                    del self.smart_home.automations[index]
+                    if DATABASE_MODE:
+                        self.smart_home.delete_automation_by_index(index)
+                    else:
+                        del self.smart_home.automations[index]
+                        self.smart_home.save_config()
                     self.socketio.emit('update_automations', self.smart_home.automations)
-                    if not self.smart_home.save_config():
-                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu automatyzacji"}), 500
-                    
                     # Log automation deletion
                     self.management_logger.log_automation_change(
                         username=session.get('username', 'unknown'),
@@ -1274,7 +1293,6 @@ class APIManager:
                         automation_name=automation_name,
                         ip_address=request.remote_addr or ""
                     )
-                    
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
