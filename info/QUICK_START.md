@@ -23,14 +23,15 @@
   python run_database_migration.py full
   ```
 
+
 ## 4. Uruchamianie aplikacji
-- **Windows (Waitress):**
-  ```cmd
-  run_server_windows.bat
-  ```
-- **Linux (Gunicorn):**
+- **Tryb produkcyjny (Waitress, Windows):**
   ```bash
-  bash run_server_linux.sh
+  python -m waitress --port=5001 app_db:main
+  ```
+- **Tryb produkcyjny (Gunicorn, Linux):**
+  ```bash
+  gunicorn -w 4 -b 0.0.0.0:5001 'app_db:main'
   ```
 
 ## 5. Dostęp do aplikacji

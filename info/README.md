@@ -154,8 +154,10 @@ Site_proj/
 3. Minifikuj zasoby: `python utils/asset_manager.py`
 4. (Opcjonalnie) Migracja: `python run_database_migration.py full`
 5. Uruchom aplikację:
-   - Windows: `run_server_windows.bat`
-   - Linux: `bash run_server_linux.sh`
+   - Windows (Waitress):
+     `python -m waitress --port=5001 app_db:main`
+   - Linux (Gunicorn):
+     `gunicorn -w 4 -b 0.0.0.0:5001 'app_db:main'`
 6. Wejdź na: http://localhost:5001
 
 ---

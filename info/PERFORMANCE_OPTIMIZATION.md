@@ -1,3 +1,6 @@
+**Uruchamianie produkcyjne:**
+- Windows: `python -m waitress --port=5001 app_db:main`
+- Linux: `gunicorn -w 4 -b 0.0.0.0:5001 'app_db:main'`
 
 # Site_proj - Dokumentacja Optymalizacji Wydajności
 
