@@ -1,4 +1,8 @@
+
 # Site_proj - Dokumentacja Optymalizacji Wydajności
+
+**Szybki start i uruchamianie produkcyjne opisane w `QUICK_START.md`.**
+
 
 Ten dokument opisuje optymalizacje wydajności zaimplementowane dla aplikacji smart home Site_proj.
 
@@ -55,8 +59,18 @@ Katalog `utils/` zawiera zorganizowane moduły narzędziowe dla optymalizacji wy
 - Alerty bezpieczeństwa → `send_security_alert_async()`
 - Powiadomienia o nieudanych logowaniach → `track_and_alert_failed_login_async()`
 
+
 #### `utils/asset_manager.py`
 **Cel**: Minifikacja CSS/JS i optymalizacja zasobów
+
+**Jak używać:**
+- Produkcja: `python utils/asset_manager.py`
+- Rozwój: `python utils/asset_manager.py --watch`
+
+**Efekty:**
+- Pliki .min.js/.min.css generowane automatycznie do folderów static/js/min, static/css/min
+
+**Nie edytuj ręcznie plików .min!**
 
 **Funkcje**:
 - Automatyczna minifikacja CSS/JS ze statystykami kompresji
