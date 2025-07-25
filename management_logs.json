@@ -1,5 +1,23 @@
 [
   {
+    "timestamp": "2025-07-25 12:06:41",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-25 12:05:54",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-25 11:00:33",
     "level": "info",
     "message": "Usunięto automatyzację: dasd",
