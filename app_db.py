@@ -16,21 +16,22 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the new database-backed SmartHome system
+
 try:
-    from configure_db import SmartHomeSystemDB as SmartHomeSystem
+    from app.configure_db import SmartHomeSystemDB as SmartHomeSystem
     DATABASE_MODE = True
     print("✓ Using PostgreSQL database backend")
 except ImportError as e:
     print(f"⚠ Failed to import database backend: {e}")
     print("⚠ Falling back to JSON file backend")
-    from configure import SmartHomeSystem
+    from app.configure import SmartHomeSystem
     DATABASE_MODE = False
 
 # Import other components
-from routes import RoutesManager
-from mail_manager import MailManager
+from app.routes import RoutesManager
+from app.mail_manager import MailManager
 from utils.cache_manager import CacheManager, setup_smart_home_caching
-from management_logger import ManagementLogger
+from app.management_logger import ManagementLogger
 
 class SmartHomeApp:
     """Main SmartHome application class with database integration"""
@@ -82,7 +83,7 @@ class SmartHomeApp:
                     print(f"⚠ Failed to initialize PostgreSQL backend: {e}")
                     print("⚠ Falling back to JSON file backend")
                     # Import JSON backend as fallback
-                    from configure import SmartHomeSystem as JSONSmartHomeSystem
+                    from app.configure import SmartHomeSystem as JSONSmartHomeSystem
                     self.smart_home = JSONSmartHomeSystem()
                     print("✓ SmartHome system initialized with JSON backend (fallback)")
             else:
@@ -96,7 +97,7 @@ class SmartHomeApp:
             self.mail_manager = MailManager()
             
             # Initialize simple auth manager for database mode
-            from simple_auth import SimpleAuthManager
+            from app.simple_auth import SimpleAuthManager
             self.auth_manager = SimpleAuthManager(self.smart_home)
             
             # Initialize cache (simple in-memory cache for now)
@@ -119,7 +120,7 @@ class SmartHomeApp:
     def setup_routes(self):
         """Setup Flask routes and API endpoints"""
         try:
-            from routes import APIManager
+            from app.routes import APIManager
             self.route_manager = RoutesManager(
                 app=self.app,
                 smart_home=self.smart_home,
@@ -306,7 +307,7 @@ class SmartHomeApp:
         
         print("✓ Socket events configured successfully")
     
-    def run(self, host='0.0.0.0', port=5001, debug=False):
+    def run(self, host='0.0.0.0', port=5000, debug=False):
         """Run the application"""
         print(f"\n🚀 Starting SmartHome Application")
         print(f"📊 Database mode: {'PostgreSQL' if DATABASE_MODE else 'JSON Files'}")

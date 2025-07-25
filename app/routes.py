@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
-from deprecated.cache_helpers import CachedDataAccess, cache_json_response
-from management_logger import ManagementLogger
+from utils.cache_manager import CachedDataAccess
+from app.management_logger import ManagementLogger
 import time
 import os
 import uuid
