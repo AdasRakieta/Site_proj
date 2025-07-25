@@ -63,7 +63,8 @@ class AutomationsManager {
                 this.app.fetchData('/api/automations'),
                 timeoutPromise
             ]);
-            // ... reszta kodu
+            this.automations = response;
+            this.renderAutomations(response);
         } catch (error) {
             console.error('Błąd ładowania automatyzacji:', error);
             this.renderAutomations([]);
