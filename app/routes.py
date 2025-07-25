@@ -2,20 +2,19 @@ from flask import render_template, jsonify, request, redirect, url_for, session,
 from werkzeug.utils import secure_filename
 from utils.cache_manager import CachedDataAccess
 from app.management_logger import ManagementLogger
-import time
 import os
+import time
 import uuid
-
-
-def allowed_file(filename):
-    """Sprawdza, czy rozszerzenie pliku jest dozwolone"""
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+try:
+    from utils.allowed_file import allowed_file
+except ImportError:
+    # If allowed_file is defined elsewhere, adjust this import accordingly
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
 
 class RoutesManager:
-    """Klasa zarządzająca podstawowymi trasami aplikacji"""
-    def __init__(self, app, smart_home, auth_manager, mail_manager, cache=None, async_mail_manager=None, management_logger=None, cached_data_access=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
@@ -131,21 +130,25 @@ class RoutesManager:
                         flash('Adres email jest już używany.', 'error')
                         return redirect(url_for('admin_dashboard'))
                 
-                # Create user
-                import uuid
-                from werkzeug.security import generate_password_hash
-                
-                user_id = str(uuid.uuid4())
-                self.smart_home.users[user_id] = {
-                    'name': username,
-                    'password': generate_password_hash(password),
-                    'role': role,
-                    'email': email,
-                    'profile_picture': ''
-                }
-                self.smart_home.save_config()
-                
-                flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                # Dodawanie użytkownika - obsługa trybu DB i plikowego
+                try:
+                    if hasattr(self.smart_home, 'add_user'):
+                        self.smart_home.add_user(username, password, role, email)
+                    else:
+                        import uuid
+                        from werkzeug.security import generate_password_hash
+                        user_id = str(uuid.uuid4())
+                        self.smart_home.users[user_id] = {
+                            'name': username,
+                            'password': generate_password_hash(password),
+                            'role': role,
+                            'email': email,
+                            'profile_picture': ''
+                        }
+                        self.smart_home.save_config()
+                    flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                except Exception as e:
+                    flash(f'Błąd podczas dodawania użytkownika: {e}', 'error')
                 return redirect(url_for('admin_dashboard'))
             
             # Przygotowanie statystyk dla dashboardu
@@ -1083,35 +1086,40 @@ class APIManager:
                 if user.get('email') == email:
                     return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
             
-            # Create user using the same logic as registration (without verification)
-            import uuid
-            from werkzeug.security import generate_password_hash
-            
-            user_id = str(uuid.uuid4())
-            self.smart_home.users[user_id] = {
-                'name': username,
-                'password': generate_password_hash(password),
-                'role': role,
-                'email': email,
-                'profile_picture': ''
-            }
-            self.smart_home.save_config()
-            
-            # Log admin user creation
-            self.management_logger.log_user_change(
-                username=session.get('username', 'unknown'),
-                action='add',
-                target_user=username,
-                ip_address=request.remote_addr or "",
-                details={'email': email, 'role': role}
-            )
-            
-            return jsonify({
-                'status': 'success', 
-                'message': 'Użytkownik został dodany pomyślnie!',
-                'user_id': user_id,
-                'username': username
-            }), 200
+            # Dodawanie użytkownika - obsługa trybu DB i plikowego
+            try:
+                if hasattr(self.smart_home, 'add_user'):
+                    # Tryb DB
+                    user_id = self.smart_home.add_user(username, password, role, email)
+                else:
+                    # Tryb plikowy (legacy)
+                    import uuid
+                    from werkzeug.security import generate_password_hash
+                    user_id = str(uuid.uuid4())
+                    self.smart_home.users[user_id] = {
+                        'name': username,
+                        'password': generate_password_hash(password),
+                        'role': role,
+                        'email': email,
+                        'profile_picture': ''
+                    }
+                    self.smart_home.save_config()
+                # Log admin user creation
+                self.management_logger.log_user_change(
+                    username=session.get('username', 'unknown'),
+                    action='add',
+                    target_user=username,
+                    ip_address=request.remote_addr or "",
+                    details={'email': email, 'role': role}
+                )
+                return jsonify({
+                    'status': 'success', 
+                    'message': 'Użytkownik został dodany pomyślnie!',
+                    'user_id': user_id,
+                    'username': username
+                }), 200
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd podczas dodawania użytkownika: {e}'}), 500
 
         @self.app.route('/api/users/<user_id>', methods=['PUT'])
         @self.auth_manager.login_required
@@ -1149,11 +1157,45 @@ class APIManager:
         @self.app.route('/api/users/<user_id>', methods=['DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
-        def delete_user(user_id):
-            success, message = self.smart_home.delete_user(user_id)
-            if success:
-                return jsonify({"status": "success", "message": message})
-            return jsonify({"status": "error", "message": message}), 400
+        def delete_user_api(user_id):
+            try:
+                # Try DB mode first
+                if hasattr(self.smart_home, 'delete_user'):
+                    result = self.smart_home.delete_user(user_id)
+                    # Obsłuż różne typy zwracane przez delete_user
+                    if isinstance(result, tuple):
+                        success, message = result
+                    elif isinstance(result, bool):
+                        success, message = result, ''
+                    elif result is None:
+                        success, message = True, ''
+                    else:
+                        success, message = False, str(result)
+                    if not success:
+                        print(f"[ERROR] delete_user zwróciło błąd: {message}")
+                        return jsonify({'status': 'error', 'message': message or 'Błąd usuwania użytkownika'}), 400
+                else:
+                    # Legacy file mode
+                    if user_id not in self.smart_home.users:
+                        return jsonify({'status': 'error', 'message': 'Użytkownik nie istnieje'}), 404
+                    del self.smart_home.users[user_id]
+                    self.smart_home.save_config()
+                # Optionally log the deletion
+                try:
+                    self.management_logger.log_user_change(
+                        username=session.get('username', 'unknown'),
+                        action='delete',
+                        target_user=user_id,
+                        ip_address=request.remote_addr or "",
+                        details={}
+                    )
+                except Exception as log_exc:
+                    print(f"[WARN] Błąd logowania usunięcia użytkownika: {log_exc}")
+                return jsonify({'status': 'success', 'message': 'Użytkownik został usunięty'})
+            except Exception as e:
+                import traceback
+                print(f"[ERROR] Błąd podczas usuwania użytkownika: {e}\n{traceback.format_exc()}")
+                return jsonify({'status': 'error', 'message': f'Błąd podczas usuwania użytkownika: {e}'}), 500
 
         @self.app.route('/api/users/<user_id>', methods=['POST'])
         @self.auth_manager.login_required
