@@ -117,8 +117,9 @@ class SmartHomeApp:
             raise
     
     def setup_routes(self):
-        """Setup Flask routes"""
+        """Setup Flask routes and API endpoints"""
         try:
+            from routes import APIManager
             self.route_manager = RoutesManager(
                 app=self.app,
                 smart_home=self.smart_home,
@@ -127,8 +128,15 @@ class SmartHomeApp:
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger
             )
-            print("✓ Routes configured successfully")
-            
+            # Register API endpoints (including /api/automations etc.)
+            self.api_manager = APIManager(
+                app=self.app,
+                socketio=self.socketio,
+                smart_home=self.smart_home,
+                auth_manager=self.auth_manager,
+                management_logger=self.management_logger
+            )
+            print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
             raise

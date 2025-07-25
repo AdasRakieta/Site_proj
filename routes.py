@@ -29,6 +29,7 @@ class RoutesManager:
         self.register_routes()
 
     def register_routes(self):
+        print("[DEBUG] register_routes called - registering Flask routes!")
         @self.app.route('/')
         def home():
             print(f"[DEBUG] Session on /: {dict(session)}")
@@ -699,6 +700,10 @@ class APIManager:
         self.register_routes()
 
     def register_routes(self):
+        @self.app.route('/api', methods=['GET'])
+        def api_root():
+            return jsonify({"status": "ok", "message": "API root"}), 200
+
         @self.app.route('/weather')
         @self.auth_manager.login_required
         def weather():
@@ -706,6 +711,12 @@ class APIManager:
             if weather_data:
                 return jsonify(weather_data)
             return jsonify({"error": "Nie udało się pobrać danych pogodowych"}), 500
+
+        @self.app.route('/api/admin', methods=['GET'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_admin_root():
+            return jsonify({"status": "ok", "message": "Admin API root"}), 200
 
         @self.app.route('/api/rooms', methods=['GET', 'POST'])
         @self.auth_manager.login_required
