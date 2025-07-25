@@ -128,74 +128,39 @@ SmartHome to kompleksowy system zarządzania domem inteligentnym, zaprojektowany
 
 ---
 
-## Struktura Projektu
+
+## Struktura Projektu (uproszczona)
 
 ```
-SmartHome/
-├── app.py                      # Główna aplikacja Flask
-├── configure.py                # Konfiguracja systemu SmartHome
-├── routes.py                   # Definicje tras i API endpoints
-├── mail_manager.py             # Zarządzanie powiadomieniami email
-├── run_server.py               # Skrypt uruchamiający serwer (Windows)
-├── run_server_gevent.py        # Skrypt uruchamiający z gevent
-├── run_server.bat              # Skrypt batch dla Windows
-├── requirements.txt            # Dependencje Python
-├── README.md                   # Dokumentacja projektu
-├── *.json                      # Pliki konfiguracyjne
-├── *.env                       # Zmienne środowiskowe
-├── *.enc, *.key               # Pliki szyfrowane
-│
-├── *.env                       # Zmienne środowiskowe
-├── *.enc, *.key               # Pliki szyfrowane
-│
-├── templates/                  # Szablony HTML (Jinja2)
-│   ├── base.html              # Szablon bazowy
-│   ├── index.html             # Strona główna
-│   ├── login.html             # Strona logowania
-│   ├── register.html          # Rejestracja użytkownika
-│   ├── settings.html          # Panel ustawień
-│   ├── user.html              # Profil użytkownika
-│   ├── automations.html       # Panel automatyzacji
-│   ├── temperature.html       # Kontrola temperatury
-│   ├── security.html          # Panel zabezpieczeń
-│   ├── lights.html            # Kontrola oświetlenia
-│   ├── edit.html              # Edycja konfiguracji
-│   ├── room.html              # Widok pojedynczego pokoju
-│   └── error.html             # Strona błędów
-│
-├── static/                     # Pliki statyczne
-│   ├── css/                   # Style CSS
-│   │   ├── style.css          # Główne style
-│   │   ├── mobile.css         # Responsive design
-│   │   ├── user.css           # Style profilu użytkownika
-│   │   ├── register.css       # Style rejestracji
-│   │   ├── dragNdrop.css      # Style drag & drop
-│   │   ├── user_menu.css      # Style menu użytkownika
-│   │   └── style_404.css      # Style strony błędów
-│   │
-│   ├── js/                    # JavaScript
-│   │   ├── app.js             # Główna aplikacja JS
-│   │   ├── automations.js     # Logika automatyzacji
-│   │   ├── controls.js        # Kontrolki urządzeń
-│   │   ├── lights.js          # Kontrola oświetlenia
-│   │   ├── settings.js        # Panel ustawień
-│   │   ├── user.js            # Profil użytkownika
-│   │   ├── register.js        # Rejestracja
-│   │   ├── dragNdrop.js       # Drag & drop
-│   │   ├── setup.js           # Konfiguracja
-│   │   └── user_menu.js       # Menu użytkownika
-│   │
-│   ├── icons/                 # Ikony systemu
-│   │   ├── *_icon_light.png   # Ikony jasne
-│   │   ├── *_icon_dark.png    # Ikony ciemne
-│   │   └── site_icon.png      # Favicon
-│   │
-│   └── profile_pictures/      # Zdjęcia profilowe
-│       ├── podstawowe.jpg     # Domyślne zdjęcie
-│       └── *.png              # Zdjęcia użytkowników
-│
-└── __pycache__/               # Skompilowane pliki Python
+Site_proj/
+├── app/                       # Główna aplikacja (app_db.py, routes.py, itd.)
+├── utils/                     # Narzędzia (cache, async, asset_manager)
+├── static/                    # Pliki statyczne (CSS, JS, ikony)
+├── templates/                 # Szablony HTML (Jinja2)
+├── info/                      # Dokumentacja, wymagania, quick start
+├── run_server_windows.bat     # Start produkcyjny na Windows
+├── run_server_linux.sh        # Start produkcyjny na Linux
+├── .env                       # Zmienne środowiskowe
+├── requirements.txt           # Wymagania (link do info/requirements.txt)
+└── ...                        # Pozostałe pliki konfiguracyjne
 ```
+
+---
+
+## Szybki Start
+
+1. Skonfiguruj `.env` (baza danych, email)
+2. Zainstaluj zależności: `pip install -r info/requirements.txt`
+3. Minifikuj zasoby: `python utils/asset_manager.py`
+4. (Opcjonalnie) Migracja: `python run_database_migration.py full`
+5. Uruchom aplikację:
+   - Windows: `run_server_windows.bat`
+   - Linux: `bash run_server_linux.sh`
+6. Wejdź na: http://localhost:5001
+
+---
+
+**Optymalizacja wydajności**: patrz `PERFORMANCE_OPTIMIZATION.md`
 
 ---
 
