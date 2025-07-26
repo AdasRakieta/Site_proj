@@ -218,11 +218,13 @@ class SmartHomeSystemDB:
     
     def add_button(self, name: str, room_name: str, state: bool = False) -> str:
         """Add new button device"""
-        return self.db.add_button(name, room_name, state)
+        result = self.db.add_button(name, room_name, state)
+        return result or ""
     
     def add_temperature_control(self, name: str, room_name: str, temperature: float = 22.0) -> str:
         """Add new temperature control device"""
-        return self.db.add_temperature_control(name, room_name, temperature)
+        result = self.db.add_temperature_control(name, room_name, temperature)
+        return result or ""
     
     def update_device(self, device_id: str, updates: Dict) -> bool:
         """Update device properties"""
@@ -268,7 +270,7 @@ class SmartHomeSystemDB:
         """Get system setting"""
         return self.db.get_system_setting(key)
     
-    def set_system_setting(self, key: str, value: Any, description: str = None) -> bool:
+    def set_system_setting(self, key: str, value: Any, description: Optional[str] = None) -> bool:
         """Set system setting"""
         return self.db.set_system_setting(key, value, description)
     
@@ -276,13 +278,14 @@ class SmartHomeSystemDB:
     # LOGGING METHODS
     # ========================================================================
     
-    def add_management_log(self, level: str, message: str, event_type: str = None,
-                          user_id: str = None, username: str = None,
-                          ip_address: str = None, details: Dict = None) -> str:
+    def add_management_log(self, level: str, message: str, event_type: Optional[str] = None,
+                          user_id: Optional[str] = None, username: Optional[str] = None,
+                          ip_address: Optional[str] = None, details: Optional[Dict] = None) -> str:
         """Add management log entry"""
-        return self.db.add_management_log(level, message, event_type, user_id, username, ip_address, details)
+        result = self.db.add_management_log(level, message, event_type, user_id, username, ip_address, details)
+        return result or ""
     
-    def get_management_logs(self, limit: int = 100, level: str = None, event_type: str = None) -> List[Dict]:
+    def get_management_logs(self, limit: int = 100, level: Optional[str] = None, event_type: Optional[str] = None) -> List[Dict]:
         """Get management logs"""
         return self.db.get_management_logs(limit, level, event_type)
     

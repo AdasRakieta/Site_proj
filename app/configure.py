@@ -375,3 +375,42 @@ class SmartHomeSystem:
             user_data['user_id'] = user_id  # Add user_id field for consistency
             return user_data
         return None
+
+    # ========================================================================
+    # COMPATIBILITY METHODS FOR DATABASE BACKEND
+    # ========================================================================
+    
+    def update_button_state(self, room: str, name: str, state: bool) -> bool:
+        """Update button state by room and name"""
+        for button in self.buttons:
+            if button.get('room') == room and button.get('name') == name:
+                button['state'] = state
+                self.save_config()
+                return True
+        return False
+    
+    def update_temperature_control_value(self, room: str, name: str, temperature: float) -> bool:
+        """Update temperature control value by room and name"""
+        for control in self.temperature_controls:
+            if control.get('room') == room and control.get('name') == name:
+                control['temperature'] = temperature
+                self.save_config()
+                return True
+        return False
+    
+    def set_room_temperature(self, room_name: str, temperature: float) -> bool:
+        """Set room temperature"""
+        self.temperature_states[room_name] = temperature
+        self.save_config()
+        return True
+    
+    def get_database_stats(self) -> dict:
+        """Get database statistics (JSON mode compatibility)"""
+        return {
+            'users': len(self.users),
+            'rooms': len(self.rooms),
+            'buttons': len(self.buttons),
+            'temperature_controls': len(self.temperature_controls),
+            'automations': len(self.automations),
+            'mode': 'JSON Files'
+        }

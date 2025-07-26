@@ -298,3 +298,14 @@ class ManagementLogger:
                       f'Nieudana próba logowania dla {username} z adresu IP {ip_address} (próba #{attempt_count})', 
                       'failed_login', username, ip_address,
                       {'attempt_count': attempt_count})
+    
+    def log_device_action(self, user: str, device_name: str, room: str, action: str, new_state, ip_address: Optional[str] = None):
+        """Log device action (button toggle, temperature change, etc.)"""
+        details = {
+            'device_name': device_name,
+            'room': room,
+            'action': action,
+            'new_state': new_state
+        }
+        message = f'{user} wykonał akcję "{action}" na urządzeniu "{device_name}" w pokoju "{room}". Nowy stan: {new_state}'
+        self.log_event('info', message, 'device_action', user, ip_address or '', details)
