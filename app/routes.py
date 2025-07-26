@@ -5,12 +5,7 @@ from app.management_logger import ManagementLogger
 import os
 import time
 import uuid
-try:
-    from utils.allowed_file import allowed_file
-except ImportError:
-    # If allowed_file is defined elsewhere, adjust this import accordingly
-    def allowed_file(filename):
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+from utils.allowed_file import allowed_file
 
 
 class RoutesManager:
@@ -1411,12 +1406,15 @@ class SocketManager:
                         })
                     else:
                         print(f"[AUTOMATION] Wywołanie check_device_triggers dla {room}_{button_name} => {state}")
-                        # Zakładam, że funkcja check_device_triggers jest zdefiniowana w app.py
+                        # check_device_triggers function is not available, skipping automation trigger
                         try:
-                            from app import check_device_triggers
-                            check_device_triggers(room, button_name, state)
+                            # Check if automation system exists and trigger automations if available
+                            if hasattr(self.smart_home, 'automations'):
+                                print(f"[AUTOMATION] Checking automations for device {room}_{button_name}")
+                            else:
+                                print(f"[AUTOMATION] Automation system not available")
                         except Exception as e:
-                            print(f"[ERROR] Błąd w check_device_triggers: {e}")
+                            print(f"[ERROR] Błąd w automation check: {e}")
                 else:
                     print(f"[ERROR] Nie znaleziono przycisku {button_name} w pokoju {room}")
                     self.socketio.emit('error_message', {

@@ -66,10 +66,13 @@ class SmartHomeApp:
         def modify_query(**new_values):
             """Modify query parameters for pagination"""
             from flask import request
+            from urllib.parse import urlencode
             args = request.args.copy()
             for key, value in new_values.items():
                 args[key] = value
-            return f'{request.path}?{args.to_query_string()}'
+            # Convert MultiDict to regular dict for urlencode
+            args_dict = {k: v for k, v in args.items()}
+            return f'{request.path}?{urlencode(args_dict)}'
     
     def initialize_components(self):
         """Initialize all application components"""
@@ -152,7 +155,12 @@ class SmartHomeApp:
                     disconnect()
                     return False
                 
-                user_data = self.smart_home.get_user_data(session.get('user_id'))
+                user_id = session.get('user_id')
+                if not user_id:
+                    disconnect()
+                    return False
+                
+                user_data = self.smart_home.get_user_data(user_id)
                 emit('user_connected', {
                     'message': f'Welcome back, {user_data.get("name", "User")}!',
                     'user': user_data
@@ -216,15 +224,17 @@ class SmartHomeApp:
                     })
                     
                     # Log the action
-                    user_data = self.smart_home.get_user_data(session.get('user_id'))
-                    self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown'),
-                        device_name=name,
-                        room=room,
-                        action='toggle',
-                        new_state=new_state,
-                        ip_address=request.environ.get('REMOTE_ADDR')
-                    )
+                    user_id = session.get('user_id')
+                    if user_id:
+                        user_data = self.smart_home.get_user_data(user_id)
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown'),
+                            device_name=name,
+                            room=room,
+                            action='toggle',
+                            new_state=new_state,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
                     
                     emit('button_toggled', {'success': True, 'room': room, 'name': name, 'state': new_state})
                 else:
@@ -280,15 +290,17 @@ class SmartHomeApp:
                     })
                     
                     # Log the action
-                    user_data = self.smart_home.get_user_data(session.get('user_id'))
-                    self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown'),
-                        device_name=name,
-                        room=room,
-                        action='set_temperature',
-                        new_state=temperature,
-                        ip_address=request.environ.get('REMOTE_ADDR')
-                    )
+                    user_id = session.get('user_id')
+                    if user_id:
+                        user_data = self.smart_home.get_user_data(user_id)
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown'),
+                            device_name=name,
+                            room=room,
+                            action='set_temperature',
+                            new_state=temperature,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
                     
                     emit('temperature_set', {
                         'success': True, 
