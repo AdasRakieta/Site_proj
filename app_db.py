@@ -317,6 +317,74 @@ class SmartHomeApp:
                 print(f"Error in set_temperature handler: {e}")
                 emit('error', {'message': 'Internal server error'})
         
+        @self.socketio.on('set_security_state')
+        def handle_set_security_state(data):
+            """Handle security state setting via WebSocket"""
+            try:
+                if 'user_id' not in session:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+                
+                new_state = data.get('state')
+                if new_state not in ["Załączony", "Wyłączony"]:
+                    emit('error', {'message': 'Invalid security state'})
+                    return
+                
+                # Update security state
+                self.smart_home.security_state = new_state
+                
+                # Save configuration
+                if DATABASE_MODE:
+                    # Database mode - state is automatically saved via setter
+                    success = True
+                else:
+                    # JSON mode - explicitly save config
+                    success = self.smart_home.save_config()
+                
+                if success:
+                    # Broadcast update to all connected clients
+                    self.socketio.emit('update_security_state', {'state': new_state})
+                    
+                    # Log the action
+                    user_id = session.get('user_id')
+                    if user_id:
+                        user_data = self.smart_home.get_user_data(user_id)
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown'),
+                            device_name='Security System',
+                            room='System',
+                            action='set_security_state',
+                            new_state=new_state,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
+                    
+                    print(f"Security state updated to: {new_state}")
+                else:
+                    emit('error', {'message': 'Failed to save security state'})
+                    
+            except Exception as e:
+                print(f"Error in set_security_state handler: {e}")
+                emit('error', {'message': 'Internal server error'})
+        
+        @self.socketio.on('get_security_state')
+        def handle_get_security_state():
+            """Handle security state request via WebSocket"""
+            try:
+                if 'user_id' not in session:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+                
+                # Get current security state
+                current_state = self.smart_home.security_state
+                
+                # Send current state to client
+                emit('update_security_state', {'state': current_state})
+                print(f"Sent security state to client: {current_state}")
+                
+            except Exception as e:
+                print(f"Error in get_security_state handler: {e}")
+                emit('error', {'message': 'Internal server error'})
+        
         print("✓ Socket events configured successfully")
     
     def run(self, host='0.0.0.0', port=5000, debug=False):
