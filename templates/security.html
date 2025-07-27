@@ -17,45 +17,47 @@
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    function initSecurityPage() {
         // Pobierz początkowy status zabezpieczeń
-        app.socket.emit('get_security_state');
+        if (window.app && window.app.socket) {
+            window.app.socket.emit('get_security_state');
+        }
 
         // Podpięcie przycisków
         document.getElementById('enableSecurity').addEventListener('click', () => {
-            app.socket.emit('set_security_state', { state: 'Załączony' });
+            if (window.app && window.app.socket) {
+                window.app.socket.emit('set_security_state', { state: 'Załączony' });
+            }
         });
 
         document.getElementById('disableSecurity').addEventListener('click', () => {
-            app.socket.emit('set_security_state', { state: 'Wyłączony' });
+            if (window.app && window.app.socket) {
+                window.app.socket.emit('set_security_state', { state: 'Wyłączony' });
+            }
         });
+    }
 
-        // Nasłuchuj aktualizacji statusu zabezpieczeń
-        app.socket.on('update_security_state', function(data) {
-            const statusElement = document.getElementById('securityStatus');
-            if (statusElement) {
-                statusElement.textContent = `Aktualny status: ${data.state}`;
-                
-                // Optional: Add visual feedback based on state
-                if (data.state === 'Załączony') {
-                    statusElement.classList.add('active');
-                    statusElement.classList.remove('inactive');
+    // Inicjalizuj gdy DOM jest gotowy i aplikacja jest załadowana
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sprawdź czy app jest już dostępny
+        if (window.app) {
+            initSecurityPage();
+        } else {
+            // Czekaj aż app będzie dostępny
+            let attempts = 0;
+            const maxAttempts = 50; // 5 sekund
+            const waitForApp = () => {
+                if (window.app && window.app.socket) {
+                    initSecurityPage();
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    setTimeout(waitForApp, 100);
                 } else {
-                    statusElement.classList.add('inactive');
-                    statusElement.classList.remove('active');
+                    console.error('Nie udało się zainicjalizować aplikacji w czasie 5 sekund');
                 }
-            }
-        });
-
-        // Optional: Add error handling
-        app.socket.on('security_error', function(error) {
-            console.error('Błąd zabezpieczeń:', error);
-            const statusElement = document.getElementById('securityStatus');
-            if (statusElement) {
-                statusElement.textContent = `Błąd: ${error.message}`;
-                statusElement.classList.add('error');
-            }
-        });
+            };
+            waitForApp();
+        }
     });
 </script>
 {% endblock %}
