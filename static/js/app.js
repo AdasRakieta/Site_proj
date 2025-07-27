@@ -392,20 +392,30 @@ class SmartHomeApp {
          * @param {Object} data - Security state data from backend
          * @param {string} data.state - Security state ("Załączony" or "Wyłączony")
          */
-        console.log('Security state update received:', data);
+        console.log('Global security state update received:', data);
         
+        // Update main status element if it exists
         const statusElement = document.getElementById('securityStatus');
-        if (statusElement && data.state) {
-            statusElement.textContent = `Aktualny status: ${data.state}`;
+        const statusValueElement = document.getElementById('statusValue');
+        
+        if (data && data.state) {
+            // Update the status text
+            if (statusValueElement) {
+                statusValueElement.textContent = data.state;
+            } else if (statusElement) {
+                statusElement.textContent = `Aktualny status: ${data.state}`;
+            }
             
-            // Add visual feedback based on state
-            statusElement.classList.remove('active', 'inactive', 'unknown');
-            if (data.state === 'Załączony') {
-                statusElement.classList.add('active');
-            } else if (data.state === 'Wyłączony') {
-                statusElement.classList.add('inactive');
-            } else {
-                statusElement.classList.add('unknown');
+            // Update visual feedback based on state
+            if (statusElement) {
+                statusElement.classList.remove('active', 'inactive', 'unknown');
+                if (data.state === 'Załączony') {
+                    statusElement.classList.add('active');
+                } else if (data.state === 'Wyłączony') {
+                    statusElement.classList.add('inactive');
+                } else {
+                    statusElement.classList.add('unknown');
+                }
             }
         }
     }

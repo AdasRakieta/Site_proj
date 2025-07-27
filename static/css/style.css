@@ -48,6 +48,8 @@
     --btn-danger-hover: #f32819;
     --btn-success: #28a745;
     --btn-success-hover: #218838;
+    --disabled-bg: #cccccc;
+    --disabled-text: #666666;
     --btn-secondary: #6c757d;
     --btn-secondary-hover: #5a6268;
     --link-color: #007bff;
@@ -101,6 +103,8 @@
     --btn-success-hover: #218838;
     --btn-secondary: #6c757d;
     --btn-secondary-hover: #5a6268;
+    --disabled-bg: #444444;
+    --disabled-text: #888888;
     --link-color: #0d6efd;
     --link-hover: #0b5ed7;
     --nav-bg: #1a1a1a;
@@ -481,6 +485,15 @@ input{
     margin: 0.5rem;
     text-decoration: none;
     box-shadow: var(--box_shd);
+}
+
+.control-button:disabled {
+    background-color: var(--disabled-bg, #ccc);
+    color: var(--disabled-text, #666);
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none !important;
+    box-shadow: none;
 }
 
 .edit-generic-form {
@@ -1562,6 +1575,35 @@ footer {
 .status-badge.disabled {
     background-color: #f44336;
     color: white;
+}
+
+/* Security status styles */
+.status-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 10px 15px;
+    border-radius: 8px;
+    text-align: center;
+    margin: 20px 0;
+    transition: all 0.3s ease;
+}
+
+.status-text.active {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: #4CAF50;
+    border: 2px solid #4CAF50;
+}
+
+.status-text.inactive {
+    background-color: rgba(158, 158, 158, 0.1);
+    color: #9e9e9e;
+    border: 2px solid #9e9e9e;
+}
+
+.status-text.unknown {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+    border: 2px solid #ff9800;
 }
 
 

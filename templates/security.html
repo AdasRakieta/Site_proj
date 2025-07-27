@@ -10,42 +10,236 @@
             <button class="control-button" id="enableSecurity">Załącz czuwanie</button>
             <button class="control-button" id="disableSecurity">Wyłącz czuwanie</button>
         </div>
-        <p id="securityStatus" class="status-text">Aktualny status: Nieznany</p>
+        <p id="securityStatus" class="status-text {% if security_state == 'Załączony' %}active{% elif security_state == 'Wyłączony' %}inactive{% else %}unknown{% endif %}">Aktualny status: <span id="statusValue">{{ security_state or 'Nieznany' }}</span></p>
     </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-    function initSecurityPage() {
-        // Pobierz początkowy status zabezpieczeń
-        if (window.app && window.app.socket) {
-            window.app.socket.emit('get_security_state');
+    let securityPageInitialized = false;
+    
+    // Helper function to get CSRF token
+    function getCSRFToken() {
+        let csrfToken = null;
+        const input = document.querySelector('input[name="_csrf_token"]');
+        if (input) csrfToken = input.value;
+        if (!csrfToken) {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) csrfToken = meta.getAttribute('content');
         }
-
-        // Podpięcie przycisków
-        document.getElementById('enableSecurity').addEventListener('click', () => {
-            if (window.app && window.app.socket) {
-                window.app.socket.emit('set_security_state', { state: 'Załączony' });
+        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        return csrfToken || '';
+    }
+    
+    function updateSecurityStatus(state) {
+        console.log('Updating security status to:', state);
+        const statusElement = document.getElementById('statusValue');
+        if (statusElement) {
+            statusElement.textContent = state || 'Nieznany';
+            
+            // Update visual styling
+            const statusContainer = document.getElementById('securityStatus');
+            if (statusContainer) {
+                statusContainer.classList.remove('active', 'inactive', 'unknown');
+                if (state === 'Załączony') {
+                    statusContainer.classList.add('active');
+                } else if (state === 'Wyłączony') {
+                    statusContainer.classList.add('inactive');
+                } else {
+                    statusContainer.classList.add('unknown');
+                }
             }
-        });
-
-        document.getElementById('disableSecurity').addEventListener('click', () => {
-            if (window.app && window.app.socket) {
-                window.app.socket.emit('set_security_state', { state: 'Wyłączony' });
+        }
+    }
+    
+    function loadSecurityStateFromAPI() {
+        console.log('Loading security state from API...');
+        // Fallback: load security state from REST API
+        fetch('/api/security', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
             }
+        })
+        .then(response => {
+            console.log('API Response status:', response.status);
+            console.log('API Response headers:', response.headers.get('content-type'));
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text(); // Get as text first to debug
+        })
+        .then(text => {
+            console.log('Raw API response:', text);
+            try {
+                const data = JSON.parse(text);
+                if (data.status === 'success' && data.security_state) {
+                    updateSecurityStatus(data.security_state);
+                    console.log('Security state loaded from API:', data.security_state);
+                } else {
+                    console.warn('Failed to load security state from API:', data);
+                    updateSecurityStatus('Nieznany');
+                }
+            } catch (jsonError) {
+                console.error('JSON parse error:', jsonError);
+                console.error('Response was not valid JSON:', text);
+                updateSecurityStatus('Nieznany');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading security state from API:', error);
+            updateSecurityStatus('Nieznany');
         });
     }
-
-    // Inicjalizuj gdy DOM jest gotowy i aplikacja jest załadowana
+    
+    function setSecurityState(state) {
+        console.log('Setting security state to:', state);
+        
+        // Disable buttons during request to prevent double-clicks
+        const enableBtn = document.getElementById('enableSecurity');
+        const disableBtn = document.getElementById('disableSecurity');
+        if (enableBtn) enableBtn.disabled = true;
+        if (disableBtn) disableBtn.disabled = true;
+        
+        // Re-enable buttons after request
+        const enableButtons = () => {
+            if (enableBtn) enableBtn.disabled = false;
+            if (disableBtn) disableBtn.disabled = false;
+        };
+        
+        // First try socket connection
+        if (window.app && window.app.socket && window.app.socket.connected) {
+            console.log('Using socket to set security state');
+            console.log('Socket connected:', window.app.socket.connected);
+            console.log('Emitting set_security_state with data:', { state: state });
+            
+            // Immediately update the UI optimistically
+            updateSecurityStatus(state);
+            
+            window.app.socket.emit('set_security_state', { state: state });
+            // For socket, enable buttons immediately as feedback is instant
+            setTimeout(enableButtons, 500);
+        } else {
+            console.log('Using API to set security state');
+            console.log('Socket status - app:', !!window.app, 'socket:', !!window.app?.socket, 'connected:', window.app?.socket?.connected);
+            // Fallback to REST API
+            fetch('/api/security', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ state: state })
+            })
+            .then(response => {
+                console.log('API POST Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text(); // Get as text first to debug
+            })
+            .then(text => {
+                console.log('Raw API POST response:', text);
+                try {
+                    const data = JSON.parse(text);
+                    if (data.status === 'success') {
+                        updateSecurityStatus(data.security_state);
+                        if (window.showNotification) {
+                            window.showNotification(`Zabezpieczenia ${state.toLowerCase()}`, 'success');
+                        }
+                        console.log('Security state set successfully via API:', data.security_state);
+                    } else {
+                        console.error('Failed to set security state:', data);
+                        if (window.showNotification) {
+                            window.showNotification('Błąd podczas zmiany stanu zabezpieczeń', 'error');
+                        }
+                    }
+                } catch (jsonError) {
+                    console.error('JSON parse error on POST:', jsonError);
+                    console.error('POST response was not valid JSON:', text);
+                    if (window.showNotification) {
+                        window.showNotification('Błąd podczas zmiany stanu zabezpieczeń', 'error');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error setting security state:', error);
+                if (window.showNotification) {
+                    window.showNotification('Błąd podczas zmiany stanu zabezpieczeń', 'error');
+                }
+            })
+            .finally(() => {
+                enableButtons();
+            });
+        }
+    }
+    
+    function initSecurityPage() {
+        if (securityPageInitialized) return;
+        securityPageInitialized = true;
+        
+        console.log('Initializing security page...');
+        
+        // Podpięcie przycisków
+        const enableBtn = document.getElementById('enableSecurity');
+        const disableBtn = document.getElementById('disableSecurity');
+        
+        if (enableBtn) {
+            enableBtn.addEventListener('click', () => {
+                console.log('Enable security clicked');
+                setSecurityState('Załączony');
+            });
+        }
+        
+        if (disableBtn) {
+            disableBtn.addEventListener('click', () => {
+                console.log('Disable security clicked');
+                setSecurityState('Wyłączony');
+            });
+        }
+        
+        // Load initial state - Always use API for reliability
+        loadSecurityStateFromAPI();
+        
+        // Set up socket handler for real-time updates if available
+        if (window.app && window.app.socket) {
+            // Override the global security state handler for this page
+            window.app.socket.off('update_security_state');
+            window.app.socket.on('update_security_state', function(data) {
+                console.log('Security state update received via socket:', data);
+                if (data && data.state) {
+                    updateSecurityStatus(data.state);
+                }
+            });
+            
+            // Also request state via socket if connected
+            if (window.app.socket.connected) {
+                console.log('Requesting security state via socket');
+                window.app.socket.emit('get_security_state');
+            }
+        }
+    }
+    
+    // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Sprawdź czy app jest już dostępny
-        if (window.app) {
+        console.log('DOM loaded - initializing security page');
+        
+        // Initialize with server-side state if available
+        const serverState = '{{ security_state|safe }}';
+        console.log('Server-side security state:', serverState);
+        if (serverState && serverState !== 'None' && serverState !== '') {
+            updateSecurityStatus(serverState);
+        }
+        
+        // Try immediate initialization
+        if (window.app && window.app.socket) {
             initSecurityPage();
         } else {
-            // Czekaj aż app będzie dostępny
+            // Wait for app to be available
             let attempts = 0;
-            const maxAttempts = 50; // 5 sekund
+            const maxAttempts = 50; // 5 seconds
             const waitForApp = () => {
                 if (window.app && window.app.socket) {
                     initSecurityPage();
@@ -53,10 +247,19 @@
                     attempts++;
                     setTimeout(waitForApp, 100);
                 } else {
-                    console.error('Nie udało się zainicjalizować aplikacji w czasie 5 sekund');
+                    console.warn('Socket not available, using API fallback only');
+                    initSecurityPage(); // Initialize without socket
                 }
             };
             waitForApp();
+        }
+    });
+    
+    // Also try initialization when window loads (backup)
+    window.addEventListener('load', function() {
+        if (!securityPageInitialized) {
+            console.log('Window loaded - backup initialization');
+            initSecurityPage();
         }
     });
 </script>

@@ -23,6 +23,16 @@ class SimpleAuthManager:
             return f(*args, **kwargs)
         return decorated_function
     
+    def api_login_required(self, f):
+        """Decorator for requiring login on API endpoints (returns JSON instead of redirect)"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                from flask import jsonify
+                return jsonify({"status": "error", "message": "Authentication required"}), 401
+            return f(*args, **kwargs)
+        return decorated_function
+    
     def admin_required(self, f):
         """Decorator for requiring admin role"""
         @wraps(f)

@@ -628,7 +628,24 @@ class SmartHomeDatabaseManager:
         
         if result and isinstance(result, dict) and 'setting_value' in result:
             setting_val = result.get('setting_value')
-            return json.loads(setting_val) if isinstance(setting_val, str) else setting_val
+            # Handle empty or null values
+            if setting_val is None or setting_val == '':
+                return None
+            # For string values, check if they look like JSON
+            if isinstance(setting_val, str):
+                # If it starts and ends with quotes, or contains JSON-like characters, try parsing
+                if (setting_val.startswith('"') and setting_val.endswith('"')) or \
+                   setting_val.startswith('{') or setting_val.startswith('['):
+                    try:
+                        return json.loads(setting_val)
+                    except json.JSONDecodeError:
+                        # If JSON parsing fails, return the string as-is
+                        return setting_val
+                else:
+                    # Simple string, return as-is
+                    return setting_val
+            else:
+                return setting_val
         return None
     
     def set_system_setting(self, key: str, value: Any, description: Optional[str] = None) -> bool:
@@ -642,7 +659,13 @@ class SmartHomeDatabaseManager:
                 updated_at = NOW()
         """
         
-        rows_affected = self._execute_query(query, (key, json.dumps(value), description))
+        # Store simple strings as-is, complex objects as JSON
+        if isinstance(value, str):
+            store_value = value
+        else:
+            store_value = json.dumps(value)
+        
+        rows_affected = self._execute_query(query, (key, store_value, description))
         return isinstance(rows_affected, int) and rows_affected > 0
     
     def get_security_state(self) -> str:
