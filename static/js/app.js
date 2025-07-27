@@ -385,6 +385,30 @@ class SmartHomeApp {
             }, 300);
         }, 5000);
     }
+
+    onSecurityStateUpdate(data) {
+        /**
+         * Handle security state updates from the backend
+         * @param {Object} data - Security state data from backend
+         * @param {string} data.state - Security state ("Załączony" or "Wyłączony")
+         */
+        console.log('Security state update received:', data);
+        
+        const statusElement = document.getElementById('securityStatus');
+        if (statusElement && data.state) {
+            statusElement.textContent = `Aktualny status: ${data.state}`;
+            
+            // Add visual feedback based on state
+            statusElement.classList.remove('active', 'inactive', 'unknown');
+            if (data.state === 'Załączony') {
+                statusElement.classList.add('active');
+            } else if (data.state === 'Wyłączony') {
+                statusElement.classList.add('inactive');
+            } else {
+                statusElement.classList.add('unknown');
+            }
+        }
+    }
 }
 
 function getCSRFToken() {
