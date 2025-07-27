@@ -1494,6 +1494,79 @@ class APIManager:
                     return jsonify({"status": "success"})
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
+        @self.app.route('/api/security', methods=['GET', 'POST'])
+        @self.auth_manager.login_required
+        def manage_security_state():
+            """REST API endpoint for security state management"""
+            if request.method == 'GET':
+                # Get current security state
+                current_state = self.smart_home.security_state
+                return jsonify({
+                    "status": "success",
+                    "security_state": current_state
+                })
+            
+            elif request.method == 'POST':
+                # Set security state
+                data = request.get_json()
+                if not data:
+                    return jsonify({"status": "error", "message": "Brak danych"}), 400
+                
+                new_state = data.get('state')
+                if new_state not in ["Załączony", "Wyłączony"]:
+                    return jsonify({
+                        "status": "error", 
+                        "message": "Nieprawidłowy stan zabezpieczeń. Dopuszczalne wartości: 'Załączony', 'Wyłączony'"
+                    }), 400
+                
+                try:
+                    # Update security state
+                    self.smart_home.security_state = new_state
+                    
+                    # Save configuration
+                    try:
+                        from app_db import DATABASE_MODE
+                    except ImportError:
+                        DATABASE_MODE = False
+                    
+                    if DATABASE_MODE:
+                        # Database mode - state is automatically saved via setter
+                        success = True
+                    else:
+                        # JSON mode - explicitly save config
+                        success = self.smart_home.save_config()
+                    
+                    if success:
+                        # Log the action
+                        user_id = session.get('user_id')
+                        if user_id:
+                            user_data = self.smart_home.get_user_data(user_id)
+                            self.management_logger.log_device_action(
+                                user=user_data.get('name', 'Unknown'),
+                                device_name='Security System',
+                                room='System',
+                                action='set_security_state',
+                                new_state=new_state,
+                                ip_address=request.environ.get('REMOTE_ADDR', '')
+                            )
+                        
+                        return jsonify({
+                            "status": "success",
+                            "message": f"Stan zabezpieczeń zaktualizowany na: {new_state}",
+                            "security_state": new_state
+                        })
+                    else:
+                        return jsonify({
+                            "status": "error", 
+                            "message": "Nie udało się zapisać stanu zabezpieczeń"
+                        }), 500
+                        
+                except Exception as e:
+                    return jsonify({
+                        "status": "error", 
+                        "message": f"Błąd podczas aktualizacji stanu zabezpieczeń: {str(e)}"
+                    }), 500
+
 
 class SocketManager:
     """Klasa zarządzająca obsługą WebSocket"""

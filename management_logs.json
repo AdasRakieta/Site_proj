@@ -1,5 +1,69 @@
 [
   {
+    "timestamp": "2025-07-27 14:32:48",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-27 14:31:39",
+    "level": "info",
+    "message": "admin wykonał akcję \"set_security_state\" na urządzeniu \"Security System\" w pokoju \"System\". Nowy stan: Wyłączony",
+    "event_type": "device_action",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "device_name": "Security System",
+      "room": "System",
+      "action": "set_security_state",
+      "new_state": "Wyłączony"
+    }
+  },
+  {
+    "timestamp": "2025-07-27 14:31:39",
+    "level": "info",
+    "message": "admin wykonał akcję \"set_security_state\" na urządzeniu \"Security System\" w pokoju \"System\". Nowy stan: Załączony",
+    "event_type": "device_action",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {
+      "device_name": "Security System",
+      "room": "System",
+      "action": "set_security_state",
+      "new_state": "Załączony"
+    }
+  },
+  {
+    "timestamp": "2025-07-27 14:31:39",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-27 14:30:43",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
+    "timestamp": "2025-07-27 14:30:15",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-27 14:25:29",
     "level": "info",
     "message": "Użytkownik admin zalogował się pomyślnie",
