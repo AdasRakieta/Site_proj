@@ -1,5 +1,14 @@
 [
   {
+    "timestamp": "2025-07-27 14:25:29",
+    "level": "info",
+    "message": "Użytkownik admin zalogował się pomyślnie",
+    "event_type": "login",
+    "user": "admin",
+    "ip_address": "127.0.0.1",
+    "details": {}
+  },
+  {
     "timestamp": "2025-07-25 15:41:45",
     "level": "info",
     "message": "Administrator admin usunął użytkownika: cbcb2f56-2092-493e-8d48-920e751e8bd0",
