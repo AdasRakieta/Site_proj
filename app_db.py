@@ -321,14 +321,23 @@ class SmartHomeApp:
         def handle_set_security_state(data):
             """Handle security state setting via WebSocket"""
             try:
+                print(f"[DEBUG] set_security_state called with data: {data}")
+                print(f"[DEBUG] Session contents: {dict(session)}")
+                
                 if 'user_id' not in session:
+                    print("[DEBUG] No user_id in session - authentication failed")
                     emit('error', {'message': 'Not authenticated'})
                     return
                 
+                print(f"[DEBUG] Authenticated user_id: {session.get('user_id')}")
+                
                 new_state = data.get('state')
                 if new_state not in ["Załączony", "Wyłączony"]:
+                    print(f"[DEBUG] Invalid security state: {new_state}")
                     emit('error', {'message': 'Invalid security state'})
                     return
+                
+                print(f"[DEBUG] Setting security state to: {new_state}")
                 
                 # Update security state
                 self.smart_home.security_state = new_state
@@ -337,13 +346,16 @@ class SmartHomeApp:
                 if DATABASE_MODE:
                     # Database mode - state is automatically saved via setter
                     success = True
+                    print("[DEBUG] Database mode - state saved automatically")
                 else:
                     # JSON mode - explicitly save config
                     success = self.smart_home.save_config()
+                    print(f"[DEBUG] JSON mode - save_config result: {success}")
                 
                 if success:
                     # Broadcast update to all connected clients
                     self.socketio.emit('update_security_state', {'state': new_state})
+                    print(f"[DEBUG] Broadcasted security state update: {new_state}")
                     
                     # Log the action
                     user_id = session.get('user_id')
@@ -357,25 +369,36 @@ class SmartHomeApp:
                             new_state=new_state,
                             ip_address=request.environ.get('REMOTE_ADDR') or ''
                         )
+                        print(f"[DEBUG] Logged action for user: {user_data.get('name', 'Unknown')}")
                     
                     print(f"Security state updated to: {new_state}")
                 else:
+                    print("[DEBUG] Failed to save security state")
                     emit('error', {'message': 'Failed to save security state'})
                     
             except Exception as e:
                 print(f"Error in set_security_state handler: {e}")
+                import traceback
+                traceback.print_exc()
                 emit('error', {'message': 'Internal server error'})
         
         @self.socketio.on('get_security_state')
         def handle_get_security_state():
             """Handle security state request via WebSocket"""
             try:
+                print(f"[DEBUG] get_security_state called")
+                print(f"[DEBUG] Session contents: {dict(session)}")
+                
                 if 'user_id' not in session:
+                    print("[DEBUG] No user_id in session - authentication failed")
                     emit('error', {'message': 'Not authenticated'})
                     return
                 
+                print(f"[DEBUG] Authenticated user_id: {session.get('user_id')}")
+                
                 # Get current security state
                 current_state = self.smart_home.security_state
+                print(f"[DEBUG] Current security state from smart_home: {current_state}")
                 
                 # Send current state to client
                 emit('update_security_state', {'state': current_state})
@@ -383,6 +406,8 @@ class SmartHomeApp:
                 
             except Exception as e:
                 print(f"Error in get_security_state handler: {e}")
+                import traceback
+                traceback.print_exc()
                 emit('error', {'message': 'Internal server error'})
         
         print("✓ Socket events configured successfully")
@@ -430,10 +455,12 @@ def main():
     try:
         # Create and run the application
         smart_home_app = SmartHomeApp()
-        smart_home_app.run(debug=False)
+        smart_home_app.run(debug=False)  # Disable debug mode
         
     except Exception as e:
         print(f"💥 Failed to start SmartHome Application: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':

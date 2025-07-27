@@ -49,8 +49,13 @@ class RoutesManager:
         @self.app.route('/security')
         @self.auth_manager.login_required
         def security():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
-            return render_template('security.html', user_data=user_data)
+            try:
+                user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+                current_security_state = self.smart_home.security_state
+                return render_template('security.html', user_data=user_data, security_state=current_security_state)
+            except Exception as e:
+                self.app.logger.error(f"Error in security route: {e}")
+                return f"Internal Server Error: {str(e)}", 500
 
         @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
@@ -1495,35 +1500,35 @@ class APIManager:
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
         @self.app.route('/api/security', methods=['GET', 'POST'])
-        @self.auth_manager.login_required
+        @self.auth_manager.api_login_required
         def manage_security_state():
             """REST API endpoint for security state management"""
-            if request.method == 'GET':
-                # Get current security state
-                current_state = self.smart_home.security_state
-                return jsonify({
-                    "status": "success",
-                    "security_state": current_state
-                })
-            
-            elif request.method == 'POST':
-                # Set security state
-                data = request.get_json()
-                if not data:
-                    return jsonify({"status": "error", "message": "Brak danych"}), 400
-                
-                new_state = data.get('state')
-                if new_state not in ["Załączony", "Wyłączony"]:
+            try:
+                if request.method == 'GET':
+                    # Get current security state
+                    current_state = self.smart_home.security_state
                     return jsonify({
-                        "status": "error", 
-                        "message": "Nieprawidłowy stan zabezpieczeń. Dopuszczalne wartości: 'Załączony', 'Wyłączony'"
-                    }), 400
+                        "status": "success",
+                        "security_state": current_state
+                    })
                 
-                try:
-                    # Update security state
+                elif request.method == 'POST':
+                    # Set security state
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "Brak danych"}), 400
+                    
+                    new_state = data.get('state')
+                    if new_state not in ["Załączony", "Wyłączony"]:
+                        return jsonify({
+                            "status": "error", 
+                            "message": "Nieprawidłowy stan zabezpieczeń. Dopuszczalne wartości: 'Załączony', 'Wyłączony'"
+                        }), 400
+                    
+                    # Update security state using property
                     self.smart_home.security_state = new_state
                     
-                    # Save configuration
+                    # Save configuration (in database mode, this is automatic via setter)
                     try:
                         from app_db import DATABASE_MODE
                     except ImportError:
@@ -1561,11 +1566,12 @@ class APIManager:
                             "message": "Nie udało się zapisać stanu zabezpieczeń"
                         }), 500
                         
-                except Exception as e:
-                    return jsonify({
-                        "status": "error", 
-                        "message": f"Błąd podczas aktualizacji stanu zabezpieczeń: {str(e)}"
-                    }), 500
+            except Exception as e:
+                self.app.logger.error(f"Error in security API: {e}")
+                return jsonify({
+                    "status": "error", 
+                    "message": f"Błąd podczas operacji na zabezpieczeniach: {str(e)}"
+                }), 500
 
 
 class SocketManager:
@@ -1591,18 +1597,52 @@ class SocketManager:
 
         @self.socketio.on('set_security_state')
         def handle_set_security_state(data):
-            if 'username' not in session:
+            print(f"[DEBUG] set_security_state called with data: {data}")
+            print(f"[DEBUG] Session contents: {dict(session)}")
+            
+            # Check both username and user_id for compatibility
+            if 'username' not in session and 'user_id' not in session:
+                print("[DEBUG] No authentication found in session")
                 return
+                
             new_state = data.get('state')
+            print(f"[DEBUG] Requested new state: {new_state}")
+            
             if new_state in ["Załączony", "Wyłączony"]:
-                self.smart_home.security_state = new_state
-                self.socketio.emit('update_security_state', {'state': self.smart_home.security_state})
-                self.smart_home.save_config()
+                try:
+                    print(f"[DEBUG] Setting security state to: {new_state}")
+                    self.smart_home.security_state = new_state
+                    
+                    current_state = self.smart_home.security_state
+                    print(f"[DEBUG] State after setting: {current_state}")
+                    
+                    print(f"[DEBUG] Emitting update_security_state with: {current_state}")
+                    self.socketio.emit('update_security_state', {'state': current_state})
+                    
+                    # In database mode, saving is automatic through the property setter
+                    try:
+                        from app_db import DATABASE_MODE
+                    except ImportError:
+                        DATABASE_MODE = False
+                    if not DATABASE_MODE:
+                        self.smart_home.save_config()
+                        
+                except Exception as e:
+                    print(f"[ERROR] Error setting security state: {e}")
+            else:
+                print(f"[DEBUG] Invalid state requested: {new_state}")
 
         @self.socketio.on('get_security_state')
         def handle_get_security_state():
-            if 'username' in session:
-                self.socketio.emit('update_security_state', {'state': self.smart_home.security_state})
+            print(f"[DEBUG] get_security_state called")
+            print(f"[DEBUG] Session contents: {dict(session)}")
+            
+            if 'username' in session or 'user_id' in session:
+                current_state = self.smart_home.security_state
+                print(f"[DEBUG] Emitting current state: {current_state}")
+                self.socketio.emit('update_security_state', {'state': current_state})
+            else:
+                print("[DEBUG] No authentication found for get_security_state")
 
         @self.socketio.on('toggle_button')
         def handle_toggle_button(data):
