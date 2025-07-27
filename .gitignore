@@ -6,4 +6,14 @@ __pycache__/
 .Python
 *.env
 .env
+
+# Management logs - ignore in all locations
 management_logs.json
+**/management_logs.json
+management_logs*.json
+**/management_logs*.json
+
+# Other log files
+*.log
+logs/
+*.tmp
