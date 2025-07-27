@@ -1,16 +1,18 @@
 {
     "users": {
-        "admin": {
+        "e83aa7a5-f5d9-4252-acc8-8adf55fdb448": {
             "password": "scrypt:32768:8:1$rysvpum3XTqh1KeX$ccb000be57b24539105ad4c9eb4c0235182b3ffa7949f4448ed5bae5277bac71bed68e49e0dadc4bc42da819b89b209781e15a40a62845e583223819bce22cb0",
-            "role": "admin"
+            "role": "admin",
+            "name": "admin"
         },
-        "user": {
+        "6bf2f9b8-bc39-454f-8d21-ce74402027f5": {
             "password": "scrypt:32768:8:1$gaNuKYvLnJypTQ5L$e7575ab56e9d03d993468805d425a2020177a4dfcb52d9066fa65382f024b371caebd1b510732c49cb409bfdddaba74922a7ce8575069fee7da0524f28eef5d1",
-            "role": "user"
+            "role": "user",
+            "name": "user"
         }
     },
     "temperature_states": {},
-    "security_state": "Nieznany",
+    "security_state": "Wyłączony",
     "rooms": [],
     "buttons": [],
     "temperature_controls": [],
