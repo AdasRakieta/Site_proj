@@ -58,7 +58,15 @@
             switchElement.addEventListener('change', function() {
                 const buttonName = this.id.replace('Switch', '').replace(/_/g, ' ');
                 const state = this.checked;
-                app.socket.emit('toggle_button', { room: room, name: buttonName, state: state });
+                
+                if (app.socket && app.socket.connected) {
+                    // Primary method: Use WebSocket
+                    app.socket.emit('toggle_button', { room: room, name: buttonName, state: state });
+                } else {
+                    // Fallback method: Use REST API
+                    console.log('WebSocket not available, using REST API fallback');
+                    toggleButtonViaAPI(room, buttonName, state);
+                }
             });
         });
 
@@ -74,7 +82,14 @@
                     return;
                 }
 
-                app.socket.emit('set_temperature', { name: controlName, temperature: tempValue });
+                if (app.socket && app.socket.connected) {
+                    // Primary method: Use WebSocket
+                    app.socket.emit('set_temperature', { name: controlName, temperature: tempValue });
+                } else {
+                    // Fallback method: Use REST API
+                    console.log('WebSocket not available, using REST API fallback');
+                    setTemperatureViaAPI(controlName, tempValue);
+                }
             });
         });
 
@@ -120,7 +135,14 @@
                     button.addEventListener('click', () => {
                         const tempValue = parseInt(input.value, 10);
                         if (!isNaN(tempValue) && tempValue >= 16 && tempValue <= 30) {
-                            app.socket.emit('set_temperature', { name: control.name, temperature: tempValue });
+                            if (app.socket && app.socket.connected) {
+                                // Primary method: Use WebSocket
+                                app.socket.emit('set_temperature', { name: control.name, temperature: tempValue });
+                            } else {
+                                // Fallback method: Use REST API
+                                console.log('WebSocket not available, using REST API fallback');
+                                setTemperatureViaAPI(control.name, tempValue);
+                            }
                         }
                     });
                     controlDiv.appendChild(button);
@@ -132,5 +154,123 @@
             }
         });
     });
+
+    // Helper functions for REST API fallback
+    async function toggleButtonViaAPI(room, buttonName, state) {
+        try {
+            // Find button ID first
+            const buttons = await app.fetchData('/api/buttons');
+            const button = buttons.find(b => b.name === buttonName && b.room === room);
+            
+            if (!button) {
+                console.error('Button not found:', buttonName, 'in room:', room);
+                if (window.showNotification) {
+                    window.showNotification('Nie znaleziono przycisku', 'error');
+                }
+                return;
+            }
+            
+            // Call the toggle API
+            const response = await fetch(`/api/buttons/${button.id}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ state: state })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                // Update the UI manually since we're not using WebSocket
+                const switchElement = document.getElementById(`${buttonName.replace(/\s+/g, '_')}Switch`);
+                if (switchElement) {
+                    switchElement.checked = state;
+                }
+                
+                if (window.showNotification) {
+                    window.showNotification(`${buttonName} ${state ? 'włączony' : 'wyłączony'}`, 'success');
+                }
+            } else {
+                console.error('Failed to toggle button:', result.message);
+                if (window.showNotification) {
+                    window.showNotification('Błąd przełączania przycisku: ' + result.message, 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling button via API:', error);
+            if (window.showNotification) {
+                window.showNotification('Błąd przełączania przycisku', 'error');
+            }
+        }
+    }
+
+    async function setTemperatureViaAPI(controlName, temperature) {
+        try {
+            // Find temperature control ID first
+            const controls = await app.fetchData('/api/temperature_controls');
+            const control = controls.find(c => c.name === controlName && c.room === room);
+            
+            if (!control) {
+                console.error('Temperature control not found:', controlName, 'in room:', room);
+                if (window.showNotification) {
+                    window.showNotification('Nie znaleziono termostatu', 'error');
+                }
+                return;
+            }
+            
+            const response = await fetch(`/api/temperature_controls/${control.id}/temperature`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ temperature: temperature })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                // Update the UI manually since we're not using WebSocket
+                const input = document.getElementById(`temp${controlName.replace(/\s+/g, '')}`);
+                if (input) {
+                    input.value = temperature;
+                }
+                
+                if (window.showNotification) {
+                    window.showNotification(`Temperatura ${controlName} ustawiona na ${temperature}°C`, 'success');
+                }
+            } else {
+                console.error('Failed to set temperature:', result.message);
+                if (window.showNotification) {
+                    window.showNotification('Błąd ustawiania temperatury: ' + result.message, 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error setting temperature via API:', error);
+            if (window.showNotification) {
+                window.showNotification('Błąd ustawiania temperatury', 'error');
+            }
+        }
+    }
+
+    // Helper function to get CSRF token
+    function getCSRFToken() {
+        let token = null;
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) token = meta.getAttribute('content');
+        
+        if (!token) {
+            const input = document.querySelector('input[name="_csrf_token"]');
+            if (input) token = input.value;
+        }
+        
+        if (!token && window.csrf_token) {
+            token = window.csrf_token;
+        }
+        
+        return token;
+    }
 </script>
 {% endblock %}

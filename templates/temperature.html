@@ -68,13 +68,21 @@
                         const button = document.createElement('button');
                         button.className = 'control-button';
                         button.textContent = 'Ustaw';
-                        button.addEventListener('click', () => {
+                        button.addEventListener('click', async () => {
                             const tempValue = parseInt(input.value, 10);
                             if (!isNaN(tempValue)) {
-                                app.socket.emit('set_temperature', { 
-                                    name: control.name, 
-                                    temperature: tempValue 
-                                });
+                                if (app.socket && app.socket.connected) {
+                                    // Primary method: Use WebSocket
+                                    app.socket.emit('set_temperature', { 
+                                        name: control.name, 
+                                        temperature: tempValue,
+                                        room: control.room
+                                    });
+                                } else {
+                                    // Fallback method: Use REST API
+                                    console.log('WebSocket not available, using REST API fallback');
+                                    await setTemperatureViaAPI(control, tempValue);
+                                }
                             }
                         });
                         controlDiv.appendChild(button);
@@ -97,6 +105,62 @@
                 const input = document.getElementById(`temp${data.name.replace(/\s+/g, '')}`);
                 if (input) input.value = data.temperature;
             });
+
+            // Fallback function to set temperature via REST API
+            async function setTemperatureViaAPI(control, temperature) {
+                try {
+                    const response = await fetch(`/api/temperature_controls/${control.id}/temperature`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify({ temperature: temperature })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        // Update the UI manually since we're not using WebSocket
+                        const input = document.getElementById(`temp${control.name.replace(/\s+/g, '')}`);
+                        if (input) {
+                            input.value = temperature;
+                        }
+                        
+                        if (window.showNotification) {
+                            window.showNotification(`Temperatura ${control.name} ustawiona na ${temperature}°C`, 'success');
+                        }
+                    } else {
+                        console.error('Failed to set temperature:', result.message);
+                        if (window.showNotification) {
+                            window.showNotification('Błąd ustawiania temperatury: ' + result.message, 'error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error setting temperature via API:', error);
+                    if (window.showNotification) {
+                        window.showNotification('Błąd ustawiania temperatury', 'error');
+                    }
+                }
+            }
+
+            // Helper function to get CSRF token
+            function getCSRFToken() {
+                let token = null;
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) token = meta.getAttribute('content');
+                
+                if (!token) {
+                    const input = document.querySelector('input[name="_csrf_token"]');
+                    if (input) token = input.value;
+                }
+                
+                if (!token && window.csrf_token) {
+                    token = window.csrf_token;
+                }
+                
+                return token;
+            }
 
             // Pobierz początkowe dane
             app.fetchData('/api/temperature_controls')

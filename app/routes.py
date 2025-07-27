@@ -941,6 +941,78 @@ class APIManager:
                 self.socketio.emit('update_buttons', self.smart_home.buttons)
                 return jsonify({'status': 'success'})
 
+        @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
+        @self.auth_manager.login_required
+        def toggle_button_state(id):
+            """Toggle button state via REST API"""
+            try:
+                # Find button by ID
+                button = None
+                button_idx = None
+                for i, b in enumerate(self.smart_home.buttons):
+                    if str(b.get('id')) == str(id):
+                        button = b
+                        button_idx = i
+                        break
+                
+                if not button:
+                    return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+                
+                # Get new state from request or toggle current state
+                data = request.get_json() or {}
+                new_state = data.get('state')
+                if new_state is None:
+                    new_state = not button.get('state', False)
+                
+                # Update button state
+                if hasattr(self.smart_home, 'update_button_state'):
+                    # Use database method if available
+                    success = self.smart_home.update_button_state(button['room'], button['name'], new_state)
+                    if not success:
+                        return jsonify({'status': 'error', 'message': 'Failed to update button state in database'}), 500
+                else:
+                    # Fallback to JSON mode
+                    self.smart_home.buttons[button_idx]['state'] = new_state
+                    if not self.smart_home.save_config():
+                        return jsonify({'status': 'error', 'message': 'Failed to save button state'}), 500
+                
+                # Emit socket updates
+                self.socketio.emit('update_button', {
+                    'room': button['room'],
+                    'name': button['name'],
+                    'state': new_state
+                })
+                self.socketio.emit('sync_button_states', {
+                    f"{b['room']}_{b['name']}": b['state'] for b in self.smart_home.buttons
+                })
+                
+                # Log the action
+                if hasattr(self.management_logger, 'log_device_action'):
+                    user_id = session.get('user_id')
+                    user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    self.management_logger.log_device_action(
+                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                        device_name=button['name'],
+                        room=button['room'],
+                        action='toggle',
+                        new_state=new_state,
+                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                    )
+                
+                return jsonify({
+                    'status': 'success',
+                    'button': {
+                        'id': button['id'],
+                        'name': button['name'],
+                        'room': button['room'],
+                        'state': new_state
+                    }
+                })
+                
+            except Exception as e:
+                print(f"Error in toggle_button_state: {e}")
+                return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
         @self.app.route('/api/temperature_controls', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_temperature_controls():
@@ -1019,6 +1091,95 @@ class APIManager:
                 self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Control not found"}), 404
+
+        @self.app.route('/api/temperature_controls/<id>/temperature', methods=['POST'])
+        @self.auth_manager.login_required
+        def set_temperature_control_value(id):
+            """Set temperature control value via REST API"""
+            try:
+                # Find temperature control by ID
+                control = None
+                control_idx = None
+                for i, c in enumerate(self.smart_home.temperature_controls):
+                    if str(c.get('id')) == str(id):
+                        control = c
+                        control_idx = i
+                        break
+                
+                if not control:
+                    return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
+                
+                # Get temperature from request
+                data = request.get_json() or {}
+                temperature = data.get('temperature')
+                
+                if temperature is None:
+                    return jsonify({'status': 'error', 'message': 'Temperature value is required'}), 400
+                
+                # Validate temperature range
+                try:
+                    temperature = float(temperature)
+                    if not (16 <= temperature <= 30):
+                        return jsonify({'status': 'error', 'message': 'Temperature must be between 16°C and 30°C'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'status': 'error', 'message': 'Invalid temperature value'}), 400
+                
+                # Update temperature control
+                if hasattr(self.smart_home, 'update_temperature_control_value'):
+                    # Use database method if available
+                    success = self.smart_home.update_temperature_control_value(control['room'], control['name'], temperature)
+                    if not success:
+                        return jsonify({'status': 'error', 'message': 'Failed to update temperature in database'}), 500
+                else:
+                    # Fallback to JSON mode
+                    self.smart_home.temperature_controls[control_idx]['temperature'] = temperature
+                    if not self.smart_home.save_config():
+                        return jsonify({'status': 'error', 'message': 'Failed to save temperature'}), 500
+                
+                # Update room temperature state
+                if hasattr(self.smart_home, 'set_room_temperature'):
+                    self.smart_home.set_room_temperature(control['room'], temperature)
+                else:
+                    self.smart_home.temperature_states[control['room']] = temperature
+                    self.smart_home.save_config()
+                
+                # Emit socket updates
+                self.socketio.emit('update_temperature', {
+                    'room': control['room'],
+                    'name': control['name'],
+                    'temperature': temperature
+                })
+                self.socketio.emit('sync_temperature', {
+                    'name': control['name'],
+                    'temperature': temperature
+                })
+                
+                # Log the action
+                if hasattr(self.management_logger, 'log_device_action'):
+                    user_id = session.get('user_id')
+                    user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    self.management_logger.log_device_action(
+                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                        device_name=control['name'],
+                        room=control['room'],
+                        action='set_temperature',
+                        new_state=temperature,
+                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                    )
+                
+                return jsonify({
+                    'status': 'success',
+                    'control': {
+                        'id': control['id'],
+                        'name': control['name'],
+                        'room': control['room'],
+                        'temperature': temperature
+                    }
+                })
+                
+            except Exception as e:
+                print(f"Error in set_temperature_control_value: {e}")
+                return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
         @self.app.route('/<room>')
         @self.auth_manager.login_required
