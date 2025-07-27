@@ -647,7 +647,12 @@ class SmartHomeDatabaseManager:
     
     def get_security_state(self) -> str:
         """Get current security state"""
-        return self.get_system_setting('security_state') or 'Nieznany'
+        state = self.get_system_setting('security_state')
+        if state is None:
+            # If no state exists, set and return default
+            self.set_security_state('Wyłączony')
+            return 'Wyłączony'
+        return state
     
     def set_security_state(self, state: str) -> bool:
         """Set security state"""

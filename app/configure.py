@@ -39,7 +39,7 @@ class SmartHomeSystem:
             'temperature_states': {
                 
             },
-            'security_state': "Nieznany",
+            'security_state': "Wyłączony",
             'rooms': [],
             'buttons': [],
             'temperature_controls': [],

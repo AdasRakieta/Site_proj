@@ -57,7 +57,25 @@ class SmartHomeSystemDB:
         self._save_lock = threading.Lock()
         self._save_in_progress = False
         
+        # Initialize default settings if they don't exist
+        self._initialize_default_settings()
+        
         print("SmartHome System initialized with PostgreSQL database backend")
+    
+    def _initialize_default_settings(self):
+        """Initialize default system settings if they don't exist"""
+        try:
+            # Check if security_state exists, if not set default
+            current_security_state = self.db.get_system_setting('security_state')
+            if current_security_state is None:
+                # Set default security state to "Wyłączony" (Disabled)
+                self.db.set_security_state('Wyłączony')
+                print("✓ Initialized default security state: Wyłączony")
+            else:
+                print(f"✓ Security state loaded from database: {current_security_state}")
+        except Exception as e:
+            print(f"⚠ Warning: Could not initialize default security state: {e}")
+    
     
     # ========================================================================
     # PROPERTY METHODS (for compatibility with existing code)
