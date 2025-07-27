@@ -12,7 +12,7 @@
         }
     },
     "temperature_states": {},
-    "security_state": "Załączony",
+    "security_state": "Wyłączony",
     "rooms": [],
     "buttons": [],
     "temperature_controls": [],
