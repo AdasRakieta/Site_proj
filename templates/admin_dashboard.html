@@ -366,6 +366,11 @@
 <script>
   window.sessionRole = "{{ session.role }}";
 </script>
+<!-- Hidden elements to store template data -->
+<div id="stats-data" 
+     data-automations-today="{{ stats.automations_executed_today|default(0) }}" 
+     data-automation-errors="{{ stats.automation_errors|default(0) }}" 
+     style="display: none;"></div>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
 // Funkcje do odświeżania danych
@@ -611,8 +616,9 @@ function createAutomationChart() {
     const ctx = canvas.getContext('2d');
     
     // Dane dla wykresu kołowego: wykonane/nieudane automatyzacje
-    const total = {{ stats.automations_executed_today }};
-    const errors = {{ stats.automation_errors }};
+    const statsElement = document.getElementById('stats-data');
+    const total = parseInt(statsElement.dataset.automationsToday) || 0;
+    const errors = parseInt(statsElement.dataset.automationErrors) || 0;
     const successful = total - errors;
     
     const centerX = canvas.width / 2;
@@ -658,9 +664,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-refresh co 30 sekund
     setInterval(() => {
-        refreshDeviceStates();
-        refreshLogs();
-    }, 30000);
-});
-</script>
-{% endblock %}
+       
