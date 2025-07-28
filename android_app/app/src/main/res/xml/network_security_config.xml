@@ -2,7 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <!-- VPN IP (primary) -->
-        <domain includeSubdomains="false">100.126.230.74</domain>
+        <domain includeSubdomains="false">100.103.184.90</domain>
         <!-- Local network IP (backup) -->
         <domain includeSubdomains="false">192.168.1.219</domain>
         <!-- Localhost for development -->

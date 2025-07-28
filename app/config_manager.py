@@ -129,7 +129,7 @@ class SmartHomeConfig:
     def create_env_file(self):
         """Create .env file for database configuration"""
         env_content = """# SmartHome Database Configuration
-DB_HOST=100.126.230.74
+DB_HOST=100.103.184.90
 DB_PORT=5432
 DB_NAME=admin
 DB_USER=admin
