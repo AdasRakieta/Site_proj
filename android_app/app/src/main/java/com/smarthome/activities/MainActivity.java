@@ -19,6 +19,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.smarthome.R;
 import com.smarthome.models.Device;
 import com.smarthome.models.Room;
+import com.smarthome.models.SecurityStateResponse;
 import com.smarthome.services.ApiClient;
 import com.smarthome.utils.DeviceAdapter;
 import com.smarthome.utils.RoomAdapter;
@@ -163,18 +164,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
     
     private void loadSecurityStatus() {
-        apiClient.getApiService().getSecurityState().enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<String>>() {
+        apiClient.getApiService().getSecurityState().enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>>() {
             @Override
-            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> call, 
-                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> response) {
+            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> call, 
+                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    tvSecurityStatus.setText(response.body().data != null ? response.body().data : "Nieznany");
+                    SecurityStateResponse securityData = response.body().data;
+                    if (securityData != null) {
+                        tvSecurityStatus.setText(securityData.getSecurityState());
+                    } else {
+                        tvSecurityStatus.setText("Nieznany");
+                    }
                 }
                 checkLoadingComplete();
             }
             
             @Override
-            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> call, Throwable t) {
+            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> call, Throwable t) {
                 tvSecurityStatus.setText("Błąd");
                 checkLoadingComplete();
             }
