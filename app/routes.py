@@ -404,9 +404,19 @@ class RoutesManager:
             """Login route for user authentication"""
             if request.method == 'POST':
                 try:
-                    login_name = request.form.get('username')
-                    password = request.form.get('password')
-                    remember_me = request.form.get('remember_me') == 'on'
+                    # Handle both form data (web) and JSON (mobile API)
+                    if request.is_json:
+                        # Mobile API request (JSON)
+                        data = request.get_json()
+                        login_name = data.get('username')
+                        password = data.get('password')
+                        remember_me = False
+                    else:
+                        # Web form request
+                        login_name = request.form.get('username')
+                        password = request.form.get('password')
+                        remember_me = request.form.get('remember_me') == 'on'
+                    
                     ip_address = request.remote_addr
                     
                     print(f"[DEBUG] Login attempt: username='{login_name}', password_length={len(password) if password else 0}")
@@ -445,8 +455,22 @@ class RoutesManager:
                         if self.management_logger:
                             self.management_logger.log_login(user['name'], ip_address or 'unknown', success=True)
                         
-                        flash('Zalogowano pomyślnie!', 'success')
-                        return redirect(url_for('home'))
+                        # Return appropriate response based on request type
+                        if request.is_json:
+                            # JSON API response for mobile
+                            return jsonify({
+                                "status": "success",
+                                "message": "Login successful",
+                                "data": {
+                                    "user_id": user_id,
+                                    "username": user['name'],
+                                    "role": user.get('role', 'user')
+                                }
+                            })
+                        else:
+                            # Web response
+                            flash('Zalogowano pomyślnie!', 'success')
+                            return redirect(url_for('home'))
                     else:
                         print(f"[DEBUG] Login failed - user exists: {user is not None}, has password: {user.get('password') is not None if user else False}")
                         
@@ -456,15 +480,34 @@ class RoutesManager:
                                 login_name or 'unknown', ip_address or 'unknown', success=False
                             )
                         
-                        flash('Nieprawidłowa nazwa użytkownika lub hasło!', 'error')
-                        return render_template('login.html')
+                        # Return appropriate error response
+                        if request.is_json:
+                            # JSON API error response for mobile
+                            return jsonify({
+                                "status": "error",
+                                "message": "Invalid username or password"
+                            }), 401
+                        else:
+                            # Web error response
+                            flash('Nieprawidłowa nazwa użytkownika lub hasło!', 'error')
+                            return render_template('login.html')
                         
                 except Exception as e:
                     print(f"[DEBUG] Exception during login: {e}")
                     import traceback
                     traceback.print_exc()
-                    flash('Błąd podczas logowania!', 'error')
-                    return render_template('login.html')
+                    
+                    # Return appropriate error response
+                    if request.is_json:
+                        # JSON API error response for mobile
+                        return jsonify({
+                            "status": "error",
+                            "message": "Login error occurred"
+                        }), 500
+                    else:
+                        # Web error response
+                        flash('Błąd podczas logowania!', 'error')
+                        return render_template('login.html')
             
             return render_template('login.html')
 
