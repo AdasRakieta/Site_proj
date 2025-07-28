@@ -78,6 +78,42 @@ class RoutesManager:
         def automations():
             return render_template('automations.html')
 
+        # API endpoints for mobile app
+        @self.app.route('/api/ping', methods=['GET'])
+        def api_ping():
+            """Simple ping endpoint to test connectivity"""
+            return jsonify({
+                'status': 'success',
+                'message': 'SmartHome server is running',
+                'timestamp': int(time.time()),
+                'version': '1.0'
+            })
+
+        @self.app.route('/api/status', methods=['GET'])
+        def api_status():
+            """Server status endpoint"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+            return jsonify({
+                'status': 'success',
+                'server_status': 'running',
+                'database_mode': DATABASE_MODE,
+                'timestamp': int(time.time())
+            })
+
+        @self.app.route('/api/config', methods=['GET'])
+        def api_config():
+            """Configuration info endpoint"""
+            return jsonify({
+                'server_ip': request.host.split(':')[0],
+                'server_port': request.environ.get('SERVER_PORT', '5000'),
+                'cors_enabled': True,
+                'auth_required': True,
+                'timestamp': int(time.time())
+            })
+
         @self.app.route('/edit')
         @self.auth_manager.login_required
         @self.auth_manager.admin_required

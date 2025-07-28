@@ -18,6 +18,13 @@ import retrofit2.http.Path;
 
 public interface SmartHomeApiService {
     
+    // Connection testing
+    @GET("api/ping")
+    Call<ApiResponse<String>> ping();
+    
+    @GET("api/status")
+    Call<ApiResponse<ServerStatus>> getServerStatus();
+    
     // Authentication
     @POST("login")
     Call<ApiResponse<LoginResponse>> login(@Body LoginRequest request);
@@ -107,5 +114,11 @@ public interface SmartHomeApiService {
         public boolean isSuccess() {
             return "success".equals(status);
         }
+    }
+    
+    class ServerStatus {
+        public String server_status;
+        public boolean database_mode;
+        public long timestamp;
     }
 }

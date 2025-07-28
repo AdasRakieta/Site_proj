@@ -71,7 +71,7 @@ public class ApiClient {
     private void initializeApiService() {
         baseUrl = getServerUrl();
         if (baseUrl == null || baseUrl.isEmpty()) {
-            baseUrl = "http://100.103.184.90:5000/"; // Default URL zmieniony na IP maliny
+            baseUrl = "http://192.168.1.219:5000/"; // Default URL with correct IP and port from .env
         }
         // Automatycznie dodaj schemat http:// jeśli użytkownik podał tylko IP lub adres bez schematu
         if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
@@ -143,7 +143,7 @@ public class ApiClient {
     }
     
     public String getServerUrl() {
-        return preferences.getString(KEY_SERVER_URL, "http://192.168.1.100:5000/");
+        return preferences.getString(KEY_SERVER_URL, "http://192.168.1.219:5000/");
     }
     
     public void saveSessionCookie(String sessionCookie) {

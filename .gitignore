@@ -19,3 +19,4 @@ logs/
 # Test files
 test_logging.py
 test_logging_mock.py
+.fake
