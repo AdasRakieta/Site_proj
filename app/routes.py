@@ -1026,10 +1026,14 @@ class APIManager:
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
-        @self.auth_manager.login_required
+        @self.auth_manager.api_login_required
         def toggle_button_state(id):
             """Toggle button state via REST API"""
             try:
+                print(f"[DEBUG] toggle_button_state called with id: {id}")
+                print(f"[DEBUG] Request content_type: {request.content_type}")
+                print(f"[DEBUG] Request method: {request.method}")
+                
                 # Find button by ID
                 button = None
                 button_idx = None
@@ -1040,22 +1044,33 @@ class APIManager:
                         break
                 
                 if not button:
+                    print(f"[DEBUG] Button not found with id: {id}")
                     return jsonify({'status': 'error', 'message': 'Button not found'}), 404
                 
+                print(f"[DEBUG] Found button: {button['name']} in {button['room']}, current state: {button.get('state', False)}")
+                
                 # Get new state from request or toggle current state
-                data = request.get_json() or {}
+                data = {}
+                if request.content_type and 'application/json' in request.content_type:
+                    data = request.get_json() or {}
+                
                 new_state = data.get('state')
                 if new_state is None:
                     new_state = not button.get('state', False)
                 
+                print(f"[DEBUG] New state will be: {new_state}")
+                
                 # Update button state
                 if hasattr(self.smart_home, 'update_button_state'):
                     # Use database method if available
+                    print(f"[DEBUG] Updating button state in database: {button['room']}, {button['name']}, {new_state}")
                     success = self.smart_home.update_button_state(button['room'], button['name'], new_state)
+                    print(f"[DEBUG] Database update success: {success}")
                     if not success:
                         return jsonify({'status': 'error', 'message': 'Failed to update button state in database'}), 500
                 else:
                     # Fallback to JSON mode
+                    print(f"[DEBUG] Updating button state in JSON mode")
                     self.smart_home.buttons[button_idx]['state'] = new_state
                     if not self.smart_home.save_config():
                         return jsonify({'status': 'error', 'message': 'Failed to save button state'}), 500
