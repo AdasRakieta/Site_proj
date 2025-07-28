@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.extras
 import os
 
-DB_HOST = os.getenv('DB_HOST', '192.168.1.219')
+DB_HOST = os.getenv('DB_HOST', '100.103.184.90')
 DB_PORT = os.getenv('DB_PORT', '5432')
 DB_NAME = os.getenv('DB_NAME', 'postgres')
 DB_USER = os.getenv('DB_USER', 'admin')
