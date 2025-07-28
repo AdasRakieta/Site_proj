@@ -2,6 +2,8 @@ package com.smarthome.services;
 
 import com.smarthome.models.Device;
 import com.smarthome.models.Room;
+import com.smarthome.models.SecurityStateResponse;
+import com.smarthome.models.SecurityToggleRequest;
 import com.smarthome.models.TemperatureControl;
 import com.smarthome.models.User;
 
@@ -82,11 +84,11 @@ public interface SmartHomeApiService {
     Call<ApiResponse<String>> deleteTemperatureControl(@Path("id") String controlId);
     
     // Security
-    @GET("api/security/state")
-    Call<ApiResponse<String>> getSecurityState();
+    @GET("api/security")
+    Call<ApiResponse<SecurityStateResponse>> getSecurityState();
     
-    @POST("api/security/toggle")
-    Call<ApiResponse<String>> toggleSecurity();
+    @POST("api/security")
+    Call<ApiResponse<SecurityStateResponse>> toggleSecurity(@Body SecurityToggleRequest request);
 
     // Inner classes for API requests and responses
     class LoginRequest {
