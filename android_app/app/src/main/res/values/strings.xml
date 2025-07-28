@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">SmartHome</string>
+    
+    <!-- Authentication -->
+    <string name="login">Zaloguj się</string>
+    <string name="username">Nazwa użytkownika</string>
+    <string name="password">Hasło</string>
+    <string name="login_button">Zaloguj</string>
+    <string name="logout">Wyloguj</string>
+    
+    <!-- Navigation -->
+    <string name="dashboard">Panel główny</string>
+    <string name="rooms">Pokoje</string>
+    <string name="devices">Urządzenia</string>
+    <string name="temperature">Temperatura</string>
+    <string name="security">Bezpieczeństwo</string>
+    <string name="settings">Ustawienia</string>
+    
+    <!-- Device controls -->
+    <string name="turn_on">Włącz</string>
+    <string name="turn_off">Wyłącz</string>
+    <string name="toggle">Przełącz</string>
+    
+    <!-- Settings -->
+    <string name="server_url">Adres serwera</string>
+    <string name="server_url_hint">http://192.168.1.100:5000</string>
+    <string name="vpn_settings">Ustawienia VPN</string>
+    <string name="connection_settings">Ustawienia połączenia</string>
+    <string name="save">Zapisz</string>
+    
+    <!-- Messages -->
+    <string name="connection_error">Błąd połączenia</string>
+    <string name="login_error">Błąd logowania</string>
+    <string name="loading">Ładowanie...</string>
+    <string name="no_rooms">Brak pokoi</string>
+    <string name="no_devices">Brak urządzeń</string>
+    
+    <!-- VPN Setup -->
+    <string name="vpn_setup_title">Konfiguracja VPN</string>
+    <string name="vpn_setup_instructions">
+        Aby połączyć się z systemem SmartHome:
+        \n1. Skonfiguruj połączenie VPN na swoim urządzeniu
+        \n2. Podłącz się do sieci VPN
+        \n3. Wprowadź adres IP Raspberry Pi w ustawieniach
+        \n4. Zaloguj się używając swoich danych
+    </string>
+</resources>
