@@ -11,6 +11,7 @@ from flask_socketio import SocketIO, emit, disconnect
 import os
 import sys
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -42,6 +43,14 @@ class SmartHomeApp:
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        
+        # Add CORS headers for mobile app
+        @self.app.after_request
+        def after_request(response):
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
         
         # Add context processors
         self.setup_context_processors()
@@ -465,9 +474,17 @@ def create_app():
 def main():
     """Main entry point"""
     try:
+        # Load environment variables
+        load_dotenv()
+        
+        # Get configuration from .env
+        server_host = os.getenv('SERVER_HOST', '0.0.0.0')
+        server_port = int(os.getenv('SERVER_PORT', 5000))
+        
         # Create and run the application
         smart_home_app = SmartHomeApp()
-        smart_home_app.run(debug=False)  # Disable debug mode
+        # Use configuration from .env file
+        smart_home_app.run(host=server_host, port=server_port, debug=False)
         
     except Exception as e:
         print(f"💥 Failed to start SmartHome Application: {e}")

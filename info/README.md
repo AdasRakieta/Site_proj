@@ -843,7 +843,7 @@ python run_server.py
 python run_server.py --debug
 
 # Z innym portem
-python run_server.py --port 8080
+python run_server.py --port 5000
 ```
 
 #### Sposób 2: Bezpośrednio przez Flask
