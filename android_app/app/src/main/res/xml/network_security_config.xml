@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Base configuration that permits cleartext traffic -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Trust system CAs -->
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    
     <domain-config cleartextTrafficPermitted="true">
-        <!-- VPN IP (primary) -->
+        <!-- VPN IP (Server) -->
+        <domain includeSubdomains="false">100.126.230.74</domain>
+        <!-- VPN IP (Database) -->
         <domain includeSubdomains="false">100.103.184.90</domain>
         <!-- Local network IP (backup) -->
         <domain includeSubdomains="false">192.168.1.219</domain>

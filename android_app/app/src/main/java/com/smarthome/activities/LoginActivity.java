@@ -69,6 +69,9 @@ public class LoginActivity extends AppCompatActivity {
         
         setLoading(true);
         
+        // Debug: Log current server URL
+        android.util.Log.d("LoginActivity", "Current server URL: " + apiClient.getServerUrl());
+        
         SmartHomeApiService.LoginRequest request = new SmartHomeApiService.LoginRequest(username, password);
         
         apiClient.getApiService().login(request).enqueue(new Callback<SmartHomeApiService.ApiResponse<SmartHomeApiService.LoginResponse>>() {
