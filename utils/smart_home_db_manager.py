@@ -40,11 +40,12 @@ class SmartHomeDatabaseManager:
             db_config (dict): Database connection configuration
         """
         self.db_config = db_config or {
-            'host': os.getenv('DB_HOST', '192.168.1.219'),
+            'host': os.getenv('DB_HOST', '100.103.184.90'),
             'port': os.getenv('DB_PORT', '5432'),
             'dbname': os.getenv('DB_NAME', 'admin'),  # ensure 'dbname' not 'database'
             'user': os.getenv('DB_USER', 'admin'),
             'password': os.getenv('DB_PASSWORD', 'Qwuizzy123.')
+            
         }
         
         self.home_id = os.getenv('HOME_ID', str(uuid.uuid4()))
