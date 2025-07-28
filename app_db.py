@@ -32,6 +32,7 @@ from app.routes import RoutesManager
 from app.mail_manager import MailManager
 from utils.cache_manager import CacheManager, setup_smart_home_caching
 from app.management_logger import ManagementLogger
+from app.database_management_logger import DatabaseManagementLogger
 
 class SmartHomeApp:
     """Main SmartHome application class with database integration"""
@@ -94,7 +95,18 @@ class SmartHomeApp:
                 print("✓ SmartHome system initialized with JSON backend")
             
             # Initialize management logger
-            self.management_logger = ManagementLogger()
+            # Use database logger when in database mode, JSON logger otherwise
+            if DATABASE_MODE:
+                try:
+                    self.management_logger = DatabaseManagementLogger()
+                    print("✓ Management logger initialized with database backend")
+                except Exception as e:
+                    print(f"⚠ Failed to initialize database logger: {e}")
+                    print("⚠ Falling back to JSON logger")
+                    self.management_logger = ManagementLogger()
+            else:
+                self.management_logger = ManagementLogger()
+                print("✓ Management logger initialized with JSON backend")
             
             # Initialize mail manager
             self.mail_manager = MailManager()
