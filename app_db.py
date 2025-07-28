@@ -152,6 +152,19 @@ class SmartHomeApp:
                 auth_manager=self.auth_manager,
                 management_logger=self.management_logger
             )
+            
+            # Register Apple SmartHome routes
+            try:
+                from apple_smarthome.routes import register_apple_routes
+                self.apple_routes = register_apple_routes(
+                    app=self.app,
+                    smart_home=self.smart_home,
+                    auth_manager=self.auth_manager
+                )
+                print("✓ Apple SmartHome routes registered successfully")
+            except Exception as e:
+                print(f"⚠ Failed to register Apple SmartHome routes: {e}")
+            
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
