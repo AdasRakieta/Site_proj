@@ -664,4 +664,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-refresh co 30 sekund
     setInterval(() => {
-       
+        refreshDeviceStates();
+        refreshLogs();
+    }, 30000);
+});
+</script>
+{% endblock %}
