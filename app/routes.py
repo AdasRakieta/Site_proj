@@ -457,14 +457,20 @@ class RoutesManager:
                         
                         # Return appropriate response based on request type
                         if request.is_json:
-                            # JSON API response for mobile
+                            # JSON API response for mobile - format compatible with Android ApiResponse<LoginResponse>
                             return jsonify({
                                 "status": "success",
                                 "message": "Login successful",
                                 "data": {
-                                    "user_id": user_id,
-                                    "username": user['name'],
-                                    "role": user.get('role', 'user')
+                                    "status": "success",
+                                    "message": "Login successful", 
+                                    "user": {
+                                        "id": user_id,
+                                        "name": user['name'],
+                                        "email": user.get('email', ''),
+                                        "role": user.get('role', 'user')
+                                    },
+                                    "session_id": None  # Flask sessions don't use explicit session IDs
                                 }
                             })
                         else:
@@ -1117,7 +1123,10 @@ class APIManager:
         def manage_temperature_controls():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                return jsonify(self.smart_home.temperature_controls)
+                return jsonify({
+                    "status": "success", 
+                    "data": self.smart_home.temperature_controls
+                })
             elif request.method == 'POST':
                 try:
                     if session.get('role') != 'admin':
@@ -1594,7 +1603,7 @@ class APIManager:
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
 
         @self.app.route('/api/security', methods=['GET', 'POST'])
-        @self.auth_manager.api_login_required
+        @self.auth_manager.login_required
         def manage_security_state():
             """REST API endpoint for security state management"""
             try:
