@@ -43,8 +43,8 @@ public interface SmartHomeApiService {
     
     // Rooms
     @GET("api/rooms")
-    Call<ApiResponse<List<Room>>> getRooms();
-    
+    Call<List<String>> getRooms();
+
     @POST("api/rooms")
     Call<ApiResponse<Room>> createRoom(@Body Room room);
     
@@ -56,8 +56,8 @@ public interface SmartHomeApiService {
     
     // Devices/Buttons
     @GET("api/buttons")
-    Call<ApiResponse<List<Device>>> getDevices();
-    
+    Call<List<Device>> getDevices();
+
     @POST("api/buttons")
     Call<ApiResponse<Device>> createDevice(@Body Device device);
     
@@ -68,8 +68,8 @@ public interface SmartHomeApiService {
     Call<ApiResponse<String>> deleteDevice(@Path("id") String deviceId);
     
     @POST("api/buttons/{id}/toggle")
-    Call<ApiResponse<String>> toggleDevice(@Path("id") String deviceId);
-    
+    Call<String> toggleDevice(@Path("id") String deviceId);
+
     // Temperature controls
     @GET("api/temperature_controls")
     Call<ApiResponse<List<TemperatureControl>>> getTemperatureControls();
@@ -85,8 +85,8 @@ public interface SmartHomeApiService {
     
     // Security
     @GET("api/security")
-    Call<ApiResponse<SecurityStateResponse>> getSecurityState();
-    
+    Call<SecurityStateResponse> getSecurityState();
+
     @POST("api/security")
     Call<ApiResponse<SecurityStateResponse>> toggleSecurity(@Body SecurityToggleRequest request);
 

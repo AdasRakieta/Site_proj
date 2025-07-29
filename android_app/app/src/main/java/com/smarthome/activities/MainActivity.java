@@ -118,14 +118,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
     
     private void loadRooms() {
-        apiClient.getApiService().getRooms().enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Room>>>() {
+        apiClient.getApiService().getRooms().enqueue(new Callback<List<String>>() {
             @Override
-            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Room>>> call, 
-                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Room>>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+            public void onResponse(Call<List<String>> call, Response<List<String>> response) {
+                if (response.isSuccessful() && response.body() != null) {
                     rooms.clear();
-                    if (response.body().data != null) {
-                        rooms.addAll(response.body().data);
+                    for (String name : response.body()) {
+                        rooms.add(new Room(name, name, "#2196F3", 0));
                     }
                     roomAdapter.notifyDataSetChanged();
                 }
@@ -133,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
             
             @Override
-            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Room>>> call, Throwable t) {
+            public void onFailure(Call<List<String>> call, Throwable t) {
                 Toast.makeText(MainActivity.this, "Błąd ładowania pokoi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 checkLoadingComplete();
             }
@@ -141,22 +140,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
     
     private void loadDevices() {
-        apiClient.getApiService().getDevices().enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Device>>>() {
+        apiClient.getApiService().getDevices().enqueue(new Callback<List<Device>>() {
             @Override
-            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Device>>> call, 
-                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Device>>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+            public void onResponse(Call<List<Device>> call, Response<List<Device>> response) {
+                if (response.isSuccessful() && response.body() != null) {
                     devices.clear();
-                    if (response.body().data != null) {
-                        devices.addAll(response.body().data);
-                    }
+                    devices.addAll(response.body());
                     deviceAdapter.notifyDataSetChanged();
                 }
                 checkLoadingComplete();
             }
             
             @Override
-            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<List<Device>>> call, Throwable t) {
+            public void onFailure(Call<List<Device>> call, Throwable t) {
                 Toast.makeText(MainActivity.this, "Błąd ładowania urządzeń: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 checkLoadingComplete();
             }
@@ -164,23 +160,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
     
     private void loadSecurityStatus() {
-        apiClient.getApiService().getSecurityState().enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>>() {
+        apiClient.getApiService().getSecurityState().enqueue(new Callback<SecurityStateResponse>() {
             @Override
-            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> call, 
-                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    SecurityStateResponse securityData = response.body().data;
-                    if (securityData != null) {
+            public void onResponse(Call<SecurityStateResponse> call, Response<SecurityStateResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SecurityStateResponse securityData = response.body();
+                    if (securityData.getSecurityState() != null) {
                         tvSecurityStatus.setText(securityData.getSecurityState());
                     } else {
                         tvSecurityStatus.setText("Nieznany");
                     }
+                } else {
+                    tvSecurityStatus.setText("Błąd");
                 }
                 checkLoadingComplete();
             }
             
             @Override
-            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<SecurityStateResponse>> call, Throwable t) {
+            public void onFailure(Call<SecurityStateResponse> call, Throwable t) {
                 tvSecurityStatus.setText("Błąd");
                 checkLoadingComplete();
             }
@@ -188,22 +185,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
     
     private void toggleDevice(Device device) {
-        apiClient.getApiService().toggleDevice(device.getId()).enqueue(new Callback<com.smarthome.services.SmartHomeApiService.ApiResponse<String>>() {
+        apiClient.getApiService().toggleDevice(device.getId()).enqueue(new Callback<String>() {
             @Override
-            public void onResponse(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> call, 
-                                 Response<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+            public void onResponse(Call<String> call, Response<String> response) {
+                if (response.isSuccessful()) {
                     // Toggle the device state locally
                     device.setState(!device.isState());
                     deviceAdapter.notifyDataSetChanged();
                     Toast.makeText(MainActivity.this, "Urządzenie przełączone", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(MainActivity.this, "Błąd przełączania urządzenia", Toast.LENGTH_SHORT).show();
+                    // Handle error response
+                    String errorMessage = "Błąd przełączania urządzenia";
+                    if (response.code() == 500) {
+                        errorMessage = "Błąd serwera - sprawdź połączenie z urządzeniem";
+                    }
+                    Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 }
             }
             
             @Override
-            public void onFailure(Call<com.smarthome.services.SmartHomeApiService.ApiResponse<String>> call, Throwable t) {
+            public void onFailure(Call<String> call, Throwable t) {
                 Toast.makeText(MainActivity.this, "Błąd połączenia: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
