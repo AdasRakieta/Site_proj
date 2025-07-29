@@ -29,7 +29,9 @@ except ImportError as e:
     DATABASE_MODE = False
 
 # Import other components
-from app.routes import RoutesManager
+from app.routes import RoutesManager  # Keep original for backward compatibility 
+from WebApp.web_routes import WebRoutesManager
+from MobileApp.api_routes import APIRoutesManager
 from app.mail_manager import MailManager
 from utils.cache_manager import CacheManager, setup_smart_home_caching
 from app.management_logger import ManagementLogger
@@ -144,16 +146,40 @@ class SmartHomeApp:
     def setup_routes(self):
         """Setup Flask routes and API endpoints"""
         try:
-            from app.routes import APIManager
+            # Initialize web routes for HTML interface
+            print("[INFO] Setting up WebApp routes...")
+            self.web_route_manager = WebRoutesManager(
+                app=self.app,
+                smart_home=self.smart_home,
+                auth_manager=self.auth_manager,
+                mail_manager=self.mail_manager,
+                cache=self.cache,
+                management_logger=self.management_logger
+            )
+            
+            # Initialize API routes for mobile app
+            print("[INFO] Setting up MobileApp API routes...")
+            self.api_route_manager = APIRoutesManager(
+                app=self.app,
+                smart_home=self.smart_home,
+                auth_manager=self.auth_manager,
+                mail_manager=self.mail_manager,
+                cache=self.cache,
+                management_logger=self.management_logger
+            )
+            
+            # Keep original route manager for any remaining functionality
             self.route_manager = RoutesManager(
                 app=self.app,
                 smart_home=self.smart_home,
                 auth_manager=self.auth_manager,
                 mail_manager=self.mail_manager,
-                cache=self.cache,  # Pass the Flask cache object, not the cache_manager
+                cache=self.cache,
                 management_logger=self.management_logger
             )
+            
             # Register API endpoints (including /api/automations etc.)
+            from app.routes import APIManager
             self.api_manager = APIManager(
                 app=self.app,
                 socketio=self.socketio,
