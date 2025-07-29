@@ -28,4 +28,24 @@
         android:textSize="12sp"
         android:textColor="?attr/colorOnSurfaceVariant" />
 
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="542dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <Space
+            android:layout_width="112dp"
+            android:layout_height="match_parent" />
+
+        <Button
+            android:id="@+id/buttonBack"
+            android:layout_width="150dp"
+            android:layout_height="match_parent"
+            android:text="Wróć" />
+    </LinearLayout>
+
 </LinearLayout>

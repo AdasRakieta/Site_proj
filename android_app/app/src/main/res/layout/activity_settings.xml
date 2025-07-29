@@ -92,6 +92,26 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <Space
+            android:layout_width="322dp"
+            android:layout_height="234dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <Space
+                android:layout_width="112dp"
+                android:layout_height="match_parent" />
+
+            <Button
+                android:id="@+id/buttonBack"
+                android:layout_width="150dp"
+                android:layout_height="match_parent"
+                android:text="Wróć" />
+        </LinearLayout>
+
     </LinearLayout>
 
 </ScrollView>
