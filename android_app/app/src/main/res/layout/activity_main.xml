@@ -103,6 +103,22 @@
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvQuickControls"
                         android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Temperature Controls Header -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/temperature"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Temperature Controls RecyclerView -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvTemperatureControls"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
 
                 </LinearLayout>

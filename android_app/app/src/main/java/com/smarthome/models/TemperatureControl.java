@@ -1,14 +1,19 @@
 package com.smarthome.models;
 
+import com.google.gson.annotations.SerializedName;
+
 public class TemperatureControl {
     private String id;
     private String name;
     private String room;
-    private double currentTemperature;
-    private double targetTemperature;
-    private boolean state;
-    private String mode;
-    private int position;
+    
+    // Server returns single "temperature" field, map it to both current and target
+    @SerializedName("temperature")
+    private double temperature;
+    
+    private boolean state = true; // Default active state
+    private String mode = "auto"; // Default mode
+    private int position = 0; // Default position
 
     public TemperatureControl() {}
 
@@ -17,8 +22,7 @@ public class TemperatureControl {
         this.id = id;
         this.name = name;
         this.room = room;
-        this.currentTemperature = currentTemperature;
-        this.targetTemperature = targetTemperature;
+        this.temperature = currentTemperature;
         this.state = state;
         this.mode = mode;
         this.position = position;
@@ -34,11 +38,20 @@ public class TemperatureControl {
     public String getRoom() { return room; }
     public void setRoom(String room) { this.room = room; }
 
-    public double getCurrentTemperature() { return currentTemperature; }
-    public void setCurrentTemperature(double currentTemperature) { this.currentTemperature = currentTemperature; }
+    // Both current and target temperature return the same value from server
+    public double getCurrentTemperature() { return temperature; }
+    public void setCurrentTemperature(double currentTemperature) { 
+        this.temperature = currentTemperature;
+    }
 
-    public double getTargetTemperature() { return targetTemperature; }
-    public void setTargetTemperature(double targetTemperature) { this.targetTemperature = targetTemperature; }
+    public double getTargetTemperature() { return temperature; }
+    public void setTargetTemperature(double targetTemperature) { 
+        this.temperature = targetTemperature; 
+    }
+    
+    // Direct access to temperature field
+    public double getTemperature() { return temperature; }
+    public void setTemperature(double temperature) { this.temperature = temperature; }
 
     public boolean isState() { return state; }
     public void setState(boolean state) { this.state = state; }

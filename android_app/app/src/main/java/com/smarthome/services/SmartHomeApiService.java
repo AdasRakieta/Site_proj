@@ -5,6 +5,7 @@ import com.smarthome.models.Room;
 import com.smarthome.models.SecurityStateResponse;
 import com.smarthome.models.SecurityToggleRequest;
 import com.smarthome.models.TemperatureControl;
+import com.smarthome.models.TemperatureSetRequest;
 import com.smarthome.models.User;
 
 import java.util.List;
@@ -82,6 +83,9 @@ public interface SmartHomeApiService {
     
     @DELETE("api/temperature_controls/{id}")
     Call<ApiResponse<String>> deleteTemperatureControl(@Path("id") String controlId);
+    
+    @POST("api/temperature_controls/{id}/temperature")
+    Call<ApiResponse<String>> setTemperature(@Path("id") String controlId, @Body TemperatureSetRequest request);
     
     // Security
     @GET("api/security")
