@@ -1,6 +1,7 @@
 package com.smarthome.activities;
 
 import android.os.Bundle;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -33,6 +34,11 @@ public class SettingsActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
         
         btnSave.setOnClickListener(v -> saveSettings());
+
+        Button buttonBack = findViewById(R.id.buttonBack);
+        if (buttonBack != null) {
+            buttonBack.setOnClickListener(v -> finish());
+        }
     }
     
     private void loadCurrentSettings() {
