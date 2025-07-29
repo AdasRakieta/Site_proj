@@ -117,11 +117,6 @@ class WebRoutesManager:
         @self.auth_manager.login_required
         def user():
             return render_template('user.html')
-
-        @self.app.route('/weather')
-        @self.auth_manager.login_required
-        def weather():
-            return render_template('weather.html')
         
         @self.app.route('/<room>')
         @self.auth_manager.login_required
@@ -206,5 +201,36 @@ class WebRoutesManager:
         def forgot_password():
             """Web forgot password route"""
             return render_template('forgot_password.html')
+
+        @self.app.route('/reset_password', methods=['POST'])
+        def reset_password():
+            """Web reset password route"""
+            data = request.get_json()
+            if not data:
+                return {"status": "error", "message": "Brak danych"}, 400
+            # Add reset password logic here
+            return {"status": "success", "message": "Password reset"}
+
+        @self.app.route('/admin_dashboard', methods=['GET', 'POST'])
+        @self.auth_manager.login_required  
+        @self.auth_manager.admin_required
+        def admin_dashboard():
+            """Admin dashboard route"""
+            if request.method == 'POST':
+                # Handle admin user creation - simplified for now
+                pass
+            return render_template('admin_dashboard.html')
+
+        @self.app.route('/test-email')
+        @self.auth_manager.login_required
+        def test_email():
+            """Test email functionality"""
+            # Use async mail manager for non-critical test emails
+            result = self.async_mail_manager.send_security_alert_async('failed_login', {
+                'username': 'testuser', 
+                'ip_address': '127.0.0.1',
+                'timestamp': 'test'
+            })
+            return f"Test email sent: {result}"
         
         print("[DEBUG] Web routes registered successfully!")
