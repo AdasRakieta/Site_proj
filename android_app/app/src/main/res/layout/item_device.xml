@@ -15,11 +15,11 @@
 
         <ImageView
             android:id="@+id/ivDeviceIcon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_device"
+            android:layout_width="9dp"
+            android:layout_height="2dp"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="8dp"
+            android:src="@drawable/ic_device"
             android:tint="?attr/colorPrimary" />
 
         <TextView
