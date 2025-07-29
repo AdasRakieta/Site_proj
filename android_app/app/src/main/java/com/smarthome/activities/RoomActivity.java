@@ -1,6 +1,7 @@
 package com.smarthome.activities;
 
 import android.os.Bundle;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -50,6 +51,11 @@ public class RoomActivity extends AppCompatActivity {
         });
         rvDevices.setLayoutManager(new LinearLayoutManager(this));
         rvDevices.setAdapter(deviceAdapter);
+
+        Button buttonBack = findViewById(R.id.buttonBack);
+        if (buttonBack != null) {
+            buttonBack.setOnClickListener(v -> finish());
+        }
     }
     
     private void loadDevicesForRoom() {
