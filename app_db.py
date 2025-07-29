@@ -170,12 +170,8 @@ class SmartHomeApp:
             
             # Temporarily disable APIManager to avoid conflicts 
             # TODO: Integrate remaining functionality from APIManager
-            print("[INFO] Routes setup completed successfully")
-            
-        except Exception as e:
-            print(f"✗ Failed to setup routes: {e}")
-            raise
             print("✓ Routes and API endpoints configured successfully")
+            
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
             raise
