@@ -54,7 +54,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private DeviceAdapter deviceAdapter;
     private TemperatureControlAdapter temperatureControlAdapter;
     private ApiClient apiClient;
-    
+    private SmartHomeApiService smartHomeApi;
+
     private List<Room> rooms = new ArrayList<>();
     private List<Device> devices = new ArrayList<>();
     private List<TemperatureControl> temperatureControls = new ArrayList<>();
@@ -70,7 +71,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setupRecyclerViews();
         
         apiClient = ApiClient.getInstance(this);
-        
+        smartHomeApi = apiClient.getApiService();
+
         // Load initial data
         loadData();
     }
