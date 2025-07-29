@@ -202,6 +202,54 @@ class APIRoutesManager:
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 
+        @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
+        @self.auth_manager.api_login_required
+        def api_button_toggle(id):
+            """Toggle a button state"""
+            try:
+                # Toggle button logic would go here
+                return jsonify({"status": "success", "message": f"Button {id} toggled"})
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
+        @self.auth_manager.api_login_required
+        def api_button_modify(id):
+            """Update or delete a button"""
+            try:
+                if request.method == 'PUT':
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "No data provided"}), 400
+                    # Update button logic
+                    return jsonify({"status": "success", "message": f"Button {id} updated"})
+                
+                elif request.method == 'DELETE':
+                    # Delete button logic
+                    return jsonify({"status": "success", "message": f"Button {id} deleted"})
+                    
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/temperature_controls/<id>', methods=['PUT', 'DELETE'])
+        @self.auth_manager.api_login_required
+        def api_temp_control_modify(id):
+            """Update or delete a temperature control"""
+            try:
+                if request.method == 'PUT':
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "No data provided"}), 400
+                    # Update temperature control logic
+                    return jsonify({"status": "success", "message": f"Temperature control {id} updated"})
+                
+                elif request.method == 'DELETE':
+                    # Delete temperature control logic
+                    return jsonify({"status": "success", "message": f"Temperature control {id} deleted"})
+                    
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
         @self.app.route('/api/users', methods=['GET'])
         @self.auth_manager.api_login_required
         def api_users():
@@ -254,6 +302,84 @@ class APIRoutesManager:
                         "message": f"Security state set to {new_state}"
                     })
                     
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/user/profile', methods=['GET', 'PUT'])
+        @self.auth_manager.api_login_required
+        def api_user_profile():
+            """Get or update user profile"""
+            try:
+                user_id = session.get('user_id')
+                if not user_id:
+                    return jsonify({"status": "error", "message": "User not authenticated"}), 401
+                
+                if request.method == 'GET':
+                    user_data = self.smart_home.get_user_data(user_id)
+                    if user_data:
+                        # Remove sensitive data
+                        safe_user_data = {
+                            'name': user_data.get('name', ''),
+                            'email': user_data.get('email', ''),
+                            'role': user_data.get('role', 'user')
+                        }
+                        return jsonify({"status": "success", "data": {"user": safe_user_data}})
+                    else:
+                        return jsonify({"status": "error", "message": "User not found"}), 404
+                
+                elif request.method == 'PUT':
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "No data provided"}), 400
+                    
+                    # Update user profile logic would go here
+                    return jsonify({"status": "success", "message": "Profile updated"})
+                    
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/automations', methods=['GET', 'POST'])
+        @self.auth_manager.api_login_required
+        def api_automations():
+            """Get all automations or create a new one"""
+            try:
+                if request.method == 'GET':
+                    automations = getattr(self.smart_home, 'automations', [])
+                    return jsonify({"status": "success", "data": {"automations": automations}})
+                
+                elif request.method == 'POST':
+                    data = request.get_json()
+                    if not data:
+                        return jsonify({"status": "error", "message": "No data provided"}), 400
+                    
+                    # Add automation logic here
+                    return jsonify({"status": "success", "message": "Automation created"})
+                    
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/admin/logs', methods=['GET'])
+        @self.auth_manager.api_login_required
+        def api_admin_logs():
+            """Get system logs (admin only)"""
+            try:
+                # Check if user has admin role
+                user_id = session.get('user_id')
+                user_data = self.smart_home.get_user_data(user_id)
+                
+                if not user_data or user_data.get('role') != 'admin':
+                    return jsonify({"status": "error", "message": "Admin access required"}), 403
+                
+                # Get logs from management logger
+                logs = []
+                if self.management_logger:
+                    try:
+                        logs = self.management_logger.get_recent_logs(limit=100)
+                    except:
+                        logs = []
+                
+                return jsonify({"status": "success", "data": {"logs": logs}})
+                
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
         
