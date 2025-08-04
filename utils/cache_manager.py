@@ -264,6 +264,93 @@ class CachedDataAccess:
         self.smart_home = smart_home
         self.cache_manager = CacheManager(cache, smart_home)
     
+    def get_rooms_lazy(self, room_filter=None):
+        """
+        Get rooms with lazy loading and optional filtering
+        
+        Args:
+            room_filter: Optional filter function or list of room names
+            
+        Returns:
+            Filtered list of room objects
+        """
+        cache_key = "rooms_list"
+        if room_filter and isinstance(room_filter, list):
+            # Create cache key for specific room filter
+            filter_key = "_".join(sorted(room_filter))
+            cache_key = f"rooms_filtered_{filter_key}"
+        
+        rooms = self.cache.get(cache_key)
+        if rooms is None:
+            logger.debug("Cache miss for rooms, fetching from source")
+            all_rooms = self.smart_home.rooms
+            
+            # Apply filter if provided
+            if room_filter:
+                if callable(room_filter):
+                    rooms = [room for room in all_rooms if room_filter(room)]
+                elif isinstance(room_filter, list):
+                    rooms = [room for room in all_rooms if room in room_filter]
+                else:
+                    rooms = all_rooms
+            else:
+                rooms = all_rooms
+            
+            timeout = self.cache_manager.get_timeout('rooms')
+            self.cache.set(cache_key, rooms, timeout=timeout)
+            logger.debug(f"Cached filtered rooms data for {timeout}s")
+        else:
+            logger.debug("Cache hit for filtered rooms")
+        return rooms
+    
+    def get_buttons_by_room(self, room_name):
+        """
+        Get buttons for a specific room with caching
+        
+        Args:
+            room_name: Name of the room to get buttons for
+            
+        Returns:
+            List of button objects for the specified room
+        """
+        cache_key = f"buttons_room_{room_name}"
+        buttons = self.cache.get(cache_key)
+        if buttons is None:
+            logger.debug(f"Cache miss for buttons in room {room_name}")
+            all_buttons = self.smart_home.buttons
+            # Filter buttons for specific room
+            buttons = [btn for btn in all_buttons if btn.get('room') == room_name]
+            timeout = self.cache_manager.get_timeout('buttons')
+            self.cache.set(cache_key, buttons, timeout=timeout)
+            logger.debug(f"Cached buttons for room {room_name} for {timeout}s")
+        else:
+            logger.debug(f"Cache hit for buttons in room {room_name}")
+        return buttons
+    
+    def get_temperature_controls_by_room(self, room_name):
+        """
+        Get temperature controls for a specific room with caching
+        
+        Args:
+            room_name: Name of the room to get temperature controls for
+            
+        Returns:
+            List of temperature control objects for the specified room
+        """
+        cache_key = f"temp_controls_room_{room_name}"
+        controls = self.cache.get(cache_key)
+        if controls is None:
+            logger.debug(f"Cache miss for temperature controls in room {room_name}")
+            all_controls = self.smart_home.temperature_controls
+            # Filter controls for specific room
+            controls = [ctrl for ctrl in all_controls if ctrl.get('room') == room_name]
+            timeout = self.cache_manager.get_timeout('temperature')
+            self.cache.set(cache_key, controls, timeout=timeout)
+            logger.debug(f"Cached temperature controls for room {room_name} for {timeout}s")
+        else:
+            logger.debug(f"Cache hit for temperature controls in room {room_name}")
+        return controls
+    
     def get_rooms(self):
         """
         Get cached rooms list
