@@ -9,7 +9,7 @@ from utils.allowed_file import allowed_file
 
 
 class RoutesManager:
-    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
@@ -20,7 +20,14 @@ class RoutesManager:
         self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
         # Initialize management logger
         self.management_logger = management_logger or ManagementLogger()
+        # Initialize socketio for real-time updates
+        self.socketio = socketio
         self.register_routes()
+
+    def emit_update(self, event_name, data):
+        """Safely emit socketio updates only if socketio is available"""
+        if self.socketio:
+            self.socketio.emit(event_name, data)
 
     def register_routes(self):
         print("[DEBUG] register_routes called - registering Flask routes!")
@@ -787,6 +794,11 @@ class APIManager:
         self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
         self.register_routes()
 
+    def emit_update(self, event_name, data):
+        """Safely emit socketio updates only if socketio is available"""
+        if self.socketio:
+            self.socketio.emit(event_name, data)
+
     def register_routes(self):
         @self.app.route('/api', methods=['GET'])
         def api_root():
@@ -1137,8 +1149,10 @@ class APIManager:
                             new_control['id'] = str(uuid.uuid4())
                         new_control['temperature'] = 22
                         self.smart_home.temperature_controls.append(new_control)
-                        self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                        self.socketio.emit('update_room_temperature_controls', new_control)
+                        # Emit updates only if socketio is available
+                        if self.socketio:
+                            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                            self.socketio.emit('update_room_temperature_controls', new_control)
                         self.smart_home.save_config()
                         return jsonify({"status": "success", "id": new_control['id']})
                     return jsonify({"status": "error", "message": "Invalid control data"}), 400
@@ -1163,12 +1177,16 @@ class APIManager:
                 if 'room' in data:
                     self.smart_home.temperature_controls[idx]['room'] = data['room']
                 self.smart_home.save_config()
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                # Emit updates only if socketio is available
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 return jsonify({'status': 'success'})
             elif request.method == 'DELETE':
                 self.smart_home.temperature_controls.pop(idx)
                 self.smart_home.save_config()
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                # Emit updates only if socketio is available
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/temperature_controls/<int:index>', methods=['DELETE'])
@@ -1177,8 +1195,10 @@ class APIManager:
         def delete_temperature_control(index):
             if 0 <= index < len(self.smart_home.temperature_controls):
                 deleted_control = self.smart_home.temperature_controls.pop(index)
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                self.socketio.emit('remove_room_temperature_control', deleted_control)
+                # Emit updates only if socketio is available
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                    self.socketio.emit('remove_room_temperature_control', deleted_control)
                 self.smart_home.save_config()
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Control not found"}), 404
@@ -1196,7 +1216,9 @@ class APIManager:
                 if 'room' in data:
                     self.smart_home.temperature_controls[index]['room'] = data['room']
                 self.smart_home.save_config()
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                # Emit updates only if socketio is available
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Control not found"}), 404
 
@@ -1252,15 +1274,16 @@ class APIManager:
                     self.smart_home.save_config()
                 
                 # Emit socket updates
-                self.socketio.emit('update_temperature', {
-                    'room': control['room'],
-                    'name': control['name'],
-                    'temperature': temperature
-                })
-                self.socketio.emit('sync_temperature', {
-                    'name': control['name'],
-                    'temperature': temperature
-                })
+                if self.socketio:
+                    self.socketio.emit('update_temperature', {
+                        'room': control['room'],
+                        'name': control['name'],
+                        'temperature': temperature
+                    })
+                    self.socketio.emit('sync_temperature', {
+                        'name': control['name'],
+                        'temperature': temperature
+                    })
                 
                 # Log the action
                 if hasattr(self.management_logger, 'log_device_action'):

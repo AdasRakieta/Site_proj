@@ -632,20 +632,17 @@ class SmartHomeDatabaseManager:
             # Handle empty or null values
             if setting_val is None or setting_val == '':
                 return None
-            # For string values, check if they look like JSON
+            
+            # Since setting_value is jsonb type, it should already be parsed by psycopg2
+            # If it's still a string, try to parse it as JSON
             if isinstance(setting_val, str):
-                # If it starts and ends with quotes, or contains JSON-like characters, try parsing
-                if (setting_val.startswith('"') and setting_val.endswith('"')) or \
-                   setting_val.startswith('{') or setting_val.startswith('['):
-                    try:
-                        return json.loads(setting_val)
-                    except json.JSONDecodeError:
-                        # If JSON parsing fails, return the string as-is
-                        return setting_val
-                else:
-                    # Simple string, return as-is
+                try:
+                    return json.loads(setting_val)
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, return the string as-is
                     return setting_val
             else:
+                # Already parsed as Python object (dict, list, bool, int, etc.)
                 return setting_val
         return None
     
@@ -660,27 +657,38 @@ class SmartHomeDatabaseManager:
                 updated_at = NOW()
         """
         
-        # Store simple strings as-is, complex objects as JSON
-        if isinstance(value, str):
-            store_value = value
-        else:
-            store_value = json.dumps(value)
+        # Always store as valid JSON since setting_value is jsonb type
+        store_value = json.dumps(value)
         
         rows_affected = self._execute_query(query, (key, store_value, description))
         return isinstance(rows_affected, int) and rows_affected > 0
     
     def get_security_state(self) -> str:
         """Get current security state"""
-        state = self.get_system_setting('security_state')
-        if state is None:
-            # If no state exists, set and return default
+        # Get boolean value from database
+        state_bool = self.get_system_setting('security_state')
+        if state_bool is None:
+            # If no state exists, set and return default (False = Wyłączony)
             self.set_security_state('Wyłączony')
             return 'Wyłączony'
-        return state
+        
+        # Convert boolean to Polish text
+        if isinstance(state_bool, bool):
+            return 'Załączony' if state_bool else 'Wyłączony'
+        elif isinstance(state_bool, str):
+            # Handle existing string values for backward compatibility
+            if state_bool.lower() in ['true', 'załączony', 'włączony']:
+                return 'Załączony'
+            else:
+                return 'Wyłączony'
+        else:
+            return 'Wyłączony'
     
     def set_security_state(self, state: str) -> bool:
-        """Set security state"""
-        return self.set_system_setting('security_state', state, 'Current security system state')
+        """Set security state - convert Polish text to boolean"""
+        # Convert Polish text to boolean
+        state_bool = state in ['Załączony', 'Włączony', 'true', 'True']
+        return self.set_system_setting('security_state', state_bool, 'Current security system state (boolean)')
     
     # ========================================================================
     # TEMPERATURE STATES METHODS
