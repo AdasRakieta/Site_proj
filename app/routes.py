@@ -63,27 +63,35 @@ class RoutesManager:
             if 'username' not in session:
                 print("[DEBUG] Brak username w sesji, redirect na login")
                 return redirect(url_for('login'))
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
-            return render_template('index.html', user_data=user_data)
+            
+            # Pre-load rooms data to avoid AJAX delay
+            if self.cached_data:
+                rooms = self.cached_data.get('rooms', []) if isinstance(self.cached_data, dict) else self.cached_data.get_rooms()
+            else:
+                rooms = self.smart_home.rooms
+            print(f"[DEBUG] Pre-loading {len(rooms)} rooms for home page")
+            
+            return render_template('index.html', user_data=user_data, rooms=rooms)
 
         @self.app.route('/temp')
         @self.auth_manager.login_required
         def temp():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('temp_lights.html', user_data=user_data)
 
         @self.app.route('/temperature')
         @self.auth_manager.login_required
         def temperature():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('temperature.html', user_data=user_data)
 
         @self.app.route('/security')
         @self.auth_manager.login_required
         def security():
             try:
-                user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+                user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
                 current_security_state = self.smart_home.security_state
                 return render_template('security.html', user_data=user_data, security_state=current_security_state)
             except Exception as e:
@@ -93,25 +101,25 @@ class RoutesManager:
         @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def settings():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('settings.html', user_data=user_data)
 
         @self.app.route('/suprise')
         @self.auth_manager.login_required
         def suprise():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('suprise.html', user_data=user_data)
 
         @self.app.route('/suprise_dog')
         @self.auth_manager.login_required
         def suprise_dog():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('suprise_Dog.html', user_data=user_data)
 
         @self.app.route('/automations')
         @self.auth_manager.login_required
         def automations():
-            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             return render_template('automations.html', user_data=user_data)
 
         # API endpoints for mobile app
