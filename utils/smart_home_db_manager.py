@@ -8,6 +8,7 @@ It provides a complete interface for all SmartHome data operations.
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 import json
 import uuid
 import os
@@ -51,9 +52,48 @@ class SmartHomeDatabaseManager:
         self.home_id = os.getenv('HOME_ID', str(uuid.uuid4()))
         self._connection_pool = None
         self._lock = threading.Lock()
+        self._pool_minconn = int(os.getenv('DB_POOL_MIN', '2'))  # Minimum connections
+        self._pool_maxconn = int(os.getenv('DB_POOL_MAX', '10'))  # Maximum connections
+        
+        # Initialize connection pool
+        self._initialize_connection_pool()
         
         # Test connection on initialization
         self._test_connection()
+    
+    def _initialize_connection_pool(self):
+        """Initialize PostgreSQL connection pool"""
+        try:
+            # Only allow valid psycopg2 keys for connection
+            allowed_keys = {'host', 'port', 'dbname', 'user', 'password', 'connect_timeout'}
+            filtered_config = {}
+            for k, v in self.db_config.items():
+                if k in allowed_keys:
+                    if k == 'port':
+                        try:
+                            filtered_config[k] = int(v)
+                        except Exception:
+                            filtered_config[k] = v
+                    else:
+                        filtered_config[k] = str(v)
+            
+            # Add connection timeout if not specified
+            if 'connect_timeout' not in filtered_config:
+                filtered_config['connect_timeout'] = 5  # 5 second timeout
+            
+            # Create connection pool
+            self._connection_pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=self._pool_minconn,
+                maxconn=self._pool_maxconn,
+                **filtered_config
+            )
+            logger.info(f"✓ Connection pool initialized with {self._pool_minconn}-{self._pool_maxconn} connections")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize connection pool: {e}")
+            # Fall back to single connection mode
+            self._connection_pool = None
+            logger.warning("⚠ Falling back to single connection mode")
     
     def _test_connection(self):
         """Test database connection"""
@@ -66,8 +106,21 @@ class SmartHomeDatabaseManager:
             raise DatabaseError(f"Cannot connect to database: {e}")
     
     def _get_connection(self):
-        """Get database connection"""
+        """Get database connection from pool or create new one"""
         try:
+            if self._connection_pool:
+                # Use connection pool if available
+                with self._lock:
+                    conn = self._connection_pool.getconn()
+                    if conn:
+                        # Reset connection state
+                        conn.rollback()
+                        return conn
+                    else:
+                        logger.warning("No connection available from pool")
+            
+            # Fallback to direct connection if pool not available
+            logger.debug("Using direct connection (pool not available)")
             # Only allow valid psycopg2 keys
             allowed_keys = {'host', 'port', 'dbname', 'user', 'password', 'connect_timeout'}
             filtered_config = {}
@@ -89,6 +142,23 @@ class SmartHomeDatabaseManager:
         except Exception as e:
             logger.error(f"Failed to get database connection: {e}")
             raise DatabaseError(f"Database connection failed: {e}")
+    
+    def _return_connection(self, conn):
+        """Return connection to pool or close if not using pool"""
+        try:
+            if self._connection_pool and conn:
+                with self._lock:
+                    self._connection_pool.putconn(conn)
+            elif conn:
+                conn.close()
+        except Exception as e:
+            logger.error(f"Error returning connection: {e}")
+            # If returning to pool fails, close the connection
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
     
     from typing import Optional
 
@@ -131,7 +201,35 @@ class SmartHomeDatabaseManager:
             raise DatabaseError(f"Query execution failed: {e}")
         finally:
             if conn:
-                conn.close()
+                self._return_connection(conn)
+    
+    def close_pool(self):
+        """Close connection pool and all connections"""
+        try:
+            if self._connection_pool:
+                with self._lock:
+                    self._connection_pool.closeall()
+                    logger.info("✓ Connection pool closed")
+        except Exception as e:
+            logger.error(f"Error closing connection pool: {e}")
+    
+    def get_pool_status(self):
+        """Get connection pool status for monitoring"""
+        if not self._connection_pool:
+            return {"pool_enabled": False}
+        
+        try:
+            # Note: psycopg2 connection pool doesn't provide detailed stats
+            # This is a basic status check
+            return {
+                "pool_enabled": True,
+                "min_connections": self._pool_minconn,
+                "max_connections": self._pool_maxconn,
+                "pool_type": "ThreadedConnectionPool"
+            }
+        except Exception as e:
+            logger.error(f"Error getting pool status: {e}")
+            return {"pool_enabled": True, "error": str(e)}
     
     # ========================================================================
     # USER MANAGEMENT METHODS

@@ -144,6 +144,38 @@ class RoutesManager:
                     'default_timeout': self.cache.config.get('CACHE_DEFAULT_TIMEOUT', 'Unknown')
                 }
             })
+        
+        # Database monitoring endpoint
+        @self.app.route('/api/database/stats', methods=['GET'])
+        @self.auth_manager.login_required
+        def database_stats():
+            """Get database performance statistics"""
+            try:
+                stats = {
+                    'status': 'success',
+                    'database_mode': hasattr(self.smart_home, 'db'),
+                    'connection_pool': {'enabled': False}
+                }
+                
+                # Get database statistics if available
+                if hasattr(self.smart_home, 'db') and self.smart_home.db:
+                    try:
+                        pool_status = self.smart_home.db.get_pool_status()
+                        stats['connection_pool'] = pool_status
+                        
+                        # Get database stats if method exists
+                        if hasattr(self.smart_home, 'get_database_stats'):
+                            db_stats = self.smart_home.get_database_stats()
+                            stats['database_stats'] = db_stats
+                    except Exception as e:
+                        stats['database_error'] = str(e)
+                
+                return jsonify(stats)
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'error': str(e)
+                })
 
         @self.app.route('/api/status', methods=['GET'])
         def api_status():
