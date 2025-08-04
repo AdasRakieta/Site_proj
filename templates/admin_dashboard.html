@@ -204,7 +204,7 @@
         <!-- Historia stanów urządzeń -->
         <div class="dashboard-card">
             <h3>Stany Urządzeń</h3>
-            <button class="refresh-btn" onclick="refreshDeviceStates()">Odśwież</button>
+            <button class="refresh-btn" onclick="refreshDeviceStates(true)">Odśwież</button>
             <div class="device-list" id="device-states">
                 {% for device in device_states %}
                 <div class="device-item">
@@ -238,7 +238,7 @@
     <div class="dashboard-card">
         <h3>Logi Zarządzania</h3>
         <div style="margin-bottom: 15px;">
-            <button class="refresh-btn" onclick="refreshLogs()">Odśwież logi</button>
+            <button class="refresh-btn" onclick="refreshLogs(true)">Odśwież logi</button>
             <button class="refresh-btn" onclick="showLogManagement()" style="background: #ffc107; margin-left: 10px;">Zarządzanie logami</button>
         </div>
         
@@ -365,6 +365,11 @@
 {% block scripts %}
 <script>
   window.sessionRole = "{{ session.role }}";
+  
+  // Pre-loaded data for immediate rendering (eliminates AJAX delays)
+  window.preloadedDeviceStates = {{ device_states | tojson }};
+  window.preloadedManagementLogs = {{ management_logs | tojson }};
+  window.preloadedUsers = {{ preloaded_users | tojson }};
 </script>
 <!-- Hidden elements to store template data -->
 <div id="stats-data" 
@@ -374,45 +379,69 @@
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
 // Funkcje do odświeżania danych
-function refreshDeviceStates() {
+function refreshDeviceStates(forceRefresh = false) {
+    // Use pre-loaded data on initial load, fetch from API only on manual refresh
+    if (!forceRefresh && window.preloadedDeviceStates && window.preloadedDeviceStates.length > 0) {
+        console.log('Using pre-loaded device states data');
+        updateDeviceStatesDisplay(window.preloadedDeviceStates);
+        // Clear pre-loaded data to prevent reuse
+        window.preloadedDeviceStates = null;
+        return;
+    }
+    
+    console.log('Fetching device states from API');
     fetch('/api/admin/device-states')
         .then(response => response.json())
-        .then(data => {
-            const container = document.getElementById('device-states');
-            container.innerHTML = '';
-            data.forEach(device => {
-                const deviceItem = document.createElement('div');
-                deviceItem.className = 'device-item';
-                deviceItem.innerHTML = `
-                    <span>${device.name} (${device.room})</span>
-                    <span class="device-status ${device.state ? 'online' : 'offline'}">
-                        ${device.state ? 'Włączone' : 'Wyłączone'}
-                    </span>
-                `;
-                container.appendChild(deviceItem);
-            });
-        })
+        .then(data => updateDeviceStatesDisplay(data))
         .catch(error => console.error('Error refreshing device states:', error));
 }
 
-function refreshLogs() {
+function updateDeviceStatesDisplay(data) {
+    const container = document.getElementById('device-states');
+    container.innerHTML = '';
+    data.forEach(device => {
+        const deviceItem = document.createElement('div');
+        deviceItem.className = 'device-item';
+        deviceItem.innerHTML = `
+            <span>${device.name} (${device.room})</span>
+            <span class="device-status ${device.state ? 'online' : 'offline'}">
+                ${device.state ? 'Włączone' : 'Wyłączone'}
+            </span>
+        `;
+        container.appendChild(deviceItem);
+    });
+}
+
+function refreshLogs(forceRefresh = false) {
+    // Use pre-loaded data on initial load, fetch from API only on manual refresh
+    if (!forceRefresh && window.preloadedManagementLogs && window.preloadedManagementLogs.length > 0) {
+        console.log('Using pre-loaded management logs data');
+        updateLogsDisplay(window.preloadedManagementLogs);
+        // Clear pre-loaded data to prevent reuse  
+        window.preloadedManagementLogs = null;
+        return;
+    }
+    
+    console.log('Fetching logs from API');
     fetch('/api/admin/logs')
         .then(response => response.json())
-        .then(data => {
-            const container = document.getElementById('logs-container');
-            container.innerHTML = '';
-            data.forEach(log => {
-                const logEntry = document.createElement('div');
-                logEntry.className = 'log-entry';
-                logEntry.innerHTML = `
-                    <span class="log-timestamp">${log.timestamp}</span>
-                    <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
-                    <span class="log-message">${log.message}</span>
-                `;
-                container.appendChild(logEntry);
-            });
-        })
+        .then(data => updateLogsDisplay(data))
         .catch(error => console.error('Error refreshing logs:', error));
+}
+
+function updateLogsDisplay(data) {
+    const container = document.getElementById('logs-container');
+    container.innerHTML = '';
+    data.forEach(log => {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        logEntry.innerHTML = `
+            <span class="log-timestamp">${log.timestamp}</span>
+            <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
+            <span class="log-message">${log.message}</span>
+        `;
+        container.appendChild(logEntry);
+    });
 }
 
 // Log management functions
@@ -498,7 +527,7 @@ function deleteLogsByDays() {
     .then(data => {
         if (data.status === 'success') {
             showNotification(data.message, 'success');
-            refreshLogs();
+            refreshLogs(true);
             hideLogManagement();
         } else {
             showNotification('Błąd: ' + data.message, 'error');
@@ -533,7 +562,7 @@ function deleteLogsByRange() {
     .then(data => {
         if (data.status === 'success') {
             showNotification(data.message, 'success');
-            refreshLogs();
+            refreshLogs(true);
             hideLogManagement();
         } else {
             showNotification('Błąd: ' + data.message, 'error');
@@ -559,7 +588,7 @@ function clearAllLogs() {
     .then(data => {
         if (data.status === 'success') {
             showNotification(data.message, 'success');
-            refreshLogs();
+            refreshLogs(true);
             hideLogManagement();
         } else {
             showNotification('Błąd: ' + data.message, 'error');
@@ -657,15 +686,91 @@ function createAutomationChart() {
     }
 }
 
-// Inicjalizacja wykresów po załadowaniu strony
+// Store original loadUsers function before overriding
+let originalLoadUsers = null;
+
+// Override loadUsers to use pre-loaded data initially
+function loadUsers(forceRefresh = false) {
+    // Use pre-loaded data on initial load, fetch from API only on manual refresh
+    if (!forceRefresh && window.preloadedUsers && window.preloadedUsers.length > 0) {
+        console.log('Using pre-loaded users data');
+        // Use the updateUsersTable function from dashboard.js
+        if (typeof updateUsersTable === 'function') {
+            updateUsersTable(window.preloadedUsers);
+            notificationUsersList = window.preloadedUsers;
+            if (typeof fillNotificationUserSelect === 'function') {
+                fillNotificationUserSelect();
+            }
+        }
+        // Clear pre-loaded data to prevent reuse
+        window.preloadedUsers = null;
+        return;
+    }
+    
+    console.log('Fetching users from API (force refresh or no pre-loaded data)');
+    // Fall back to original API call for refreshes
+    if (originalLoadUsers) {
+        originalLoadUsers();
+    } else {
+        // Fallback implementation if original not captured
+        async function fallbackLoadUsers() {
+            try {
+                let response;
+                if (window.app) {
+                    response = await window.app.fetchData('/api/users');
+                } else {
+                    response = await makeApiCall('/api/users');
+                }
+                
+                if (Array.isArray(response)) {
+                    updateUsersTable(response);
+                    notificationUsersList = response;
+                    fillNotificationUserSelect();
+                } else if (response.status === 'error') {
+                    throw new Error(response.message);
+                } else {
+                    throw new Error('Nieprawidłowy format odpowiedzi');
+                }
+            } catch (error) {
+                console.error('Błąd ładowania użytkowników:', error);
+                showMessage('userActionMessage', 'Nie udało się załadować listy użytkowników: ' + error.message, true);
+            }
+        }
+        fallbackLoadUsers();
+    }
+}
+
+// Wait for dashboard.js to load and then override functions
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Admin dashboard DOMContentLoaded - setting up optimization');
+    
+    // Store original loadUsers function if it exists
+    if (typeof window.loadUsers === 'function') {
+        originalLoadUsers = window.loadUsers;
+    }
+    
+    // Override the global loadUsers function
+    window.loadUsers = loadUsers;
+    
+    // Initialize charts
     createEnergyChart();
     createAutomationChart();
     
-    // Auto-refresh co 30 sekund
+    // Use pre-loaded data for initial rendering (no AJAX delay)
+    console.log('Using pre-loaded data for device states and logs');
+    refreshDeviceStates(false); // Use pre-loaded data
+    refreshLogs(false); // Use pre-loaded data
+    
+    // Initialize dashboard with optimized loadUsers function (uses pre-loaded data first)
+    if (typeof initDashboardPage === 'function') {
+        console.log('Calling initDashboardPage with overridden loadUsers');
+        initDashboardPage();
+    }
+    
+    // Auto-refresh co 30 sekund (force refresh to get latest data)
     setInterval(() => {
-        refreshDeviceStates();
-        refreshLogs();
+        refreshDeviceStates(true);
+        refreshLogs(true);
     }, 30000);
 });
 </script>

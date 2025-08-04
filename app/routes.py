@@ -288,6 +288,18 @@ class RoutesManager:
             device_states = self._get_device_states()
             management_logs = self._get_management_logs()
             
+            # Pre-load users data for immediate rendering
+            users_list = [
+                {
+                    'user_id': user_id,
+                    'username': data['name'],
+                    'email': data.get('email', ''),
+                    'role': data['role'],
+                    'password': '••••••••'  # Always show dots for password
+                }
+                for user_id, data in self.smart_home.users.items()
+            ]
+            
             # Pobierz dane użytkownika dla wyświetlenia zdjęcia profilowego
             user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
             
@@ -295,7 +307,8 @@ class RoutesManager:
                                  stats=stats, 
                                  device_states=device_states,
                                  management_logs=management_logs,
-                                 user_data=user_data)
+                                 user_data=user_data,
+                                 preloaded_users=users_list)
 
         @self.app.route('/api/admin/device-states')
         @self.auth_manager.login_required
