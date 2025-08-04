@@ -73,17 +73,20 @@ class RoutesManager:
         @self.app.route('/suprise')
         @self.auth_manager.login_required
         def suprise():
-            return render_template('suprise.html')
+            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            return render_template('suprise.html', user_data=user_data)
 
         @self.app.route('/suprise_dog')
         @self.auth_manager.login_required
         def suprise_dog():
-            return render_template('suprise_Dog.html')
+            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            return render_template('suprise_Dog.html', user_data=user_data)
 
         @self.app.route('/automations')
         @self.auth_manager.login_required
         def automations():
-            return render_template('automations.html')
+            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            return render_template('automations.html', user_data=user_data)
 
         # API endpoints for mobile app
         @self.app.route('/api/ping', methods=['GET'])
@@ -199,10 +202,14 @@ class RoutesManager:
             device_states = self._get_device_states()
             management_logs = self._get_management_logs()
             
+            # Pobierz dane użytkownika dla wyświetlenia zdjęcia profilowego
+            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            
             return render_template('admin_dashboard.html', 
                                  stats=stats, 
                                  device_states=device_states,
-                                 management_logs=management_logs)
+                                 management_logs=management_logs,
+                                 user_data=user_data)
 
         @self.app.route('/api/admin/device-states')
         @self.auth_manager.login_required
@@ -302,7 +309,8 @@ class RoutesManager:
         @self.app.route('/lights')
         @self.auth_manager.login_required
         def lights():
-            return render_template('lights.html')
+            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            return render_template('lights.html', user_data=user_data)
 
         @self.app.route('/error')
         def error():
