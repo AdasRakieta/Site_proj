@@ -151,7 +151,8 @@ class SmartHomeApp:
                 auth_manager=self.auth_manager,
                 mail_manager=self.mail_manager,
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
-                management_logger=self.management_logger
+                management_logger=self.management_logger,
+                socketio=self.socketio  # Add socketio parameter
             )
             # Register API endpoints (including /api/automations etc.)
             self.api_manager = APIManager(
@@ -269,6 +270,8 @@ class SmartHomeApp:
         def handle_set_temperature(data):
             """Handle temperature setting via WebSocket"""
             try:
+                print(f"[DEBUG] set_temperature called with data: {data}")
+                
                 if 'user_id' not in session:
                     emit('error', {'message': 'Not authenticated'})
                     return
@@ -277,6 +280,8 @@ class SmartHomeApp:
                 name = data.get('name')
                 temperature = float(data.get('temperature', 22))
                 
+                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', temperature={temperature}")
+                
                 # Validate temperature range
                 if not (16 <= temperature <= 30):
                     emit('error', {'message': 'Temperature must be between 16°C and 30°C'})
@@ -284,8 +289,11 @@ class SmartHomeApp:
                 
                 # Update temperature control
                 if DATABASE_MODE:
+                    print(f"[DEBUG] Using database mode")
                     success = self.smart_home.update_temperature_control_value(room, name, temperature)
+                    print(f"[DEBUG] Database update success: {success}")
                 else:
+                    print(f"[DEBUG] Using JSON mode")
                     # Find and update temperature control in JSON mode
                     success = False
                     for control in self.smart_home.temperature_controls:

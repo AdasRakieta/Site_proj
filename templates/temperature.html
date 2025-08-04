@@ -164,8 +164,16 @@
 
             // Pobierz początkowe dane
             app.fetchData('/api/temperature_controls')
-                .then(controls => {
-                    if (controls) updateTemperatureControls(controls);
+                .then(response => {
+                    console.log('Temperature controls API response:', response);
+                    if (response && response.status === 'success' && response.data) {
+                        updateTemperatureControls(response.data);
+                    } else if (response && Array.isArray(response)) {
+                        // Fallback for direct array response
+                        updateTemperatureControls(response);
+                    } else {
+                        console.error('Invalid temperature controls response:', response);
+                    }
                 })
                 .catch(error => console.error('Błąd:', error));
 

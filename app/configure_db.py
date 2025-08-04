@@ -404,9 +404,14 @@ class SmartHomeSystemDB:
     
     def update_temperature_control_value(self, room: str, name: str, temperature: float) -> bool:
         """Update temperature control value by room and name"""
+        print(f"[DEBUG] Updating temperature control: room='{room}', name='{name}', temperature={temperature}")
         control = self.find_temperature_control_by_room_and_name(room, name)
+        print(f"[DEBUG] Found control: {control}")
         if control:
-            return self.update_device(control['id'], {'temperature': temperature})
+            result = self.update_device(control['id'], {'temperature': temperature})
+            print(f"[DEBUG] Update result: {result}")
+            return result
+        print(f"[DEBUG] No control found for room='{room}', name='{name}'")
         return False
     
     # ========================================================================
