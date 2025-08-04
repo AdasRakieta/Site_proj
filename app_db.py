@@ -64,6 +64,49 @@ class SmartHomeApp:
         
         print(f"SmartHome Application initialized (Database mode: {DATABASE_MODE})")
     
+    def _warm_up_cache(self):
+        """Warm up cache with frequently accessed data"""
+        try:
+            print("🔥 Warming up cache with critical data...")
+            
+            # Pre-load rooms configuration
+            if hasattr(self.smart_home, 'rooms'):
+                rooms = self.smart_home.rooms
+                if rooms:
+                    timeout = self.cache_manager.get_timeout('rooms')
+                    self.cache.set("rooms_list", rooms, timeout=timeout)
+                    print(f"✓ Cached {len(rooms) if isinstance(rooms, list) else 'N/A'} rooms")
+            
+            # Pre-load buttons configuration  
+            if hasattr(self.smart_home, 'buttons'):
+                buttons = self.smart_home.buttons
+                if buttons:
+                    timeout = self.cache_manager.get_timeout('buttons')
+                    self.cache.set("buttons_list", buttons, timeout=timeout)
+                    print(f"✓ Cached {len(buttons) if isinstance(buttons, list) else 'N/A'} buttons")
+            
+            # Pre-load temperature controls
+            if hasattr(self.smart_home, 'temperature_controls'):
+                temp_controls = self.smart_home.temperature_controls
+                if temp_controls:
+                    timeout = self.cache_manager.get_timeout('temperature')
+                    self.cache.set("temperature_controls", temp_controls, timeout=timeout)
+                    print(f"✓ Cached {len(temp_controls) if isinstance(temp_controls, list) else 'N/A'} temperature controls")
+            
+            # Pre-load automations
+            if hasattr(self.smart_home, 'automations'):
+                automations = self.smart_home.automations
+                if automations:
+                    timeout = self.cache_manager.get_timeout('automations')
+                    self.cache.set("automations_list", automations, timeout=timeout)
+                    print(f"✓ Cached {len(automations) if isinstance(automations, list) else 'N/A'} automations")
+            
+            print("✓ Cache warming completed")
+            
+        except Exception as e:
+            print(f"⚠ Cache warming failed: {e}")
+            # Don't fail initialization if cache warming fails
+    
     def setup_context_processors(self):
         """Setup template context processors"""
         @self.app.context_processor
@@ -124,16 +167,62 @@ class SmartHomeApp:
             from app.simple_auth import SimpleAuthManager
             self.auth_manager = SimpleAuthManager(self.smart_home)
             
-            # Initialize cache (simple in-memory cache for now)
+            # Initialize cache with Redis if available, fallback to SimpleCache
             from flask_caching import Cache
-            cache_config = {'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300}
-            self.cache = Cache(self.app, config=cache_config)
+            import os
+            
+            # Try Redis first for better performance and persistence
+            redis_url = os.getenv('REDIS_URL', None)
+            redis_host = os.getenv('REDIS_HOST', None)
+            redis_port = os.getenv('REDIS_PORT', 6379)
+            
+            if redis_url:
+                cache_config = {
+                    'CACHE_TYPE': 'RedisCache',
+                    'CACHE_REDIS_URL': redis_url,
+                    'CACHE_DEFAULT_TIMEOUT': 600
+                }
+                print("✓ Using Redis cache with URL")
+            elif redis_host:
+                cache_config = {
+                    'CACHE_TYPE': 'RedisCache',
+                    'CACHE_REDIS_HOST': redis_host,
+                    'CACHE_REDIS_PORT': int(redis_port),
+                    'CACHE_DEFAULT_TIMEOUT': 600
+                }
+                print("✓ Using Redis cache with host/port")
+            else:
+                # Fallback to SimpleCache with optimized timeout
+                cache_config = {
+                    'CACHE_TYPE': 'SimpleCache',
+                    'CACHE_DEFAULT_TIMEOUT': 600,  # Increased from 300 to 600
+                    'CACHE_THRESHOLD': 500  # Increase threshold for better performance
+                }
+                print("✓ Using SimpleCache (in-memory)")
+            
+            try:
+                self.cache = Cache(self.app, config=cache_config)
+                # Test cache functionality
+                self.cache.set('test_key', 'test_value', timeout=10)
+                if self.cache.get('test_key') == 'test_value':
+                    print("✓ Cache functionality verified")
+                    self.cache.delete('test_key')
+                else:
+                    print("⚠ Cache test failed, may impact performance")
+            except Exception as e:
+                print(f"⚠ Cache initialization failed: {e}, using fallback")
+                # Ultra-safe fallback
+                cache_config = {'CACHE_TYPE': 'NullCache'}
+                self.cache = Cache(self.app, config=cache_config)
             
             # Initialize cache manager
             self.cache_manager = CacheManager(self.cache, self.smart_home)
             
             # Setup caching for SmartHome system
             setup_smart_home_caching(self.smart_home, self.cache_manager)
+            
+            # Warm up cache with critical data
+            self._warm_up_cache()
             
             print("✓ All components initialized successfully")
             
