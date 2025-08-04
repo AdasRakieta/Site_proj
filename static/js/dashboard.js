@@ -694,7 +694,15 @@ function addNotificationRecipient() {
 
 // DOM Content Loaded Event
 document.addEventListener('DOMContentLoaded', () => {
-    initDashboardPage();
+    // Only auto-initialize if not on admin dashboard (admin dashboard handles its own initialization)
+    // Check for admin dashboard specific elements or data attributes
+    const isAdminDashboard = document.querySelector('#stats-data') || 
+                           window.preloadedUsers !== undefined || 
+                           window.location.pathname.includes('/admin_dashboard');
+    
+    if (!isAdminDashboard) {
+        initDashboardPage();
+    }
     
     // Handle user form submission
     const userForm = document.querySelector('.user-form form');
