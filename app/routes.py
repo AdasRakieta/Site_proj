@@ -22,7 +22,33 @@ class RoutesManager:
         self.management_logger = management_logger or ManagementLogger()
         # Initialize socketio for real-time updates
         self.socketio = socketio
+        
+        # Initialize cache manager for optimized user data access
+        from utils.cache_manager import CacheManager
+        self.cache_manager = CacheManager(cache, smart_home) if cache else None
+        
         self.register_routes()
+
+    def get_cached_user_data(self, user_id, session_id=None):
+        """
+        Helper method to get cached user data efficiently
+        
+        Args:
+            user_id: User ID from session
+            session_id: Session ID for session-level caching
+            
+        Returns:
+            User data dictionary or None
+        """
+        if not user_id:
+            return None
+            
+        if self.cache_manager:
+            # Use optimized session-level caching
+            return self.cache_manager.get_session_user_data(user_id, session_id)
+        else:
+            # Fallback to direct database call
+            return self.smart_home.get_user_data(user_id) if self.smart_home else None
 
     def emit_update(self, event_name, data):
         """Safely emit socketio updates only if socketio is available"""
@@ -37,27 +63,27 @@ class RoutesManager:
             if 'username' not in session:
                 print("[DEBUG] Brak username w sesji, redirect na login")
                 return redirect(url_for('login'))
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
             return render_template('index.html', user_data=user_data)
 
         @self.app.route('/temp')
         @self.auth_manager.login_required
         def temp():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('temp_lights.html', user_data=user_data)
 
         @self.app.route('/temperature')
         @self.auth_manager.login_required
         def temperature():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('temperature.html', user_data=user_data)
 
         @self.app.route('/security')
         @self.auth_manager.login_required
         def security():
             try:
-                user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+                user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
                 current_security_state = self.smart_home.security_state
                 return render_template('security.html', user_data=user_data, security_state=current_security_state)
             except Exception as e:
@@ -67,25 +93,25 @@ class RoutesManager:
         @self.app.route('/settings', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def settings():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('settings.html', user_data=user_data)
 
         @self.app.route('/suprise')
         @self.auth_manager.login_required
         def suprise():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('suprise.html', user_data=user_data)
 
         @self.app.route('/suprise_dog')
         @self.auth_manager.login_required
         def suprise_dog():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('suprise_Dog.html', user_data=user_data)
 
         @self.app.route('/automations')
         @self.auth_manager.login_required
         def automations():
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_data = self.get_cached_user_data(session.get('user_id'), session.sid)
             return render_template('automations.html', user_data=user_data)
 
         # API endpoints for mobile app
@@ -97,6 +123,26 @@ class RoutesManager:
                 'message': 'SmartHome server is running',
                 'timestamp': int(time.time()),
                 'version': '1.0'
+            })
+        
+        # Cache monitoring endpoint
+        @self.app.route('/api/cache/stats', methods=['GET'])
+        @self.auth_manager.login_required
+        def cache_stats():
+            """Get cache performance statistics"""
+            from utils.cache_manager import cache_stats, get_cache_hit_rate
+            return jsonify({
+                'status': 'success',
+                'cache_stats': {
+                    'hits': cache_stats['hits'],
+                    'misses': cache_stats['misses'],
+                    'total_requests': cache_stats['total_requests'],
+                    'hit_rate_percentage': round(get_cache_hit_rate(), 2)
+                },
+                'cache_config': {
+                    'type': self.cache.config.get('CACHE_TYPE', 'Unknown'),
+                    'default_timeout': self.cache.config.get('CACHE_DEFAULT_TIMEOUT', 'Unknown')
+                }
             })
 
         @self.app.route('/api/status', methods=['GET'])

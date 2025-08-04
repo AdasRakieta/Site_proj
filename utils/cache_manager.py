@@ -33,6 +33,24 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Cache statistics for monitoring
+cache_stats = {
+    'hits': 0,
+    'misses': 0,
+    'total_requests': 0
+}
+
+def get_cache_hit_rate():
+    """Get current cache hit rate percentage"""
+    if cache_stats['total_requests'] == 0:
+        return 0.0
+    return (cache_stats['hits'] / cache_stats['total_requests']) * 100
+
+def reset_cache_stats():
+    """Reset cache statistics"""
+    global cache_stats
+    cache_stats = {'hits': 0, 'misses': 0, 'total_requests': 0}
+
 
 class CacheManager:
     """
@@ -51,13 +69,14 @@ class CacheManager:
         self.cache = cache
         self.smart_home = smart_home
         self._cache_timeouts = {
-            'user_data': 600,       # 10 minutes
-            'config': 300,          # 5 minutes
-            'rooms': 300,           # 5 minutes
-            'buttons': 300,         # 5 minutes
-            'temperature': 600,     # 10 minutes
-            'automations': 300,     # 5 minutes
-            'api_response': 300     # 5 minutes
+            'user_data': 1800,      # 30 minutes - user profiles rarely change
+            'config': 900,          # 15 minutes - configuration is relatively stable
+            'rooms': 1800,          # 30 minutes - room structure rarely changes
+            'buttons': 600,         # 10 minutes - device states may change more frequently
+            'temperature': 300,     # 5 minutes - temperature changes more frequently
+            'automations': 900,     # 15 minutes - automations are configured less frequently
+            'api_response': 600,    # 10 minutes - API responses can be cached longer
+            'session_user': 3600    # 1 hour - session-level user cache
         }
     
     def get_timeout(self, cache_type):
@@ -67,8 +86,27 @@ class CacheManager:
     def invalidate_user_cache(self, user_id):
         """Invalidate cache for a specific user"""
         logger.info(f"Invalidating cache for user: {user_id}")
+        # Invalidate both regular and session-specific caches
         self.cache.delete(f"user_data_{user_id}")
+        # Note: Cannot efficiently delete all session caches for a user with SimpleCache
+        # In production with Redis, use pattern matching
         self.cache.delete("smart_home_config")
+    
+    def invalidate_session_user_cache(self, session_id, user_id=None):
+        """
+        Invalidate session-specific user cache
+        
+        Args:
+            session_id: Session ID to invalidate
+            user_id: Optional specific user ID, if None invalidates session entirely
+        """
+        if user_id:
+            logger.info(f"Invalidating session cache for user {user_id} in session {session_id}")
+            self.cache.delete(f"session_user_{session_id}_{user_id}")
+        else:
+            logger.info(f"Invalidating all session cache for session {session_id}")
+            # Note: With SimpleCache, we can't efficiently pattern-match
+            # In production with Redis, use SCAN with pattern session_user_{session_id}_*
     
     def invalidate_config_cache(self):
         """Invalidate configuration-related cache"""
@@ -81,6 +119,70 @@ class CacheManager:
             "automations_list"
         ]
         self.cache.delete_many(*cache_keys)
+    
+    def get_session_user_data(self, user_id, session_id=None):
+        """
+        Get user data with session-level caching optimization
+        
+        This method provides aggressive caching for user data within the same session,
+        reducing database calls significantly for active users.
+        
+        Args:
+            user_id: User ID to fetch data for
+            session_id: Optional session ID for per-session caching
+            
+        Returns:
+            User data dictionary
+        """
+        global cache_stats
+        cache_stats['total_requests'] += 1
+        
+        if not user_id:
+            return None
+            
+        # Create session-specific cache key if session_id provided
+        if session_id:
+            session_cache_key = f"session_user_{session_id}_{user_id}"
+            user_data = self.cache.get(session_cache_key)
+            if user_data is not None:
+                cache_stats['hits'] += 1
+                logger.debug(f"Session cache hit for user: {user_id} (hit rate: {get_cache_hit_rate():.1f}%)")
+                return user_data
+        
+        # Fall back to regular user cache
+        cache_key = f"user_data_{user_id}"
+        user_data = self.cache.get(cache_key)
+        if user_data is None:
+            cache_stats['misses'] += 1
+            logger.debug(f"Cache miss for user data: {user_id}, fetching from source (hit rate: {get_cache_hit_rate():.1f}%)")
+            if self.smart_home and hasattr(self.smart_home, 'get_user_data'):
+                user_data = self.smart_home.get_user_data(user_id)
+                if user_data:
+                    # Cache user data with standard timeout
+                    timeout = self.get_timeout('user_data')
+                    self.cache.set(cache_key, user_data, timeout=timeout)
+                    
+                    # Also cache with session-specific key for faster access
+                    if session_id:
+                        session_timeout = self.get_timeout('session_user')
+                        self.cache.set(session_cache_key, user_data, timeout=session_timeout)
+                        logger.debug(f"Cached user data for session {session_id} and user {user_id}")
+                    
+                    logger.debug(f"Cached user data for {user_id} for {timeout}s")
+            else:
+                logger.warning("SmartHome system not available for user data fetch")
+                return None
+        else:
+            cache_stats['hits'] += 1
+            logger.debug(f"Cache hit for user data: {user_id} (hit rate: {get_cache_hit_rate():.1f}%)")
+            
+            # Update session cache if provided
+            if session_id:
+                session_cache_key = f"session_user_{session_id}_{user_id}"
+                session_timeout = self.get_timeout('session_user')
+                self.cache.set(session_cache_key, user_data, timeout=session_timeout)
+        
+        return user_data
     
     def invalidate_api_cache(self, pattern=None):
         """
