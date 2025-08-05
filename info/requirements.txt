@@ -1,4 +1,6 @@
-psycopg2-binary
+# PostgreSQL Database
+psycopg2-binary==2.9.10
+
 # Core Flask dependencies
 Flask==3.1.0
 Flask-SocketIO==5.5.0
@@ -23,10 +25,7 @@ pycparser==2.22
 # Environment and configuration
 python-dotenv==1.1.0
 
-# Email functionality (async)
-certifi==2024.12.14
-
-# Caching
+# Caching (Redis optional)
 redis==6.2.0
 cachelib==0.13.0
 
@@ -44,9 +43,6 @@ certifi==2024.12.14
 charset-normalizer==3.4.1
 idna==3.10
 
-# Database
-psycopg2-binary==2.9.10
-
 # Server options
 gunicorn==23.0.0
 gevent==25.5.1
@@ -71,33 +67,17 @@ h11==0.14.0
 wsproto==1.2.0
 zope.event==5.1
 zope.interface==7.2
-charset-normalizer==3.4.1
-idna==3.10
 
-# Database
-psycopg2-binary==2.9.10
+#######################
+# Android App Requirements
+#######################
 
-# Server options
-gunicorn==23.0.0
-gevent==25.5.1
-gevent-websocket==0.10.1
-greenlet==3.2.3
-waitress==3.0.2
+# Android Studio: 2023.1.1 lub nowszy
+# Java: JDK 8+ (projekt kompatybilny z Java 8)
+# Gradle: 8.0.2 (downgrade z 8.13 dla Java 8 compatibility)
+# Android Gradle Plugin: 8.0.2 (downgrade z 8.11.1)
+# Target SDK: 34
+# Min SDK: 24
 
-# Development and testing
-pytest==8.3.5
-pluggy==1.5.0
-iniconfig==2.1.0
-packaging==24.2
-
-# IoT device support
-tinytuya==1.15.1
-
-# Utilities and misc
-jsonify==0.5
-blinker==1.9.0
-colorama==0.4.6
-h11==0.14.0
-wsproto==1.2.0
-zope.event==5.1
-zope.interface==7.2
+# UWAGA: Gradle wrapper może wymagać regeneracji przez Android Studio
+# Alternatywnie: Ręczne pobranie gradle-wrapper.jar (8.0.2)
