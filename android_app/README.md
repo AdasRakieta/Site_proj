@@ -2,6 +2,20 @@
 
 Aplikacja Android do zdalnego sterowania systemem SmartHome poprzez VPN.
 
+## ⚠️ Status: Gradle Configuration Fixed
+
+**Problem**: Gradle 8.13 wymaga Java 11+, ale projekt używa Java 8
+**Rozwiązanie**: Downgrade do Gradle 8.0.2 (kompatybilne z Java 8)
+
+### Co zostało naprawione:
+- ✅ `build.gradle`: Android Gradle Plugin downgrade z 8.11.1 → 8.0.2
+- ✅ `gradle/wrapper/gradle-wrapper.properties`: Gradle wrapper downgrade z 8.13 → 8.0.2
+- ✅ `gradlew.bat`: Utworzony brakujący Windows wrapper script
+
+### Wymagania do pełnego działania:
+- Pobranie `gradle-wrapper.jar` (brakujący plik)
+- Alternatywnie: Użyj Android Studio do regeneracji Gradle wrapper
+
 ## Funkcje
 
 - **Autoryzacja użytkowników** - logowanie z użyciem istniejących kont z systemu web
@@ -44,6 +58,10 @@ Aplikacja Android do zdalnego sterowania systemem SmartHome poprzez VPN.
 
 ### Kroki kompilacji
 
+## Build Instructions
+
+### Metoda 1: Android Studio (Zalecana)
+
 1. **Klonowanie repozytorium**
    ```bash
    git clone https://github.com/AdasRakieta/Site_proj.git
@@ -54,6 +72,7 @@ Aplikacja Android do zdalnego sterowania systemem SmartHome poprzez VPN.
    - Otwórz Android Studio
    - Wybierz "Open an existing project"
    - Wskaż folder `android_app`
+   - Android Studio automatycznie regeneruje Gradle wrapper
 
 3. **Kompilacja**
    - Kliknij "Build" > "Make Project"
@@ -63,6 +82,25 @@ Aplikacja Android do zdalnego sterowania systemem SmartHome poprzez VPN.
    - Podłącz urządzenie Android przez USB
    - Włącz "Debugowanie USB" w ustawieniach dewelopera
    - Kliknij "Run" > "Run 'app'"
+
+### Metoda 2: Command Line (Wymaga gradle-wrapper.jar)
+
+```bash
+# Pobierz brakujący gradle-wrapper.jar
+# Alternatywnie: regeneruj przez Android Studio
+
+# Następnie:
+./gradlew build           # Linux/macOS
+gradlew.bat build         # Windows
+```
+
+### Troubleshooting
+
+**Problem**: `Could not find or load main class org.gradle.wrapper.GradleWrapperMain`
+**Rozwiązanie**: Brakuje `gradle/wrapper/gradle-wrapper.jar` - użyj Android Studio aby go wygenerować
+
+**Problem**: `JVM runtime version 11 required`  
+**Rozwiązanie**: ✅ Już naprawione - używamy Gradle 8.0.2 kompatybilne z Java 8
 
 ### Kompilacja z linii poleceń
 

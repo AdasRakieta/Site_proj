@@ -3,91 +3,152 @@
 ## Spis Treści
 
 1. [Wprowadzenie](#wprowadzenie)
-2. [Architektura Systemu](#architektura-systemu)
-3. [Technologie i Narzędzia](#technologie-i-narzędzia)
-4. [Struktura Projektu](#struktura-projektu)
-5. [Funkcjonalności](#funkcjonalności)
-6. [Bezpieczeństwo](#bezpieczeństwo)
-7. [Interfejs Użytkownika](#interfejs-użytkownika)
-8. [API i Komunikacja](#api-i-komunikacja)
-9. [Baza Danych](#baza-danych)
-10. [Konfiguracja i Uruchamianie](#konfiguracja-i-uruchamianie)
-11. [Testy i Debugging](#testy-i-debugging)
-12. [Rozszerzalność](#rozszerzalność)
-13. [Potencjalne Usprawnienia](#potencjalne-usprawnienia)
-14. [Podsumowanie](#podsumowanie)
+2. [Najnowsze Optymalizacje](#najnowsze-optymalizacje)
+3. [Architektura Systemu](#architektura-systemu)
+4. [Technologie i Narzędzia](#technologie-i-narzędzia)
+5. [Struktura Projektu](#struktura-projektu)
+6. [Funkcjonalności](#funkcjonalności)
+7. [Bezpieczeństwo](#bezpieczeństwo)
+8. [Interfejs Użytkownika](#interfejs-użytkownika)
+9. [API i Komunikacja](#api-i-komunikacja)
+10. [Baza Danych](#baza-danych)
+11. [Konfiguracja i Uruchamianie](#konfiguracja-i-uruchamianie)
+12. [Testy i Debugging](#testy-i-debugging)
+13. [Rozszerzalność](#rozszerzalność)
+14. [Potencjalne Usprawnienia](#potencjalne-usprawnienia)
+15. [Podsumowanie](#podsumowanie)
 
 ---
 
 ## Wprowadzenie
 
-SmartHome to kompleksowy system zarządzania domem inteligentnym, zaprojektowany jako aplikacja webowa wykorzystująca Flask (Python) oraz nowoczesne technologie frontendowe. System umożliwia kontrolę i monitorowanie różnych aspektów domu inteligentnego, w tym oświetlenia, temperatury, zabezpieczeń oraz automatyzacji.
+SmartHome to kompleksowy system zarządzania domem inteligentnym, zaprojektowany jako aplikacja webowa wykorzystująca Flask (Python) z PostgreSQL backend oraz nowoczesne technologie frontendowe. System umożliwia kontrolę i monitorowanie różnych aspektów domu inteligentnego, w tym oświetlenia, temperatury, zabezpieczeń oraz automatyzacji.
 
 ### Główne Cele Projektu:
 
+- **Wysoka Wydajność**: Template-level pre-loading i database connection pooling
 - **Centralna kontrola**: Jednolity interfejs do zarządzania wszystkimi urządzeniami
 - **Bezpieczeństwo**: Wielopoziomowe zabezpieczenia i system uwierzytelniania
-- **Skalowalność**: Możliwość łatwego dodawania nowych urządzeń i funkcji
+- **Skalowalność**: PostgreSQL backend z connection pooling dla concurrent users
 - **Dostępność**: Responsywny interfejs działający na różnych urządzeniach
 - **Automatyzacja**: Inteligentne reguły i scenariusze automatyzacji
 
 ---
 
+## Najnowsze Optymalizacje
+
+### 🚀 Template-Level Pre-loading (Issue #49 Fix - Zaimplementowane ✅)
+
+**Problem**: Admin dashboard ładował się zbyt wolno (>2.6 sekundy)
+**Rozwiązanie**: Server-side pre-loading danych z JavaScript function override pattern
+**Rezultat**: **70% poprawa wydajności (2.6s → 0.87s)**
+
+**Implementacja**:
+
+- **Admin dashboard**: Pre-loaded users, device states, management logs w `window.preloaded*` variables
+- **Homepage**: Pre-loaded rooms list eliminuje initial AJAX call
+- **Smart fallback**: Pre-loaded data dla initial load → API calls dla manual refreshes
+- **Function overrides**: JavaScript functions detect pre-loaded data i używają go before falling back to API
+
+**Techniczne szczegóły**:
+
+- Template variables: `{{ users|tojson }}`, `{{ device_states|tojson }}`, `{{ management_logs|tojson }}`
+- Override pattern dla `loadUsers()`, `refreshDeviceStates()`, `refreshLogs()`
+- Initialization control w `dashboard.js` aby prevent conflicting auto-initialization
+
+### 🗄️ PostgreSQL Backend Migration
+
+**Zastąpienie**: JSON file storage → PostgreSQL database
+**Korzyści**:
+
+- Connection pooling (2-10 concurrent connections)
+- Transactional data integrity
+- Optimized queries z database indexing
+- Better concurrent user support
+
+### ⚡ Intelligent Caching System
+
+**Implementacja**: Session-level user caching + Redis/SimpleCache support
+**Cache Timeouts**:
+
+- Session user data: 1 godzina
+- General user data: 30 minut
+- Room/device data: 10 minut
+- API responses: 10 minut
+
+### 📦 Asset Optimization
+
+**Minifikacja**: CSS 36.7% smaller, JS 35.3% smaller
+**Auto-serving**: Automatic minified asset detection i serving
+
+---
+
 ## Architektura Systemu
 
-### Wzorzec Architektoniczny: MVC (Model-View-Controller)
+### Wzorzec Architektoniczny: MVC (Model-View-Controller) z Database Backend
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    PREZENTACJA                              │
-├─────────────────────────────────────────────────────────────┤
-│  HTML Templates (Jinja2)  │  CSS (Responsive)  │  JavaScript│
-│  - base.html               │  - style.css       │  - app.js  │
-│  - index.html              │  - mobile.css      │  - Socket.IO│
-│  - login.html              │  - user.css        │  - automations.js│
-│  - settings.html           │  - dragNdrop.css   │  - controls.js│
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                              PREZENTACJA                           │
+├────────────────────────────────────────────────────────────────────┤
+│  HTML Templates (Jinja2)   │  CSS (Minified)    │  JavaScript      │
+│  - admin_dashboard.html    │  - style.min.css   │  - app.min.js    │
+│  - index.html (pre-loaded) │  - mobile.css      │  - Socket.IO     │
+│  - base.html               │  - user.css        │  - dashboard.js  │
+│  - login.html              │  - dashboard.css   │  - automations.js│
+└────────────────────────────────────────────────────────────────────┘
                                   ↕
-┌─────────────────────────────────────────────────────────────┐
-│                    KONTROLER                                │
-├─────────────────────────────────────────────────────────────┤
-│  Flask Routes              │  WebSocket Handlers            │
-│  - RoutesManager           │  - SocketManager               │
-│  - APIManager              │  - Real-time Communication     │
-│  - AuthManager             │  - Live Updates                │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                              KONTROLER                            │
+├───────────────────────────────────────────────────────────────────┤
+│  Flask Routes (app/routes.py)   │  Pre-loading Optimization       │
+│  - Template pre-loading         │  - Session-level caching        │
+│  - Database-backed operations   │  - Smart fallback patterns      │
+│  - Admin dashboard optimization │ - Connection pool management    │
+└───────────────────────────────────────────────────────────────────┘
                                   ↕
-┌─────────────────────────────────────────────────────────────┐
-│                    MODEL                                    │
-├─────────────────────────────────────────────────────────────┤
-│  Business Logic            │  Data Management               │
-│  - SmartHomeSystem         │  - JSON Configuration          │
-│  - MailManager             │  - File Storage                │
-│  - User Management         │  - State Persistence           │
-│  - Automation Engine       │  - Backup System               │
-└─────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────┐
+│                             KONTROLER                             │
+├───────────────────────────────────────────────────────────────────┤
+│  Flask Routes                  │  WebSocket Handlers              │
+│  - RoutesManager               │  - SocketManager                 │
+│  - APIManager                  │  - Real-time Communication       │
+│  - AuthManager                 │  - Live Updates                  │
+└───────────────────────────────────────────────────────────────────┘
+                                  ↕
+┌───────────────────────────────────────────────────────────────────┐
+│                      MODEL (DATABASE BACKEND)                     │
+├───────────────────────────────────────────────────────────────────┤
+│  PostgreSQL Database          │  Connection Management            │
+│  - SmartHomeDatabaseManager   │  - ThreadedConnectionPool         │  
+│  - User/Room/Device tables    │  - Session-level caching          │
+│  - Management logs            │  - Transaction handling           │
+│  - Automation rules           │  - Cache invalidation             │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Komponenty Systemu:
 
 #### 1. **Frontend (Warstwa Prezentacji)**
 
-- **HTML Templates**: Dynamicznie generowane strony przy użyciu Jinja2
-- **CSS**: Responsywny design z obsługą motywów jasnego/ciemnego
-- **JavaScript**: Interaktywność, komunikacja z backendem, real-time updates
+- **HTML Templates**: Dynamicznie generowane strony z server-side pre-loading
+- **CSS**: Responsywny design z minifikacją (36.7% smaller)
+- **JavaScript**: Pre-loaded data patterns, real-time updates, optimized loading
 
 #### 2. **Backend (Warstwa Biznesowa)**
 
-- **Flask Application**: Główna aplikacja webowa
-- **Route Managers**: Obsługa tras HTTP i API endpoints
-- **WebSocket Handlers**: Komunikacja w czasie rzeczywistym
-- **Business Logic**: Logika biznesowa i przetwarzanie danych
+- **Flask Application**: Database-backed aplikacja z connection pooling
+- **Route Managers**: Pre-loading optimization i session-level caching
+- **WebSocket Handlers**: Real-time komunikacja z user state management
+- **Business Logic**: Database transactions z automatic rollback
 
-#### 3. **Data Layer (Warstwa Danych)**
+#### 3. **Data Layer (PostgreSQL Backend)**
 
-- **JSON Configuration**: Przechowywanie konfiguracji i stanu systemu
-- **File Storage**: Zarządzanie plikami użytkowników
-- **Session Management**: Zarządzanie sesjami użytkowników
+- **PostgreSQL Database**: Persistent storage z transaction support
+- **Connection Pool**: 2-10 concurrent connections z automatic management
+- **Caching Layer**: Session-level i Redis/SimpleCache support
+- **Migration System**: Automatic JSON → Database migration tools
 
 ---
 
@@ -96,12 +157,16 @@ SmartHome to kompleksowy system zarządzania domem inteligentnym, zaprojektowany
 ### Backend Technologies:
 
 - **Python 3.x**: Główny język programowania
-- **Flask 3.1.0**: Framework webowy
-- **Flask-SocketIO 5.5.0**: Komunikacja w czasie rzeczywistym
-- **Werkzeug 3.1.3**: WSGI toolkit (bezpieczeństwo, utilities)
-- **Jinja2 3.1.5**: Template engine
+- **Flask 3.1.0**: Framework webowy z database integration
+- **Flask-SocketIO 5.5.0**: Real-time komunikacja
+- **PostgreSQL**: Production database backend
+- **psycopg2-binary 2.9.10**: PostgreSQL driver z connection pooling
+- **Flask-Caching 2.3.1**: Intelligent caching system
+- **Redis**: Optional cache backend (fallback: SimpleCache)
+- **Werkzeug 3.1.3**: WSGI toolkit
+- **Jinja2 3.1.5**: Template engine z server-side pre-loading
 - **Cryptography 44.0.0**: Szyfrowanie danych
-- **python-dotenv**: Zarządzanie zmiennymi środowiskowymi
+- **python-dotenv**: Environment configuration management
 
 ### Frontend Technologies:
 
@@ -128,7 +193,6 @@ SmartHome to kompleksowy system zarządzania domem inteligentnym, zaprojektowany
 
 ---
 
-
 ## Struktura Projektu (uproszczona)
 
 ```
@@ -138,10 +202,7 @@ Site_proj/
 ├── static/                    # Pliki statyczne (CSS, JS, ikony)
 ├── templates/                 # Szablony HTML (Jinja2)
 ├── info/                      # Dokumentacja, wymagania, quick start
-├── run_server_windows.bat     # Start produkcyjny na Windows
-├── run_server_linux.sh        # Start produkcyjny na Linux
 ├── .env                       # Zmienne środowiskowe
-├── requirements.txt           # Wymagania (link do info/requirements.txt)
 └── ...                        # Pozostałe pliki konfiguracyjne
 ```
 
@@ -152,17 +213,16 @@ Site_proj/
 1. Skonfiguruj `.env` (baza danych, email)
 2. Zainstaluj zależności: `pip install -r info/requirements.txt`
 3. Minifikuj zasoby: `python utils/asset_manager.py`
-4. (Opcjonalnie) Migracja: `python run_database_migration.py full`
-5. Uruchom aplikację:
+4. Uruchom aplikację:
    - Windows (Waitress):
-     `python -m waitress --port=5001 app_db:main`
+     `python -m waitress --port=5000 app_db:main`
    - Linux (Gunicorn):
-     `gunicorn -w 4 -b 0.0.0.0:5001 'app_db:main'`
-6. Wejdź na: http://localhost:5001
+     `gunicorn -w 4 -b 0.0.0.0:5000 'app_db:main'`
+5. Wejdź na: http://localhost:5000
 
 ---
 
-**Optymalizacja wydajności**: patrz `PERFORMANCE_OPTIMIZATION.md`
+**Optymalizacja wydajności**: patrz `PERFORMANCE_OPTIMIZATION.md i LATEST_OPTIMIZATIONS.md `
 
 ---
 
@@ -878,6 +938,7 @@ python run_server_gevent.py
 #### Problemy z Gunicorn na Windows:
 
 Gunicorn używa modułu `fcntl` który nie jest dostępny na Windows. Błąd:
+
 ```
 ModuleNotFoundError: No module named 'fcntl'
 ```
@@ -900,29 +961,29 @@ def main():
     """Główna funkcja uruchamiająca serwer"""
     print("=== Smart Home Server ===")
     print("Uruchamianie serwera...")
-    
+  
     # Sprawdzenie konfiguracji
     config_files = [
         'smart_home_config.json',
         'notifications_settings.json'
     ]
-    
+  
     for config_file in config_files:
         if not os.path.exists(config_file):
             print(f"UWAGA: Plik konfiguracyjny {config_file} nie istnieje")
-    
+  
     # Parametry serwera
     host = "0.0.0.0"
     port = 5000
     debug = False
-    
+  
     # Argumenty wiersza poleceń
     if "--debug" in sys.argv:
         debug = True
     if "--port" in sys.argv:
         port_idx = sys.argv.index("--port")
         port = int(sys.argv[port_idx + 1])
-    
+  
     # Uruchomienie serwera SocketIO
     socketio.run(
         app, 
@@ -987,7 +1048,8 @@ python -c "import json; print(json.load(open('smart_home_config.json')))"
 **Rozwiązanie**: Używaj `run_server.py` lub `run_server_gevent.py`
 
 **Problem**: Serwer nie odpowiada
-**Rozwiązanie**: 
+**Rozwiązanie**:
+
 - Sprawdź czy port 5000 jest wolny
 - Sprawdź firewall
 - Uruchom z `--debug` dla szczegółów
@@ -1238,6 +1300,44 @@ class User(Base):
 
 ---
 
+## Troubleshooting
+
+### Problem z Gradle w Android App
+
+**Error**: `Dependency requires at least JVM runtime version 11. This build uses a Java 8 JVM.`
+
+**Rozwiązanie**:
+
+1. **Downgrade Gradle** (zalecane dla Java 8):
+
+   - Zmień `android_app/build.gradle`: `id 'com.android.application' version '8.0.2'`
+   - Zmień `android_app/gradle/wrapper/gradle-wrapper.properties`: `gradle-8.0.2-bin.zip`
+2. **Alternatywnie - Upgrade Java** (jeśli możesz):
+
+   - Zainstaluj Java 11 lub nowszą
+   - Ustaw `JAVA_HOME` na nową wersję Java
+
+### Performance Issues
+
+**Problem**: Wolne ładowanie admin dashboard
+**Rozwiązanie**: Sprawdź czy pre-loaded data optimization działa:
+
+- DevTools Console powinien pokazać "Using pre-loaded ... data"
+- Network tab nie powinien pokazywać redundant API calls
+- Page load < 1 sekunda
+
+**Problem**: Database connection errors
+**Rozwiązanie**: Sprawdź PostgreSQL connection i environment variables:
+
+```bash
+export DB_HOST="localhost"
+export DB_NAME="smart_home"
+export DB_USER="username"
+export DB_PASSWORD="password"
+```
+
+---
+
 ## Podsumowanie
 
 System SmartHome reprezentuje kompleksowe rozwiązanie do zarządzania domem inteligentnym, łączące nowoczesne technologie webowe z praktycznymi funkcjami automatyzacji domowej. Architektura modularna umożliwia łatwe rozszerzanie i dostosowywanie do indywidualnych potrzeb.
@@ -1273,10 +1373,10 @@ System stanowi solidną podstawę do dalszego rozwoju funkcjonalności smart hom
 
 ---
 
-**Autor**: [Twoje Imię]  
-**Data**: 2025  
-**Wersja**: 1.0  
-**Technologie**: Python, Flask, JavaScript, HTML/CSS  
+**Autor**: [Twoje Imię]
+**Data**: 2025
+**Wersja**: 1.0
+**Technologie**: Python, Flask, JavaScript, HTML/CSS
 **Licencja**: MIT License
 
 **Autor**: Szymon Przybysz
