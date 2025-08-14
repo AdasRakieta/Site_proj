@@ -378,14 +378,18 @@ class CachedDataAccess:
             List of button objects, same format as smart_home.buttons
         """
         cache_key = "buttons_list"
+        print(f"[DEBUG] get_buttons called, checking cache key: {cache_key}")
         buttons = self.cache.get(cache_key)
         if buttons is None:
+            print(f"[DEBUG] Cache miss for buttons, fetching from source")
             logger.debug("Cache miss for buttons, fetching from source")
             buttons = self.smart_home.buttons
+            print(f"[DEBUG] Fetched buttons from smart_home: {buttons}")
             timeout = self.cache_manager.get_timeout('buttons')
             self.cache.set(cache_key, buttons, timeout=timeout)
             logger.debug(f"Cached buttons data for {timeout}s")
         else:
+            print(f"[DEBUG] Cache hit for buttons: {buttons}")
             logger.debug("Cache hit for buttons")
         return buttons
     
@@ -457,8 +461,14 @@ class CachedDataAccess:
     
     def invalidate_buttons_cache(self):
         """Invalidate buttons cache"""
+        print(f"[DEBUG] invalidate_buttons_cache called")
         logger.info("Invalidating buttons cache")
-        self.cache.delete("buttons_list")
+        result = self.cache.delete("buttons_list")
+        print(f"[DEBUG] Cache delete result: {result}")
+        # Force a cache miss by checking if key was actually deleted
+        check = self.cache.get("buttons_list")
+        print(f"[DEBUG] Cache check after delete: {check}")
+        return result
     
     def invalidate_temperature_cache(self):
         """Invalidate temperature controls cache"""

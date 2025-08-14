@@ -202,7 +202,7 @@ function getCSRFToken() {
 })();
 
 // --- Kanban/DragNDrop rendering for edit.html ---
-function renderKanbanLists(rooms, buttons, controls) {
+window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) {
     console.log('renderKanbanLists called');
     const kanbanContainer = document.getElementById('kanbanContainer');
     kanbanContainer.innerHTML = '';
@@ -434,17 +434,42 @@ function startEditDeviceKanban(device, li) {
         const newName = li.querySelector('input').value.trim();
         if (!newName || newName === device.name) return window.loadKanban();
         const endpoint = device.type === 'light' ? `/api/buttons/${device.id}` : `/api/temperature_controls/${device.id}`;
+        
+        console.log(`[DEBUG] Updating device name: ${device.name} -> ${newName}, endpoint: ${endpoint}`);
+        
         fetch(endpoint, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
             body: JSON.stringify({ name: newName })
-        }).then(r => r.json()).then(() => window.loadKanban());
+        })
+        .then(response => {
+            console.log(`[DEBUG] Response status: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(`[DEBUG] Response data:`, data);
+            if (data.status === 'success') {
+                if (window.showNotification) window.showNotification('Nazwa urządzenia zaktualizowana!', 'success');
+                window.loadKanban();
+            } else {
+                if (window.showNotification) window.showNotification('Błąd podczas aktualizacji nazwy: ' + (data.message || 'Nieznany błąd'), 'error');
+                window.loadKanban();
+            }
+        })
+        .catch(error => {
+            console.error(`[DEBUG] Error updating device name:`, error);
+            if (window.showNotification) window.showNotification('Błąd sieci podczas aktualizacji nazwy', 'error');
+            window.loadKanban();
+        });
     };
     li.querySelector('.kanban-cancel-btn').onclick = () => window.loadKanban();
 }
 
 // Aktualizacja selectboxa z pokojami
-function updateRoomSelect(rooms) {
+window.updateRoomSelect = function updateRoomSelect(rooms) {
     const select = document.getElementById('newDeviceRoom');
     if (!select) return;
 
@@ -460,7 +485,7 @@ function updateRoomSelect(rooms) {
         option.textContent = room;
         select.appendChild(option);
     });
-}
+};
 
 // Dodawanie nowego pokoju
 window.addNewRoom = function() {
@@ -534,8 +559,8 @@ window.loadKanban = function() {
         console.log('Promise.all resolved', rooms, buttons, controls);
         buttons.forEach(button => button.type = 'light');
         controls.forEach(control => control.type = 'thermostat');
-        updateRoomSelect(rooms); // Aktualizuj selectbox
-        renderKanbanLists(rooms, buttons, controls);
+        window.updateRoomSelect(rooms); // Aktualizuj selectbox
+        window.renderKanbanLists(rooms, buttons, controls);
     }).catch(e => {
         console.error('Promise.all error', e);
     });

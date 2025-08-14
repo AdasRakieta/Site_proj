@@ -474,6 +474,11 @@ class SmartHomeDatabaseManager:
                 })
         return result
     
+    @property
+    def buttons(self) -> List[Dict]:
+        """Get all button devices as property (for compatibility)"""
+        return self.get_buttons()
+    
     def get_temperature_controls(self) -> List[Dict]:
         """Get all temperature control devices in original format"""
         query = """
@@ -503,6 +508,11 @@ class SmartHomeDatabaseManager:
                 })
         
         return result
+    
+    @property
+    def temperature_controls(self) -> List[Dict]:
+        """Get all temperature control devices as property (for compatibility)"""
+        return self.get_temperature_controls()
     
     def add_button(self, name: str, room_name: str, state: bool = False) -> Optional[str]:
         """Add new button device"""
@@ -545,6 +555,8 @@ class SmartHomeDatabaseManager:
     def update_device(self, device_id: str, updates: Dict) -> bool:
         """Update device properties"""
         try:
+            print(f"[DEBUG] update_device called: device_id={device_id}, updates={updates}")
+            
             set_clauses = []
             params = []
             
@@ -557,11 +569,16 @@ class SmartHomeDatabaseManager:
                         if room and isinstance(room, dict) and 'id' in room:
                             set_clauses.append("room_id = %s")
                             params.append(room.get('id'))
+                            print(f"[DEBUG] Room '{value}' converted to room_id: {room.get('id')}")
+                        else:
+                            print(f"[DEBUG] Room '{value}' not found")
                     else:
                         set_clauses.append(f"{key} = %s")
                         params.append(value)
+                        print(f"[DEBUG] Added update: {key} = {value}")
             
             if not set_clauses:
+                print(f"[DEBUG] No valid update fields found")
                 return False
             
             set_clauses.append("updated_at = NOW()")
@@ -573,11 +590,20 @@ class SmartHomeDatabaseManager:
                 WHERE id = %s
             """
             
+            print(f"[DEBUG] Executing query: {query}")
+            print(f"[DEBUG] Query params: {params}")
+            
             rows_affected = self._execute_query(query, tuple(params))
-            return isinstance(rows_affected, int) and rows_affected > 0
+            print(f"[DEBUG] Rows affected: {rows_affected}")
+            
+            success = isinstance(rows_affected, int) and rows_affected > 0
+            print(f"[DEBUG] Update success: {success}")
+            
+            return success
             
         except Exception as e:
             logger.error(f"Failed to update device {device_id}: {e}")
+            print(f"[DEBUG] Exception in update_device: {e}")
             return False
     
     def delete_device(self, device_id: str) -> bool:

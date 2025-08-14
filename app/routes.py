@@ -16,8 +16,10 @@ class RoutesManager:
         self.mail_manager = mail_manager
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
+        print(f"[DEBUG] RoutesManager init - cache: {cache}, cached_data_access: {cached_data_access}")
         # Use injected cached_data_access if provided, else fallback
         self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
+        print(f"[DEBUG] RoutesManager init - self.cached_data: {type(self.cached_data)} {self.cached_data}")
         # Initialize management logger
         self.management_logger = management_logger or ManagementLogger()
         # Initialize socketio for real-time updates
@@ -214,12 +216,36 @@ class RoutesManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def edit():
+            # Get user data for profile picture and menu
+            user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
+            
             # Use cached data for performance
+            print(f"[DEBUG] /edit route - Getting data for template")
+            print(f"[DEBUG] cached_data object: {type(self.cached_data)}")
             rooms = self.cached_data.get_rooms() if self.cached_data else self.smart_home.rooms
             buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
             temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
+            
+            print(f"[DEBUG] /edit route - Buttons data for template: {buttons}")
+            
+            # Add type attribute to devices for proper kanban rendering
+            if buttons:
+                for button in buttons:
+                    if not hasattr(button, 'type') and not isinstance(button, dict):
+                        button.type = 'light'
+                    elif isinstance(button, dict) and 'type' not in button:
+                        button['type'] = 'light'
+            
+            if temperature_controls:
+                for control in temperature_controls:
+                    if not hasattr(control, 'type') and not isinstance(control, dict):
+                        control.type = 'thermostat'
+                    elif isinstance(control, dict) and 'type' not in control:
+                        control['type'] = 'thermostat'
+            
             return render_template(
                 'edit.html',
+                user_data=user_data,
                 rooms=rooms,
                 buttons=buttons,
                 temperature_controls=temperature_controls
@@ -1126,28 +1152,112 @@ class APIManager:
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
-        @self.auth_manager.admin_required
+        @self.auth_manager.api_admin_required
         def button_by_id(id):
-            idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
-            if idx is None:
-                return jsonify({'status': 'error', 'message': 'Button not found'}), 404
             if request.method == 'PUT':
+                print(f"[DEBUG] PUT /api/buttons/{id} - Starting")
                 data = request.get_json()
+                print(f"[DEBUG] PUT data received: {data}")
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+                
+                # Check if device exists first
+                device = self.smart_home.get_device_by_id(id)
+                print(f"[DEBUG] Device found: {device}")
+                if not device:
+                    return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+                
+                # Prepare updates
+                updates = {}
                 if 'name' in data:
-                    self.smart_home.buttons[idx]['name'] = data['name']
+                    updates['name'] = data['name']
                 if 'room' in data:
-                    self.smart_home.buttons[idx]['room'] = data['room']
-                if not self.smart_home.save_config():
-                    return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                    updates['room'] = data['room']
+                
+                print(f"[DEBUG] Updates prepared: {updates}")
+                if not updates:
+                    return jsonify({'status': 'error', 'message': 'No valid fields to update'}), 400
+                
+                # Update device in database
+                if hasattr(self.smart_home, 'update_device'):
+                    print(f"[DEBUG] Using database mode - calling update_device")
+                    # Database mode - use proper database update method
+                    success = self.smart_home.update_device(id, updates)
+                    print(f"[DEBUG] update_device result: {success}")
+                    if not success:
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
+                    
+                    # Invalidate cache after successful update
+                    if self.cached_data:
+                        print(f"[DEBUG] Invalidating cache")
+                        self.cached_data.invalidate_buttons_cache()
+                        
+                        # Test: Check if smart_home.buttons has fresh data directly from DB
+                        print("[DEBUG] Testing direct database access...")
+                        fresh_from_db = self.smart_home.get_buttons()  # Direct call to DB method
+                        print(f"[DEBUG] Direct DB buttons data: {fresh_from_db}")
+                        
+                        # Get fresh data via cached property
+                        print("[DEBUG] Getting fresh data via cached property...")
+                        fresh_buttons = self.smart_home.buttons  # This should now be fresh from cache
+                        print(f"[DEBUG] Fresh buttons data via property: {fresh_buttons}")
+                else:
+                    print(f"[DEBUG] Using JSON mode fallback")
+                    # JSON mode fallback
+                    idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
+                    if idx is None:
+                        return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+                    
+                    if 'name' in updates:
+                        self.smart_home.buttons[idx]['name'] = updates['name']
+                    if 'room' in updates:
+                        self.smart_home.buttons[idx]['room'] = updates['room']
+                    
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
+                
+                # Emit socket update
+                if self.socketio:
+                    print(f"[DEBUG] Emitting socket update")
+                    # Get fresh data from cache (same source as main page) for socket update
+                    fresh_buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
+                    print(f"[DEBUG] Fresh buttons data from cache: {fresh_buttons}")
+                    self.socketio.emit('update_buttons', fresh_buttons)
+                
+                print(f"[DEBUG] PUT /api/buttons/{id} - Success")
                 return jsonify({'status': 'success'})
+                
             elif request.method == 'DELETE':
-                self.smart_home.buttons.pop(idx)
-                if not self.smart_home.save_config():
-                    return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                # Check if device exists first
+                device = self.smart_home.get_device_by_id(id)
+                if not device:
+                    return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+                
+                # Delete device
+                if hasattr(self.smart_home, 'delete_device'):
+                    # Database mode - use proper database delete method
+                    success = self.smart_home.delete_device(id)
+                    if not success:
+                        return jsonify({"status": "error", "message": "Nie udało się usunąć przycisku"}), 500
+                    
+                    # Invalidate cache after successful delete
+                    if self.cached_data:
+                        self.cached_data.invalidate_buttons_cache()
+                else:
+                    # JSON mode fallback
+                    idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
+                    if idx is None:
+                        return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+                    
+                    self.smart_home.buttons.pop(idx)
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
+                
+                # Emit socket update
+                if self.socketio:
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
+                
+                return jsonify({'status': 'success'})
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
@@ -1270,30 +1380,86 @@ class APIManager:
 
         @self.app.route('/api/temperature_controls/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
-        @self.auth_manager.admin_required
+        @self.auth_manager.api_admin_required
         def temp_control_by_id(id):
-            idx = next((i for i, c in enumerate(self.smart_home.temperature_controls) if str(c.get('id')) == str(id)), None)
-            if idx is None:
-                return jsonify({'status': 'error', 'message': 'Control not found'}), 404
             if request.method == 'PUT':
                 data = request.get_json()
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
+                
+                # Check if device exists first
+                device = self.smart_home.get_device_by_id(id)
+                if not device:
+                    return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+                
+                # Prepare updates
+                updates = {}
                 if 'name' in data:
-                    self.smart_home.temperature_controls[idx]['name'] = data['name']
+                    updates['name'] = data['name']
                 if 'room' in data:
-                    self.smart_home.temperature_controls[idx]['room'] = data['room']
-                self.smart_home.save_config()
+                    updates['room'] = data['room']
+                
+                if not updates:
+                    return jsonify({'status': 'error', 'message': 'No valid fields to update'}), 400
+                
+                # Update device in database
+                if hasattr(self.smart_home, 'update_device'):
+                    # Database mode - use proper database update method
+                    success = self.smart_home.update_device(id, updates)
+                    if not success:
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać edycji termostatu"}), 500
+                    
+                    # Invalidate cache after successful update
+                    if self.cached_data:
+                        self.cached_data.invalidate_temperature_cache()
+                else:
+                    # JSON mode fallback
+                    idx = next((i for i, c in enumerate(self.smart_home.temperature_controls) if str(c.get('id')) == str(id)), None)
+                    if idx is None:
+                        return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+                    
+                    if 'name' in updates:
+                        self.smart_home.temperature_controls[idx]['name'] = updates['name']
+                    if 'room' in updates:
+                        self.smart_home.temperature_controls[idx]['room'] = updates['room']
+                    
+                    self.smart_home.save_config()
+                
                 # Emit updates only if socketio is available
                 if self.socketio:
                     self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                
                 return jsonify({'status': 'success'})
+                
             elif request.method == 'DELETE':
-                self.smart_home.temperature_controls.pop(idx)
-                self.smart_home.save_config()
+                # Check if device exists first
+                device = self.smart_home.get_device_by_id(id)
+                if not device:
+                    return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+                
+                # Delete device
+                if hasattr(self.smart_home, 'delete_device'):
+                    # Database mode - use proper database delete method
+                    success = self.smart_home.delete_device(id)
+                    if not success:
+                        return jsonify({"status": "error", "message": "Nie udało się usunąć termostatu"}), 500
+                    
+                    # Invalidate cache after successful delete
+                    if self.cached_data:
+                        self.cached_data.invalidate_temperature_cache()
+                else:
+                    # JSON mode fallback
+                    idx = next((i for i, c in enumerate(self.smart_home.temperature_controls) if str(c.get('id')) == str(id)), None)
+                    if idx is None:
+                        return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+                    
+                    self.smart_home.temperature_controls.pop(idx)
+                    self.smart_home.save_config()
+                
                 # Emit updates only if socketio is available
                 if self.socketio:
                     self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/temperature_controls/<int:index>', methods=['DELETE'])
