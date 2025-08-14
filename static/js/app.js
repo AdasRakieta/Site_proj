@@ -267,6 +267,20 @@ class SmartHomeApp {
                 this.onRoomsUpdate(rooms);
             }
         });
+        
+        // Dodaj obsługę update_buttons
+        this.socket.on('update_buttons', (buttons) => {
+            if (typeof this.onButtonsUpdate === 'function') {
+                this.onButtonsUpdate(buttons);
+            }
+        });
+        
+        // Dodaj obsługę update_temperature_controls
+        this.socket.on('update_temperature_controls', (controls) => {
+            if (typeof this.onTemperatureControlsUpdate === 'function') {
+                this.onTemperatureControlsUpdate(controls);
+            }
+        });
     }
 
     async fetchData(url) {
@@ -417,6 +431,25 @@ class SmartHomeApp {
                     statusElement.classList.add('unknown');
                 }
             }
+        }
+    }
+    
+    // Event handlers for Socket.IO updates
+    onButtonsUpdate(buttons) {
+        // Default handler for buttons update - can be overridden by specific pages
+        console.log('Buttons updated:', buttons);
+        // Trigger kanban refresh if available
+        if (typeof window.loadKanban === 'function') {
+            window.loadKanban();
+        }
+    }
+    
+    onTemperatureControlsUpdate(controls) {
+        // Default handler for temperature controls update - can be overridden by specific pages
+        console.log('Temperature controls updated:', controls);
+        // Trigger kanban refresh if available
+        if (typeof window.loadKanban === 'function') {
+            window.loadKanban();
         }
     }
 }

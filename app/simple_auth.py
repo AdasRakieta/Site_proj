@@ -49,6 +49,24 @@ class SimpleAuthManager:
             return f(*args, **kwargs)
         return decorated_function
     
+    def api_admin_required(self, f):
+        """Decorator for requiring admin role on API endpoints (returns JSON instead of redirect)"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                from flask import jsonify
+                return jsonify({"status": "error", "message": "Authentication required"}), 401
+            
+            user_id = session.get('user_id')
+            user = self.smart_home.get_user_by_id(user_id)
+            
+            if not user or user.get('role') != 'admin':
+                from flask import jsonify
+                return jsonify({"status": "error", "message": "Admin privileges required"}), 403
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    
     def login_user(self, user_id, remember=False):
         """Log in a user"""
         session['user_id'] = user_id
