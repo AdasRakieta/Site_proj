@@ -12,9 +12,8 @@ services:
       - ./utils:/srv/utils:rw
       - ./templates:/srv/templates:rw
       - ./static:/srv/static:rw
-      - ./app_db.py:/srv/app_db.py:ro
+      # Nie montujemy app_db.py — użyjemy pliku z obrazu (bezpieczniejsze)
       - ./.env:/srv/.env:ro
-      - ./app_db.py:/srv/app_db.py:ro
     ports:
       - "5000:5000"
     restart: unless-stopped
