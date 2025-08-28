@@ -26,9 +26,6 @@ COPY templates/ /srv/templates/
 COPY static/ /srv/static/
 COPY app_db.py /srv/app_db.py
 
-# Optional: copy management logs or other top-level files if needed
-COPY management_logs.json /srv/management_logs.json
-
 EXPOSE 5000
 
 # Run the main entrypoint from /srv so imports `import app...` resolve correctly.
