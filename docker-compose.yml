@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    image: smarthome_app:latest
+    container_name: smarthome_app
+    env_file:
+      - .env
+    # DEV: mount kodu, templates i static z repo, żeby widzieć zmiany bez rebuild
+    volumes:
+      - ./app:/srv/app:rw
+      - ./templates:/srv/app/templates:rw
+      - ./static:/srv/app/static:rw
+      - ./.env:/srv/app/.env:ro
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    image: smarthome_nginx:latest
+    container_name: smarthome_nginx
+    volumes:
+      # nginx będzie bezpośrednio serwował katalog static z repo
+      - ./static:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    restart: unless-stopped
