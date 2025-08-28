@@ -14,6 +14,7 @@ services:
       - ./static:/srv/static:rw
       - ./app_db.py:/srv/app_db.py:ro
       - ./.env:/srv/.env:ro
+      - ./app_db.py:/srv/app_db.py:ro
     ports:
       - "5000:5000"
     restart: unless-stopped
