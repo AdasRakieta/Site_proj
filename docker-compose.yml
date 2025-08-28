@@ -12,7 +12,7 @@ services:
       - ./app:/srv/app:rw
       - ./templates:/srv/app/templates:rw
       - ./static:/srv/app/static:rw
-      - ./.env:/srv/app/stack.env:ro
+      - ./.env:/srv/app/.env:ro
     ports:
       - "5000:5000"
     restart: unless-stopped
