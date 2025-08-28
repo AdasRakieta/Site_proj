@@ -6,14 +6,13 @@ services:
       dockerfile: Dockerfile.app
     image: smarthome_app:latest
     container_name: smarthome_app
-    env_file:
-      - .env
+
     # DEV: mount kodu, templates i static z repo, żeby widzieć zmiany bez rebuild
     volumes:
       - ./app:/srv/app:rw
       - ./templates:/srv/app/templates:rw
       - ./static:/srv/app/static:rw
-      - ./.env:/srv/app/.env:ro
+      - ./.env:/srv/app/log.env:ro
     ports:
       - "5000:5000"
     restart: unless-stopped
