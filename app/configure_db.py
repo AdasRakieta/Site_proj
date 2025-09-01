@@ -381,18 +381,29 @@ class SmartHomeSystemDB:
     
     def find_button_by_room_and_name(self, room: str, name: str) -> Optional[Dict]:
         """Find button by room and name"""
-        buttons = self.buttons
-        for button in buttons:
-            if button.get('room') == room and button.get('name') == name:
+        room_norm = (room or '').casefold()
+        name_norm = (name or '').casefold()
+        for button in self.buttons:
+            if (button.get('room') or '').casefold() == room_norm and (button.get('name') or '').casefold() == name_norm:
                 return button
+        # Fallback: try match only by name if unique
+        matches = [b for b in self.buttons if (b.get('name') or '').casefold() == name_norm]
+        if len(matches) == 1:
+            print(f"[DEBUG] find_button_by_room_and_name fallback matched by name only (room mismatch input='{room}')")
+            return matches[0]
         return None
     
     def find_temperature_control_by_room_and_name(self, room: str, name: str) -> Optional[Dict]:
         """Find temperature control by room and name"""
-        controls = self.temperature_controls
-        for control in controls:
-            if control.get('room') == room and control.get('name') == name:
+        room_norm = (room or '').casefold()
+        name_norm = (name or '').casefold()
+        for control in self.temperature_controls:
+            if (control.get('room') or '').casefold() == room_norm and (control.get('name') or '').casefold() == name_norm:
                 return control
+        matches = [c for c in self.temperature_controls if (c.get('name') or '').casefold() == name_norm]
+        if len(matches) == 1:
+            print(f"[DEBUG] find_temperature_control_by_room_and_name fallback matched by name only (room mismatch input='{room}')")
+            return matches[0]
         return None
     
     def update_button_state(self, room: str, name: str, state: bool) -> bool:
@@ -411,6 +422,20 @@ class SmartHomeSystemDB:
             result = self.update_device(control['id'], {'temperature': temperature})
             print(f"[DEBUG] Update result: {result}")
             return result
+        # Fallback: jeśli brak room (lub None) spróbuj znaleźć unikalnie po nazwie
+        if not room:
+            print(f"[DEBUG] Fallback search by name only for temperature control: '{name}' (room missing)")
+            matches = [c for c in self.temperature_controls if c.get('name') == name]
+            if len(matches) == 1:
+                ctrl = matches[0]
+                print(f"[DEBUG] Fallback matched control id={ctrl.get('id')} in room={ctrl.get('room')}")
+                result = self.update_device(ctrl['id'], {'temperature': temperature})
+                print(f"[DEBUG] Fallback update result: {result}")
+                return result
+            elif len(matches) > 1:
+                print(f"[DEBUG] Fallback ambiguous: {len(matches)} controls share name '{name}' – aborting update")
+            else:
+                print(f"[DEBUG] Fallback found no controls with name '{name}'")
         print(f"[DEBUG] No control found for room='{room}', name='{name}'")
         return False
     
