@@ -333,6 +333,15 @@ class SmartHomeApp:
                         'name': name,
                         'state': new_state
                     })
+
+                    # Invalidate relevant caches to reflect immediate state change
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('buttons_list')
+                            # Room-specific caches (best-effort) - names follow pattern buttons_room_<room>
+                            self.cache.delete(f'buttons_room_{room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate button caches: {cache_err}")
                     
                     # Log the action
                     user_id = session.get('user_id')
@@ -406,6 +415,14 @@ class SmartHomeApp:
                         'name': name,
                         'temperature': temperature
                     })
+
+                    # Invalidate temperature related caches
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('temperature_controls')
+                            self.cache.delete(f'temp_controls_room_{room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
                     
                     # Log the action
                     user_id = session.get('user_id')

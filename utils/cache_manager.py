@@ -556,6 +556,30 @@ def setup_smart_home_caching(smart_home, cache_manager):
             return result
         
         smart_home.update_user_profile = cached_update_user_profile
+
+    # Device update method (buttons / temperature controls)
+    if hasattr(smart_home, 'update_device'):
+        original_methods['update_device'] = smart_home.update_device
+
+        def cached_update_device(device_id, updates):
+            """Device update with cache invalidation for buttons & temperature controls"""
+            logger.debug(f"Cached update_device called: id={device_id}, updates={updates}")
+            result = original_methods['update_device'](device_id, updates)
+            if result:
+                # Always invalidate both device-related caches (cheap & safe)
+                try:
+                    smart_home_cache = cache_manager.cache
+                    smart_home_cache.delete('buttons_list')
+                    smart_home_cache.delete('temperature_controls')
+                    # Room-specific caches (best-effort) - only possible with Redis pattern scan; here just log
+                    logger.debug("Invalidated buttons_list & temperature_controls caches after device update")
+                except Exception as e:
+                    logger.warning(f"Failed to invalidate device caches: {e}")
+            else:
+                logger.debug("update_device returned False; caches not invalidated")
+            return result
+
+        smart_home.update_device = cached_update_device
     
     logger.info("Smart home caching setup complete")
     return original_methods
