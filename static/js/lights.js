@@ -30,53 +30,52 @@ function toggleLight(room, buttonName, state) {
     }
 }
 
-async function toggleLightViaAPI(room, buttonName, state) {
+async function toggleLightViaAPI(room, buttonName, state, attempt = 0) {
     try {
-        // Find button ID first
+        const norm = v => (v||'').toLowerCase().trim();
         const buttons = await app.fetchData('/api/buttons');
-        const button = buttons.find(b => b.name === buttonName && b.room === room);
-        
-        if (!button) {
-            console.error('Button not found:', buttonName, 'in room:', room);
-            if (window.showNotification) {
-                window.showNotification('Nie znaleziono przycisku', 'error');
+        const roomNorm = norm(room);
+        const nameNorm = norm(buttonName);
+        let button = Array.isArray(buttons) ? buttons.find(b => norm(b.name) === nameNorm && norm(b.room) === roomNorm) : null;
+        if (!button && Array.isArray(buttons)) {
+            const sameName = buttons.filter(b => norm(b.name) === nameNorm);
+            if (sameName.length === 1) {
+                button = sameName[0];
+                console.warn('[fallback] Dopasowanie przycisku tylko po nazwie:', buttonName, room);
             }
+        }
+        if (!button) {
+            if (attempt === 0) {
+                console.warn('[retry] Button not found pierwsza próba, odświeżam i próbuję ponownie...', buttonName, room);
+                await new Promise(r => setTimeout(r, 300));
+                return toggleLightViaAPI(room, buttonName, state, attempt + 1);
+            }
+            console.error('Button not found po retry:', buttonName, 'room:', room);
+            if (window.showNotification) window.showNotification('Nie znaleziono przycisku', 'error');
             return;
         }
-        
-        // Call the toggle API
         const response = await fetch(`/api/buttons/${button.id}/toggle`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({ state: state })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ state })
         });
-        
         const result = await response.json();
-        
         if (result.status === 'success') {
-            // Update the UI manually since we're not using WebSocket
             const switchElement = document.getElementById(`${buttonName.replace(/\s+/g, '_')}Switch`);
-            if (switchElement) {
-                switchElement.checked = state;
-            }
-            
-            if (window.showNotification) {
-                window.showNotification(`${buttonName} ${state ? 'włączony' : 'wyłączony'}`, 'success');
-            }
+            if (switchElement) switchElement.checked = state;
+            if (window.showNotification) window.showNotification(`${buttonName} ${state ? 'włączony' : 'wyłączony'}`, 'success');
         } else {
             console.error('Failed to toggle button:', result.message);
-            if (window.showNotification) {
-                window.showNotification('Błąd przełączania przycisku: ' + result.message, 'error');
-            }
+            if (window.showNotification) window.showNotification('Błąd przełączania przycisku: ' + result.message, 'error');
         }
     } catch (error) {
-        console.error('Error toggling light via API:', error);
-        if (window.showNotification) {
-            window.showNotification('Błąd przełączania przycisku', 'error');
+        if (attempt === 0) {
+            console.warn('[retry] Error przy toggle, druga próba...', error);
+            await new Promise(r => setTimeout(r, 300));
+            return toggleLightViaAPI(room, buttonName, state, attempt + 1);
         }
+        console.error('Error toggling light via API:', error);
+        if (window.showNotification) window.showNotification('Błąd przełączania przycisku', 'error');
     }
 }
 
