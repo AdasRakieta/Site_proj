@@ -54,65 +54,42 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dragNdrop.css') }}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
 <script src="{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script src="{{ url_for('static', filename='js/controls.js') }}"></script>
 
 <script>
-    // Pre-load data from server to avoid AJAX delay and dependency on window.app
+    // Pre-load data from server to avoid initial AJAX delay while preserving caching for other resources
     const preloadedRooms = {{ rooms|tojson }};
     const preloadedButtons = {{ buttons|tojson }};
     const preloadedControls = {{ temperature_controls|tojson }};
-    
-    // Make sure devices have type property
-    if (preloadedButtons) {
+
+    // Ensure devices have type property for proper rendering
+    if (Array.isArray(preloadedButtons)) {
         preloadedButtons.forEach(button => {
-            if (!button.type) button.type = 'light';
+            if (button && !button.type) button.type = 'light';
         });
     }
-    
-    if (preloadedControls) {
+    if (Array.isArray(preloadedControls)) {
         preloadedControls.forEach(control => {
-            if (!control.type) control.type = 'thermostat';
+            if (control && !control.type) control.type = 'thermostat';
         });
     }
-    
-    // Override the loadKanban function to use pre-loaded data
-    window.loadKanban = function() {
-        console.log('Using pre-loaded data for kanban rendering');
-        console.log('Rooms:', preloadedRooms);
-        console.log('Buttons:', preloadedButtons); 
-        console.log('Controls:', preloadedControls);
-        
-        // Update room select dropdown
-        if (window.updateRoomSelect) {
-            window.updateRoomSelect(preloadedRooms);
-        }
-        
-        // Render kanban with pre-loaded data
-        if (window.renderKanbanLists) {
-            window.renderKanbanLists(preloadedRooms || [], preloadedButtons || [], preloadedControls || []);
-        }
-    };
-    
-    // Initialize when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, initializing kanban with pre-loaded data');
-        window.loadKanban();
-    });
-    
-    // Fallback getRooms function for any remaining dependencies
-    if (!window.app) {
-        window.app = {
-            getRooms: function(forceRefresh = false) {
-                if (forceRefresh) {
-                    // If force refresh is requested, fetch from server
-                    return fetch('/api/rooms').then(r => r.json());
-                } else {
-                    // Otherwise use pre-loaded data
-                    return Promise.resolve(preloadedRooms || []);
-                }
+
+    // Override loadKanban once to render preloaded data, then restore original function
+    (function() {
+        const originalLoadKanban = window.loadKanban;
+        window.loadKanban = function() {
+            console.log('First-call preloaded Kanban render');
+            if (window.updateRoomSelect) {
+                window.updateRoomSelect(preloadedRooms || []);
+            }
+            if (window.renderKanbanLists) {
+                window.renderKanbanLists(preloadedRooms || [], preloadedButtons || [], preloadedControls || []);
+            }
+            // Restore the original loadKanban for subsequent calls (which fetch fresh data)
+            if (typeof originalLoadKanban === 'function') {
+                window.loadKanban = originalLoadKanban;
             }
         };
-    }
+    })();
 </script>
 {% endblock %}
