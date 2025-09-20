@@ -1,57 +1,39 @@
-# Copilot Instructions for Smart Home Flask Project
+# Copilot Instructions for SmartHome (Flask + SocketIO, DB-first)
 
-## Project Overview
+This codebase is a Flask-SocketIO smart home app with PostgreSQL as the primary datastore and a JSON fallback. Follow these project-specific patterns and conventions when adding or changing code.
 
-- This is a Flask-based smart home management system with real-time features using Flask-SocketIO.
-- The main entry point is `app.py`, but most route and API logic is organized in `routes.py` (see `RoutesManager`, `APIManager`, `SocketManager`).
-- Core business logic and state are managed by the `SmartHomeSystem` class in `configure.py`.
-- Email notifications and alerting are handled by `mail_manager.py`.
-- Static assets (JS, CSS, images) are in `static/`, and HTML templates are in `templates/`.
+Core architecture
+- Entry: `app_db.py` (class `SmartHomeApp`). Prefers DB mode via `app/configure_db.py:SmartHomeSystemDB` backed by `utils/smart_home_db_manager.py` (connection pool, CRUD). Falls back to JSON mode via `app/configure.py` only if DB init fails.
+- Routes & REST API: `app/routes.py` (`RoutesManager`, `APIManager`). WebSocket events are primarily registered in `SmartHomeApp.setup_socket_events()` in `app_db.py`. A legacy `SocketManager` exists in `routes.py`; prefer the handlers in `app_db.py`.
+- Auth: `app/simple_auth.py:SimpleAuthManager` with Flask session (`session['user_id']`). Use decorators: `login_required`, `admin_required`, `api_login_required`, `api_admin_required`.
+- Logging: Use `app/database_management_logger.py:DatabaseManagementLogger` (DB-backed). Prefer helpers like `log_login`, `log_user_change`, `log_device_action`.
 
-## Key Architectural Patterns
+Caching and preloading
+- Caching: `utils/cache_manager.py` provides `CacheManager`, `CachedDataAccess`, and `setup_smart_home_caching`. Cache via Redis if `REDIS_URL`/`REDIS_HOST` is set; otherwise SimpleCache. Invalidate with: `invalidate_buttons_cache`, `invalidate_temperature_cache`, `invalidate_rooms_cache`, `invalidate_automations_cache`.
+- Read paths should prefer cached access (`CachedDataAccess`) or DB-backed properties (`smart_home.rooms/buttons/temperature_controls/automations`). Write paths MUST call proper methods (`add_*`, `update_*`, `delete_*`, `update_button_state`, `update_temperature_control_value`) and then invalidate relevant caches and emit socket updates.
+- Template preloading: Key pages embed initial JSON to eliminate first-load AJAX. See `templates/index.html` (rooms) and `templates/admin_dashboard.html` (device states, logs, users) and the JS “preloaded*” overrides.
 
-- **Blueprint-like pattern**: Instead of Flask Blueprints, route registration is encapsulated in manager classes (`RoutesManager`, `APIManager`, `SocketManager`) in `routes.py`.
-- **Stateful Singleton**: `SmartHomeSystem` is instantiated once and shared across the app for all state (users, rooms, automations, etc.).
-- **Session-based Auth**: User authentication and roles are managed via Flask sessions. Decorators like `login_required` and `admin_required` enforce access control.
-- **Real-time Updates**: State changes (e.g., buttons, temperature controls) are broadcast to clients using SocketIO events.
-- **Config Persistence**: All state is periodically saved to JSON files (`smart_home_config.json`, etc.) by the backend.
+Data and conventions
+- Users/devices/rooms/automations live in PostgreSQL; properties on `SmartHomeSystemDB` return fresh DB-backed snapshots. Do NOT assign directly to these properties in DB mode—use methods.
+- Always identify users by UUID (`user_id`) and devices by `id`. Room names are case-insensitive for lookups.
+- Keep SocketIO auth checks: handlers should require `session['user_id']` and respond with broadcasts like `update_button`, `sync_button_states`, `update_temperature`, `update_security_state`.
 
-## Developer Workflows
+Adding endpoints or features
+- New REST endpoints: extend `APIManager.register_routes()` in `app/routes.py`. Enforce auth via decorators, call DB methods, invalidate cache, emit socket events, and return JSON with a top-level `status` field.
+- New WebSocket behavior: add handlers in `SmartHomeApp.setup_socket_events()` (prefer) and mirror the REST behavior: validate session, update via DB methods, broadcast, invalidate caches, and log.
+- UI data flow: when possible, pre-load data via template context and implement a one-time JS override that uses preloaded data first and only fetches on manual refresh.
 
-- **Run locally**: `python app.py` (Flask-SocketIO will run the server on port 5000)
-- **Dependencies**: Install with `pip install -r requirements.txt`
-- **Configuration**: Email and notification settings are loaded from `.env` and JSON files in the project root.
-- **Debugging**: Logging is enabled in `app.py` when run as `__main__`.
-- **No standard tests**: No test suite or test runner is present by default.
+Running locally
+- Dependencies: `pip install -r requirements.txt`.
+- Env: configure `.env` with `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and optionally `REDIS_URL` or `REDIS_HOST`/`REDIS_PORT`.
+- Start: `python app_db.py` (SocketIO server). The app prints DB/caching mode at startup.
 
-## Project-Specific Conventions
+Key files
+- `app_db.py`: App composition root, SocketIO, warm-up, diagnostics.
+- `app/routes.py`: HTTP routes and REST API managers.
+- `app/configure_db.py`: `SmartHomeSystemDB` facade over `utils/smart_home_db_manager.py`.
+- `utils/cache_manager.py`: Caching, cache stats (`/api/cache/stats`).
+- `app/database_management_logger.py`: DB-backed management logs.
+- `templates/`: Preloading patterns in `index.html` and `admin_dashboard.html`.
 
-- **User IDs**: Users are stored by UUID, not username. Always use `user_id` for lookups.
-- **Profile Pictures**: Uploaded to `static/profile_pictures/` and referenced by URL in user profiles.
-- **Automations**: Defined as JSON objects with triggers and actions, stored in the main config.
-- **CSRF & Host Checks**: Custom CSRF and trusted host logic in `app.py`—update `is_trusted_host` for new subnets.
-- **Role Checks**: Use `session['role']` and decorators for admin/user separation.
-
-## Integration Points
-
-- **Email**: Uses SMTP, credentials loaded from `email_conf.env` via `python-dotenv`.
-- **Notifications**: Recipients and settings are managed in JSON and encrypted files.
-- **SocketIO**: All real-time events are defined in `SocketManager` (see `routes.py`).
-
-## Examples
-
-- To add a new API endpoint, extend `APIManager` in `routes.py` and register the route in `register_routes()`.
-- To add a new automation type, update the logic in `configure.py` and the relevant SocketIO handlers.
-- To add a new static asset, place it in `static/` and reference it in the appropriate template in `templates/`.
-
-## Key Files
-
-- `app.py`: App entry, session/csrf/auth logic, background tasks
-- `routes.py`: All HTTP and SocketIO routes, main app logic
-- `configure.py`: SmartHomeSystem state, config persistence
-- `mail_manager.py`: Email/notification logic
-- `static/`, `templates/`: Frontend assets
-
----
-
-If you are unsure about a workflow or pattern, check `routes.py` for route logic, or `configure.py` for state management. For new features, follow the encapsulation and registration patterns used in these files.
+Tip: When unsure, trace calls from `app_db.SmartHomeApp` to `RoutesManager`/`APIManager` and the `SmartHomeSystemDB` methods. Keep DB-first, cache-aware, preloaded-first rendering in mind for performance.

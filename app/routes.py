@@ -1131,37 +1131,23 @@ class APIManager:
             if request.method == 'GET':
                 # Use cached data if available
                 if self.cached_data:
-                    print("[DEBUG] GET /api/buttons using cached_data")
                     buttons = self.cached_data.get('buttons', []) if isinstance(self.cached_data, dict) else self.cached_data.get_buttons()
                 else:
-                    print("[DEBUG] GET /api/buttons direct smart_home.buttons fetch")
                     buttons = self.smart_home.buttons
-                print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons: {[ (b.get('name'), b.get('room')) for b in buttons ]}")
                 return jsonify(buttons)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
                 new_button = request.json
                 if new_button:
-                    name = new_button.get('name')
-                    room = new_button.get('room')
-                    if not name or not room:
-                        return jsonify({"status": "error", "message": "Brak nazwy lub pokoju"}), 400
-                    try:
-                        if hasattr(self.smart_home, 'add_button'):
-                            print(f"[DEBUG] POST /api/buttons add_button DB path: name={name}, room={room}")
-                            new_id = self.smart_home.add_button(name, room, state=False)
-                            # Invalidate cache if available
-                            if self.cached_data and hasattr(self.cached_data, 'cache'):
-                                self.cached_data.cache.delete('buttons_list')
-                            # Emit updated list
-                            self.socketio.emit('update_buttons', self.smart_home.buttons)
-                            return jsonify({"status": "success", "id": new_id})
-                        else:
-                            return jsonify({"status": "error", "message": "Brak metody add_button"}), 500
-                    except Exception as e:
-                        print(f"[DEBUG] POST /api/buttons error: {e}")
-                        return jsonify({"status": "error", "message": str(e)}), 500
+                    if 'id' not in new_button:
+                        new_button['id'] = str(uuid.uuid4())
+                    new_button['state'] = False
+                    self.smart_home.buttons.append(new_button)
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
+                    if not self.smart_home.save_config():
+                        return jsonify({"status": "error", "message": "Nie udało się zapisać przycisku"}), 500
+                    return jsonify({"status": "success", "id": new_button['id']})
                 return jsonify({"status": "error", "message": "Invalid button data"}), 400
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
