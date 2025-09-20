@@ -56,11 +56,33 @@
 <script src="{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
 <script src="{{ url_for('static', filename='js/controls.js') }}"></script>
 
+<!-- Preloaded Kanban data as JSON (avoids JS parser errors on Jinja) -->
+<script id="preloaded-kanban-data" type="application/json">
+{
+  "rooms": {{ rooms|tojson }},
+  "buttons": {{ buttons|tojson }},
+  "temperature_controls": {{ temperature_controls|tojson }}
+}
+</script>
+
 <script>
-    // Pre-load data from server to avoid initial AJAX delay while preserving caching for other resources
-    const preloadedRooms = {{ rooms|tojson }};
-    const preloadedButtons = {{ buttons|tojson }};
-    const preloadedControls = {{ temperature_controls|tojson }};
+    // Parse preloaded JSON from the dedicated script tag to avoid JS linter errors
+    let preloadedRooms = [];
+    let preloadedButtons = [];
+    let preloadedControls = [];
+    (function() {
+        const el = document.getElementById('preloaded-kanban-data');
+        if (el) {
+            try {
+                const data = JSON.parse(el.textContent || '{}');
+                preloadedRooms = Array.isArray(data.rooms) ? data.rooms : [];
+                preloadedButtons = Array.isArray(data.buttons) ? data.buttons : [];
+                preloadedControls = Array.isArray(data.temperature_controls) ? data.temperature_controls : [];
+            } catch (e) {
+                console.error('Failed to parse preloaded kanban data:', e);
+            }
+        }
+    })();
 
     // Ensure devices have type property for proper rendering
     if (Array.isArray(preloadedButtons)) {
