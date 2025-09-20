@@ -1,7 +1,7 @@
 {
     "users": {
         "e83aa7a5-f5d9-4252-acc8-8adf55fdb448": {
-            "password": "scrypt:32768:8:1$rysvpum3XTqh1KeX$ccb000be57b24539105ad4c9eb4c0235182b3ffa7949f4448ed5bae5277bac71bed68e49e0dadc4bc42da819b89b209781e15a40a62845e583223819bce22cb0",
+            "password": "scrypt:32768:8:1$ODpVf84KDnUCvyX7$87ce58234bbca1d3ec37bf4aaa7380801291b9d80313193fa224d41890b7371640fa8edd8b71f66c56f66394e872c6f3a1e39b5f555537ec35692818e70b6ca3",
             "role": "admin",
             "name": "admin"
         },
@@ -13,7 +13,11 @@
     },
     "temperature_states": {},
     "security_state": "Wyłączony",
-    "rooms": [],
+    "rooms": [
+        "Kuchnia",
+        "Sypialnia",
+        "Salon"
+    ],
     "buttons": [],
     "temperature_controls": [],
     "automations": []
