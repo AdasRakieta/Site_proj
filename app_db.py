@@ -249,7 +249,8 @@ class SmartHomeApp:
                 socketio=self.socketio,
                 smart_home=self.smart_home,
                 auth_manager=self.auth_manager,
-                management_logger=self.management_logger
+                management_logger=self.management_logger,
+                cache=self.cache
             )
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:

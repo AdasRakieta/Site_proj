@@ -68,11 +68,8 @@ class RoutesManager:
             user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
             
-            # Pre-load rooms data to avoid AJAX delay
-            if self.cached_data:
-                rooms = self.cached_data.get('rooms', []) if isinstance(self.cached_data, dict) else self.cached_data.get_rooms()
-            else:
-                rooms = self.smart_home.rooms
+            # Always use DB-ordered rooms list directly (bypass cached rooms list)
+            rooms = self.smart_home.rooms
             print(f"[DEBUG] Pre-loading {len(rooms)} rooms for home page")
             
             return render_template('index.html', user_data=user_data, rooms=rooms)
@@ -222,7 +219,8 @@ class RoutesManager:
             # Use cached data for performance
             print(f"[DEBUG] /edit route - Getting data for template")
             print(f"[DEBUG] cached_data object: {type(self.cached_data)}")
-            rooms = self.cached_data.get_rooms() if self.cached_data else self.smart_home.rooms
+            # Always use DB-ordered rooms list directly (bypass cached rooms list)
+            rooms = self.smart_home.rooms
             buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
             temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
             
@@ -918,13 +916,18 @@ class RoutesManager:
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
-    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None):
+    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None):
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.management_logger = management_logger or ManagementLogger()
-        self.cached_data = {}  # Naprawa: inicjalizacja cache na potrzeby API
+        # Use the same caching approach as RoutesManager to share cache keys
+        try:
+            self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
+        except Exception:
+            # Fallback to simple dict if cache not available
+            self.cached_data = {}
         self.register_routes()
 
     def emit_update(self, event_name, data):
@@ -956,11 +959,8 @@ class APIManager:
         def manage_rooms():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                # Use cached data if available
-                if self.cached_data:
-                    rooms = self.cached_data.get('rooms', []) if isinstance(self.cached_data, dict) else self.cached_data.get_rooms()
-                else:
-                    rooms = self.smart_home.rooms
+                # Always reflect DB display_order: bypass room cache for this endpoint
+                rooms = self.smart_home.rooms
                 return jsonify(rooms)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
@@ -1067,10 +1067,46 @@ class APIManager:
             rooms = data.get('rooms')
             if not isinstance(rooms, list):
                 return jsonify({'status': 'error', 'message': 'Brak listy pokoi'}), 400
-            self.smart_home.rooms = [r for r in rooms if r in self.smart_home.rooms]
-            self.socketio.emit('update_rooms', self.smart_home.rooms)
-            self.smart_home.save_config()
-            return jsonify({'status': 'success'})
+            try:
+                # Prefer database-backed reordering when available
+                if hasattr(self.smart_home, 'reorder_rooms'):
+                    # Only pass valid existing room names in desired order
+                    current = set([r for r in self.smart_home.rooms])
+                    desired_order = [r for r in rooms if r in current]
+                    success = self.smart_home.reorder_rooms(desired_order)
+                    if not success:
+                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności pokoi w bazie'}), 500
+                    # Fetch fresh ordered rooms from DB-backed property
+                    ordered_rooms = self.smart_home.rooms
+                else:
+                    # JSON mode fallback preserves original behavior
+                    self.smart_home.rooms = [r for r in rooms if r in self.smart_home.rooms]
+                    self.smart_home.save_config()
+                    ordered_rooms = self.smart_home.rooms
+
+                # Emit updates and invalidate caches if available
+                if self.socketio:
+                    self.socketio.emit('update_rooms', ordered_rooms)
+                if hasattr(self, 'cached_data') and self.cached_data:
+                    invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                    if callable(invalidate):
+                        invalidate()
+
+                # Log reorder (optional detail only)
+                try:
+                    self.management_logger.log_room_change(
+                        username=session.get('username', 'unknown'),
+                        action='reorder',
+                        room_name='order_update',
+                        ip_address=request.remote_addr or "",
+                        old_name=''
+                    )
+                except Exception:
+                    pass
+
+                return jsonify({'status': 'success'})
+            except Exception as e:
+                return jsonify({'status': 'error', 'message': f'Błąd zapisu kolejności: {e}'}), 500
 
         @self.app.route('/api/buttons/order', methods=['POST'])
         @self.auth_manager.login_required

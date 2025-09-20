@@ -229,6 +229,14 @@ class SmartHomeSystemDB:
     def delete_room(self, room_name: str) -> bool:
         """Delete room"""
         return self.db.delete_room(room_name)
+
+    def reorder_rooms(self, room_names: List[str]) -> bool:
+        """Reorder rooms based on provided list of room names (DB mode)"""
+        try:
+            return self.db.reorder_rooms(room_names)
+        except Exception as e:
+            print(f"Failed to reorder rooms: {e}")
+            return False
     
     # ========================================================================
     # DEVICE MANAGEMENT METHODS
