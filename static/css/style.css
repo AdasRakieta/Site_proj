@@ -1143,6 +1143,17 @@ footer {
     font-size: 1rem; /* Dopasuj rozmiar czcionki do reszty formularza */
 }
 
+.reset_password {
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+
+}
+
+.reset_password:hover {
+    color: var(--text-color);
+    transform: scale(1.05);
+}
+
 /* ============================== */
 /*     Kontrola użytkowników      */
 /* ============================== */
