@@ -453,11 +453,20 @@ class CachedDataAccess:
     def invalidate_rooms_cache(self):
         """Invalidate rooms-related cache"""
         logger.info("Invalidating rooms cache")
-        self.cache.delete_many([
-            "rooms_list",
-            "buttons_list", 
-            "temperature_controls"
-        ])
+        # delete_many expects varargs; passing a list may not delete anything on SimpleCache
+        try:
+            self.cache.delete_many(
+                "rooms_list",
+                "buttons_list",
+                "temperature_controls"
+            )
+        except TypeError:
+            # Fallback for cache backends that accept a list
+            self.cache.delete_many([
+                "rooms_list",
+                "buttons_list",
+                "temperature_controls"
+            ])
     
     def invalidate_buttons_cache(self):
         """Invalidate buttons cache"""

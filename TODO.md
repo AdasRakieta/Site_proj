@@ -10,4 +10,5 @@
    1. [X] poprawa styluprzy restarcie oraz przy rejestracji dla kodu weryfikacyjnego i przycisków
 3. ** Strona Edycji**
 
-   1. [ ] Komunikat błedu edycji nazwy urządzeń. W bazie danych poprawnie się aktualizuje ale nie wychodzi z trybu zmiany nazwy ani po potwierdzeniu, ani po anulowaniu przyciskiem x
+   1. [X] Komunikat błedu edycji nazwy urządzeń. W bazie danych poprawnie się aktualizuje ale nie wychodzi z trybu zmiany nazwy ani po potwierdzeniu, ani po anulowaniu przyciskiem x
+   2. [ ] Poprawienie zmiany nazwy pokoi.

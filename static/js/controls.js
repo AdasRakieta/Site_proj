@@ -221,10 +221,36 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
 
     kanbanContainer.appendChild(columnsWrapper);
 
-    // Najpierw dodaj stały kontener "Nieprzypisane"
+    // Zbuduj zestaw istniejących nazw pokoi, aby wykrywać urządzenia z nieistniejącymi już nazwami
+    const roomNameSet = new Set(
+        rooms.map(r => (typeof r === 'string' ? r : (r && r.name ? r.name : r))).filter(Boolean)
+    );
+
+    // Rozdziel urządzenia na przypisane poprawnie i do przeniesienia do "Nieprzypisane"
+    const unassignedButtons = [];
+    const unassignedControls = [];
+    const assignedButtons = [];
+    const assignedControls = [];
+
+    (buttons || []).forEach(b => {
+        if (!b.room || !roomNameSet.has(b.room)) {
+            unassignedButtons.push(b);
+        } else {
+            assignedButtons.push(b);
+        }
+    });
+    (controls || []).forEach(c => {
+        if (!c.room || !roomNameSet.has(c.room)) {
+            unassignedControls.push(c);
+        } else {
+            assignedControls.push(c);
+        }
+    });
+
+    // Najpierw dodaj stały kontener "Nieprzypisane" (także te z nieistniejącymi już nazwami pokoi)
     const unassignedColumn = createKanbanColumn('Nieprzypisane', 
-        buttons.filter(b => !b.room), 
-        controls.filter(c => !c.room),
+        unassignedButtons, 
+        unassignedControls,
         true
     );
     columnsWrapper.appendChild(unassignedColumn);
@@ -236,9 +262,10 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
         if (typeof room === 'string') {
             roomObj = { name: room, id: room };
         }
-        const column = createKanbanColumn(roomObj, 
-            buttons.filter(button => button.room === roomObj.name),
-            controls.filter(control => control.room === roomObj.name)
+        const column = createKanbanColumn(
+            roomObj,
+            assignedButtons.filter(button => button.room === roomObj.name),
+            assignedControls.filter(control => control.room === roomObj.name)
         );
         columnsWrapper.appendChild(column);
     });

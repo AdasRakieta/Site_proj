@@ -410,8 +410,21 @@ class SmartHomeDatabaseManager:
             SET name = %s, updated_at = NOW()
             WHERE name = %s
         """
-        
-        rows_affected = self._execute_query(query, (old_name, new_name))
+        rows_affected = self._execute_query(query, (new_name, old_name))
+
+        # Get old and new room IDs
+        old_room_query = "SELECT id FROM rooms WHERE name = %s"
+        new_room_query = "SELECT id FROM rooms WHERE name = %s"
+        old_room = self._execute_query(old_room_query, (old_name,), fetch='one')
+        new_room = self._execute_query(new_room_query, (new_name,), fetch='one')
+        if old_room and new_room and 'id' in old_room and 'id' in new_room:
+            update_devices_query = """
+                UPDATE devices
+                SET room_id = %s, updated_at = NOW()
+                WHERE room_id = %s
+            """
+            self._execute_query(update_devices_query, (new_room['id'], old_room['id']))
+
         return isinstance(rows_affected, int) and rows_affected > 0
     
     def delete_room(self, room_name: str) -> bool:

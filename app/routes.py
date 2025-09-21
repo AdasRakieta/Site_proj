@@ -1033,23 +1033,33 @@ class APIManager:
         def edit_room(room):
             data = request.get_json()
             new_name = data.get('new_name') if data else None
+            old_name = room
+            # Check for valid new name
             if not new_name or new_name.lower() in [r.lower() for r in self.smart_home.rooms]:
                 return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
-            
-            old_name = room
-            for i, r in enumerate(self.smart_home.rooms):
-                if r.lower() == room.lower():
-                    self.smart_home.rooms[i] = new_name
-                    old_name = r
-                    break
-            for button in self.smart_home.buttons:
-                if button['room'].lower() == room.lower():
-                    button['room'] = new_name
-            for control in self.smart_home.temperature_controls:
-                if control['room'].lower() == room.lower():
-                    control['room'] = new_name
-            self.smart_home.save_config()
-            
+
+            # If DB mode, persist to DB
+            db_success = None
+            if hasattr(self.smart_home, 'update_room'):
+                db_success = self.smart_home.update_room(old_name, new_name)
+                if not db_success:
+                    return jsonify({"status": "error", "message": "Błąd zapisu do bazy danych"}), 500
+
+            # Always update config for legacy/JSON mode
+            if not db_success:
+                for i, r in enumerate(self.smart_home.rooms):
+                    if r.lower() == old_name.lower():
+                        self.smart_home.rooms[i] = new_name
+                        old_name = r
+                        break
+                for button in self.smart_home.buttons:
+                    if button['room'].lower() == old_name.lower():
+                        button['room'] = new_name
+                for control in self.smart_home.temperature_controls:
+                    if control['room'].lower() == old_name.lower():
+                        control['room'] = new_name
+                self.smart_home.save_config()
+
             # Log room rename
             self.management_logger.log_room_change(
                 username=session.get('username', 'unknown'),
@@ -1058,11 +1068,29 @@ class APIManager:
                 ip_address=request.remote_addr or "",
                 old_name=old_name
             )
-            
+
+            # Invalidate caches so subsequent GETs return fresh data
+            try:
+                if hasattr(self, 'cached_data') and self.cached_data:
+                    invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                    if callable(invalidate_rooms):
+                        invalidate_rooms()
+                    # Be explicit as well (redundant but safe with SimpleCache)
+                    invalidate_buttons = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                    if callable(invalidate_buttons):
+                        invalidate_buttons()
+                    invalidate_temp = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                    if callable(invalidate_temp):
+                        invalidate_temp()
+            except Exception as _e:
+                # Non-fatal: caching is best-effort
+                print(f"[DEBUG] Cache invalidation after room rename failed: {_e}")
+
+            # Emit socket updates
             self.socketio.emit('update_rooms', self.smart_home.rooms)
             self.socketio.emit('update_buttons', self.smart_home.buttons)
             self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-            return jsonify({"status": "success"})
+            return jsonify({"status": "success", "message": "Nazwa pokoju zaktualizowana poprawnie!"}), 200
 
         @self.app.route('/api/rooms/order', methods=['POST'])
         @self.auth_manager.login_required

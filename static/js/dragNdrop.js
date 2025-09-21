@@ -310,20 +310,28 @@ function updateColumnHeader(columnElement, roomName) {
                 e.stopPropagation();
                 const newName = roomNameInputEdit.value.trim();
                 if (newName && newName !== roomNameH3.textContent) {
-                    const roomId = columnElement.getAttribute('data-room-id');
+                    // Use current visible room name as path param to match backend route
+                    const currentName = roomNameH3.textContent;
                     try {
-                        await fetch(`/api/rooms/${roomId}`, {
+                        const response = await fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRFToken': window.getCSRFToken()
                             },
-                            body: JSON.stringify({ name: newName })
+                            body: JSON.stringify({ new_name: newName })
                         });
-                        roomNameH3.textContent = newName;
-                        if (window.updateRoomSelect) window.updateRoomSelect();
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.status === 'error') {
+                            const msg = (data && data.message) ? data.message : 'Nie udało się zmienić nazwy pokoju';
+                            if (window.showNotification) window.showNotification(msg, 'error');
+                        } else {
+                            roomNameH3.textContent = newName;
+                            if (window.showNotification) window.showNotification('Nazwa pokoju zaktualizowana!', 'success');
+                            if (window.loadKanban) window.loadKanban();
+                        }
                     } catch (error) {
-                        alert('Nie udało się zmienić nazwy pokoju');
+                        if (window.showNotification) window.showNotification('Błąd sieci podczas aktualizacji nazwy pokoju', 'error');
                     }
                 }
                 // Exit edit mode
@@ -443,25 +451,29 @@ function startRenameRoom(columnElement) {
     function saveRoomName() {
         const newName = nameInput.value.trim();
         if (newName && newName !== nameSpan.textContent) {
-            const roomId = columnElement.getAttribute('data-room-id');
-            fetch(`/api/rooms/${roomId}`, {
+            const currentName = nameSpan.textContent;
+            fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ name: newName })
+                body: JSON.stringify({ new_name: newName })
             })
-            .then(response => response.json())
-            .then(() => {
-                nameSpan.textContent = newName;
-                if (window.updateRoomSelect) {
-                    window.updateRoomSelect();
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.status === 'error') {
+                    const msg = (data && data.message) ? data.message : 'Nie udało się zmienić nazwy pokoju';
+                    if (window.showNotification) window.showNotification(msg, 'error');
+                    throw new Error(msg);
                 }
+                nameSpan.textContent = newName;
+                if (window.showNotification) window.showNotification('Nazwa pokoju zaktualizowana!', 'success');
+                if (window.loadKanban) window.loadKanban();
             })
             .catch(error => {
                 console.error('Error updating room name:', error);
-                alert('Nie udało się zmienić nazwy pokoju');
+                if (window.showNotification) window.showNotification('Błąd sieci podczas aktualizacji nazwy pokoju', 'error');
             });
         }
         nameSpan.style.display = '';
