@@ -998,34 +998,44 @@ class APIManager:
         @self.auth_manager.admin_required
         def delete_room(room):
             print("DELETE /api/rooms/<room> room:", room)
-            if not room or room not in self.smart_home.rooms:
-                print("Błąd: pokój nie istnieje:", room)
-                return jsonify({"status": "error", "message": "Pokój nie istnieje"}), 400
-            if room.lower() in [r.lower() for r in self.smart_home.rooms]:
-                self.smart_home.rooms.remove(next(r for r in self.smart_home.rooms if r.lower() == room.lower()))
-                self.smart_home.buttons = [button for button in self.smart_home.buttons if button['room'].lower() != room.lower()]
-                self.smart_home.temperature_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() != room.lower()]
-                self.socketio.emit('update_rooms', self.smart_home.rooms)
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                if not self.smart_home.save_config():
-                    return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu pokoju"}), 500
-                
-                # Log room deletion
-                self.management_logger.log_room_change(
-                    username=session.get('username', 'unknown'),
-                    action='delete',
-                    room_name=room,
-                    ip_address=request.remote_addr or ""
-                )
-                
-                # Invalidate cache after modification
-                if self.cached_data:
-                    invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
-                    if callable(invalidate):
-                        invalidate()
-                return jsonify({"status": "success"})
-            return jsonify({"status": "error", "message": "Room not found"}), 404
+            if not room:
+                return jsonify({"status": "error", "message": "Brak nazwy pokoju"}), 400
+
+            # Prefer DB-backed deletion when available
+            db_deleted = False
+            if hasattr(self.smart_home, 'delete_room'):
+                db_deleted = self.smart_home.delete_room(room)
+                if not db_deleted:
+                    return jsonify({"status": "error", "message": "Nie udało się usunąć pokoju w bazie"}), 500
+
+            # Log room deletion
+            self.management_logger.log_room_change(
+                username=session.get('username', 'unknown'),
+                action='delete',
+                room_name=room,
+                ip_address=request.remote_addr or ""
+            )
+
+            # Invalidate caches so subsequent GETs return fresh data
+            try:
+                if hasattr(self, 'cached_data') and self.cached_data:
+                    invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                    if callable(invalidate_rooms):
+                        invalidate_rooms()
+                    invalidate_buttons = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                    if callable(invalidate_buttons):
+                        invalidate_buttons()
+                    invalidate_temp = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                    if callable(invalidate_temp):
+                        invalidate_temp()
+            except Exception as _e:
+                print(f"[DEBUG] Cache invalidation after room delete failed: {_e}")
+
+            # Emit socket updates with fresh data from source (DB mode properties fetch fresh)
+            self.socketio.emit('update_rooms', self.smart_home.rooms)
+            self.socketio.emit('update_buttons', self.smart_home.buttons)
+            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+            return jsonify({"status": "success"})
 
         @self.app.route('/api/rooms/<room>', methods=['PUT'])
         @self.auth_manager.login_required
