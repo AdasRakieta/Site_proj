@@ -56,6 +56,8 @@
     --link-hover: #0056b3;
     --nav-bg: #ffffff;
     --nav-border: #dee2e6;
+    --background-secondary: var(--bg-secondary);
+    --card-background: var(--card-bg);
 }
 
 :root[data-theme="dark"] {
@@ -109,6 +111,8 @@
     --link-hover: #0b5ed7;
     --nav-bg: #1a1a1a;
     --nav-border: #404040;
+    --background-secondary: var(--bg-secondary);
+    --card-background: var(--card-bg);
 }
 
 /* ============================== */
