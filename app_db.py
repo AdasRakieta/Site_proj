@@ -247,14 +247,22 @@ class SmartHomeApp:
                 socketio=self.socketio  # Add socketio parameter
             )
             # Register API endpoints (including /api/automations etc.)
-            self.api_manager = APIManager(
-                app=self.app,
-                socketio=self.socketio,
-                smart_home=self.smart_home,
-                auth_manager=self.auth_manager,
-                management_logger=self.management_logger,
-                cache=self.cache
-            )
+            # Be resilient to different APIManager signatures across deployments
+            import inspect
+            api_init_sig = inspect.signature(APIManager.__init__)
+            accepted_params = set(api_init_sig.parameters.keys()) - {"self"}
+            possible_kwargs = {
+                'app': self.app,
+                'socketio': self.socketio,
+                'smart_home': self.smart_home,
+                'auth_manager': self.auth_manager,
+                'management_logger': self.management_logger,
+                'cache': self.cache,
+            }
+            filtered_kwargs = {k: v for k, v in possible_kwargs.items() if k in accepted_params}
+            # Helpful debug
+            print(f"[DEBUG] Creating APIManager with kwargs: {sorted(filtered_kwargs.keys())}")
+            self.api_manager = APIManager(**filtered_kwargs)
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
