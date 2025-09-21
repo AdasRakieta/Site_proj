@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  app:
+    image: ghcr.io/adasrakieta/site_proj/smarthome_app:latest
+    container_name: smarthome_app
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5000
+    volumes:
+      - static_data:/srv/static
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  nginx:
+    image: ghcr.io/adasrakieta/site_proj/smarthome_nginx:latest
+    container_name: smarthome_nginx
+    volumes:
+      - static_data:/srv/static:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  static_data:

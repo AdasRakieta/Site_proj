@@ -1,0 +1,70 @@
+name: Build and Publish Docker images
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: adasrakieta
+  REPO_NAME: site_proj
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (app)
+        id: meta_app
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.REPO_NAME }}/smarthome_app
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Extract metadata (nginx)
+        id: meta_nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.REPO_NAME }}/smarthome_nginx
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.app
+          push: true
+          tags: ${{ steps.meta_app.outputs.tags }}
+          labels: ${{ steps.meta_app.outputs.labels }}
+
+      - name: Build and push nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.nginx
+          push: true
+          tags: ${{ steps.meta_nginx.outputs.tags }}
+          labels: ${{ steps.meta_nginx.outputs.labels }}

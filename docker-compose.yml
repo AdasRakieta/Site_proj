@@ -4,7 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.app
-    image: smarthome_app:latest
     container_name: smarthome_app
     volumes:
       - ./app:/srv/app:rw
@@ -22,7 +21,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nginx
-    image: smarthome_nginx:latest
     container_name: smarthome_nginx
     volumes:
       - ./static:/srv/static:ro
