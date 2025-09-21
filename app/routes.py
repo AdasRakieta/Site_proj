@@ -559,20 +559,22 @@ class RoutesManager:
                     
                     print(f"[DEBUG] Login attempt: username='{login_name}', password_length={len(password) if password else 0}")
                     
-                    # Get user by name/email
-                    users = self.smart_home.users
-                    print(f"[DEBUG] Got users: {list(users.keys())}")
-                    user = None
+                    # Get user by name/email (DB mode: use get_user_by_login)
                     user_id = None
-                    
-                    for uid, user_data in users.items():
-                        print(f"[DEBUG] Checking user {uid}: name='{user_data.get('name')}', email='{user_data.get('email')}'")
-                        if user_data.get('name') == login_name or user_data.get('email') == login_name:
-                            user = user_data
-                            user_id = uid
-                            print(f"[DEBUG] Found matching user: {uid}")
-                            break
-                    
+                    user = None
+                    if hasattr(self.smart_home, 'get_user_by_login'):
+                        user_id, user = self.smart_home.get_user_by_login(login_name)
+                        print(f"[DEBUG] DB mode: get_user_by_login('{login_name}') -> {user_id}")
+                    else:
+                        users = self.smart_home.users
+                        print(f"[DEBUG] Got users: {list(users.keys())}")
+                        for uid, user_data in users.items():
+                            print(f"[DEBUG] Checking user {uid}: name='{user_data.get('name')}', email='{user_data.get('email')}'")
+                            if user_data.get('name') == login_name or user_data.get('email') == login_name:
+                                user = user_data
+                                user_id = uid
+                                print(f"[DEBUG] Found matching user: {uid}")
+                                break
                     if user:
                         print(f"[DEBUG] User found, checking password...")
                         password_check = self.smart_home.verify_password(user_id, password)
@@ -818,17 +820,20 @@ class RoutesManager:
                 return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
         
         # Utwórz użytkownika
-        import uuid
-        user_id = str(uuid.uuid4())
-        from werkzeug.security import generate_password_hash
-        self.smart_home.users[user_id] = {
-            'name': username,
-            'password': generate_password_hash(password),
-            'role': 'user',
-            'email': email,
-            'profile_picture': ''
-        }
-        self.smart_home.save_config()
+        if hasattr(self.smart_home, 'add_user'):
+            self.smart_home.add_user(username, password, 'user', email)
+        else:
+            from werkzeug.security import generate_password_hash
+            import uuid
+            user_id = str(uuid.uuid4())
+            self.smart_home.users[user_id] = {
+                'name': username,
+                'password': generate_password_hash(password),
+                'role': 'user',
+                'email': email,
+                'profile_picture': ''
+            }
+            self.smart_home.save_config()
         
         # Log user registration
         self.management_logger.log_user_change(
