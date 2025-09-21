@@ -429,43 +429,52 @@ window.deleteDevice = function(device) {
 
 // Edycja inline w stylu Kanban
 function startEditDeviceKanban(device, li) {
-    li.innerHTML = `<input type='text' class='kanban-edit-input' value='${device.name}'/><div class='kanban-edit-btns' ><button class='kanban-save-btn'>✔</button><button class='kanban-cancel-btn'>✖</button></div>`;
-    li.querySelector('.kanban-save-btn').onclick = () => {
-        const newName = li.querySelector('input').value.trim();
-        if (!newName || newName === device.name) return window.loadKanban();
+    li.innerHTML = `<input type='text' class='kanban-edit-input' value='${device.name}'/><div class='kanban-edit-btns'><button class='kanban-save-btn'>✔</button><button class='kanban-cancel-btn'>✖</button></div>`;
+    const input = li.querySelector('input');
+    const btns = li.querySelector('.kanban-edit-btns');
+    const saveBtn = li.querySelector('.kanban-save-btn');
+    const cancelBtn = li.querySelector('.kanban-cancel-btn');
+
+    function exitEditMode(newName) {
+        // Restore normal display (reload Kanban)
+        window.loadKanban();
+    }
+
+    saveBtn.onclick = () => {
+        const newName = input.value.trim();
+        if (!newName || newName === device.name) return exitEditMode(device.name);
         const endpoint = device.type === 'light' ? `/api/buttons/${device.id}` : `/api/temperature_controls/${device.id}`;
-        
-        console.log(`[DEBUG] Updating device name: ${device.name} -> ${newName}, endpoint: ${endpoint}`);
-        
         fetch(endpoint, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
             body: JSON.stringify({ name: newName })
         })
         .then(response => {
-            console.log(`[DEBUG] Response status: ${response.status}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             return response.json();
         })
         .then(data => {
-            console.log(`[DEBUG] Response data:`, data);
             if (data.status === 'success') {
                 if (window.showNotification) window.showNotification('Nazwa urządzenia zaktualizowana!', 'success');
-                window.loadKanban();
             } else {
                 if (window.showNotification) window.showNotification('Błąd podczas aktualizacji nazwy: ' + (data.message || 'Nieznany błąd'), 'error');
-                window.loadKanban();
             }
+            exitEditMode(newName);
         })
         .catch(error => {
-            console.error(`[DEBUG] Error updating device name:`, error);
             if (window.showNotification) window.showNotification('Błąd sieci podczas aktualizacji nazwy', 'error');
-            window.loadKanban();
+            exitEditMode(device.name);
         });
     };
-    li.querySelector('.kanban-cancel-btn').onclick = () => window.loadKanban();
+
+    cancelBtn.onclick = () => {
+        exitEditMode(device.name);
+    };
+
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') saveBtn.onclick();
+        if (e.key === 'Escape') cancelBtn.onclick();
+    };
 }
 
 // Aktualizacja selectboxa z pokojami
@@ -557,6 +566,9 @@ window.loadKanban = function() {
         fetch('/api/temperature_controls').then(r => r.json())
     ]).then(([rooms, buttons, controls]) => {
         console.log('Promise.all resolved', rooms, buttons, controls);
+        // Handle API responses that return {data: [...], status: 'success'}
+        if (buttons && buttons.data) buttons = buttons.data;
+        if (controls && controls.data) controls = controls.data;
         buttons.forEach(button => button.type = 'light');
         controls.forEach(control => control.type = 'thermostat');
         window.updateRoomSelect(rooms); // Aktualizuj selectbox

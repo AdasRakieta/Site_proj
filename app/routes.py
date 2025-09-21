@@ -1241,46 +1241,35 @@ class APIManager:
                     print(f"[DEBUG] update_device result: {success}")
                     if not success:
                         return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                    
                     # Invalidate cache after successful update
                     if self.cached_data:
                         print(f"[DEBUG] Invalidating cache")
                         self.cached_data.invalidate_buttons_cache()
-                        
-                        # Test: Check if smart_home.buttons has fresh data directly from DB
-                        print("[DEBUG] Testing direct database access...")
-                        fresh_from_db = self.smart_home.get_buttons()  # Direct call to DB method
-                        print(f"[DEBUG] Direct DB buttons data: {fresh_from_db}")
-                        
-                        # Get fresh data via cached property
-                        print("[DEBUG] Getting fresh data via cached property...")
-                        fresh_buttons = self.smart_home.buttons  # This should now be fresh from cache
-                        print(f"[DEBUG] Fresh buttons data via property: {fresh_buttons}")
+                    update_mode = 'db'
                 else:
                     print(f"[DEBUG] Using JSON mode fallback")
                     # JSON mode fallback
                     idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
                     if idx is None:
                         return jsonify({'status': 'error', 'message': 'Button not found'}), 404
-                    
                     if 'name' in updates:
                         self.smart_home.buttons[idx]['name'] = updates['name']
                     if 'room' in updates:
                         self.smart_home.buttons[idx]['room'] = updates['room']
-                    
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                
-                # Emit socket update
+                    update_mode = 'json'
+
+                # Emit socket update (both modes)
                 if self.socketio:
                     print(f"[DEBUG] Emitting socket update")
                     # Get fresh data from cache (same source as main page) for socket update
                     fresh_buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
                     print(f"[DEBUG] Fresh buttons data from cache: {fresh_buttons}")
                     self.socketio.emit('update_buttons', fresh_buttons)
-                
-                print(f"[DEBUG] PUT /api/buttons/{id} - Success")
-                return jsonify({'status': 'success'})
+
+                print(f"[DEBUG] PUT /api/buttons/{id} - Success ({update_mode} mode)")
+                return jsonify({'status': 'success', 'message': 'Nazwa przycisku zaktualizowana poprawnie!'}), 200
                 
             elif request.method == 'DELETE':
                 # Check if device exists first
