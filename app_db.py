@@ -31,6 +31,7 @@ except ImportError as e:
 # Import other components
 from app.routes import RoutesManager
 from app.mail_manager import MailManager
+from utils.async_manager import AsyncMailManager
 from utils.cache_manager import CacheManager, setup_smart_home_caching
 from app.management_logger import ManagementLogger
 from app.database_management_logger import DatabaseManagementLogger
@@ -162,6 +163,7 @@ class SmartHomeApp:
             
             # Initialize mail manager
             self.mail_manager = MailManager()
+            self.async_mail_manager = AsyncMailManager(self.mail_manager)
             
             # Initialize simple auth manager for database mode
             from app.simple_auth import SimpleAuthManager
@@ -239,6 +241,7 @@ class SmartHomeApp:
                 smart_home=self.smart_home,
                 auth_manager=self.auth_manager,
                 mail_manager=self.mail_manager,
+                async_mail_manager=self.async_mail_manager,
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger,
                 socketio=self.socketio  # Add socketio parameter
