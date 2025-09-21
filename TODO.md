@@ -16,6 +16,6 @@
 
    1. [X] Komunikat błedu edycji nazwy urządzeń. W bazie danych poprawnie się aktualizuje ale nie wychodzi z trybu zmiany nazwy ani po potwierdzeniu, ani po anulowaniu przyciskiem x
    2. [X] Poprawienie zmiany nazwy pokoi.
-   3. [ ] poprawienie usuwania pokoi
+   3. [X] poprawienie usuwania pokoi
 
 ---
