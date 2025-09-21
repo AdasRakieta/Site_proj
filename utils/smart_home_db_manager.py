@@ -428,14 +428,39 @@ class SmartHomeDatabaseManager:
         return isinstance(rows_affected, int) and rows_affected > 0
     
     def delete_room(self, room_name: str) -> bool:
-        """Delete room and all associated devices"""
-        query = """
-            DELETE FROM rooms 
-            WHERE name = %s
-        """
-        
-        rows_affected = self._execute_query(query, (room_name,))
-        return isinstance(rows_affected, int) and rows_affected > 0
+        """Delete room: reassign devices to NULL (unassigned) and remove room-related states."""
+        try:
+            # Find the room id first
+            room_row = self._execute_query("SELECT id FROM rooms WHERE name = %s", (room_name,), fetch='one')
+            room_id = room_row.get('id') if isinstance(room_row, dict) else None
+            if not room_id:
+                return False
+
+            # Unassign devices from this room
+            self._execute_query(
+                """
+                UPDATE devices
+                SET room_id = NULL, updated_at = NOW()
+                WHERE room_id = %s
+                """,
+                (room_id,)
+            )
+
+            # Remove room temperature state if present
+            self._execute_query(
+                "DELETE FROM room_temperature_states WHERE room_id = %s",
+                (room_id,)
+            )
+
+            # Finally, delete the room
+            rows_affected = self._execute_query(
+                "DELETE FROM rooms WHERE id = %s",
+                (room_id,)
+            )
+            return isinstance(rows_affected, int) and rows_affected > 0
+        except Exception as e:
+            logger.error(f"Failed to delete room '{room_name}': {e}")
+            return False
     
     def reorder_rooms(self, room_names: List[str]) -> bool:
         """Reorder rooms based on provided list"""
@@ -468,9 +493,9 @@ class SmartHomeDatabaseManager:
         query = """
             SELECT d.id, d.name, r.name as room, d.state, d.display_order
             FROM devices d
-            JOIN rooms r ON d.room_id = r.id
+            LEFT JOIN rooms r ON d.room_id = r.id
             WHERE d.device_type = 'button'
-            ORDER BY r.display_order, d.display_order, d.name
+            ORDER BY COALESCE(r.display_order, 9999), d.display_order, d.name
         """
         
         buttons = self._execute_query(query, fetch='all')
@@ -497,9 +522,9 @@ class SmartHomeDatabaseManager:
         query = """
             SELECT d.id, d.name, r.name as room, d.temperature, d.display_order
             FROM devices d
-            JOIN rooms r ON d.room_id = r.id
+            LEFT JOIN rooms r ON d.room_id = r.id
             WHERE d.device_type = 'temperature_control'
-            ORDER BY r.display_order, d.display_order, d.name
+            ORDER BY COALESCE(r.display_order, 9999), d.display_order, d.name
         """
         
         controls = self._execute_query(query, fetch='all')
@@ -630,7 +655,7 @@ class SmartHomeDatabaseManager:
         query = """
             SELECT d.id, d.name, r.name as room, d.device_type, d.state, d.temperature
             FROM devices d
-            JOIN rooms r ON d.room_id = r.id
+            LEFT JOIN rooms r ON d.room_id = r.id
             WHERE d.id = %s
         """
         
