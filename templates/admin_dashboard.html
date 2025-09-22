@@ -701,71 +701,30 @@ function createAutomationChart() {
     }
 }
 
-// Store original loadUsers function before overriding
-let originalLoadUsers = null;
-
-// Override loadUsers to use pre-loaded data initially
-function loadUsers(forceRefresh = false) {
-    // Use pre-loaded data on initial load, fetch from API only on manual refresh
-    if (!forceRefresh && window.preloadedUsers && window.preloadedUsers.length > 0) {
-        console.log('Using pre-loaded users data');
-        // Use the updateUsersTable function from dashboard.js
+// Safely use preloaded users once to prime UI, without overriding global loadUsers
+function primeUsersFromPreload() {
+    if (window.preloadedUsers && Array.isArray(window.preloadedUsers) && window.preloadedUsers.length > 0) {
+        console.log('Priming users table with pre-loaded users data');
         if (typeof updateUsersTable === 'function') {
             updateUsersTable(window.preloadedUsers);
-            notificationUsersList = window.preloadedUsers;
+            // Keep notification users list in sync for selects
+            if (typeof notificationUsersList !== 'undefined') {
+                notificationUsersList = window.preloadedUsers;
+            }
             if (typeof fillNotificationUserSelect === 'function') {
                 fillNotificationUserSelect();
             }
         }
         // Clear pre-loaded data to prevent reuse
         window.preloadedUsers = null;
-        return;
+        return true;
     }
-    
-    console.log('Fetching users from API (force refresh or no pre-loaded data)');
-    // Fall back to original API call for refreshes
-    if (originalLoadUsers) {
-        originalLoadUsers();
-    } else {
-        // Fallback implementation if original not captured
-        async function fallbackLoadUsers() {
-            try {
-                let response;
-                if (window.app) {
-                    response = await window.app.fetchData('/api/users');
-                } else {
-                    response = await makeApiCall('/api/users');
-                }
-                
-                if (Array.isArray(response)) {
-                    updateUsersTable(response);
-                    notificationUsersList = response;
-                    fillNotificationUserSelect();
-                } else if (response.status === 'error') {
-                    throw new Error(response.message);
-                } else {
-                    throw new Error('Nieprawidłowy format odpowiedzi');
-                }
-            } catch (error) {
-                console.error('Błąd ładowania użytkowników:', error);
-                showMessage('userActionMessage', 'Nie udało się załadować listy użytkowników: ' + error.message, true);
-            }
-        }
-        fallbackLoadUsers();
-    }
+    return false;
 }
 
 // Wait for dashboard.js to load and then override functions
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin dashboard DOMContentLoaded - setting up optimization');
-    
-    // Store original loadUsers function if it exists
-    if (typeof window.loadUsers === 'function') {
-        originalLoadUsers = window.loadUsers;
-    }
-    
-    // Override the global loadUsers function
-    window.loadUsers = loadUsers;
     
     // Initialize charts
     createEnergyChart();
@@ -775,6 +734,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Using pre-loaded data for device states and logs');
     refreshDeviceStates(false); // Use pre-loaded data
     refreshLogs(false); // Use pre-loaded data
+    // Prime users table once with preloaded data if available
+    const primed = primeUsersFromPreload();
     
     // Initialize dashboard with optimized loadUsers function (uses pre-loaded data first)
     if (typeof initDashboardPage === 'function') {
