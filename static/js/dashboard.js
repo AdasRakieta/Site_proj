@@ -468,6 +468,7 @@ function renderNotificationRecipients() {
         });
         const customSpan = document.createElement('span');
         customSpan.className = 'checkbox-notification-custom';
+        customSpan.style.width = '22px';
         customSpan.innerHTML = '<svg viewBox="0 0 13 10"><polyline points="1 5.5 5 9 12 1"></polyline></svg>';
         const textSpan = document.createElement('span');
         textSpan.className = 'checkbox-notification-text';

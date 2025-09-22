@@ -19,18 +19,19 @@
 
 /* Dashboard cards */
 .dashboard-card {
-    background: var(--card-background, var(--card-bg));
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: var(--box_shd);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+     margin-bottom: 20px;
 }
-.new-user-form
 .dashboard-card h3 {
     margin-top: 0;
     color: var(--text-primary, var(--text));
     border-bottom: 2px solid var(--accent-color, var(--accent));
     padding-bottom: 10px;
+   
 }
 
 /* Statistics rows */
@@ -78,6 +79,14 @@
     flex-wrap: wrap;
 }
 
+/* Force two-column layout variant */
+.user-management.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+
 .user-form {
     flex: 1;
     min-width: auto;
@@ -99,6 +108,15 @@
     flex-direction: column;
     gap: 10px;
     align-items: center;
+}
+
+/* Ensure notification add form mirrors add-user widths */
+#notificationRecipientEmail.input-settings-add-user {
+    width: 250px;
+}
+
+#notificationRecipientUser.select-settings-add-user {
+    width: 240px;
 }
 
 .input-group {
@@ -359,6 +377,11 @@
     }
     
     .user-management {
+        flex-direction: column;
+    }
+
+    .user-management.two-column {
+        display: flex;
         flex-direction: column;
     }
     
