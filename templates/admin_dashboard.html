@@ -19,13 +19,6 @@
     margin-bottom: 20px;
 }
 
-.dashboard-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
 
 .dashboard-card h3 {
     margin-top: 0;
@@ -329,17 +322,17 @@
     <!-- Notification Management Section -->
     <div class="dashboard-card">
         <h3>Powiadomienia</h3>
-        <div class="user-management" style="display: flex; gap: 16px;">
-            <div class="user-form" style="flex: 1;">
+        <div class="user-management two-column">
+            <div class="user-form">
                 <h4>Dodaj odbiorcę powiadomień</h4>
-                <div class="input-group" style="gap: 8px; margin-bottom: 12px;">
-                    <input type="email" id="notificationRecipientEmail" placeholder="e-mail" class="input-settings" style="min-width: 300px; justify-content: center;">
-                    <select id="notificationRecipientUser" class="select-settings"></select>
+                <div class="new-user-form">
+                    <input class="input-settings-add-user" type="email" id="notificationRecipientEmail" placeholder="e-mail" required>
+                    <select class="select-settings-add-user" id="notificationRecipientUser"></select>
                     <button type="button" id="addNotificationRecipientBtn" class="rooms-button">Dodaj</button>
                 </div>
                 <div id="notificationsMessage" class="alert-msg" style="display: none;"></div>
             </div>
-            <div class="user-form" style="flex: 1;">
+            <div class="user-form">
                 <h4>Lista odbiorców powiadomień</h4>
                 <div class="user-table-container">
                     <table class="user-table">

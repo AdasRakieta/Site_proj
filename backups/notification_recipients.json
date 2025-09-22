@@ -2,8 +2,8 @@
   "recipients": [
     {
       "email": "szymon.przybysz2003@gmail.com",
-      "user": "admin",
-      "enabled": true
+      "enabled": true,
+      "user": "admin"
     }
   ]
 }
