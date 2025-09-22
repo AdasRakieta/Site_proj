@@ -370,7 +370,8 @@ class RoutesManager:
                 get_notification_recipients,
                 set_notification_recipients,
             )
-            import os
+            import os, json
+            from pathlib import Path
 
             # Map users: id <-> name
             users_by_id = {}
@@ -391,6 +392,10 @@ class RoutesManager:
             except ValueError:
                 home_id = 1
 
+            def _fallback_file_path():
+                base = Path(os.path.dirname(os.path.abspath(__file__))).parent
+                return base / 'backups' / 'notification_recipients.json'
+
             if request.method == 'GET':
                 try:
                     recipients_db = get_notification_recipients(home_id)
@@ -404,27 +409,56 @@ class RoutesManager:
                             'enabled': bool(r.get('enabled', True))
                         })
                     return jsonify({ 'recipients': recipients })
-                except Exception as e:
-                    return jsonify({ 'recipients': [] , 'error': str(e) }), 200
+                except Exception:
+                    # Fallback to JSON file store
+                    try:
+                        fp = _fallback_file_path()
+                        if fp.exists():
+                            data = json.loads(fp.read_text(encoding='utf-8'))
+                            if isinstance(data, dict) and 'recipients' in data:
+                                return jsonify({ 'recipients': data['recipients'] })
+                    except Exception:
+                        pass
+                    return jsonify({ 'recipients': [] }), 200
 
             # POST
             try:
                 data = request.get_json(silent=True) or {}
                 recipients = data.get('recipients', [])
-                # Map to DB shape (email, user_id, enabled)
+                # Validate and map to DB shape (email, user_id, enabled)
                 recipients_db = []
                 for r in recipients:
                     username = (r.get('user') or '').strip()
                     email = (r.get('email') or '').strip()
                     enabled = bool(r.get('enabled', True))
-                    user_id = users_by_name.get(username)
+                    uid_str = users_by_name.get(username)
+                    uid_val = None
+                    if uid_str is not None:
+                        # Coerce to int when possible
+                        try:
+                            uid_val = int(uid_str)
+                        except (TypeError, ValueError):
+                            # keep None if not numeric
+                            uid_val = None
                     recipients_db.append({
                         'email': email,
-                        'user_id': user_id,
+                        'user_id': uid_val,
                         'enabled': enabled,
                     })
-                set_notification_recipients(recipients_db, home_id)
-                return jsonify({ 'status': 'success' })
+                # Try DB first
+                try:
+                    set_notification_recipients(recipients_db, home_id)
+                    return jsonify({ 'status': 'success' })
+                except Exception as db_err:
+                    # Fallback to JSON file store to avoid 500s
+                    try:
+                        fp = _fallback_file_path()
+                        fp.parent.mkdir(parents=True, exist_ok=True)
+                        payload = { 'recipients': recipients }
+                        fp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+                        return jsonify({ 'status': 'success', 'warning': 'DB unavailable, saved to file store' })
+                    except Exception as file_err:
+                        return jsonify({ 'status': 'error', 'message': f'{db_err}; fallback failed: {file_err}' }), 500
             except Exception as e:
                 return jsonify({ 'status': 'error', 'message': str(e) }), 500
 
