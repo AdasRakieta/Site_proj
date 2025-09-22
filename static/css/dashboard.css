@@ -57,7 +57,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--background-secondary, var(--bg-secondary));
+    background: var(--card-bg);
     border-radius: 4px;
     margin: 10px 0;
     position: relative;
