@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   app:
-    image: ghcr.io/adasrakieta/site_proj/smarthome_app:latest
+    image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
     container_name: smarthome_app
     environment:
       - SERVER_HOST=0.0.0.0
@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: ghcr.io/adasrakieta/site_proj/smarthome_nginx:latest
+    image: ghcr.io/adasrakieta/site_proj/smarthome_nginx:${IMAGE_TAG:-latest}
     container_name: smarthome_nginx
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
