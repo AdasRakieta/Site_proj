@@ -355,6 +355,79 @@ class RoutesManager:
             logs = self._get_management_logs()
             return jsonify(logs)
 
+        # Notification settings (recipients) API
+        @self.app.route('/api/notifications/settings', methods=['GET', 'POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def api_notification_settings():
+            """Get or set notification recipients for the home.
+            Frontend expects:
+              GET -> { recipients: [{ email, user, enabled }] }
+              POST body -> { recipients: [{ email, user, enabled }] }
+            where 'user' is the username (not id). DB stores user_id.
+            """
+            from utils.db_manager import (
+                get_notification_recipients,
+                set_notification_recipients,
+            )
+            import os
+
+            # Map users: id <-> name
+            users_by_id = {}
+            users_by_name = {}
+            try:
+                for uid, data in self.smart_home.users.items():
+                    name = data.get('name')
+                    if name:
+                        users_by_id[str(uid)] = name
+                        users_by_name[name] = str(uid)
+            except Exception:
+                pass
+
+            # Choose a home id for persistence (single-home setup default = 1)
+            home_id_env = os.getenv('HOME_ID')
+            try:
+                home_id = int(home_id_env) if home_id_env else 1
+            except ValueError:
+                home_id = 1
+
+            if request.method == 'GET':
+                try:
+                    recipients_db = get_notification_recipients(home_id)
+                    # Convert to frontend shape: use username
+                    recipients = []
+                    for r in recipients_db:
+                        uid = r.get('user_id')
+                        recipients.append({
+                            'email': r.get('email', ''),
+                            'user': users_by_id.get(str(uid), ''),
+                            'enabled': bool(r.get('enabled', True))
+                        })
+                    return jsonify({ 'recipients': recipients })
+                except Exception as e:
+                    return jsonify({ 'recipients': [] , 'error': str(e) }), 200
+
+            # POST
+            try:
+                data = request.get_json(silent=True) or {}
+                recipients = data.get('recipients', [])
+                # Map to DB shape (email, user_id, enabled)
+                recipients_db = []
+                for r in recipients:
+                    username = (r.get('user') or '').strip()
+                    email = (r.get('email') or '').strip()
+                    enabled = bool(r.get('enabled', True))
+                    user_id = users_by_name.get(username)
+                    recipients_db.append({
+                        'email': email,
+                        'user_id': user_id,
+                        'enabled': enabled,
+                    })
+                set_notification_recipients(recipients_db, home_id)
+                return jsonify({ 'status': 'success' })
+            except Exception as e:
+                return jsonify({ 'status': 'error', 'message': str(e) }), 500
+
         @self.app.route('/api/admin/logs/clear', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required

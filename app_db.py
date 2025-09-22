@@ -43,6 +43,14 @@ class SmartHomeApp:
         """Initialize the SmartHome application"""
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
+        # Cookie security and SameSite settings
+        is_production = os.getenv('FLASK_ENV') == 'production' or os.getenv('ENV') == 'production' or os.getenv('APP_ENV') == 'production'
+        self.app.config.update({
+            # Lax is recommended for session cookies; use Secure only in production/HTTPS
+            'SESSION_COOKIE_SAMESITE': 'Lax',
+            'SESSION_COOKIE_HTTPONLY': True,
+            'SESSION_COOKIE_SECURE': bool(is_production),
+        })
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         
         # Add CORS headers for mobile app
