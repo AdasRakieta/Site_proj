@@ -956,6 +956,22 @@ input:checked+.slider:before {
     text-align: center;
 }
 
+.input-settings-add-user {
+    width: 250px;
+    max-width: 220px;
+    padding: 8px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.select-settings-add-user {
+    width: 240px;
+    padding: 8px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+
 .select-theme {
     margin: auto;
     font-size: 15px;

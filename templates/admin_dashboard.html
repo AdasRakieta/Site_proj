@@ -276,7 +276,7 @@
             {% for log in management_logs %}
             <div class="log-entry">
                 <span class="log-timestamp">{{ log.timestamp }}</span>
-                <span class="log-level {{ log.level }}">{{ log.level.upper() }}</span>
+                <span class="log-level {{ log.level }}">{{ log.level|upper }}</span>
                 <span class="log-message">{{ log.message }}</span>
             </div>
             {% endfor %}
@@ -292,10 +292,10 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <h4>Dodaj nowego użytkownika</h4>
                     <div class="new-user-form">
-                        <input class="input-settings" type="text" name="username" placeholder="Nazwa" minlength="3" required>
-                        <input class="input-settings" type="email" name="email" placeholder="Email" required>
-                        <input class="input-settings" type="password" name="password" placeholder="Hasło" minlength="6" required>
-                        <select class="select-settings" name="role">
+                        <input class="input-settings-add-user" type="text" name="username" placeholder="Nazwa" minlength="3" required>
+                        <input class="input-settings-add-user" type="email" name="email" placeholder="Email" required>
+                        <input class="input-settings-add-user" type="password" name="password" placeholder="Hasło" minlength="6" required>
+                        <select class="select-settings-add-user" name="role">
                             <option value="user">Użytkownik</option>
                             <option value="admin">Administrator</option>
                         </select>
@@ -364,13 +364,12 @@
 
 {% block scripts %}
 <script>
-  window.sessionRole = "{{ session.role }}";
-  
-  // Pre-loaded data for immediate rendering (eliminates AJAX delays)
-  window.preloadedDeviceStates = {{ device_states | tojson }};
-  window.preloadedManagementLogs = {{ management_logs | tojson }};
-  window.preloadedUsers = {{ preloaded_users | tojson }};
+    window.sessionRole = "{{ session.role }}";
 </script>
+<!-- Embed preloaded JSON data safely to avoid JS parsing issues in editors -->
+<script id="preloadedDeviceStates" type="application/json">{{ device_states | tojson | safe }}</script>
+<script id="preloadedManagementLogs" type="application/json">{{ management_logs | tojson | safe }}</script>
+<script id="preloadedUsers" type="application/json">{{ preloaded_users | tojson | safe }}</script>
 <!-- Hidden elements to store template data -->
 <div id="stats-data" 
      data-automations-today="{{ stats.automations_executed_today|default(0) }}" 
@@ -378,6 +377,22 @@
      style="display: none;"></div>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
+// Read embedded JSON into globals
+const __getEmbeddedJSON = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    try { return JSON.parse(el.textContent); } catch { return null; }
+};
+// Only set if not already defined
+if (typeof window.preloadedDeviceStates === 'undefined') {
+    window.preloadedDeviceStates = __getEmbeddedJSON('preloadedDeviceStates');
+}
+if (typeof window.preloadedManagementLogs === 'undefined') {
+    window.preloadedManagementLogs = __getEmbeddedJSON('preloadedManagementLogs');
+}
+if (typeof window.preloadedUsers === 'undefined') {
+    window.preloadedUsers = __getEmbeddedJSON('preloadedUsers');
+}
 // Funkcje do odświeżania danych
 function refreshDeviceStates(forceRefresh = false) {
     // Use pre-loaded data on initial load, fetch from API only on manual refresh
