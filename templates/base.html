@@ -17,9 +17,9 @@
         } catch(e) {}
       })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_menu.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_menu.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v={{ asset_version }}">
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
@@ -86,10 +86,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/automations.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/setup.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ url_for('static', filename='js/automations.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ url_for('static', filename='js/setup.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ url_for('static', filename='js/user_menu.js') }}?v={{ asset_version }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

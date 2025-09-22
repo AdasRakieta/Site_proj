@@ -59,6 +59,13 @@ class RoutesManager:
 
     def register_routes(self):
         print("[DEBUG] register_routes called - registering Flask routes!")
+
+        @self.app.context_processor
+        def inject_asset_version():
+            """Provide a global asset version for cache-busting static files."""
+            version = os.environ.get('ASSET_VERSION') or os.environ.get('IMAGE_TAG') or 'dev'
+            return {'asset_version': version}
+
         @self.app.route('/')
         def home():
             print(f"[DEBUG] Session on /: {dict(session)}")
