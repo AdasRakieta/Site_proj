@@ -8,6 +8,7 @@ with the existing Flask application structure.
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from flask_socketio import SocketIO, emit, disconnect
+import logging
 import os
 import sys
 from datetime import datetime
@@ -41,6 +42,7 @@ class SmartHomeApp:
     
     def __init__(self):
         """Initialize the SmartHome application"""
+        self._configure_logging()
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
         # Cookie security and SameSite settings
@@ -115,6 +117,17 @@ class SmartHomeApp:
         except Exception as e:
             print(f"⚠ Cache warming failed: {e}")
             # Don't fail initialization if cache warming fails
+    
+    def _configure_logging(self):
+        """Reduce noise from lower-level websocket/werkzeug loggers"""
+        noisy_loggers = [
+            'geventwebsocket.handler',
+            'engineio.server',
+            'socketio.server',
+            'werkzeug'
+        ]
+        for logger_name in noisy_loggers:
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
     
     def setup_context_processors(self):
         """Setup template context processors"""

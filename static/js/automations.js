@@ -20,6 +20,7 @@ class AutomationsManager {
     }
 
     async initPage() {
+        console.log('Inicjalizacja strony automatyzacji');
         try {
             // Najpierw ładujemy przyciski potrzebne do formularza
             await this.fetchInitialData();
@@ -72,6 +73,7 @@ class AutomationsManager {
     }
 
     onAutomationsUpdate(data) {
+        console.log('Aktualizacja automatyzacji:', data);
         if (Array.isArray(data)) {
             this.automations = data;
             this.renderAutomations(data);
