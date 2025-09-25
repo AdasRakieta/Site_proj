@@ -276,29 +276,41 @@ class AutomationsManager {
         
         // Wypełnij początkowe wartości
         if (automation) {
-            this.updateTriggerParams(automation.trigger.type, automation.trigger);
-            this.populateActions(automation.actions);
+            this.updateTriggerParams(formContainer, automation.trigger?.type || 'time', automation.trigger);
+            this.populateActions(formContainer, automation.actions);
         } else {
-            this.updateTriggerParams('time');
+            this.updateTriggerParams(formContainer, 'time');
         }
     }
 
     initFormEvents(formContainer, automation, index) {
-        document.getElementById('trigger-type').addEventListener('change', (e) => {
-            this.updateTriggerParams(e.target.value, automation?.trigger);
-        });
+        const form = formContainer.querySelector('#automation-form');
+        if (!form) return;
 
-        document.getElementById('add-action').addEventListener('click', () => {
-            this.addActionToForm(null);
-        });
+        const triggerTypeSelect = form.querySelector('#trigger-type');
+        if (triggerTypeSelect) {
+            triggerTypeSelect.addEventListener('change', (e) => {
+                this.updateTriggerParams(formContainer, e.target.value);
+            });
+        }
 
-        document.getElementById('cancel-form').addEventListener('click', () => {
-            formContainer.remove();
-        });
+        const addActionBtn = form.querySelector('#add-action');
+        if (addActionBtn) {
+            addActionBtn.addEventListener('click', () => {
+                this.addActionToForm(formContainer, null);
+            });
+        }
 
-        document.getElementById('automation-form').addEventListener('submit', async (e) => {
+        const cancelBtn = form.querySelector('#cancel-form');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                formContainer.remove();
+            });
+        }
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const automationData = this.getFormData();
+            const automationData = this.getFormData(formContainer);
             
             try {
                 if (index !== null) {
@@ -313,8 +325,8 @@ class AutomationsManager {
         });
     }
 
-    updateTriggerParams(triggerType, existingTrigger = null) {
-        const container = document.getElementById('trigger-params');
+    updateTriggerParams(formContainer, triggerType, existingTrigger = null) {
+        const container = formContainer.querySelector('#trigger-params');
         if (!container) return;
         
         container.innerHTML = '';
@@ -390,18 +402,18 @@ class AutomationsManager {
         container.innerHTML = html;
     }
 
-    populateActions(actions = []) {
-        const container = document.getElementById('actions-container');
+    populateActions(formContainer, actions = []) {
+        const container = formContainer.querySelector('#actions-container');
         if (!container) return;
         
         container.innerHTML = '';
         actions.forEach(action => {
-            this.addActionToForm(action);
+            this.addActionToForm(formContainer, action);
         });
     }
 
-    addActionToForm(existingAction = null) {
-        const container = document.getElementById('actions-container');
+    addActionToForm(formContainer, existingAction = null) {
+        const container = formContainer.querySelector('#actions-container');
         if (!container) return;
 
         const actionIndex = container.children.length;
@@ -442,12 +454,12 @@ class AutomationsManager {
 
         removeButton.addEventListener('click', () => {
             actionElement.remove();
-            this.renumberActions();
+            this.renumberActions(formContainer);
         });
     }
 
-    renumberActions() {
-        const container = document.getElementById('actions-container');
+    renumberActions(formContainer) {
+        const container = formContainer.querySelector('#actions-container');
         if (!container) return;
 
         Array.from(container.children).forEach((actionElement, index) => {
@@ -530,34 +542,39 @@ class AutomationsManager {
         }
     }
 
-    getFormData() {
+    getFormData(formContainer) {
+        const form = formContainer.querySelector('#automation-form');
+        if (!form) throw new Error('Brak formularza automatyzacji');
+        const query = (selector) => form.querySelector(selector);
+        const queryAll = (selector) => Array.from(form.querySelectorAll(selector));
+
         const formData = {
-            name: document.getElementById('automation-name').value,
+            name: query('#automation-name')?.value || '',
             trigger: {
-                type: document.getElementById('trigger-type').value
+                type: query('#trigger-type')?.value || 'time'
             },
             actions: [],
-            enabled: document.getElementById('automation-enabled').checked
+            enabled: query('#automation-enabled')?.checked ?? false
         };
 
         switch (formData.trigger.type) {
             case 'time':
-                formData.trigger.time = document.getElementById('trigger-time').value;
+                formData.trigger.time = query('#trigger-time')?.value || '';
                 // Pobierz wybrane dni tygodnia
-                formData.trigger.days = Array.from(document.querySelectorAll('.trigger-day:checked')).map(cb => cb.value);
+                formData.trigger.days = queryAll('.trigger-day:checked').map(cb => cb.value);
                 break;
             case 'device':
-                formData.trigger.device = document.getElementById('trigger-device').value;
-                formData.trigger.state = document.getElementById('trigger-device-state').value;
+                formData.trigger.device = query('#trigger-device')?.value || '';
+                formData.trigger.state = query('#trigger-device-state')?.value || '';
                 break;
             case 'sensor':
-                formData.trigger.sensor = document.getElementById('trigger-sensor').value;
-                formData.trigger.value = parseFloat(document.getElementById('trigger-sensor-value').value);
-                formData.trigger.condition = document.getElementById('trigger-sensor-condition').value;
+                formData.trigger.sensor = query('#trigger-sensor')?.value || '';
+                formData.trigger.value = parseFloat(query('#trigger-sensor-value')?.value || '0');
+                formData.trigger.condition = query('#trigger-sensor-condition')?.value || '';
                 break;
         }
 
-        document.querySelectorAll('#actions-container .action').forEach(actionElement => {
+        queryAll('#actions-container .action').forEach(actionElement => {
             const actionType = actionElement.querySelector('.action-type').value;
             const action = { type: actionType };
 

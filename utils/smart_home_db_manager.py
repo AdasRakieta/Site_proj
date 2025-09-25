@@ -415,15 +415,17 @@ class SmartHomeDatabaseManager:
         # Get old and new room IDs
         old_room_query = "SELECT id FROM rooms WHERE name = %s"
         new_room_query = "SELECT id FROM rooms WHERE name = %s"
-        old_room = self._execute_query(old_room_query, (old_name,), fetch='one')
-        new_room = self._execute_query(new_room_query, (new_name,), fetch='one')
-        if old_room and new_room and 'id' in old_room and 'id' in new_room:
+        old_room_row = self._execute_query(old_room_query, (old_name,), fetch='one')
+        new_room_row = self._execute_query(new_room_query, (new_name,), fetch='one')
+        old_room_id = old_room_row.get('id') if isinstance(old_room_row, dict) else None
+        new_room_id = new_room_row.get('id') if isinstance(new_room_row, dict) else None
+        if old_room_id and new_room_id:
             update_devices_query = """
                 UPDATE devices
                 SET room_id = %s, updated_at = NOW()
                 WHERE room_id = %s
             """
-            self._execute_query(update_devices_query, (new_room['id'], old_room['id']))
+            self._execute_query(update_devices_query, (new_room_id, old_room_id))
 
         return isinstance(rows_affected, int) and rows_affected > 0
     
@@ -703,10 +705,35 @@ class SmartHomeDatabaseManager:
                 trigger_cfg = auto.get('trigger_config')
                 actions_cfg = auto.get('actions_config')
                 last_executed = auto.get('last_executed')
+                if isinstance(trigger_cfg, str):
+                    try:
+                        trigger_cfg = json.loads(trigger_cfg)
+                    except json.JSONDecodeError:
+                        trigger_cfg = {}
+                elif trigger_cfg is None:
+                    trigger_cfg = {}
+
+                if isinstance(actions_cfg, str):
+                    try:
+                        actions_cfg = json.loads(actions_cfg)
+                    except json.JSONDecodeError:
+                        actions_cfg = []
+                elif actions_cfg is None:
+                    actions_cfg = []
+
+                # Ensure correct types if DB already returns dict/list objects
+                if not isinstance(trigger_cfg, dict):
+                    trigger_cfg = {}
+                if not isinstance(actions_cfg, list):
+                    # Some existing data might be stored as dict with numeric keys
+                    if isinstance(actions_cfg, dict):
+                        actions_cfg = list(actions_cfg.values())
+                    else:
+                        actions_cfg = []
                 result.append({
                     'name': auto.get('name'),
-                    'trigger': json.loads(trigger_cfg) if isinstance(trigger_cfg, str) else {},
-                    'actions': json.loads(actions_cfg) if isinstance(actions_cfg, str) else [],
+                    'trigger': trigger_cfg,
+                    'actions': actions_cfg,
                     'enabled': auto.get('enabled'),
                     'execution_count': auto.get('execution_count') or 0,
                     'last_executed': last_executed.isoformat() if last_executed is not None and hasattr(last_executed, 'isoformat') else None,
