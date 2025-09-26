@@ -20,6 +20,7 @@
 ### 1.1 Środowisko Deweloperskie
 
 #### Minimalne wymagania:
+
 - **OS**: Windows 10+, macOS 10.15+, Ubuntu 18.04+
 - **Python**: 3.10 lub nowszy
 - **RAM**: 4GB (8GB rekomendowane)
@@ -27,6 +28,7 @@
 - **CPU**: 2 cores (4 cores rekomendowane)
 
 #### Opcjonalne komponenty:
+
 - **PostgreSQL**: 13+ (dla production)
 - **Redis**: 6+ (dla cache'owania)
 - **Docker**: 20+ (dla konteneryzacji)
@@ -35,6 +37,7 @@
 ### 1.2 Środowisko Produkcyjne
 
 #### Minimalne wymagania:
+
 - **OS**: Ubuntu 20.04 LTS, CentOS 8+, RHEL 8+
 - **RAM**: 8GB (16GB rekomendowane)
 - **CPU**: 4 cores (8 cores rekomendowane)
@@ -42,6 +45,7 @@
 - **Network**: 100Mbps
 
 #### Wymagane usługi:
+
 - **PostgreSQL**: 13+ z odpowiednią konfiguracją
 - **Redis**: 6+ dla cache'a i sesji
 - **Nginx**: 1.18+ jako reverse proxy
@@ -55,8 +59,8 @@
 
 ```bash
 # Klonowanie repozytorium
-git clone https://github.com/your-username/smarthome.git
-cd smarthome
+git clone https://github.com/AdasRakieta/Site_proj
+cd Site_proj
 
 # Sprawdzenie dostępnych branchy
 git branch -a
@@ -261,23 +265,23 @@ smarthome/
 ```python
 class SmartHomeApp:
     """Main SmartHome application class with database integration"""
-    
+  
     def __init__(self):
         # Inicjalizacja Flask app
         # Konfiguracja bezpieczeństwa
         # Setup Socket.IO
         # Inicjalizacja komponentów
-        
+      
     def initialize_components(self):
         # Inicjalizacja SmartHome Core
         # Setup Cache Manager
         # Setup Auth Manager
         # Setup Mail Manager
-        
+      
     def setup_routes(self):
         # Rejestracja tras HTTP
         # Setup Routes Manager
-        
+      
     def setup_socket_events(self):
         # Obsługa WebSocket events
         # Real-time communication
@@ -288,29 +292,29 @@ class SmartHomeApp:
 ```python
 class SmartHomeDatabaseManager:
     """PostgreSQL Database Manager for SmartHome System"""
-    
+  
     def __init__(self, db_config=None):
         # Konfiguracja połączenia
         # Inicjalizacja connection pool
-        
+      
     # User Management
     def create_user(self, name, email, password_hash, role='user')
     def get_user_by_id(self, user_id)
     def get_user_by_email(self, email)
     def update_user(self, user_id, updates)
     def delete_user(self, user_id)
-    
+  
     # Device Management  
     def create_device(self, name, room_id, device_type, **kwargs)
     def get_device_by_id(self, device_id)
     def update_device_state(self, device_id, state)
     def get_devices_by_room(self, room_id)
-    
+  
     # Room Management
     def create_room(self, name, display_order=0)
     def get_all_rooms(self)
     def update_room(self, room_id, updates)
-    
+  
     # Automation Management
     def create_automation(self, name, trigger_config, actions_config)
     def get_automation_by_id(self, automation_id)
@@ -323,19 +327,19 @@ class SmartHomeDatabaseManager:
 ```python
 class CacheManager:
     """Advanced caching system with Redis/SimpleCache fallback"""
-    
+  
     def __init__(self, cache, smart_home):
         # Cache configuration
         # Timeout settings
-        
+      
     def get_session_user_data(self, user_id, session_id=None):
         # Session-level caching
         # User data optimization
-        
+      
     def invalidate_user_cache(self, user_id):
         # Cache invalidation
         # Pattern-based cleanup
-        
+      
     def get_api_response_cache(self, endpoint, params):
         # API response caching
         # Performance optimization
@@ -346,22 +350,22 @@ class CacheManager:
 ```python
 class RoutesManager:
     """Centralized routes and WebSocket management"""
-    
+  
     def __init__(self, app, smart_home, auth_manager, ...):
         # Component initialization
-        
+      
     def register_routes(self):
         # HTTP routes registration
         # Authentication routes
         # API endpoints
         # WebSocket handlers
-        
+      
     def _send_verification_code(self, data):
         # Email verification process
-        
+      
     def _verify_and_register(self, data):
         # User registration completion
-        
+      
     def emit_update(self, event_name, data):
         # WebSocket broadcasting
 ```
@@ -373,9 +377,11 @@ class RoutesManager:
 ### 4.1 Authentication API
 
 #### POST /login
+
 Uwierzytelnienie użytkownika
 
 **Request:**
+
 ```json
 {
     "username": "admin",
@@ -384,6 +390,7 @@ Uwierzytelnienie użytkownika
 ```
 
 **Response (Success):**
+
 ```json
 {
     "status": "success",
@@ -397,6 +404,7 @@ Uwierzytelnienie użytkownika
 ```
 
 **Response (Error):**
+
 ```json
 {
     "status": "error",
@@ -405,9 +413,11 @@ Uwierzytelnienie użytkownika
 ```
 
 #### POST /register
+
 Rejestracja nowego użytkownika (dwuetapowa)
 
 **Krok 1 - Wysłanie kodu weryfikacyjnego:**
+
 ```json
 {
     "username": "newuser",
@@ -417,6 +427,7 @@ Rejestracja nowego użytkownika (dwuetapowa)
 ```
 
 **Krok 2 - Weryfikacja kodu:**
+
 ```json
 {
     "username": "newuser", 
@@ -427,14 +438,17 @@ Rejestracja nowego użytkownika (dwuetapowa)
 ```
 
 #### POST /logout
+
 Wylogowanie użytkownika (wymaga zalogowania)
 
 ### 4.2 System API
 
 #### GET /api/ping
+
 Health check endpoint
 
 **Response:**
+
 ```json
 {
     "status": "ok",
@@ -444,9 +458,11 @@ Health check endpoint
 ```
 
 #### GET /api/status
+
 Status systemu
 
 **Response:**
+
 ```json
 {
     "status": "running",
@@ -459,9 +475,11 @@ Status systemu
 ```
 
 #### GET /api/cache/stats
+
 Statystyki cache'a (wymaga zalogowania)
 
 **Response:**
+
 ```json
 {
     "hit_rate": 78.5,
@@ -474,9 +492,11 @@ Statystyki cache'a (wymaga zalogowania)
 ### 4.3 Device Management API
 
 #### GET /api/devices
+
 Lista wszystkich urządzeń
 
 **Response:**
+
 ```json
 {
     "devices": [
@@ -492,10 +512,12 @@ Lista wszystkich urządzeń
 }
 ```
 
-#### PUT /api/devices/{device_id}
+#### PUT /api/devices/
+
 Aktualizacja stanu urządzenia
 
 **Request:**
+
 ```json
 {
     "state": true,
@@ -508,6 +530,7 @@ Aktualizacja stanu urządzenia
 #### Client → Server Events
 
 **toggle_button:**
+
 ```json
 {
     "button_id": "device-uuid"
@@ -515,6 +538,7 @@ Aktualizacja stanu urządzenia
 ```
 
 **set_temperature:**
+
 ```json
 {
     "control_id": "device-uuid",
@@ -523,6 +547,7 @@ Aktualizacja stanu urządzenia
 ```
 
 **set_security_state:**
+
 ```json
 {
     "state": "armed",
@@ -533,6 +558,7 @@ Aktualizacja stanu urządzenia
 #### Server → Client Events
 
 **system_state:**
+
 ```json
 {
     "rooms": [...],
@@ -544,6 +570,7 @@ Aktualizacja stanu urządzenia
 ```
 
 **device_updated:**
+
 ```json
 {
     "device_id": "uuid",
@@ -553,6 +580,7 @@ Aktualizacja stanu urządzenia
 ```
 
 **automation_executed:**
+
 ```json
 {
     "automation_id": "uuid",
@@ -569,6 +597,7 @@ Aktualizacja stanu urządzenia
 ### 5.1 Schemat Tabel
 
 #### Tabela users
+
 ```sql
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -583,6 +612,7 @@ CREATE TABLE users (
 ```
 
 #### Tabela rooms
+
 ```sql
 CREATE TABLE rooms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -594,6 +624,7 @@ CREATE TABLE rooms (
 ```
 
 #### Tabela devices
+
 ```sql
 CREATE TABLE devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -612,6 +643,7 @@ CREATE TABLE devices (
 ```
 
 #### Tabela automations
+
 ```sql
 CREATE TABLE automations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -674,6 +706,7 @@ CREATE TRIGGER update_automations_updated_at
 ### 5.4 Przykładowe Zapytania
 
 #### Pobranie wszystkich urządzeń z nazwami pokoi:
+
 ```sql
 SELECT 
     d.id,
@@ -689,6 +722,7 @@ ORDER BY r.display_order, d.display_order;
 ```
 
 #### Statystyki urządzeń według pokoi:
+
 ```sql
 SELECT 
     r.name as room_name,
@@ -703,6 +737,7 @@ ORDER BY r.display_order;
 ```
 
 #### Historia wykonania automatyzacji:
+
 ```sql
 SELECT 
     a.name,
@@ -722,6 +757,7 @@ ORDER BY ae.executed_at DESC;
 ### 6.1 Zmienne Środowiskowe
 
 #### Database Configuration
+
 ```env
 DB_HOST=localhost                 # PostgreSQL host
 DB_PORT=5432                     # PostgreSQL port
@@ -733,6 +769,7 @@ DB_POOL_MAX=10                   # Maximum connections in pool
 ```
 
 #### Redis Configuration
+
 ```env
 REDIS_URL=redis://localhost:6379/0    # Full Redis URL
 # OR individual settings:
@@ -743,6 +780,7 @@ REDIS_PASSWORD=                       # Optional password
 ```
 
 #### Flask Configuration
+
 ```env
 FLASK_ENV=development            # development/production
 SECRET_KEY=your-secret-key       # Session encryption key
@@ -750,7 +788,8 @@ SERVER_HOST=0.0.0.0             # Server bind address
 SERVER_PORT=5000                # Server port
 ```
 
-#### Security Configuration  
+#### Security Configuration
+
 ```env
 SESSION_COOKIE_SECURE=False     # True for HTTPS only
 SESSION_COOKIE_HTTPONLY=True    # Prevent XSS
@@ -758,6 +797,7 @@ SESSION_COOKIE_SAMESITE=Lax     # CSRF protection
 ```
 
 #### Email Configuration
+
 ```env
 SMTP_SERVER=smtp.gmail.com      # SMTP server
 SMTP_PORT=587                   # SMTP port
@@ -769,6 +809,7 @@ ADMIN_EMAIL=admin@domain.com    # Admin email for notifications
 ### 6.2 Konfiguracja Rozwojowa
 
 #### Development Settings (.env.development)
+
 ```env
 FLASK_ENV=development
 DEBUG=True
@@ -780,6 +821,7 @@ LOG_LEVEL=DEBUG
 ```
 
 #### Testing Settings (.env.testing)
+
 ```env
 FLASK_ENV=testing
 DB_NAME=smarthome_test
@@ -791,6 +833,7 @@ WTF_CSRF_ENABLED=False
 ### 6.3 Konfiguracja Produkcyjna
 
 #### Production Settings (.env.production)
+
 ```env
 FLASK_ENV=production
 DEBUG=False
@@ -809,6 +852,7 @@ LOG_LEVEL=INFO
 ### 7.1 Docker Deployment
 
 #### Development Environment
+
 ```bash
 # Start development environment
 docker-compose up -d
@@ -821,6 +865,7 @@ docker-compose down
 ```
 
 #### Production Environment
+
 ```bash
 # Build and start production environment
 docker-compose -f docker-compose.prod.yml up -d --build
@@ -836,6 +881,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ### 7.2 Manual Deployment
 
 #### System Preparation
+
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
@@ -849,6 +895,7 @@ sudo su - smarthome
 ```
 
 #### Application Setup
+
 ```bash
 # Clone and setup application
 git clone https://github.com/your-repo/smarthome.git
@@ -868,6 +915,7 @@ psql -U smarthome -d smarthome -f backups/db_backup.sql
 ```
 
 #### Service Configuration
+
 ```bash
 # Create systemd service
 sudo nano /etc/systemd/system/smarthome.service
@@ -913,23 +961,23 @@ server {
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
-    
+  
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
-    
+  
     # Security headers
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
-    
+  
     # Static files
     location /static/ {
         alias /home/smarthome/smarthome/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+  
     # WebSocket proxy
     location /socket.io/ {
         proxy_pass http://127.0.0.1:5000;
@@ -941,7 +989,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+  
     # Main application
     location / {
         proxy_pass http://127.0.0.1:5000;
@@ -967,11 +1015,14 @@ sudo systemctl reload nginx
 ### 8.1 Najczęstsze Problemy
 
 #### Problem: Application nie startuje
+
 **Objawy:**
+
 - Błąd przy uruchomieniu `python app_db.py`
 - ImportError lub ModuleNotFoundError
 
 **Rozwiązanie:**
+
 ```bash
 # Sprawdź czy virtual environment jest aktywny
 which python
@@ -987,11 +1038,14 @@ python --version
 ```
 
 #### Problem: Database connection failed
+
 **Objawy:**
+
 - "⚠ Failed to import database backend"
 - Application falls back to JSON mode
 
 **Rozwiązanie:**
+
 ```bash
 # Check PostgreSQL status
 sudo systemctl status postgresql
@@ -1007,11 +1061,14 @@ sudo -u postgres psql -c "\l" | grep smarthome
 ```
 
 #### Problem: Redis connection failed
+
 **Objawy:**
+
 - "⚠ Redis unavailable, falling back to SimpleCache"
 - Cache hit rate bardzo niski
 
 **Rozwiązanie:**
+
 ```bash
 # Check Redis status
 sudo systemctl status redis
@@ -1025,11 +1082,14 @@ redis-cli CONFIG GET maxmemory
 ```
 
 #### Problem: WebSocket connection failed
+
 **Objawy:**
+
 - Real-time updates nie działają
 - JavaScript console errors
 
 **Rozwiązanie:**
+
 ```javascript
 // Check browser console for WebSocket errors
 // Verify Socket.IO is loaded
@@ -1042,6 +1102,7 @@ console.log(typeof io);  // Should return 'function'
 ### 8.2 Diagnostyka
 
 #### System Health Check
+
 ```bash
 # Run built-in health check
 python scripts/health_check.py
@@ -1059,6 +1120,7 @@ sudo systemctl status nginx
 ```
 
 #### Database Diagnostics
+
 ```sql
 -- Check database connections
 SELECT pid, usename, application_name, client_addr, state 
@@ -1077,6 +1139,7 @@ SELECT * FROM pg_stat_database WHERE datname = 'smarthome';
 ```
 
 #### Cache Diagnostics
+
 ```bash
 # Redis info
 redis-cli INFO memory
@@ -1092,6 +1155,7 @@ redis-cli MONITOR
 ### 8.3 Performance Issues
 
 #### Slow Database Queries
+
 ```sql
 -- Enable query logging
 ALTER SYSTEM SET log_statement = 'all';
@@ -1106,6 +1170,7 @@ LIMIT 10;
 ```
 
 #### High Memory Usage
+
 ```bash
 # Check Python memory usage
 ps aux | grep python | grep app_db.py
@@ -1118,6 +1183,7 @@ done
 ```
 
 #### High CPU Usage
+
 ```bash
 # Profile application
 pip install py-spy
@@ -1134,6 +1200,7 @@ py-spy record -o profile.svg --pid $(pgrep -f app_db.py) --duration 60
 ### 9.1 Application Logging
 
 #### Log Levels
+
 ```python
 # app_db.py logging configuration
 import logging
@@ -1149,6 +1216,7 @@ logging.basicConfig(
 ```
 
 #### Log Locations
+
 ```bash
 # Application logs
 tail -f /var/log/smarthome/app.log
@@ -1170,6 +1238,7 @@ journalctl -u smarthome -f
 ### 9.2 Monitoring Metrics
 
 #### Application Metrics
+
 ```python
 # Custom metrics endpoint
 @app.route('/metrics')
@@ -1184,6 +1253,7 @@ def metrics():
 ```
 
 #### System Monitoring Script
+
 ```bash
 #!/bin/bash
 # scripts/monitor.sh
@@ -1219,6 +1289,7 @@ fi
 ### 9.3 Alerting
 
 #### Email Alerts Setup
+
 ```python
 # utils/alerting.py
 import smtplib
@@ -1231,7 +1302,7 @@ def send_alert(subject, message):
         msg['Subject'] = f"SmartHome Alert: {subject}"
         msg['From'] = os.getenv('SMTP_USERNAME')
         msg['To'] = os.getenv('ADMIN_EMAIL')
-        
+      
         server = smtplib.SMTP(os.getenv('SMTP_SERVER'), int(os.getenv('SMTP_PORT')))
         server.starttls()
         server.login(os.getenv('SMTP_USERNAME'), os.getenv('SMTP_PASSWORD'))
@@ -1242,6 +1313,7 @@ def send_alert(subject, message):
 ```
 
 #### Automated Monitoring
+
 ```bash
 # Add to crontab (crontab -e)
 # Check every 5 minutes
@@ -1261,6 +1333,7 @@ def send_alert(subject, message):
 ### 10.1 Database Backup
 
 #### Automated Backup Script
+
 ```bash
 #!/bin/bash
 # scripts/backup_database.sh
@@ -1287,6 +1360,7 @@ echo "$(date): Database backup completed: backup_$DATE.sql.gz" >> $BACKUP_DIR/ba
 ```
 
 #### Manual Backup
+
 ```bash
 # Full database backup
 pg_dump -h localhost -U smartuser -d smarthome > backup_$(date +%Y%m%d).sql
@@ -1301,6 +1375,7 @@ pg_dump -h localhost -U smartuser -d smarthome -t users > users_backup.sql
 ### 10.2 Application Backup
 
 #### Configuration Backup
+
 ```bash
 # Backup configuration files
 tar -czf config_backup_$(date +%Y%m%d).tar.gz \
@@ -1313,6 +1388,7 @@ tar -czf logs_backup_$(date +%Y%m%d).tar.gz /var/log/smarthome/
 ```
 
 #### Static Files Backup
+
 ```bash
 # Backup uploaded files and assets
 tar -czf static_backup_$(date +%Y%m%d).tar.gz \
@@ -1323,6 +1399,7 @@ tar -czf static_backup_$(date +%Y%m%d).tar.gz \
 ### 10.3 Recovery Procedures
 
 #### Database Recovery
+
 ```bash
 # Stop application
 sudo systemctl stop smarthome
@@ -1339,6 +1416,7 @@ sudo systemctl start smarthome
 ```
 
 #### Full System Recovery
+
 ```bash
 # 1. Install system dependencies
 sudo apt update
@@ -1377,30 +1455,33 @@ sudo systemctl reload nginx
 ### 10.4 Disaster Recovery Plan
 
 #### RTO/RPO Objectives
+
 - **Recovery Time Objective (RTO)**: 4 hours
 - **Recovery Point Objective (RPO)**: 1 hour (automated backups)
 
 #### Recovery Steps
+
 1. **Assessment** (15 minutes)
+
    - Identify failure scope
    - Determine recovery approach
-   
 2. **Infrastructure Recovery** (1 hour)
+
    - Provision new server if needed
    - Install base operating system
    - Configure network and security
-   
 3. **Application Recovery** (2 hours)
+
    - Install application dependencies
    - Restore application code
    - Restore configuration files
-   
 4. **Data Recovery** (45 minutes)
+
    - Restore database from latest backup
    - Restore static files
    - Verify data integrity
-   
 5. **Testing and Validation** (15 minutes)
+
    - Test application functionality
    - Verify all services are running
    - Notify users of service restoration

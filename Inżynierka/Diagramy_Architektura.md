@@ -41,20 +41,20 @@
 │ │ Automations  │ │    │ │Statistics  │ │    │ │ Backups     │ │
 │ │ Logs         │ │    │ └────────────┘ │    │ └─────────────┘ │
 │ └──────────────┘ │    └────────────────┘    └─────────────────┘
-└──────────────────┘                         
-                              
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT LAYER                                  │
-├─────────────────────┬───────────────────────┬───────────────────────────────┤
-│   WEB BROWSERS      │    MOBILE APPS        │      IoT DEVICES              │
-│                     │                       │                               │
-│ ┌─────────────────┐ │ ┌───────────────────┐ │ ┌───────────────────────────┐ │
-│ │ Chrome/Firefox  │ │ │ Android/iOS App   │ │ │ Smart Lights              │ │
-│ │ Safari/Edge     │ │ │ REST API Client   │ │ │ Temperature Sensors       │ │
-│ │ JavaScript SPA  │ │ │ WebSocket Client  │ │ │ Security Cameras          │ │
-│ │ WebSocket       │ │ │ Push Notifications│ │ │ Door Locks                │ │
-│ └─────────────────┘ │ └───────────────────┘ │ └───────────────────────────┘ │
-└─────────────────────┴───────────────────────┴───────────────────────────────┘
+└──────────────────┘   
+  
+┌─────────────────────────────────────────────────────┐
+│                   CLIENT LAYER                      │
+├─────────────────────┬───────────────────────────────┤
+│   WEB BROWSERS      │      IoT DEVICES              │
+│                     │                               │
+│ ┌─────────────────┐ │ ┌───────────────────────────┐ │
+│ │ Chrome/Firefox  │ │ │ Smart Lights              │ │
+│ │ Safari/Edge     │ │ │ Temperature Sensors       │ │
+│ │ JavaScript SPA  │ │ │ Security Cameras          │ │
+│ │ WebSocket       │ │ │ Door Locks                │ │
+│ └─────────────────┘ │ └───────────────────────────┘ │
+└─────────────────────┴───────────────────────────────┘
 ```
 
 ## Diagram Przepływu Danych
@@ -71,28 +71,28 @@
 ┌──────────────────────────────────────────────────────────────┐
 │                    FLASK APPLICATION                         │
 │                                                              │
-│ ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
-│ │ Routes      │  │ WebSocket    │  │ Background Tasks    │  │
-│ │ Manager     │  │ Handler      │  │                     │  │
-│ │             │  │              │  │ - Email sending     │  │
-│ │ - Login     │  │ - Real-time  │  │ - Automation engine │  │
-│ │ - API       │  │   updates    │  │ - Log processing    │  │
-│ │ - Dashboard │  │ - Device     │  │ - Cache warming     │  │
-│ │ - Admin     │  │   control    │  │                     │  │
-│ └─────────────┘  └──────────────┘  └─────────────────────┘  │
-│         │                │                      │           │
-│         ▼                ▼                      ▼           │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │              SMART HOME CORE ENGINE                     │ │
-│ │                                                         │ │
-│ │ ┌─────────────┐ ┌─────────────┐ ┌────────────────────┐ │ │
-│ │ │Device Mgr   │ │Automation   │ │   User Manager     │ │ │
-│ │ │             │ │Engine       │ │                    │ │ │
-│ │ │- State mgmt │ │             │ │- Authentication    │ │ │
-│ │ │- Commands   │ │- Triggers   │ │- Authorization     │ │ │
-│ │ │- Validation │ │- Actions    │ │- Session mgmt      │ │ │
-│ │ └─────────────┘ └─────────────┘ └────────────────────┘ │ │
-│ └─────────────────────────────────────────────────────────┘ │
+│ ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐   │
+│ │ Routes      │  │ WebSocket    │  │ Background Tasks    │   │
+│ │ Manager     │  │ Handler      │  │                     │   │
+│ │             │  │              │  │ - Email sending     │   │
+│ │ - Login     │  │ - Real-time  │  │ - Automation engine │   │
+│ │ - API       │  │   updates    │  │ - Log processing    │   │
+│ │ - Dashboard │  │ - Device     │  │ - Cache warming     │   │
+│ │ - Admin     │  │   control    │  │                     │   │
+│ └─────────────┘  └──────────────┘  └─────────────────────┘   │
+│         │                │                      │            │
+│         ▼                ▼                      ▼            │
+│ ┌─────────────────────────────────────────────────────────┐  │
+│ │              SMART HOME CORE ENGINE                     │  │
+│ │                                                         │  │
+│ │ ┌─────────────┐ ┌─────────────┐ ┌────────────────────┐  │  │
+│ │ │Device Mgr   │ │Automation   │ │   User Manager     │  │  │
+│ │ │             │ │Engine       │ │                    │  │  │
+│ │ │- State mgmt │ │             │ │- Authentication    │  │  │
+│ │ │- Commands   │ │- Triggers   │ │- Authorization     │  │  │
+│ │ │- Validation │ │- Actions    │ │- Session mgmt      │  │  │
+│ │ └─────────────┘ └─────────────┘ └────────────────────┘  │  │
+│ └─────────────────────────────────────────────────────────┘  │
 └────────────────────────┬─────────────────────────────────────┘
                          │
     ┌────────────────────┼────────────────────┐
@@ -169,15 +169,15 @@
 │ last_executed (TIMESTAMP)       │              │ error_message (TEXT)            │
 │ execution_count (INTEGER)       │              │ execution_time_ms (INTEGER)     │
 │ error_count (INTEGER)           │              │ executed_at (TIMESTAMP)         │
-│ last_error (TEXT)               │              └─────────────────────────────────┘
-│ last_error_time (TIMESTAMP)     │
-│ created_at (TIMESTAMP)          │
-│ updated_at (TIMESTAMP)          │
-└─────────────┬───────────────────┘
-              │
-              │ 1:N
-              │
-              └──────────────────────────────────┘
+│ last_error (TEXT)               │              └──┬──────────────────────────────┘
+│ last_error_time (TIMESTAMP)     │                 |
+│ created_at (TIMESTAMP)          │                 |
+│ updated_at (TIMESTAMP)          │                 |
+└─────────────┬───────────────────┘                 |
+              │                                     |
+              │ 1:N                                 |
+              │                                     |
+              └─────────────────────────────────────┘
 
 
                     ┌─────────────────────────────────┐
@@ -206,7 +206,7 @@
 Client          WebSocket Handler    SmartHome Core    Database Manager    Device
   │                    │                    │                │              │
   │ toggle_button      │                    │                │              │
-  │──────────────────►│                    │                │              │
+  │──────────────────► │                    │                │              │
   │                    │ validate_session   │                │              │
   │                    │──────────────────► │                │              │
   │                    │                    │ get_user_data  │              │
@@ -247,18 +247,18 @@ Client          WebSocket Handler    SmartHome Core    Database Manager    Devic
 ```
 Automation Engine     Trigger Manager     Action Manager     Device Manager     Database
        │                     │                   │                │              │
-       │ check_triggers       │                   │                │              │
-       │────────────────────► │                   │                │              │
+       │ check_triggers      │                   │                │              │
+       │────────────────────►│                   │                │              │
        │                     │ evaluate_time     │                │              │
        │                     │─────────────────► │                │              │
        │                     │ evaluate_device   │                │              │
        │                     │─────────────────► │                │              │
        │                     │ evaluate_weather  │                │              │
        │                     │─────────────────► │                │              │
-       │ ◄────────────────────│                   │                │              │
+       │ ◄───────────────────│                   │                │              │
        │                     │                   │                │              │
-       │ trigger_found        │                   │                │              │
-       │ ────────────────────────────────────────► │                │              │
+       │ trigger_found       │                   │                │              │
+       │ ──────────────────────────────────────► │                │              │
        │                     │                   │ execute_actions│              │
        │                     │                   │──────────────► │              │
        │                     │                   │                │ send_commands│
@@ -266,15 +266,15 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
        │                     │                   │                │              │
        │                     │                   │ ◄──────────────│              │
        │                     │                   │                │              │
-       │ ◄────────────────────────────────────────│                │              │
+       │ ◄───────────────────────────────────────│                │              │
        │                     │                   │                │              │
-       │ log_execution        │                   │                │              │
-       │─────────────────────────────────────────────────────────────────────────► │
-       │ ◄─────────────────────────────────────────────────────────────────────────│
+       │ log_execution       │                   │                │              │
+       │───────────────────────────────────────────────────────────────────────► │
+       │ ◄───────────────────────────────────────────────────────────────────────│
        │                     │                   │                │              │
-       │ update_statistics    │                   │                │              │
-       │─────────────────────────────────────────────────────────────────────────► │
-       │ ◄─────────────────────────────────────────────────────────────────────────│
+       │ update_statistics   │                   │                │              │
+       │───────────────────────────────────────────────────────────────────────► │
+       │ ◄───────────────────────────────────────────────────────────────────────│
 ```
 
 ## Diagram Deployment (Docker)
@@ -286,27 +286,27 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
     │  ┌─────────────────────────────────────────────────────────────────┐    │
     │  │                    DOCKER NETWORK (smarthome_net)               │    │
     │  │                                                                 │    │
-    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │    │
-    │  │  │   NGINX     │  │  FLASK APP  │  │  FLASK APP  │            │    │
-    │  │  │ Container   │  │ Container 1 │  │ Container 2 │            │    │
-    │  │  │             │  │             │  │             │            │    │
-    │  │  │ Port: 80    │  │ Port: 5000  │  │ Port: 5001  │            │    │
-    │  │  │ Port: 443   │  │             │  │             │            │    │
-    │  │  └─────────────┘  └─────────────┘  └─────────────┘            │    │
+    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │    │
+    │  │  │   NGINX     │  │  FLASK APP  │  │  FLASK APP  │              │    │
+    │  │  │ Container   │  │ Container 1 │  │ Container 2 │              │    │
+    │  │  │             │  │             │  │             │              │    │
+    │  │  │ Port: 80    │  │ Port: 5000  │  │ Port: 5001  │              │    │
+    │  │  │ Port: 443   │  │             │  │             │              │    │
+    │  │  └─────────────┘  └─────────────┘  └─────────────┘              │    │
     │  │                                                                 │    │
-    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │    │
-    │  │  │ PostgreSQL  │  │    Redis    │  │   Backup    │            │    │
-    │  │  │ Container   │  │ Container   │  │  Container  │            │    │
-    │  │  │             │  │             │  │             │            │    │
-    │  │  │ Port: 5432  │  │ Port: 6379  │  │ Cron Jobs   │            │    │
-    │  │  └─────────────┘  └─────────────┘  └─────────────┘            │    │
+    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │    │
+    │  │  │ PostgreSQL  │  │    Redis    │  │   Backup    │              │    │
+    │  │  │ Container   │  │ Container   │  │  Container  │              │    │
+    │  │  │             │  │             │  │             │              │    │
+    │  │  │ Port: 5432  │  │ Port: 6379  │  │ Cron Jobs   │              │    │
+    │  │  └─────────────┘  └─────────────┘  └─────────────┘              │    │
     │  └─────────────────────────────────────────────────────────────────┘    │
     │                                                                         │
     │  ┌─────────────────────────────────────────────────────────────────┐    │
-    │  │                      DOCKER VOLUMES                            │    │
+    │  │                      DOCKER VOLUMES                             │    │
     │  │                                                                 │    │
-    │  │  postgres_data  │  redis_data  │  nginx_logs  │  app_logs      │    │
-    │  │  nginx_ssl      │  backups     │  uploads     │  static_files  │    │
+    │  │  postgres_data  │  redis_data  │  nginx_logs  │  app_logs       │    │
+    │  │  nginx_ssl      │  backups     │  uploads     │  static_files   │    │
     │  └─────────────────────────────────────────────────────────────────┘    │
     └─────────────────────────────────────────────────────────────────────────┘
 
@@ -320,10 +320,10 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 ## Performance Monitoring Dashboard Schema
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        PERFORMANCE METRICS                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        PERFORMANCE METRICS                                │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
 │  │  RESPONSE TIME  │  │  THROUGHPUT     │  │  ERROR RATE     │            │
 │  │                 │  │                 │  │                 │            │
@@ -331,7 +331,7 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 │  │  95%: 250ms     │  │  Peak: 1500/s   │  │  Errors: 1/10k  │            │
 │  │  99%: 500ms     │  │  Min: 100/s     │  │  Timeouts: 0    │            │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
-│                                                                             │
+│                                                                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
 │  │  CACHE STATS    │  │  DATABASE       │  │  SYSTEM LOAD    │            │
 │  │                 │  │                 │  │                 │            │
@@ -339,23 +339,23 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 │  │  Misses: 22%    │  │  Query Time:45ms│  │  Memory: 62%    │            │
 │  │  Evictions: 12  │  │  Slow Queries:2 │  │  Disk I/O: 15%  │            │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                           ACTIVE CONNECTIONS                          │ │
-│  │                                                                       │ │
+│                                                                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐ │
+│  │                           ACTIVE CONNECTIONS                         │ │
+│  │                                                                      │ │
 │  │  WebSocket Connections: 45                                           │ │
 │  │  HTTP Connections: 128                                               │ │
 │  │  Database Connections: 8/20                                          │ │
 │  │  Redis Connections: 12                                               │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+│  └──────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Security Architecture Diagram
 
 ```
                          ┌─────────────────────────────────────┐
-                         │            EXTERNAL THREATS        │
+                         │          EXTERNAL THREATS           │
                          │                                     │
                          │  • DDoS Attacks                     │
                          │  • SQL Injection                    │
@@ -369,7 +369,7 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
                          ├─────────────────────────────────────┤
                          │                                     │
 ┌────────────────────────┼─────────────────────────────────────┼────────────────────────┐
-│       LAYER 1          │          NETWORK SECURITY          │        NGINX           │
+│       LAYER 1          │          NETWORK SECURITY           │        NGINX           │
 ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
 │ • Rate Limiting        │                                     │ • SSL/TLS Termination  │
 │ • IP Filtering         │                                     │ • HTTP Headers         │
@@ -377,7 +377,7 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 └────────────────────────┼─────────────────────────────────────┼────────────────────────┘
                          │                                     │
 ┌────────────────────────┼─────────────────────────────────────┼────────────────────────┐
-│       LAYER 2          │       APPLICATION SECURITY         │     FLASK APP          │
+│       LAYER 2          │       APPLICATION SECURITY          │     FLASK APP          │
 ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
 │ • Session Management   │                                     │ • Input Validation     │
 │ • CSRF Protection      │                                     │ • Authentication       │
@@ -386,12 +386,12 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 └────────────────────────┼─────────────────────────────────────┼────────────────────────┘
                          │                                     │
 ┌────────────────────────┼─────────────────────────────────────┼────────────────────────┐
-│       LAYER 3          │          DATA SECURITY             │     POSTGRESQL         │
+│       LAYER 3          │           DATA SECURITY             │     POSTGRESQL         │
 ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
-│ • Password Hashing     │                                     │ • Connection Encryption│
-│ • Data Encryption      │                                     │ • Access Control       │
-│ • Audit Logging        │                                     │ • Query Parameterization│
-│ • Backup Encryption    │                                     │ • Row Level Security   │
+│ • Password Hashing     │                                     │• Connection Encryption │
+│ • Data Encryption      │                                     │• Access Control        │
+│ • Audit Logging        │                                     │• Query Parameterization│
+│ • Backup Encryption    │                                     │• Row Level Security    │
 └────────────────────────┼─────────────────────────────────────┼────────────────────────┘
                          │                                     │
                          └─────────────────────────────────────┘
@@ -399,7 +399,7 @@ Automation Engine     Trigger Manager     Action Manager     Device Manager     
 Security Implementation Details:
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            AUTHENTICATION FLOW                             │
+│                            AUTHENTICATION FLOW                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  1. User Login ──► 2. Password Verification ──► 3. Session Creation         │
@@ -407,13 +407,13 @@ Security Implementation Details:
 │      ▼                     ▼                           ▼                    │
 │  Input Validation    Bcrypt Hashing             Secure Cookie               │
 │  Rate Limiting       Password Strength          HTTPOnly Flag               │
-│  CAPTCHA (optional)  Salt Generation           SameSite=Lax                │
+│  CAPTCHA (optional)  Salt Generation           SameSite=Lax                 │
 │                                                                             │
-│  4. Token Generation ──► 5. Permission Check ──► 6. Access Granted         │
+│  4. Token Generation ──► 5. Permission Check ──► 6. Access Granted          │
 │      │                       │                         │                    │
 │      ▼                       ▼                         ▼                    │
-│  JWT/Session Token     Role-Based Access        Audit Logging              │
-│  Expiration Time       Resource Permissions     Activity Tracking          │
-│  Refresh Mechanism     Dynamic Authorization    Security Events            │
+│  JWT/Session Token     Role-Based Access        Audit Logging               │
+│  Expiration Time       Resource Permissions     Activity Tracking           │
+│  Refresh Mechanism     Dynamic Authorization    Security Events             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
