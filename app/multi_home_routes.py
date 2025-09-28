@@ -194,7 +194,7 @@ def api_home_create():
         
         # Set as current home
         session_token = session.get('session_token')
-        multi_db.set_user_current_home(user_id, home_id, session_token)
+        multi_db.set_user_current_home(user_id, str(home_id), session_token)
         session['current_home_id'] = home_id
         
         if request.is_json:
@@ -266,7 +266,7 @@ def api_current_home():
         if not current_home_id:
             return jsonify({"success": False, "error": "No current home set"})
         
-        home_details = multi_db.get_home_details(current_home_id, user_id)
+        home_details = multi_db.get_home_details(str(current_home_id), user_id)
         
         if not home_details:
             return jsonify({"success": False, "error": "Current home not accessible"})
@@ -326,7 +326,7 @@ def require_home_access(permission='view_devices'):
             if not user:
                 return redirect(url_for('login'))
             user_id = user['id']
-            if not multi_db.user_has_home_permission(user_id, home_id, permission):
+            if not multi_db.user_has_home_permission(user_id, str(home_id), permission):
                 flash("You don't have permission to perform this action", "error")
                 return redirect(url_for('multi_home.home_select'))
             
@@ -337,3 +337,6 @@ def require_home_access(permission='view_devices'):
         wrapper.__name__ = f.__name__
         return wrapper
     return decorator
+
+# Home settings routes moved to home_settings_routes.py
+# Old routes removed to prevent redirect loops

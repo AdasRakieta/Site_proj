@@ -602,9 +602,6 @@
     margin: 0 0 8px 0;
     color: var(--text);
     font-size: 1.4em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .section-description {
@@ -782,8 +779,9 @@
     background: var(--card-bg);
     border-radius: 12px;
     padding: 20px;
-    margin-bottom: 30px;
     box-shadow: var(--box_shd);
+    width: 360px;
+    margin: auto;
 }
 
 .home-management-card .card-header {
@@ -806,7 +804,7 @@
 .card-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 16px;
     flex-wrap: wrap;
 }
