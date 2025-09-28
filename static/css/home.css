@@ -405,7 +405,9 @@
     margin-top: 32px;
 }
 
-.btn {
+/* Specyficzne style dla przycisków w formularzach zarządzania domami */
+.home-form-container .btn,
+.home-selection-container .btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -422,30 +424,34 @@
     box-sizing: border-box;
 }
 
-.btn-primary {
+.home-form-container .btn-primary,
+.home-selection-container .btn-primary {
     background: var(--btn-primary);
     color: var(--btn_text);
 }
 
-.btn-primary:hover:not(:disabled) {
+.home-form-container .btn-primary:hover:not(:disabled),
+.home-selection-container .btn-primary:hover:not(:disabled) {
     background: var(--btn-primary-hover);
     transform: translateY(-1px);
 }
 
-.btn-primary:disabled {
+.home-form-container .btn-primary:disabled,
+.home-selection-container .btn-primary:disabled {
     background: var(--disabled-bg);
     color: var(--disabled-text);
     cursor: not-allowed;
 }
 
-.btn-secondary {
+.home-form-container .btn-secondary,
+.home-selection-container .btn-secondary {
     background: var(--card-bg);
     color: var(--text);
     border: 2px solid var(--border);
 }
 
-.btn-secondary:hover {
-    border-color: var(--accent);
+.home-form-container .btn-secondary:hover,
+.home-selection-container .btn-secondary:hover {
     color: var(--accent);
 }
 
@@ -556,7 +562,8 @@
         flex-direction: column;
     }
     
-    .btn {
+    .home-form-container .btn,
+    .home-selection-container .btn {
         flex: none;
         width: 100%;
         max-width: 300px;
@@ -611,6 +618,8 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    max-width: 500px;
+    margin: auto;
 }
 
 .settings-btn {
@@ -626,6 +635,7 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    
 }
 
 .settings-btn:hover {
@@ -686,6 +696,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    align-items: center;
 }
 
 .theme-selector label {
@@ -719,10 +730,11 @@
 
 .info-item {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     padding: 12px 0;
     border-bottom: 1px solid var(--border);
+    gap: 50px;
 }
 
 .info-item:last-child {
@@ -764,11 +776,10 @@
 }
 
 /* ========================================
-   HOME MANAGEMENT CARD (on homepage)
+    HOME MANAGEMENT CARD (on homepage)
    ======================================== */
 .home-management-card {
     background: var(--card-bg);
-    border: 2px solid var(--accent);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 30px;
