@@ -12,7 +12,7 @@ System Zarządzania Domem Inteligentnym SmartHome
 
 Niniejsza praca inżynierska przedstawia kompleksowy system zarządzania domem inteligentnym SmartHome, zbudowany w oparciu o nowoczesne technologie webowe i bazodanowe. System umożliwia zdalne sterowanie urządzeniami IoT, zarządzanie automatyzacjami oraz monitorowanie stanu domu w czasie rzeczywistym poprzez interfejs webowy oraz aplikację mobilną.
 
-System został zaimplementowany przy użyciu frameworku Flask w języku Python, z integracją bazy danych PostgreSQL oraz technologii WebSocket dla komunikacji w czasie rzeczywistym. Architektura aplikacji opiera się na wzorcu Model-View-Controller (MVC) z dodatkowymi warstwami cache'owania i asynchronicznego przetwarzania zadań.
+System został zaimplementowany przy użyciu frameworku Flask w języku Python, z pełną integracją bazy danych PostgreSQL 17.5 zawierającej 12 tabel relacyjnych oraz technologii WebSocket dla komunikacji w czasie rzeczywistym. Architektura aplikacji opiera się na wzorcu Model-View-Controller (MVC) z dodatkowymi warstwami cache'owania Redis/SimpleCache, historii zmian urządzeń, wykonania automatyzacji i zarządzania sesjami użytkowników.
 
 **Słowa kluczowe:** Internet of Things, Smart Home, Flask, PostgreSQL, WebSocket, automatyzacja domowa
 
@@ -47,12 +47,14 @@ Niniejszy projekt ma na celu stworzenie elastycznego, skalowalnego i ekonomiczne
 
 Głównym celem pracy jest zaprojektowanie i implementacja kompleksowego systemu zarządzania domem inteligentnym, który umożliwi:
 
-- Zdalne sterowanie urządzeniami elektrycznymi i elektronicznymi
-- Automatyzację procesów domowych w oparciu o programowalne reguły
-- Monitorowanie stanu urządzeń w czasie rzeczywistym
-- Zarządzanie temperaturą i klimatem
-- Obsługę systemu bezpieczeństwa
-- Prowadzenie logów aktywności i statystyk użytkowania
+- Zdalne sterowanie urządzeniami elektrycznymi i elektronicznymi z pełną historią zmian
+- Automatyzację procesów domowych w oparciu o programowalne reguły z rejestrem wykonań
+- Monitorowanie stanu urządzeń w czasie rzeczywistym z zaawansowanym systemem logowania
+- Zarządzanie temperaturą i klimatem z dedykowaną tabelą stanów temperaturowych
+- Obsługę systemu bezpieczeństwa z tokenami sesji i zarządzaniem autoryzacją
+- Prowadzenie szczegółowych logów zarządzania, historii urządzeń i statystyk automatyzacji
+- Zarządzanie powiadomieniami email z konfigurowalnymi odbiorcami
+- Zaawansowany system ustawień systemowych z audytem zmian
 
 ### 1.3 Zakres pracy
 
@@ -119,9 +121,8 @@ Analiza istniejących systemów wykazała następujące ograniczenia:
 #### 3.1.3 Interfejs użytkownika
 
 - **RF09**: System musi zapewniać interfejs webowy responsywny
-- **RF10**: System musi obsługiwać aplikację mobilną
-- **RF11**: System musi zapewniać panel administracyjny
-- **RF12**: System musi obsługiwać różne role użytkowników
+- **RF10**: System musi zapewniać panel administracyjny
+- **RF11**: System musi obsługiwać różne role użytkowników
 
 ### 3.2 Wymagania niefunkcjonalne
 
@@ -163,23 +164,23 @@ Analiza istniejących systemów wykazała następujące ograniczenia:
 System SmartHome został zaprojektowany w oparciu o architekturę wielowarstwową (layered architecture) z elementami architektury mikroserwisowej. Główne warstwy systemu to:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────┐
 │                    WARSTWA PREZENTACJI                         │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
 │  Web Interface  │  Mobile App  │  REST API  │  WebSocket API   │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
 │                    WARSTWA APLIKACJI                           │
-├─────────────────────────────────────────────────────────────────┤
-│  Routes Manager │ Auth Manager │ Cache Manager │ Asset Manager  │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
+│  Routes Manager │ Auth Manager │ Cache Manager │ Asset Manager │
+├────────────────────────────────────────────────────────────────┤
 │                    WARSTWA LOGIKI BIZNESOWEJ                   │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
 │ Smart Home Core │ Automation Engine │ Device Controller        │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
 │                    WARSTWA DOSTĘPU DO DANYCH                   │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────┤
 │  PostgreSQL DB  │    Redis Cache    │    File Storage          │
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### 4.2 Komponenty systemowe
@@ -197,7 +198,7 @@ class SmartHomeApp:
         self._configure_logging()
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
-      
+    
         # Cookie security and SameSite settings
         is_production = os.getenv('FLASK_ENV') == 'production'
         self.app.config.update({
@@ -205,12 +206,12 @@ class SmartHomeApp:
             'SESSION_COOKIE_HTTPONLY': True,
             'SESSION_COOKIE_SECURE': bool(is_production),
         })
-      
+    
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
-      
+    
         # Initialize core components
         self.initialize_components()
-      
+    
         # Setup routes and socket events
         self.setup_routes()
         self.setup_socket_events()
@@ -348,10 +349,10 @@ class CacheManager:
         """Get user data with session-level caching optimization"""
         global cache_stats
         cache_stats['total_requests'] += 1
-      
+    
         if not user_id:
             return None
-          
+        
         # Create session-specific cache key if session_id provided
         if session_id:
             session_cache_key = f"session_user_{session_id}_{user_id}"
@@ -418,7 +419,7 @@ class SmartHomeDatabaseManager:
             'user': os.getenv('DB_USER', 'admin'),
             'password': os.getenv('DB_PASSWORD', 'Qwuizzy123.')
         }
-      
+    
         # Create connection pool
         self.pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=int(os.getenv('DB_POOL_MIN', '2')),
@@ -435,6 +436,35 @@ Redis używany jako warstwa cache'owania:
 # Caching (Redis optional)
 redis==6.2.0
 cachelib==0.13.0
+```
+
+**Fallback do JSON Backend:**
+
+System posiada inteligentny mechanizm fallback - jeśli połączenie z PostgreSQL nie powiedzie się, aplikacja automatycznie przełącza się na oryginalny backend plikowy JSON, zapewniając ciągłość działania:
+
+```python
+try:
+    # Próba inicjalizacji PostgreSQL
+    db_manager = SmartHomeDatabaseManager(db_config)
+    smart_home = SmartHomeSystemDB(db_manager)
+    print("✓ PostgreSQL backend initialized")
+except Exception as e:
+    print(f"⚠ Database connection failed ({e}), falling back to JSON")
+    smart_home = SmartHomeSystem()  # JSON fallback
+```
+
+System automatycznie przełącza się na SimpleCache jeśli Redis nie jest dostępny:
+
+```python
+try:
+    cache = Cache(app, config={
+        'CACHE_TYPE': 'RedisCache',
+        'CACHE_REDIS_URL': redis_url
+    })
+    print("✓ Redis cache initialized")
+except Exception as e:
+    print(f"⚠ Database connection failed ({e}), falling back to JSON")
+    smart_home = SmartHomeSystem()  # JSON fallback
 ```
 
 System automatycznie przełącza się na SimpleCache jeśli Redis nie jest dostępny:
@@ -474,15 +504,15 @@ def setup_socket_events(self):
             if 'user_id' not in session:
                 disconnect()
                 return False
-          
+        
             user_id = session.get('user_id')
             user_data = self.smart_home.get_user_data(user_id)
-          
+        
             emit('user_connected', {
                 'message': f'Welcome back, {user_data.get("name", "User")}!',
                 'user': user_data
             })
-          
+        
             # Send current system state
             emit('system_state', {
                 'rooms': self.smart_home.rooms,
@@ -554,14 +584,14 @@ class AssetManager:
             try:
                 with open(css_file, 'r', encoding='utf-8') as f:
                     original_content = f.read()
-                  
+                
                 min_dir = css_file.parent / 'min'
                 min_dir.mkdir(exist_ok=True)
                 minified_file = min_dir / f"{css_file.stem}.min.css"
-              
+            
                 with open(minified_file, 'w', encoding='utf-8') as f:
                     f.write(original_content)
-                  
+                
                 original_size = len(original_content)
                 stats = AssetStats(
                     original_size=original_size,
@@ -671,7 +701,7 @@ class SmartHomeApp:
         self._configure_logging()
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
-      
+    
         # Cookie security and SameSite settings
         is_production = os.getenv('FLASK_ENV') == 'production'
         self.app.config.update({
@@ -679,9 +709,9 @@ class SmartHomeApp:
             'SESSION_COOKIE_HTTPONLY': True,
             'SESSION_COOKIE_SECURE': bool(is_production),
         })
-      
+    
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
-      
+    
         # Add CORS headers for mobile app
         @self.app.after_request
         def after_request(response):
@@ -689,14 +719,14 @@ class SmartHomeApp:
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
-      
+    
         # Initialize core components
         self.initialize_components()
-      
+    
         # Setup routes and socket events
         self.setup_routes()
         self.setup_socket_events()
-      
+    
         print(f"SmartHome Application initialized (Database mode: {DATABASE_MODE})")
 ```
 
@@ -716,14 +746,14 @@ class SmartHomeDatabaseManager:
             'user': os.getenv('DB_USER', 'admin'),
             'password': os.getenv('DB_PASSWORD', 'Qwuizzy123.')
         }
-      
+    
         # Create connection pool for better performance
         self.pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=int(os.getenv('DB_POOL_MIN', '2')),
             maxconn=int(os.getenv('DB_POOL_MAX', '10')),
             **self.db_config
         )
-      
+    
         self._connection_lock = threading.Lock()
         logger.info("Database manager initialized with connection pool")
 ```
@@ -891,7 +921,7 @@ Dashboard jest centralnym punktem kontrolnym systemu:
                 <h3>{{ room.name }}</h3>
                 <span class="device-count">{{ room.devices|length }} urządzeń</span>
             </div>
-          
+        
             <div class="room-devices">
                 {% for device in room.devices %}
                 <div class="device-control" data-device-id="{{ device.id }}">
@@ -937,15 +967,15 @@ class SmartHomeController {
         this.socket.on('connect', () => {
             console.log('Connected to SmartHome server');
         });
-      
+    
         this.socket.on('system_state', (data) => {
             this.updateSystemState(data);
         });
-      
+    
         this.socket.on('device_updated', (data) => {
             this.updateDeviceState(data.device_id, data.state);
         });
-      
+    
         this.socket.on('automation_executed', (data) => {
             this.showNotification(`Automatyzacja "${data.name}" została wykonana`);
         });
@@ -955,7 +985,7 @@ class SmartHomeController {
         this.socket.emit('toggle_button', {
             button_id: deviceId
         });
-      
+    
         // Optimistic UI update
         const button = document.querySelector(`[data-device-id="${deviceId}"] .device-button`);
         button.classList.toggle('active');
@@ -966,7 +996,7 @@ class SmartHomeController {
             control_id: deviceId,
             temperature: parseFloat(temperature)
         });
-      
+    
         // Update UI immediately
         const display = document.querySelector(`[data-device-id="${deviceId}"] .temperature-value`);
         display.textContent = `${temperature}°C`;
@@ -977,14 +1007,14 @@ class SmartHomeController {
         if (data.rooms) {
             this.updateRooms(data.rooms);
         }
-      
+    
         // Update device states
         if (data.buttons) {
             data.buttons.forEach(button => {
                 this.updateDeviceState(button.id, button.state);
             });
         }
-      
+    
         if (data.temperature_controls) {
             data.temperature_controls.forEach(control => {
                 this.updateTemperatureControl(control.id, control.temperature);
@@ -1132,28 +1162,28 @@ from utils.smart_home_db_manager import SmartHomeDatabaseManager
 class TestSmartHomeDatabaseManager(unittest.TestCase):
     def setUp(self):
         self.db_manager = SmartHomeDatabaseManager()
-      
+    
     @patch('psycopg2.pool.ThreadedConnectionPool')
     def test_connection_pool_creation(self, mock_pool):
         """Test that connection pool is created correctly"""
         db_manager = SmartHomeDatabaseManager()
         mock_pool.assert_called_once()
-      
+    
     def test_create_user_success(self):
         """Test successful user creation"""
         with patch.object(self.db_manager, '_get_connection') as mock_conn:
             mock_cursor = Mock()
             mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-          
+        
             result = self.db_manager.create_user(
                 name="testuser",
                 email="test@example.com", 
                 password_hash="hashed_password"
             )
-          
+        
             self.assertIsInstance(result, str)
             mock_cursor.execute.assert_called_once()
-          
+        
     def test_get_user_by_id_exists(self):
         """Test retrieving existing user"""
         with patch.object(self.db_manager, '_get_connection') as mock_conn:
@@ -1164,9 +1194,9 @@ class TestSmartHomeDatabaseManager(unittest.TestCase):
                 'email': 'test@example.com'
             }
             mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-          
+        
             result = self.db_manager.get_user_by_id('test-id')
-          
+        
             self.assertIsNotNone(result)
             self.assertEqual(result['name'], 'testuser')
 ```
@@ -1184,20 +1214,20 @@ class TestIntegration(unittest.TestCase):
         self.app = SmartHomeApp()
         self.client = self.app.app.test_client()
         self.app.app.config['TESTING'] = True
-      
+    
     def test_login_flow(self):
         """Test complete login flow"""
         # Test login page access
         response = self.client.get('/login')
         self.assertEqual(response.status_code, 200)
-      
+    
         # Test login attempt
         response = self.client.post('/login', json={
             'username': 'admin',
             'password': 'admin123'
         })
         self.assertEqual(response.status_code, 200)
-      
+    
     def test_api_endpoints(self):
         """Test API endpoints"""
         # Test ping endpoint
@@ -1205,7 +1235,7 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['status'], 'ok')
-      
+    
         # Test status endpoint
         response = self.client.get('/api/status')
         self.assertEqual(response.status_code, 200)
@@ -1232,38 +1262,135 @@ class TestPerformance(unittest.TestCase):
             users = db_manager.get_all_users()
             end_time = time.time()
             return end_time - start_time
-      
+    
         # Run 50 concurrent database operations
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = [executor.submit(database_operation) for _ in range(50)]
             response_times = [future.result() for future in futures]
-      
+    
         # Assert 95% of requests complete within 2 seconds
         sorted_times = sorted(response_times)
         percentile_95 = sorted_times[int(0.95 * len(sorted_times))]
         self.assertLess(percentile_95, 2.0, "95% of requests should complete within 2 seconds")
-      
+    
     def test_websocket_message_throughput(self):
         """Test WebSocket message handling throughput"""
         # This would test WebSocket performance
         pass
 ```
 
-### 8.5 Wyniki testów
+### 8.5 Stan Aktualny Testów i Walidacji
 
-| Typ testu         | Liczba testów | Pokrycie kodu | Status    |
-| ----------------- | -------------- | ------------- | --------- |
-| Unit Tests        | 45             | 85%           | ✅ Passed |
-| Integration Tests | 12             | 70%           | ✅ Passed |
-| Performance Tests | 8              | N/A           | ✅ Passed |
-| Security Tests    | 15             | N/A           | ✅ Passed |
+**Aktualny Status Testów:**
 
-**Kluczowe metryki wydajności:**
+System SmartHome obecnie nie posiada zautomatyzowanego pakietu testów jednostkowych ani integracyjnych. Testowanie odbywa się ręcznie poprzez:
 
-- Czas odpowiedzi API: średnio 120ms (95% < 2s)
-- Throughput WebSocket: 1000 wiadomości/sekundę
-- Concurrent users: 100+ użytkowników jednocześnie
-- Cache hit rate: 78%
+1. **Testy manualne funkcjonalności:**
+   - Logowanie/wylogowywanie użytkowników
+   - Sterowanie urządzeniami (przyciski, termostaty)
+   - Dodawanie/usuwanie pokoi i urządzeń
+   - Konfiguracja automatyzacji
+   - Panel administratora
+
+2. **Testy integracji bazy danych:**
+   - Połączenie z PostgreSQL
+   - Fallback do JSON przy niedostępności bazy
+   - Transakcyjność operacji CRUD
+
+3. **Testy wydajności - rzeczywiste metryki:**
+
+| Metryka | Wartość | Opis |
+|---------|----------|------|
+| Połączenia DB | 2-10 concurrent | ThreadedConnectionPool |
+| Cache Hit Rate | Brak danych | Wymagane instrumenty monitoringu |
+| Czas ładowania Admin Dashboard | < 1s | Po optymalizacji pre-loading |
+| Rozmiar bazy danych | 12 tabel | Pełny schemat relacyjny |
+| Indeksy wydajnościowe | 25+ | Optymalizacja zapytań |
+
+4. **Endpoints diagnostyczne (dostępne w systemie):**
+   - `GET /api/ping` - Podstawowy health check
+   - `GET /api/status` - Status aplikacji i tryb bazy danych
+   - `GET /api/cache/stats` - Statystyki cache (po zalogowaniu)
+   - `GET /api/database/stats` - Metryki połączeń z bazą (po zalogowaniu)
+
+5. **Rekomendowane rozszerzenia dla przyszłości:**
+
+```python
+# Przykładowa struktura testów do implementacji
+tests/
+├── unit/
+│   ├── test_database_manager.py      # Testy SmartHomeDatabaseManager
+│   ├── test_cache_manager.py          # Testy CacheManager
+│   ├── test_auth_manager.py           # Testy uwierzytelniania
+│   └── test_automation_engine.py      # Testy automatyzacji
+├── integration/
+│   ├── test_api_endpoints.py          # Testy API REST
+│   ├── test_websocket_handlers.py     # Testy Socket.IO
+│   └── test_database_integration.py   # Testy integracji z bazą
+├── performance/
+│   ├── test_concurrent_access.py      # Testy obciążenia
+│   └── test_cache_performance.py      # Testy wydajności cache
+└── e2e/
+    ├── test_user_workflows.py         # Testy pełnych scenariuszy
+    └── test_automation_scenarios.py   # Testy automatyzacji E2E
+```
+
+**Zalecenia dla wdrożenia testów:**
+
+- Implementacja pytest jako framework testowy
+- Dodanie coverage.py dla metryki pokrycia kodu
+- Integracja z CI/CD pipeline (GitHub Actions)
+- Testy obciążeniowe z wykorzystaniem pytest-benchmark
+- Monitorowanie wydajności w środowisku produkcyjnym
+
+### 8.6 Monitoring i Diagnostyka (Aktualnie Dostępne)
+
+**System diagnostyczny w wersji produkcyjnej oferuje:**
+
+1. **Logowanie aplikacyjne:**
+   ```python
+   # Logi są zapisywane do tabeli management_logs
+   management_logs:
+   - timestamp (TIMESTAMPTZ)
+   - level (info/warn/error)
+   - message (TEXT)
+   - event_type (auth/database/cache)
+   - user_id (UUID FK)
+   - ip_address (INET)
+   - details (JSONB)
+   ```
+
+2. **Metryki bazy danych:**
+   - Connection pool status (2-10 połączeń)
+   - Query performance tracking
+   - Transaction rollback monitoring
+   - Table size statistics
+
+3. **Cache monitoring:**
+   - Hit/miss ratios
+   - Memory usage (Redis vs SimpleCache)
+   - Key expiration tracking
+   - Session storage metrics
+
+4. **Historia urządzeń:**
+   ```sql
+   device_history:
+   - old_state (JSONB)
+   - new_state (JSONB) 
+   - changed_by (UUID FK)
+   - change_reason (VARCHAR)
+   - created_at (TIMESTAMPTZ)
+   ```
+
+5. **Automatyzacja tracking:**
+   ```sql
+   automation_executions:
+   - execution_status (VARCHAR)
+   - execution_time_ms (INTEGER)
+   - trigger_data (JSONB)
+   - actions_executed (JSONB)
+   - error_message (TEXT)
+   ```
 
 ---
 
@@ -1409,7 +1536,7 @@ server {
 class DatabaseManagementLogger:
     def __init__(self, db_manager):
         self.db_manager = db_manager
-      
+    
     def log_login(self, username: str, ip_address: str, success: bool):
         """Log user login attempt"""
         try:
@@ -1424,7 +1551,7 @@ class DatabaseManagementLogger:
             )
         except Exception as e:
             logger.error(f"Failed to log login: {e}")
-          
+        
     def log_device_control(self, user_id: str, device_id: str, action: str, old_state: any, new_state: any):
         """Log device control action"""
         try:
@@ -1502,15 +1629,15 @@ def check_health():
         response = requests.get('http://localhost:5000/api/ping', timeout=5)
         if response.status_code != 200:
             return False, "Application not responding"
-          
+        
         # Check database
         response = requests.get('http://localhost:5000/api/status', timeout=5)
         data = response.json()
         if not data.get('database_mode'):
             return False, "Database not available"
-          
+        
         return True, "System healthy"
-      
+    
     except Exception as e:
         return False, f"Health check failed: {e}"
 
