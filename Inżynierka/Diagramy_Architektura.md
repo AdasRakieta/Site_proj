@@ -3,7 +3,27 @@
 ## Diagram Architektury Systemu
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────    └─────────────────────────────────┘              └─────────────────────────────────┘
+
+### Kluczowe Indeksy i Ograniczenia:
+
+#### Indeksy wydajnościowe:
+- `idx_users_name`, `idx_users_email` - szybkie wyszukiwanie użytkowników
+- `idx_devices_room`, `idx_devices_type`, `idx_devices_order` - optymalizacja zapytań o urządzenia
+- `idx_logs_timestamp DESC`, `idx_logs_level`, `idx_logs_event_type` - wydajne filtrowanie logów
+- `idx_auto_exec_time DESC`, `idx_auto_exec_status` - monitorowanie wykonań automatyzacji
+- `idx_session_expires` - czyszczenie wygasłych sesji
+
+#### Ograniczenia integralności:
+- Foreign Key CASCADE dla `devices.room_id`, `device_history.device_id`
+- Foreign Key SET NULL dla `management_logs.user_id`, `device_history.changed_by`
+- CHECK constraint dla `device_type` ('button', 'temperature_control')
+- UNIQUE constraints dla `users.name`, `users.email`, `rooms.name`, `automations.name`
+
+#### Automatyczne triggery:
+- `update_updated_at_column()` - automatyczna aktualizacja timestamp'ów
+- UUID generacja przez `uuid_generate_v4()` dla wszystkich primary keys
+````───────────────────────────────┐
 │                               INTERNET/WAN                                 │
 └─────────────────────────────┬───────────────────────────────────────────────┘
                               │
@@ -112,7 +132,7 @@
 └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
-## Diagram Bazy Danych (ERD)
+## Diagram Bazy Danych (ERD) - PostgreSQL 17.5
 
 ```
                     ┌─────────────────────────────────┐
@@ -124,22 +144,27 @@
                     │ password_hash (TEXT)            │
                     │ role (VARCHAR) DEFAULT 'user'   │
                     │ profile_picture (TEXT)          │
-                    │ created_at (TIMESTAMP)          │
-                    │ updated_at (TIMESTAMP)          │
+                    │ created_at (TIMESTAMPTZ)        │
+                    │ updated_at (TIMESTAMPTZ)        │
                     └─────────────┬───────────────────┘
                                   │
-                                  │ 1:N
-                                  │
-                    ┌─────────────▼───────────────────┐
-                    │       MANAGEMENT_LOGS           │
-                    │─────────────────────────────────│
-                    │ id (UUID) PK                    │
-                    │ user_id (UUID) FK               │
-                    │ action (VARCHAR)                │
-                    │ details (JSONB)                 │
-                    │ ip_address (INET)               │
-                    │ timestamp (TIMESTAMP)           │
-                    └─────────────────────────────────┘
+        ┌─────────────────────────┼─────────────────────────────────────┐
+        │                         │                                     │
+        │ 1:N                     │ 1:N                                 │ 1:N
+        │                         │                                     │
+┌───────▼─────────────┐  ┌────────▼────────────┐           ┌──────────▼──────────┐
+│  MANAGEMENT_LOGS    │  │   SESSION_TOKENS    │           │   SYSTEM_SETTINGS   │
+│─────────────────────│  │─────────────────────│           │─────────────────────│
+│ id (UUID) PK        │  │ id (UUID) PK        │           │ id (UUID) PK        │
+│ user_id (UUID) FK   │  │ user_id (UUID) FK   │           │ setting_key (VAR)   │
+│ username (VARCHAR)  │  │ token_hash (VAR)    │           │ setting_value (JSON)│
+│ timestamp (TSTZ)    │  │ remember_me (BOOL)  │           │ description (TEXT)  │
+│ level (VARCHAR)     │  │ ip_address (INET)   │           │ updated_by (UUID)FK │
+│ message (TEXT)      │  │ user_agent (TEXT)   │           │ updated_at (TSTZ)   │
+│ event_type (VAR)    │  │ expires_at (TSTZ)   │           └─────────────────────┘
+│ ip_address (INET)   │  │ created_at (TSTZ)   │           
+│ details (JSONB)     │  │ last_used_at (TSTZ) │           
+└─────────────────────┘  └─────────────────────┘           
 
 ┌─────────────────────────────────┐              ┌─────────────────────────────────┐
 │            ROOMS                │              │          DEVICES                │
@@ -147,57 +172,66 @@
 │ id (UUID) PK                    │              │ id (UUID) PK                    │
 │ name (VARCHAR) UNIQUE           │              │ name (VARCHAR)                  │
 │ display_order (INTEGER)         │              │ room_id (UUID) FK               │
-│ created_at (TIMESTAMP)          │              │ device_type (VARCHAR)           │
-│ updated_at (TIMESTAMP)          │              │ state (BOOLEAN)                 │
-└─────────────┬───────────────────┘              │ temperature (NUMERIC)           │
-              │                                  │ min_temperature (NUMERIC)       │
-              │ 1:N                              │ max_temperature (NUMERIC)       │
+│ created_at (TIMESTAMPTZ)        │              │ device_type (VARCHAR)           │
+│ updated_at (TIMESTAMPTZ)        │              │ state (BOOLEAN) DEFAULT false   │
+└─────────────┬───────────────────┘              │ temperature (NUMERIC(5,2))      │
+              │                                  │ min_temperature (NUMERIC(5,2))  │
+              │ 1:N                              │ max_temperature (NUMERIC(5,2))  │
               │                                  │ display_order (INTEGER)         │
-              └──────────────────────────────────│ enabled (BOOLEAN)               │
-                                                 │ created_at (TIMESTAMP)          │
-                                                 │ updated_at (TIMESTAMP)          │
-                                                 └─────────────────────────────────┘
+              └──────────────────────────────────│ enabled (BOOLEAN) DEFAULT true  │
+                                                 │ created_at (TIMESTAMPTZ)        │
+                                                 │ updated_at (TIMESTAMPTZ)        │
+                                                 └─────────────┬───────────────────┘
+                                                               │
+              ┌─────────────────────────────────┐              │ 1:N
+              │  ROOM_TEMPERATURE_STATES        │              │
+              │─────────────────────────────────│              │
+              │ id (UUID) PK                    │              ▼
+              │ room_id (UUID) FK UNIQUE        │    ┌─────────────────────────────────┐
+              │ current_temperature (NUM(5,2))  │    │       DEVICE_HISTORY            │
+              │ target_temperature (NUM(5,2))   │    │─────────────────────────────────│
+              │ heating_active (BOOLEAN)        │    │ id (UUID) PK                    │
+              │ last_updated (TIMESTAMPTZ)      │    │ device_id (UUID) FK             │
+              └─────────────────────────────────┘    │ old_state (JSONB)               │
+                                                     │ new_state (JSONB)               │
+                                                     │ changed_by (UUID) FK            │
+                                                     │ change_reason (VARCHAR)         │
+                                                     │ created_at (TIMESTAMPTZ)        │
+                                                     └─────────────────────────────────┘
 
 ┌─────────────────────────────────┐              ┌─────────────────────────────────┐
 │         AUTOMATIONS             │              │     AUTOMATION_EXECUTIONS       │
 │─────────────────────────────────│              │─────────────────────────────────│
 │ id (UUID) PK                    │              │ id (UUID) PK                    │
 │ name (VARCHAR) UNIQUE           │              │ automation_id (UUID) FK         │
-│ trigger_config (JSONB)          │              │ execution_status (VARCHAR)      │
+│ trigger_config (JSONB)          │              │ execution_status (VARCHAR(50))  │
 │ actions_config (JSONB)          │              │ trigger_data (JSONB)            │
-│ enabled (BOOLEAN)               │              │ actions_executed (JSONB)        │
-│ last_executed (TIMESTAMP)       │              │ error_message (TEXT)            │
-│ execution_count (INTEGER)       │              │ execution_time_ms (INTEGER)     │
-│ error_count (INTEGER)           │              │ executed_at (TIMESTAMP)         │
+│ enabled (BOOLEAN) DEFAULT true  │              │ actions_executed (JSONB)        │
+│ last_executed (TIMESTAMPTZ)     │              │ error_message (TEXT)            │
+│ execution_count (INT) DEFAULT 0 │              │ execution_time_ms (INTEGER)     │
+│ error_count (INT) DEFAULT 0     │              │ executed_at (TIMESTAMPTZ)       │
 │ last_error (TEXT)               │              └──┬──────────────────────────────┘
-│ last_error_time (TIMESTAMP)     │                 |
-│ created_at (TIMESTAMP)          │                 |
-│ updated_at (TIMESTAMP)          │                 |
+│ last_error_time (TIMESTAMPTZ)   │                 |
+│ created_at (TIMESTAMPTZ)        │                 |
+│ updated_at (TIMESTAMPTZ)        │                 |
 └─────────────┬───────────────────┘                 |
               │                                     |
               │ 1:N                                 |
               │                                     |
               └─────────────────────────────────────┘
 
-
-                    ┌─────────────────────────────────┐
-                    │    NOTIFICATION_SETTINGS        │
-                    │─────────────────────────────────│
-                    │ home_id (UUID)                  │
-                    │ key (VARCHAR)                   │
-                    │ value (JSONB)                   │
-                    │ PRIMARY KEY (home_id, key)      │
-                    └─────────────────────────────────┘
-
-                    ┌─────────────────────────────────┐
-                    │   NOTIFICATION_RECIPIENTS       │
-                    │─────────────────────────────────│
-                    │ id (UUID) PK                    │
-                    │ home_id (UUID)                  │
-                    │ email (VARCHAR)                 │
-                    │ user_id (UUID) FK               │
-                    │ enabled (BOOLEAN)               │
-                    └─────────────────────────────────┘
+    ┌─────────────────────────────────┐              ┌─────────────────────────────────┐
+    │    NOTIFICATION_SETTINGS        │              │   NOTIFICATION_RECIPIENTS       │
+    │─────────────────────────────────│              │─────────────────────────────────│
+    │ id (UUID) PK                    │              │ id (UUID) PK                    │
+    │ home_id (UUID) DEFAULT gen_v4() │              │ home_id (UUID)                  │
+    │ setting_key (VARCHAR(255))      │              │ email (VARCHAR(255))            │
+    │ setting_value (JSONB)           │              │ user_id (UUID) FK               │
+    │ created_at (TIMESTAMPTZ)        │              │ enabled (BOOLEAN) DEFAULT true  │
+    │ updated_at (TIMESTAMPTZ)        │              │ created_at (TIMESTAMPTZ)        │
+    │ UNIQUE(home_id, setting_key)    │              │ updated_at (TIMESTAMPTZ)        │
+    └─────────────────────────────────┘              └─────────────────────────────────┘
+```
 ```
 
 ## Diagram Sekwencji - Sterowanie Urządzeniem

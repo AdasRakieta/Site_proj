@@ -97,13 +97,17 @@ sudo apt install postgresql postgresql-contrib
 # Tworzenie użytkownika i bazy danych
 sudo -u postgres psql
 
-CREATE USER smartuser WITH PASSWORD 'secure_password';
-CREATE DATABASE smarthome OWNER smartuser;
-GRANT ALL PRIVILEGES ON DATABASE smarthome TO smartuser;
+CREATE USER admin WITH PASSWORD 'secure_password';
+CREATE DATABASE admin OWNER admin;
+GRANT ALL PRIVILEGES ON DATABASE admin TO admin;
+
+# Instalacja rozszerzeń (wymagane)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS plpgsql;
 \q
 
-# Import schema
-psql -h localhost -U smartuser -d smarthome -f backups/db_backup.sql
+# Import pełnego schematu (12 tabel + indeksy + triggery)
+psql -h localhost -U admin -d admin -f backups/db_backup.sql
 ```
 
 #### Redis Setup:
@@ -137,16 +141,20 @@ nano .env
 Przykładowy plik `.env`:
 
 ```env
-# Database Configuration
+# Server Configuration
+SERVER_HOST=0.0.0.0
+SERVER_PORT=5000
+
+# Database Configuration (PostgreSQL 17.5)
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=smarthome
-DB_USER=smartuser
+DB_NAME=admin
+DB_USER=admin
 DB_PASSWORD=secure_password
 DB_POOL_MIN=2
 DB_POOL_MAX=10
 
-# Redis Configuration
+# Redis Configuration (Optional - fallback to SimpleCache)
 REDIS_URL=redis://localhost:6379/0
 
 # Flask Configuration
