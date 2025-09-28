@@ -447,6 +447,32 @@ class SmartHomeSystemDB:
         print(f"[DEBUG] No control found for room='{room}', name='{name}'")
         return False
     
+    def toggle_temperature_control_enabled(self, room: str, name: str, enabled: bool) -> bool:
+        """Toggle temperature control enabled/disabled state by room and name"""
+        print(f"[DEBUG] Toggling temperature control enabled: room='{room}', name='{name}', enabled={enabled}")
+        control = self.find_temperature_control_by_room_and_name(room, name)
+        print(f"[DEBUG] Found control: {control}")
+        if control:
+            result = self.update_device(control['id'], {'enabled': enabled})
+            print(f"[DEBUG] Update enabled result: {result}")
+            return result
+        # Fallback: jeśli brak room (lub None) spróbuj znaleźć unikalnie po nazwie
+        if not room:
+            print(f"[DEBUG] Fallback search by name only for temperature control enabled: '{name}' (room missing)")
+            matches = [c for c in self.temperature_controls if c.get('name') == name]
+            if len(matches) == 1:
+                ctrl = matches[0]
+                print(f"[DEBUG] Fallback matched control id={ctrl.get('id')} in room={ctrl.get('room')}")
+                result = self.update_device(ctrl['id'], {'enabled': enabled})
+                print(f"[DEBUG] Fallback enabled update result: {result}")
+                return result
+            elif len(matches) > 1:
+                print(f"[DEBUG] Fallback ambiguous: {len(matches)} controls share name '{name}' – aborting enabled update")
+            else:
+                print(f"[DEBUG] Fallback found no controls with name '{name}'")
+        print(f"[DEBUG] No control found for enabled update: room='{room}', name='{name}'")
+        return False
+    
     # ========================================================================
     # AUTOMATION COMPATIBILITY HELPERS
     # ========================================================================

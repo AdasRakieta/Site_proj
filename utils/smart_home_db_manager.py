@@ -522,7 +522,7 @@ class SmartHomeDatabaseManager:
     def get_temperature_controls(self) -> List[Dict]:
         """Get all temperature control devices in original format"""
         query = """
-            SELECT d.id, d.name, r.name as room, d.temperature, d.display_order
+            SELECT d.id, d.name, r.name as room, d.temperature, d.enabled, d.display_order
             FROM devices d
             LEFT JOIN rooms r ON d.room_id = r.id
             WHERE d.device_type = 'temperature_control'
@@ -544,7 +544,8 @@ class SmartHomeDatabaseManager:
                     'id': control.get('id'),
                     'name': control.get('name'),
                     'room': control.get('room'),
-                    'temperature': temp_float
+                    'temperature': temp_float,
+                    'enabled': bool(control.get('enabled', True))
                 })
         
         return result
@@ -601,7 +602,7 @@ class SmartHomeDatabaseManager:
             params = []
             
             for key, value in updates.items():
-                if key in ['name', 'state', 'temperature', 'room']:
+                if key in ['name', 'state', 'temperature', 'enabled', 'room']:
                     if key == 'room':
                         # Convert room name to room_id
                         room_query = "SELECT id FROM rooms WHERE name = %s"
