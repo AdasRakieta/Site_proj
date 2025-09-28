@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Select Home - SmartHome{% endblock %}
+{% block title %}Wybierz Dom - SmartHome{% endblock %}
 
 {% block content %}
 <div class="home-selection-container">
     <div class="home-selection-header">
-        <h1>Select Home</h1>
-        <p>Choose which home you want to manage</p>
+        <h1>Wybierz Dom</h1>
+        <p>Wybierz, którym domem chcesz zarządzać</p>
     </div>
 
     <div class="homes-grid">
@@ -17,12 +17,12 @@
                 <h3>{{ home.name }}</h3>
                 <div class="home-badges">
                     {% if home.is_owner %}
-                        <span class="badge owner">Owner</span>
+                        <span class="badge owner">Właściciel</span>
                     {% else %}
                         <span class="badge role">{{ home.role.title() }}</span>
                     {% endif %}
                     {% if home.id == current_home_id %}
-                        <span class="badge current">Current</span>
+                        <span class="badge current">Aktualny</span>
                     {% endif %}
                 </div>
             </div>
@@ -34,15 +34,15 @@
             <div class="home-stats">
                 <div class="stat">
                     <span class="stat-number">{{ home.room_count or 0 }}</span>
-                    <span class="stat-label">Rooms</span>
+                    <span class="stat-label">Pokoje</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">{{ home.device_count or 0 }}</span>
-                    <span class="stat-label">Devices</span>
+                    <span class="stat-label">Urządzenia</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">{{ home.user_count or 1 }}</span>
-                    <span class="stat-label">Users</span>
+                    <span class="stat-label">Użytkownicy</span>
                 </div>
             </div>
             
@@ -53,9 +53,9 @@
             </div>
             
             <div class="home-footer">
-                <small>Joined: {{ home.joined_at.strftime('%B %Y') if home.joined_at else 'Unknown' }}</small>
+                <small>Dołączono: {{ home.joined_at.strftime('%B %Y') if home.joined_at else 'Nieznane' }}</small>
                 {% if home.is_owner %}
-                    <a href="/home/{{ home.id }}/settings" class="settings-link">⚙️ Settings</a>
+                    <a href="/home/{{ home.id }}/settings" class="settings-link">⚙️ Ustawienia</a>
                 {% endif %}
             </div>
         </div>
@@ -64,18 +64,18 @@
 
     {% if not homes %}
     <div class="no-homes">
-        <h3>No Homes Available</h3>
-        <p>You don't have access to any homes yet.</p>
-        <a href="/home/create" class="btn btn-primary">Create Your First Home</a>
+        <h3>Brak Dostępnych Domów</h3>
+        <p>Nie masz jeszcze dostępu do żadnych domów.</p>
+        <a href="/home/create" class="btn btn-primary">Utwórz Swój Pierwszy Dom</a>
     </div>
     {% endif %}
 
     <div class="home-actions">
         <a href="/home/create" class="btn btn-secondary">
-            <i class="icon">🏠</i> Create New Home
+            <i class="icon">🏠</i> Utwórz Nowy Dom
         </a>
         <a href="/home/join" class="btn btn-secondary">
-            <i class="icon">👥</i> Join Home
+            <i class="icon">👥</i> Dołącz do Domu
         </a>
     </div>
 </div>
@@ -94,7 +94,7 @@ function selectHome(homeId) {
     }
     
     const originalContent = card.innerHTML;
-    card.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Switching home...</p></div>';
+    card.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Przełączanie domu...</p></div>';
     
     console.log('📤 Sending request to /api/home/select with homeId:', homeId);
     
@@ -115,14 +115,14 @@ function selectHome(homeId) {
         } else {
             // Restore card content and show error
             card.innerHTML = originalContent;
-            alert('Failed to switch home: ' + (data.error || 'Unknown error'));
+            alert('Nie udało się przełączyć domu: ' + (data.error || 'Nieznany błąd'));
         }
     })
     .catch(error => {
         // Restore card content and show error
         card.innerHTML = originalContent;
         console.error('Error switching home:', error);
-        alert('Failed to switch home. Please try again.');
+        alert('Nie udało się przełączyć domu. Spróbuj ponownie.');
     });
 }
 

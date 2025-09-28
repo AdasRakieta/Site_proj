@@ -48,7 +48,7 @@
                     <div class="menu-item home-selector-item">
                         <div class="current-home-display" onclick="toggleHomeSelector()">
                             <img class="user-menu-icon" src="{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
-                            <span class="current-home-name">{{ current_home.name if current_home else 'Select Home' }}</span>
+                            <span class="current-home-name">{{ current_home.name if current_home else 'Wybierz Dom' }}</span>
                             <span class="home-dropdown-arrow">▼</span>
                         </div>
                         <div class="home-selector-dropdown" id="home-selector-dropdown">
@@ -63,8 +63,8 @@
                             </div>
                             {% endfor %}
                             <div class="home-selector-actions">
-                                <a href="/home/select" class="home-action-link">Manage Homes</a>
-                                <a href="/home/create" class="home-action-link">Create New</a>
+                                <a href="/home/select" class="home-action-link">Zarządzaj Domami</a>
+                                <a href="/home/create" class="home-action-link">Utwórz Nowy</a>
                             </div>
                         </div>
                     </div>
@@ -72,7 +72,7 @@
                     <a href="/settings" class="menu-item">
                         <img class="user-menu-icon" id="user-menu-settings-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Ustawienia">
                     </a>
-                        <a href="/logout" class="menu-item" style="margin-left: -30px;"
+                        <a href="/logout" class="menu-item" style="margin-left: -30px;">
                         <img class="user-menu-icon" id="user-menu-logout-icon" src="{{ url_for('static', filename='icons/leave_icon.png') }}" alt="Wyloguj">
                     </a>
                 </div>
@@ -89,7 +89,6 @@
         <nav style="margin-top: 55px;" class="menu">
             <ul>
                 <li><a href="/" class="menu-link"><img id="home-icon" class="menu-icon" src="{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home"> Strona Główna</a></li>
-                <li><a href="/home/select" class="menu-link"><img id="home-manage-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Home Management"> Zarządzanie domami</a></li>
                 <li><a href="/lights" class="menu-link"><img id="lights-icon" class="menu-icon" src="{{ url_for('static', filename='icons/lights_icon_light.png') }}" alt="Lights"> Światła</a></li>
                 <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
                 <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
@@ -138,7 +137,7 @@
             const originalText = currentHomeName ? currentHomeName.textContent : '';
             
             if (currentHomeName) {
-                currentHomeName.textContent = 'Switching...';
+                currentHomeName.textContent = 'Przełączanie...';
             }
             
             // Send request to switch home
@@ -159,7 +158,7 @@
                     if (currentHomeName) {
                         currentHomeName.textContent = originalText;
                     }
-                    alert('Failed to switch home: ' + (data.error || 'Unknown error'));
+                    alert('Nie udało się przełączyć domu: ' + (data.error || 'Nieznany błąd'));
                 }
             })
             .catch(error => {
@@ -168,7 +167,7 @@
                     currentHomeName.textContent = originalText;
                 }
                 console.error('Error switching home:', error);
-                alert('Failed to switch home. Please try again.');
+                alert('Nie udało się przełączyć domu. Spróbuj ponownie.');
             });
             
             // Hide dropdown

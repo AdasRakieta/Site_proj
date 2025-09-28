@@ -1,46 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}Join Home - SmartHome{% endblock %}
+{% block title %}Dołącz do Domu - SmartHome{% endblock %}
 
 {% block content %}
 <div class="home-form-container home-join">
     <div class="form-container">
         <div class="form-header">
-            <h1>Join Home</h1>
-            <p>Enter an invitation code to join an existing home</p>
+            <h1>Dołącz do Domu</h1>
+            <p>Wprowadź kod zaproszenia, aby dołączyć do istniejącego domu</p>
         </div>
 
         <form id="joinHomeForm" method="POST" action="/api/home/join">
             <div class="form-group">
-                <label for="invitation_code">Invitation Code *</label>
+                <label for="invitation_code">Kod Zaproszenia *</label>
                 <input type="text" 
                        id="invitation_code" 
                        name="invitation_code" 
                        required 
-                       placeholder="Enter invitation code"
+                       placeholder="Wprowadź kod zaproszenia"
                        class="form-control">
-                <small class="form-text">Ask the home owner for an invitation code</small>
+                <small class="form-text">Poproś właściciela domu o kod zaproszenia</small>
             </div>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i class="icon">🔗</i>
-                    Join Home
+                    Dołącz do Domu
                 </button>
                 <a href="/home/select" class="btn btn-secondary">
                     <i class="icon">←</i>
-                    Back to Home Selection
+                    Powrót do Wyboru Domu
                 </a>
             </div>
         </form>
 
         <div class="info-section">
-            <h3>How to join a home?</h3>
+            <h3>Jak dołączyć do domu?</h3>
             <ul>
-                <li>Ask the home owner to send you an invitation code</li>
-                <li>Enter the code in the field above</li>
-                <li>You'll get access to the home's devices and rooms</li>
-                <li>Your permissions depend on the role assigned by the owner</li>
+                <li>Poproś właściciela domu o wysłanie kodu zaproszenia</li>
+                <li>Wprowadź kod w powyższym polu</li>
+                <li>Otrzymasz dostęp do urządzeń i pokoi w domu</li>
+                <li>Twoje uprawnienia zależą od roli przypisanej przez właściciela</li>
             </ul>
         </div>
     </div>
@@ -57,7 +57,7 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
     // Show loading state
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="icon">⏳</i> Joining...';
+    submitBtn.innerHTML = '<i class="icon">⏳</i> Dołączam...';
     submitBtn.disabled = true;
     
     // Remove any existing error/success messages
@@ -77,7 +77,7 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
             // Show success message
             const successDiv = document.createElement('div');
             successDiv.className = 'success-message';
-            successDiv.textContent = 'Successfully joined home! Redirecting...';
+            successDiv.textContent = 'Pomyślnie dołączono do domu! Przekierowanie...';
             form.insertBefore(successDiv, form.firstChild);
             
             // Redirect after a short delay
@@ -88,7 +88,7 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
             // Show error message
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
-            errorDiv.textContent = result.error || 'Failed to join home. Please check your invitation code.';
+            errorDiv.textContent = result.error || 'Nie udało się dołączyć do domu. Sprawdź kod zaproszenia.';
             form.insertBefore(errorDiv, form.firstChild);
             
             // Restore form state
@@ -102,7 +102,7 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
         // Show error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
-        errorDiv.textContent = 'Network error. Please check your connection and try again.';
+        errorDiv.textContent = 'Błąd sieci. Sprawdź połączenie i spróbuj ponownie.';
         form.insertBefore(errorDiv, form.firstChild);
         
         // Restore form state

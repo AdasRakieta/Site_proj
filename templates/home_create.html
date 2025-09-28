@@ -1,58 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}Create New Home - SmartHome{% endblock %}
+{% block title %}Utwórz Nowy Dom - SmartHome{% endblock %}
 
 {% block content %}
 <div class="home-form-container home-create">
     <div class="form-container">
         <div class="form-header">
-            <h1>Create New Home</h1>
-            <p>Set up a new smart home environment</p>
+            <h1>Utwórz Nowy Dom</h1>
+            <p>Skonfiguruj nowe środowisko inteligentnego domu</p>
         </div>
 
         <form id="createHomeForm" method="POST" action="/api/home/create">
             <div class="form-group">
-                <label for="name">Home Name *</label>
+                <label for="name">Nazwa Domu *</label>
                 <input type="text" 
                        id="name" 
                        name="name" 
                        required 
                        maxlength="100"
-                       placeholder="e.g., Main House, Summer Cottage, Office"
+                       placeholder="np. Główny Dom, Domek Letniskowy, Biuro"
                        class="form-control">
-                <small class="form-text">Choose a name that helps you identify this home</small>
+                <small class="form-text">Wybierz nazwę, która pomoże Ci identyfikować ten dom</small>
             </div>
 
             <div class="form-group">
-                <label for="description">Description (Optional)</label>
+                <label for="description">Opis (Opcjonalny)</label>
                 <textarea id="description" 
                           name="description" 
                           rows="3"
                           maxlength="500"
-                          placeholder="Brief description of this home location..."
+                          placeholder="Krótki opis lokalizacji tego domu..."
                           class="form-control"></textarea>
-                <small class="form-text">Optional description to help distinguish this home</small>
+                <small class="form-text">Opcjonalny opis pomocny w odroznieniu tego domu</small>
             </div>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i class="icon">🏠</i>
-                    Create Home
+                    Utwórz Dom
                 </button>
                 <a href="/home/select" class="btn btn-secondary">
                     <i class="icon">←</i>
-                    Back to Home Selection
+                    Powrót do Wyboru Domu
                 </a>
             </div>
         </form>
 
         <div class="info-section">
-            <h3>What happens next?</h3>
+            <h3>Co dzieje się dalej?</h3>
             <ul>
-                <li>Your new home will be created and you'll be set as the owner</li>
-                <li>You can invite other users to join your home</li>
-                <li>Start adding rooms and devices to your smart home</li>
-                <li>Configure automations and settings for this home</li>
+                <li>Twój nowy dom zostanie utworzony, a Ty zostaniesz ustawiony jako właściciel</li>
+                <li>Możesz zaprosić innych użytkowników do swojego domu</li>
+                <li>Zacznij dodawać pokoje i urządzenia do swojego inteligentnego domu</li>
+                <li>Skonfiguruj automatyzacje i ustawienia dla tego domu</li>
             </ul>
         </div>
     </div>
@@ -72,7 +72,7 @@ document.getElementById('createHomeForm').addEventListener('submit', function(e)
     form.classList.add('loading-state');
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="icon">⏳</i> Creating...';
+    submitBtn.innerHTML = '<i class="icon">⏳</i> Tworzenie...';
     submitBtn.disabled = true;
     
     // Remove any existing error/success messages
@@ -92,7 +92,7 @@ document.getElementById('createHomeForm').addEventListener('submit', function(e)
             // Show success message
             const successDiv = document.createElement('div');
             successDiv.className = 'success-message';
-            successDiv.textContent = 'Home created successfully! Redirecting...';
+            successDiv.textContent = 'Dom został pomyślnie utworzony! Przekierowywanie...';
             form.insertBefore(successDiv, form.firstChild);
             
             // Redirect after a short delay
@@ -103,7 +103,7 @@ document.getElementById('createHomeForm').addEventListener('submit', function(e)
             // Show error message
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
-            errorDiv.textContent = result.error || 'Failed to create home. Please try again.';
+            errorDiv.textContent = result.error || 'Nie udało się utworzyć domu. Spróbuj ponownie.';
             form.insertBefore(errorDiv, form.firstChild);
             
             // Restore form state
@@ -118,7 +118,7 @@ document.getElementById('createHomeForm').addEventListener('submit', function(e)
         // Show error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
-        errorDiv.textContent = 'Network error. Please check your connection and try again.';
+        errorDiv.textContent = 'Błąd sieci. Sprawdź połączenie i spróbuj ponownie.';
         form.insertBefore(errorDiv, form.firstChild);
         
         // Restore form state
@@ -141,7 +141,7 @@ nameInput.addEventListener('input', function() {
     }
     
     const remaining = 100 - this.value.length;
-    counter.textContent = `${remaining} characters remaining`;
+    counter.textContent = `Pozostało ${remaining} znaków`;
     counter.style.color = remaining < 20 ? '#c33' : 'var(--text-muted)';
 });
 
@@ -158,7 +158,7 @@ descInput.addEventListener('input', function() {
     }
     
     const remaining = 500 - this.value.length;
-    counter.textContent = `${remaining} characters remaining`;
+    counter.textContent = `Pozostało ${remaining} znaków`;
     counter.style.color = remaining < 50 ? '#c33' : 'var(--text-muted)';
 });
 </script>
