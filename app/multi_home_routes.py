@@ -48,21 +48,38 @@ except Exception as e:
 @login_required
 def home_select():
     """Display home selection page."""
+    print("🏠 Home select page accessed")
+    logger.info("🏠 Home select page accessed")
+    
     if not multi_db:
+        print("❌ Multi-home DB not available")
+        logger.error("Multi-home DB not available")
         flash("Multi-home functionality is not available", "error")
         return redirect(url_for('main.index'))
     
     user = get_current_user()
     if not user:
+        print("❌ No current user found")
+        logger.error("No current user found")
         return redirect(url_for('login'))
     user_id = user['id']
+    print(f"👤 Loading homes for user: {user_id}")
+    logger.info(f"👤 Loading homes for user: {user_id}")
     
     try:
         # Get all homes user has access to
         homes = multi_db.get_user_homes(user_id)
+        print(f"🏠 Found {len(homes)} homes for user")
+        logger.info(f"🏠 Found {len(homes)} homes for user")
+        
+        for home in homes:
+            print(f"  - Home: {home['name']} (ID: {home['id']})")
+            logger.info(f"  - Home: {home['name']} (ID: {home['id']})")
         
         # Get current home ID
         current_home_id = multi_db.get_user_current_home(user_id)
+        print(f"🎯 Current home ID: {current_home_id}")
+        logger.info(f"🎯 Current home ID: {current_home_id}")
         
         # Add statistics to homes
         for home in homes:
@@ -92,35 +109,54 @@ def home_select():
 @login_required
 def api_home_select():
     """API endpoint to select/switch current home."""
+    logger.info("🏠 API home select endpoint called")
+    
     if not multi_db:
+        logger.error("Multi-home DB not available")
         return jsonify({"success": False, "error": "Multi-home functionality not available"})
     
     try:
         data = request.get_json()
+        logger.info(f"📥 Received data: {data}")
         home_id = data.get('home_id')
         
         if not home_id:
+            logger.error("No home_id provided")
             return jsonify({"success": False, "error": "Home ID required"})
         
-        user_id = get_current_user()['id']
+        user = get_current_user()
+        if not user:
+            logger.error("No current user found")
+            return jsonify({"success": False, "error": "Authentication required"})
+        
+        user_id = user['id']
+        logger.info(f"👤 User ID: {user_id}, switching to home: {home_id}")
         
         # Verify user has access to this home
-        if not multi_db.user_has_home_access(user_id, home_id):
+        has_access = multi_db.user_has_home_access(user_id, home_id)
+        logger.info(f"🔑 User has access to home {home_id}: {has_access}")
+        
+        if not has_access:
             return jsonify({"success": False, "error": "Access denied to this home"})
         
         # Set current home in session and database
         session_token = session.get('session_token')
+        logger.info(f"💾 Setting current home in DB, session_token: {session_token}")
         success = multi_db.set_user_current_home(user_id, home_id, session_token)
         
         if success:
             # Also store in Flask session for immediate use
             session['current_home_id'] = home_id
+            logger.info(f"✅ Successfully switched to home {home_id}")
             return jsonify({"success": True})
         else:
+            logger.error(f"❌ Failed to set current home in database")
             return jsonify({"success": False, "error": "Failed to switch home"})
     
     except Exception as e:
-        logger.error(f"Error switching home: {e}")
+        logger.error(f"💥 Error switching home: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": "Internal server error"})
 
 @multi_home_bp.route('/home/create')

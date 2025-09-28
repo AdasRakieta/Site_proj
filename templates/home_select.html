@@ -12,7 +12,7 @@
     <div class="homes-grid">
         {% for home in homes %}
         <div class="home-card {% if home.id == current_home_id %}active{% endif %}" 
-             onclick="selectHome({{ home.id }})">
+             onclick="selectHome('{{ home.id }}')">
             <div class="home-header">
                 <h3>{{ home.name }}</h3>
                 <div class="home-badges">
@@ -84,10 +84,19 @@
 
 <script>
 function selectHome(homeId) {
+    console.log('🏠 selectHome called with homeId:', homeId);
+    
     // Show loading state
-    const card = document.querySelector(`.home-card[onclick="selectHome(${homeId})"]`);
+    const card = document.querySelector(`.home-card[onclick="selectHome('${homeId}')"]`);
+    if (!card) {
+        console.error('❌ Card not found for homeId:', homeId);
+        return;
+    }
+    
     const originalContent = card.innerHTML;
     card.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Switching home...</p></div>';
+    
+    console.log('📤 Sending request to /api/home/select with homeId:', homeId);
     
     // Send request to switch home
     fetch('/api/home/select', {
