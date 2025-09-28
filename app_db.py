@@ -265,6 +265,9 @@ class SmartHomeApp:
         """Setup Flask routes and API endpoints"""
         try:
             from app.routes import APIManager
+            # Import multi_db from multi_home_routes
+            from app.multi_home_routes import multi_db
+            
             self.route_manager = RoutesManager(
                 app=self.app,
                 smart_home=self.smart_home,
@@ -273,7 +276,8 @@ class SmartHomeApp:
                 async_mail_manager=self.async_mail_manager,
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger,
-                socketio=self.socketio  # Add socketio parameter
+                socketio=self.socketio,  # Add socketio parameter
+                multi_db=multi_db  # Add multi_db parameter
             )
             # Register API endpoints (including /api/automations etc.)
             # Be resilient to different APIManager signatures across deployments
