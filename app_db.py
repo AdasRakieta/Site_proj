@@ -297,13 +297,23 @@ class SmartHomeApp:
             print(f"[DEBUG] Creating APIManager with kwargs: {sorted(filtered_kwargs.keys())}")
             self.api_manager = APIManager(**filtered_kwargs)
             
-            # Register multi-home blueprint
+            # Register multi-home blueprint first
             try:
                 from app.multi_home_routes import multi_home_bp
                 self.app.register_blueprint(multi_home_bp)
                 print("✓ Multi-home routes registered successfully")
             except Exception as e:
                 print(f"⚠ Failed to register multi-home routes: {e}")
+            
+            # Register home settings blueprint after multi-home (needs multi_db)
+            try:
+                from app.home_settings_routes import home_settings_bp
+                self.app.register_blueprint(home_settings_bp)
+                print("✓ Home settings routes registered successfully")
+            except Exception as e:
+                print(f"⚠ Failed to register home settings routes: {e}")
+                import traceback
+                traceback.print_exc()
             
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:

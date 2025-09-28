@@ -20,7 +20,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user_menu.css') }}?v={{ asset_version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v={{ asset_version }}">
+    {% if request.endpoint != 'home_settings.home_settings_page' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v={{ asset_version }}">
+    {% endif %}
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
