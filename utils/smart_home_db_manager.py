@@ -505,7 +505,7 @@ class SmartHomeDatabaseManager:
         # Convert to original format
         result = []
         for button in (buttons or []):
-            if button and isinstance(button, dict):
+            if button and isinstance(button, dict) and button.get('room'):
                 result.append({
                     'id': button.get('id'),
                     'name': button.get('name'),
@@ -534,7 +534,7 @@ class SmartHomeDatabaseManager:
         # Convert to original format
         result = []
         for control in (controls or []):
-            if control and isinstance(control, dict):
+            if control and isinstance(control, dict) and control.get('room'):
                 temp_val = control.get('temperature')
                 try:
                     temp_float = float(temp_val) if temp_val is not None else None
