@@ -1177,10 +1177,10 @@ class APIManager:
                         old_name = r
                         break
                 for button in self.smart_home.buttons:
-                    if button['room'].lower() == old_name.lower():
+                    if button.get('room') and button['room'].lower() == old_name.lower():
                         button['room'] = new_name
                 for control in self.smart_home.temperature_controls:
-                    if control['room'].lower() == old_name.lower():
+                    if control.get('room') and control['room'].lower() == old_name.lower():
                         control['room'] = new_name
                 self.smart_home.save_config()
 
@@ -1859,8 +1859,8 @@ class APIManager:
         @self.auth_manager.login_required
         def dynamic_room(room):
             if room.lower() in [r.lower() for r in self.smart_home.rooms]:
-                room_buttons = [button for button in self.smart_home.buttons if button['room'].lower() == room.lower()]
-                room_temperature_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() == room.lower()]
+                room_buttons = [button for button in self.smart_home.buttons if button.get('room') and button['room'].lower() == room.lower()]
+                room_temperature_controls = [control for control in self.smart_home.temperature_controls if control.get('room') and control['room'].lower() == room.lower()]
                 user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
                 return render_template('room.html', 
                                       room=room.capitalize(), 
@@ -2391,7 +2391,7 @@ class SocketManager:
         @self.socketio.on('get_room_temperature_controls')
         def handle_get_room_temperature_controls(room):
             if 'username' in session:
-                room_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() == room.lower()]
+                room_controls = [control for control in self.smart_home.temperature_controls if control.get('room') and control['room'].lower() == room.lower()]
                 self.socketio.emit('update_room_temperature_controls', room_controls)
 
         @self.socketio.on('save_config')
