@@ -16,6 +16,10 @@
     background: var(--card-bg) !important;
     border-radius: 12px;
     border: 1px solid var(--border);
+    box-shadow: var(--box_shd);
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .header-left h1 {
@@ -75,6 +79,9 @@
     border-radius: 12px;
     border: 1px solid var(--border);
     overflow: hidden;
+    box-shadow: var(--box_shd);
+    width: 650px;
+    margin: auto;
 }
 
 .settings-section.danger-zone {
