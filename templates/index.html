@@ -4,6 +4,32 @@
 {% block header %}Strona Główna{% endblock %}
 
 {% block content %}
+    <!-- Karta zarządzania domami -->
+    <div class="home-management-card">
+        <div class="card-header">
+            <h3>🏠 {{ current_home.name if current_home else 'Nie wybrano domu' }}</h3>
+            <p class="current-home-info">
+                {% if current_home %}
+                    Zarządzasz obecnie domem: <strong>{{ current_home.name }}</strong>
+                {% else %}
+                    Wybierz dom, którym chcesz zarządzać
+                {% endif %}
+            </p>
+        </div>
+        <div class="card-actions">
+            <a href="/home/select" class="quick-action-btn">
+                <span class="action-icon">🏠</span>
+                <span class="action-text">Zarządzaj domami</span>
+            </a>
+            {% if current_home %}
+            <div class="home-stats-quick">
+                <span class="stat-item">{{ current_home.room_count or 0 }} pokoi</span>
+                <span class="stat-item">{{ current_home.device_count or 0 }} urządzeń</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <h3 style="margin-bottom: 25px;">Wybierz pokój, którym chcesz sterować</h3>
     <div class="rooms-container" id="roomSelect">
         <!-- Rooms will be dynamically added here -->

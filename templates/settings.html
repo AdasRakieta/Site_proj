@@ -5,16 +5,56 @@
 
 {% block content %}
     <div class="settings-container">
+        <!-- Sekcja zarządzania domami -->
         <section class="settings-section">
-            <h2>Motyw aplikacji</h2>
+            <h2>🏠 Zarządzanie domami</h2>
+            <p class="section-description">Zarządzaj swoimi domami, twórz nowe i zapraszaj użytkowników</p>
+            <div class="settings-actions">
+                <a href="/home/select" class="settings-btn settings-btn-primary">
+                    <i class="icon">🏠</i>
+                    <div class="btn-content">
+                        <span class="btn-title">Centrum zarządzania domami</span>
+                        <span class="btn-description">Przełączaj między domami, twórz nowe i zarządzaj dostępem</span>
+                    </div>
+                    <i class="arrow">→</i>
+                </a>
+            </div>
+        </section>
+
+        <!-- Sekcja motywu aplikacji -->
+        <section class="settings-section">
+            <h2>🎨 Motyw aplikacji</h2>
+            <p class="section-description">Dostosuj wygląd aplikacji do swoich preferencji</p>
             <div class="theme-form">
                 <div class="theme-selector">
-                    <select class="select-settings" onchange="app.changeTheme(this.value)">
+                    <label for="theme-select">Wybierz motyw:</label>
+                    <select id="theme-select" class="select-settings" onchange="app.changeTheme(this.value)">
                         <option value="light">Jasny</option>
                         <option value="dark">Ciemny</option>
                     </select>
                 </div>
             </div>
+        </section>
+
+        <!-- Sekcja informacji o koncie -->
+        <section class="settings-section">
+            <h2>👤 Informacje o koncie</h2>
+            <p class="section-description">Podstawowe informacje o Twoim koncie</p>
+            <div class="account-info">
+                <div class="info-item">
+                    <span class="info-label">Użytkownik:</span>
+                    <span class="info-value">{{ user_data.name if user_data else session.username }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ user_data.email if user_data else 'Brak danych' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Rola:</span>
+                    <span class="info-value role-badge role-{{ session.role }}">{{ session.role.title() if session.role else 'Użytkownik' }}</span>
+                </div>
+            </div>
+        </section>
     </div>
 {% endblock %}
 

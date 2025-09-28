@@ -137,6 +137,14 @@ class SmartHomeApp:
             import secrets
             return dict(csrf_token=lambda: secrets.token_hex(16))
         
+        # Add multi-home context processor
+        try:
+            from app.multi_home_context import multi_home_context_processor
+            self.app.context_processor(multi_home_context_processor)
+            print("✓ Multi-home context processor registered")
+        except Exception as e:
+            print(f"⚠ Failed to register multi-home context processor: {e}")
+        
         @self.app.template_global()
         def modify_query(**new_values):
             """Modify query parameters for pagination"""
@@ -284,6 +292,15 @@ class SmartHomeApp:
             # Helpful debug
             print(f"[DEBUG] Creating APIManager with kwargs: {sorted(filtered_kwargs.keys())}")
             self.api_manager = APIManager(**filtered_kwargs)
+            
+            # Register multi-home blueprint
+            try:
+                from app.multi_home_routes import multi_home_bp
+                self.app.register_blueprint(multi_home_bp)
+                print("✓ Multi-home routes registered successfully")
+            except Exception as e:
+                print(f"⚠ Failed to register multi-home routes: {e}")
+            
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")

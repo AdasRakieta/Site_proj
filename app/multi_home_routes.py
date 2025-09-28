@@ -34,10 +34,10 @@ def get_current_user():
 # Initialize multi-home database manager
 try:
     multi_db = MultiHomeDBManager(
-        host="localhost",
+        host="100.103.184.90",
         port=5432,
-        user="postgres", 
-        password="",
+        user="admin", 
+        password="Qwuizzy123.",
         database="smarthome_multihouse"
     )
 except Exception as e:

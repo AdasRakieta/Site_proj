@@ -72,7 +72,7 @@ class MultiHomeDBManager:
     # HOME MANAGEMENT
     # ============================================================================
 
-    def create_home(self, name: str, owner_id: int, description: Optional[str] = None) -> int:
+    def create_home(self, name: str, owner_id: str, description: Optional[str] = None) -> int:
         """Create a new home and return its ID."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -95,7 +95,7 @@ class MultiHomeDBManager:
             logger.info(f"Created home '{name}' with ID {home_id} for owner {owner_id}")
             return home_id
 
-    def get_user_homes(self, user_id: int) -> List[Dict]:
+    def get_user_homes(self, user_id: str) -> List[Dict]:
         """Get all homes a user has access to."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -110,20 +110,27 @@ class MultiHomeDBManager:
             
             homes = []
             for row in cursor.fetchall():
+                # Handle permissions - might already be parsed by psycopg2
+                permissions = row[5]
+                if isinstance(permissions, str):
+                    permissions = json.loads(permissions) if permissions else []
+                elif permissions is None:
+                    permissions = []
+                    
                 homes.append({
                     'id': row[0],
                     'name': row[1],
                     'description': row[2],
                     'owner_id': row[3],
                     'role': row[4],
-                    'permissions': json.loads(row[5]) if row[5] else [],
+                    'permissions': permissions,
                     'joined_at': row[6],
                     'is_owner': row[7]
                 })
             
             return homes
 
-    def get_home_details(self, home_id: int, user_id: int) -> Optional[Dict]:
+    def get_home_details(self, home_id: int, user_id: str) -> Optional[Dict]:
         """Get detailed information about a home if user has access."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -139,6 +146,13 @@ class MultiHomeDBManager:
             if not row:
                 return None
                 
+            # Handle permissions - might already be parsed by psycopg2
+            permissions = row[6]
+            if isinstance(permissions, str):
+                permissions = json.loads(permissions) if permissions else []
+            elif permissions is None:
+                permissions = []
+            
             return {
                 'id': row[0],
                 'name': row[1],
@@ -146,11 +160,11 @@ class MultiHomeDBManager:
                 'owner_id': row[3],
                 'created_at': row[4],
                 'role': row[5],
-                'permissions': json.loads(row[6]) if row[6] else [],
+                'permissions': permissions,
                 'is_owner': row[7]
             }
 
-    def user_has_home_access(self, user_id: int, home_id: int) -> bool:
+    def user_has_home_access(self, user_id: str, home_id: int) -> bool:
         """Check if user has access to a specific home."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -160,7 +174,7 @@ class MultiHomeDBManager:
             
             return cursor.fetchone() is not None
 
-    def user_has_home_permission(self, user_id: int, home_id: int, permission: str) -> bool:
+    def user_has_home_permission(self, user_id: str, home_id: int, permission: str) -> bool:
         """Check if user has specific permission in a home."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -172,7 +186,7 @@ class MultiHomeDBManager:
             if not row:
                 return False
                 
-            permissions = json.loads(row[0]) if row[0] else []
+            permissions = row[0] if row[0] else []  # Already parsed by psycopg2
             role = row[1]
             
             # Admin and owner roles have all permissions
@@ -185,7 +199,7 @@ class MultiHomeDBManager:
     # ROOM MANAGEMENT
     # ============================================================================
 
-    def create_room(self, home_id: int, name: str, user_id: int, 
+    def create_room(self, home_id: int, name: str, user_id: str, 
                    description: Optional[str] = None) -> int:
         """Create a new room in a home."""
         if not self.user_has_home_permission(user_id, home_id, 'manage_rooms'):
@@ -205,7 +219,7 @@ class MultiHomeDBManager:
             logger.info(f"Created room '{name}' with ID {room_id} in home {home_id}")
             return room_id
 
-    def get_home_rooms(self, home_id: int, user_id: int) -> List[Dict]:
+    def get_home_rooms(self, home_id: int, user_id: str) -> List[Dict]:
         """Get all rooms in a home that user has access to."""
         if not self.user_has_home_access(user_id, home_id):
             return []
@@ -231,7 +245,7 @@ class MultiHomeDBManager:
             
             return rooms
 
-    def get_room(self, room_id: int, user_id: int) -> Optional[Dict]:
+    def get_room(self, room_id: int, user_id: str) -> Optional[Dict]:
         """Get room details if user has access."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -259,7 +273,7 @@ class MultiHomeDBManager:
     # ============================================================================
 
     def create_device(self, room_id: int, name: str, device_type: str, 
-                      user_id: int, **kwargs) -> int:
+                      user_id: str, **kwargs) -> int:
         """Create a new device in a room."""
         # Verify user has access to the room's home
         room = self.get_room(room_id, user_id)
@@ -270,46 +284,40 @@ class MultiHomeDBManager:
             raise PermissionError("User doesn't have permission to manage devices")
             
         with self.get_cursor() as cursor:
-            # Prepare device data
-            device_data = {
-                'name': name,
-                'type': device_type,
-                'enabled': kwargs.get('enabled', True),
-                'created_at': datetime.now(),
-                'updated_at': datetime.now()
-            }
-            
-            # Add type-specific fields
+            # Create settings JSON from type-specific fields
+            settings = {}
             if device_type == 'light':
-                device_data.update({
-                    'state': kwargs.get('state', False),
+                settings = {
                     'brightness': kwargs.get('brightness', 100),
                     'color': kwargs.get('color', '#FFFFFF')
-                })
+                }
             elif device_type == 'temperature_control':
-                device_data.update({
-                    'current_temperature': kwargs.get('current_temperature', 20.0),
+                settings = {
                     'target_temperature': kwargs.get('target_temperature', 21.0),
                     'mode': kwargs.get('mode', 'auto')
-                })
+                }
             elif device_type == 'button':
-                device_data.update({
+                settings = {
                     'action': kwargs.get('action', 'toggle'),
                     'target_device_id': kwargs.get('target_device_id')
-                })
+                }
             
             cursor.execute("""
-                INSERT INTO devices (room_id, name, type, state, brightness, color,
-                                   current_temperature, target_temperature, mode,
-                                   action, target_device_id, enabled, created_at, updated_at)
-                VALUES (%(room_id)s, %(name)s, %(type)s, %(state)s, %(brightness)s, %(color)s,
-                        %(current_temperature)s, %(target_temperature)s, %(mode)s,
-                        %(action)s, %(target_device_id)s, %(enabled)s, %(created_at)s, %(updated_at)s)
+                INSERT INTO devices (room_id, name, device_type, state, temperature, 
+                                   enabled, settings, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, {
-                'room_id': room_id,
-                **device_data
-            })
+            """, (
+                room_id,
+                name,
+                device_type,
+                kwargs.get('state', False if device_type == 'light' else None),
+                kwargs.get('current_temperature', 20.0 if device_type == 'temperature_control' else None),
+                kwargs.get('enabled', True),
+                json.dumps(settings) if settings else None,
+                datetime.now(),
+                datetime.now()
+            ))
             
             result = cursor.fetchone()
             if not result:
@@ -318,7 +326,7 @@ class MultiHomeDBManager:
             logger.info(f"Created {device_type} device '{name}' with ID {device_id} in room {room_id}")
             return device_id
 
-    def get_home_devices(self, home_id: int, user_id: int, 
+    def get_home_devices(self, home_id: int, user_id: str, 
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a home, optionally filtered by type."""
         if not self.user_has_home_access(user_id, home_id):
@@ -334,7 +342,7 @@ class MultiHomeDBManager:
             params: List[Any] = [home_id]
             
             if device_type:
-                query += " AND d.type = %s"
+                query += " AND d.device_type = %s"
                 params.append(device_type)
                 
             query += " ORDER BY r.name, d.name"
@@ -344,29 +352,27 @@ class MultiHomeDBManager:
             devices = []
             for row in cursor.fetchall():
                 device = {
-                    'id': row[0],
-                    'room_id': row[1],
-                    'name': row[2],
-                    'type': row[3],
-                    'state': row[4],
-                    'brightness': row[5],
-                    'color': row[6],
-                    'current_temperature': row[7],
-                    'target_temperature': row[8],
-                    'mode': row[9],
-                    'action': row[10],
-                    'target_device_id': row[11],
-                    'enabled': row[12],
-                    'created_at': row[13],
-                    'updated_at': row[14],
-                    'room_name': row[15],
-                    'home_id': row[16]
+                    'id': row[0],          # id
+                    'name': row[1],        # name  
+                    'room_id': row[2],     # room_id
+                    'type': row[3],        # device_type
+                    'state': row[4],       # state
+                    'temperature': row[5], # temperature (current)
+                    'min_temperature': row[6],  # min_temperature
+                    'max_temperature': row[7],  # max_temperature
+                    'display_order': row[8],    # display_order
+                    'enabled': row[9],     # enabled
+                    'settings': row[10],   # settings (JSONB)
+                    'created_at': row[11], # created_at
+                    'updated_at': row[12], # updated_at
+                    'room_name': row[13],  # room_name
+                    'home_id': row[14]     # home_id
                 }
                 devices.append(device)
             
             return devices
 
-    def get_room_devices(self, room_id: int, user_id: int, 
+    def get_room_devices(self, room_id: int, user_id: str, 
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a room, optionally filtered by type."""
         room = self.get_room(room_id, user_id)
@@ -378,7 +384,7 @@ class MultiHomeDBManager:
             params: List[Any] = [room_id]
             
             if device_type:
-                query += " AND type = %s"
+                query += " AND device_type = %s"
                 params.append(device_type)
                 
             query += " ORDER BY name"
@@ -388,27 +394,25 @@ class MultiHomeDBManager:
             devices = []
             for row in cursor.fetchall():
                 device = {
-                    'id': row[0],
-                    'room_id': row[1],
-                    'name': row[2],
-                    'type': row[3],
-                    'state': row[4],
-                    'brightness': row[5],
-                    'color': row[6],
-                    'current_temperature': row[7],
-                    'target_temperature': row[8],
-                    'mode': row[9],
-                    'action': row[10],
-                    'target_device_id': row[11],
-                    'enabled': row[12],
-                    'created_at': row[13],
-                    'updated_at': row[14]
+                    'id': row[0],          # id
+                    'name': row[1],        # name
+                    'room_id': row[2],     # room_id
+                    'type': row[3],        # device_type
+                    'state': row[4],       # state
+                    'temperature': row[5], # temperature
+                    'min_temperature': row[6],  # min_temperature
+                    'max_temperature': row[7],  # max_temperature
+                    'display_order': row[8],    # display_order
+                    'enabled': row[9],     # enabled
+                    'settings': row[10],   # settings
+                    'created_at': row[11], # created_at
+                    'updated_at': row[12]  # updated_at
                 }
                 devices.append(device)
             
             return devices
 
-    def update_device(self, device_id: int, user_id: int, **updates) -> bool:
+    def update_device(self, device_id: int, user_id: str, **updates) -> bool:
         """Update device properties."""
         # First verify user has access to this device
         with self.get_cursor() as cursor:
@@ -457,7 +461,7 @@ class MultiHomeDBManager:
             logger.info(f"Updated device {device_id} with fields: {list(updates.keys())}")
             return cursor.rowcount > 0
 
-    def get_device(self, device_id: int, user_id: int) -> Optional[Dict]:
+    def get_device(self, device_id: int, user_id: str) -> Optional[Dict]:
         """Get device details if user has access."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -473,30 +477,28 @@ class MultiHomeDBManager:
                 return None
                 
             return {
-                'id': row[0],
-                'room_id': row[1],
-                'name': row[2],
-                'type': row[3],
-                'state': row[4],
-                'brightness': row[5],
-                'color': row[6],
-                'current_temperature': row[7],
-                'target_temperature': row[8],
-                'mode': row[9],
-                'action': row[10],
-                'target_device_id': row[11],
-                'enabled': row[12],
-                'created_at': row[13],
-                'updated_at': row[14],
-                'room_name': row[15],
-                'home_id': row[16]
+                'id': row[0],          # id
+                'name': row[1],        # name
+                'room_id': row[2],     # room_id
+                'type': row[3],        # device_type
+                'state': row[4],       # state
+                'temperature': row[5], # temperature
+                'min_temperature': row[6],  # min_temperature
+                'max_temperature': row[7],  # max_temperature
+                'display_order': row[8],    # display_order
+                'enabled': row[9],     # enabled
+                'settings': row[10],   # settings
+                'created_at': row[11], # created_at
+                'updated_at': row[12], # updated_at
+                'room_name': row[13],  # room_name
+                'home_id': row[14]     # home_id
             }
 
     # ============================================================================
     # USER AND SESSION MANAGEMENT
     # ============================================================================
 
-    def get_user_current_home(self, user_id: int) -> Optional[int]:
+    def get_user_current_home(self, user_id: str) -> Optional[int]:
         """Get user's current home ID from session or default."""
         with self.get_cursor() as cursor:
             # First try to get from active session
@@ -518,7 +520,7 @@ class MultiHomeDBManager:
             row = cursor.fetchone()
             return row[0] if row else None
 
-    def set_user_current_home(self, user_id: int, home_id: int, session_token: Optional[str] = None) -> bool:
+    def set_user_current_home(self, user_id: str, home_id: int, session_token: Optional[str] = None) -> bool:
         """Set user's current home in session."""
         if not self.user_has_home_access(user_id, home_id):
             return False
@@ -544,14 +546,14 @@ class MultiHomeDBManager:
     # CONVENIENCE METHODS (Type-specific device access)
     # ============================================================================
 
-    def get_lights(self, home_id: int, user_id: int) -> List[Dict]:
+    def get_lights(self, home_id: int, user_id: str) -> List[Dict]:
         """Get all lights in a home."""
         return self.get_home_devices(home_id, user_id, 'light')
 
-    def get_temperature_controls(self, home_id: int, user_id: int) -> List[Dict]:
+    def get_temperature_controls(self, home_id: int, user_id: str) -> List[Dict]:
         """Get all temperature controls in a home."""
         return self.get_home_devices(home_id, user_id, 'temperature_control')
 
-    def get_buttons(self, home_id: int, user_id: int) -> List[Dict]:
+    def get_buttons(self, home_id: int, user_id: str) -> List[Dict]:
         """Get all buttons in a home."""
         return self.get_home_devices(home_id, user_id, 'button')
