@@ -43,6 +43,7 @@
 .header-stats {
     display: flex;
     gap: 16px;
+    justify-content: center;
 }
 
 .stat-card {
@@ -127,7 +128,7 @@
 }
 
 .form-control {
-    width: 100%;
+    width: 90%;
     padding: 12px 16px;
     border: 2px solid var(--border);
     border-radius: 8px;
