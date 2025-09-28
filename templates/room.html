@@ -29,11 +29,21 @@
             {% if temperature_controls %}
                 {% for control in temperature_controls %}
                 <div class="control-item">
-                    <span>{{ control.name }}:</span>
-                    <input class="input-temp" type="number" id="temp{{ control.name.replace(' ', '') }}" 
-                           name="temp{{ control.name.replace(' ', '') }}" min="16" max="30" 
-                           placeholder="22" value="{{ control.temperature }}">
-                    <button class="control-button">Ustaw</button>
+                    <div class="control-header">
+                        <span>{{ control.name }}:</span>
+                        <label class="switch temp-switch">
+                            <input type="checkbox" id="{{ control.name.replace(' ', '_') }}EnabledSwitch" 
+                                   {% if control.enabled %}checked{% endif %}>
+                            <span class="slider mini" title="Włącz/Wyłącz termostat"></span>
+                        </label>
+                    </div>
+                    <div class="control-content">
+                        <input class="input-temp" type="number" id="temp{{ control.name.replace(' ', '') }}" 
+                               name="temp{{ control.name.replace(' ', '') }}" min="16" max="30" 
+                               placeholder="22" value="{{ control.temperature }}"
+                               {% if not control.enabled %}disabled{% endif %}>
+                        <button class="control-button" {% if not control.enabled %}disabled{% endif %}>Ustaw</button>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
@@ -73,7 +83,8 @@
         // Inicjalizacja kontrolek temperatury
         document.querySelectorAll('.control-button').forEach(button => {
             button.addEventListener('click', function() {
-                const controlName = this.parentElement.querySelector('span').textContent.replace(':', '').trim();
+                const controlItem = this.closest('.control-item');
+                const controlName = controlItem.querySelector('.control-header span').textContent.replace(':', '').trim();
                 const tempInput = document.getElementById(`temp${controlName.replace(/\s+/g, '')}`);
                 const tempValue = parseInt(tempInput.value, 10);
 
@@ -84,11 +95,47 @@
 
                 if (app.socket && app.socket.connected) {
                     // Primary method: Use WebSocket
-                    app.socket.emit('set_temperature', { name: controlName, temperature: tempValue });
+                    app.socket.emit('set_temperature', { room: room, name: controlName, temperature: tempValue });
                 } else {
                     // Fallback method: Use REST API
                     console.log('WebSocket not available, using REST API fallback');
                     setTemperatureViaAPI(controlName, tempValue);
+                }
+            });
+        });
+
+        // Inicjalizacja przełączników enabled dla termostatów
+        document.querySelectorAll('input[id$="EnabledSwitch"]').forEach(switchElement => {
+            switchElement.addEventListener('change', function() {
+                const controlName = this.id.replace('EnabledSwitch', '').replace(/_/g, ' ');
+                const enabled = this.checked;
+                const controlItem = this.closest('.control-item');
+                const controlContent = controlItem.querySelector('.control-content');
+                const tempInput = controlContent.querySelector('input');
+                const button = controlContent.querySelector('button');
+                
+                // Zaktualizuj stan UI
+                if (enabled) {
+                    tempInput.disabled = false;
+                    button.disabled = false;
+                    controlContent.classList.remove('disabled');
+                } else {
+                    tempInput.disabled = true;
+                    button.disabled = true;
+                    controlContent.classList.add('disabled');
+                }
+                
+                if (app.socket && app.socket.connected) {
+                    // Primary method: Use WebSocket
+                    app.socket.emit('toggle_temperature_control_enabled', { 
+                        room: room, 
+                        name: controlName, 
+                        enabled: enabled 
+                    });
+                } else {
+                    // Fallback method: Use REST API
+                    console.log('WebSocket not available, using REST API fallback');
+                    toggleTemperatureEnabledViaAPI(controlName, enabled);
                 }
             });
         });
@@ -104,6 +151,30 @@
             }
         });
 
+        // Nasłuchuj na aktualizacje stanu enabled termostatów
+        app.socket.on('update_temperature_control_enabled', function(data) {
+            const switchElement = document.getElementById(`${data.name.replace(/\s+/g, '_')}EnabledSwitch`);
+            if (switchElement) {
+                switchElement.checked = data.enabled;
+                
+                // Zaktualizuj stan UI
+                const controlItem = switchElement.closest('.control-item');
+                const controlContent = controlItem.querySelector('.control-content');
+                const tempInput = controlContent.querySelector('input');
+                const button = controlContent.querySelector('button');
+                
+                if (data.enabled) {
+                    tempInput.disabled = false;
+                    button.disabled = false;
+                    controlContent.classList.remove('disabled');
+                } else {
+                    tempInput.disabled = true;
+                    button.disabled = true;
+                    controlContent.classList.add('disabled');
+                }
+            }
+        });
+
         // Nasłuchuj na aktualizacje kontrolek temperatury
         app.socket.on('update_room_temperature_controls', function(controls) {
             const container = document.getElementById('temperatureControlsContainer');
@@ -114,9 +185,37 @@
                     const controlDiv = document.createElement('div');
                     controlDiv.classList.add('control-item');
 
-                    const controlName = document.createElement('span');
-                    controlName.textContent = `${control.name}:`;
-                    controlDiv.appendChild(controlName);
+                    // Nagłówek z przełącznikiem enabled
+                    const controlHeader = document.createElement('div');
+                    controlHeader.className = 'control-header';
+
+                    const controlNameSpan = document.createElement('span');
+                    controlNameSpan.textContent = `${control.name}:`;
+                    controlHeader.appendChild(controlNameSpan);
+
+                    const switchLabel = document.createElement('label');
+                    switchLabel.className = 'switch temp-switch';
+                    
+                    const switchInput = document.createElement('input');
+                    switchInput.type = 'checkbox';
+                    switchInput.id = `${control.name.replace(/\s+/g, '_')}EnabledSwitch`;
+                    switchInput.checked = control.enabled !== false;
+                    
+                    const slider = document.createElement('span');
+                    slider.className = 'slider mini';
+                    slider.title = 'Włącz/Wyłącz termostat';
+                    
+                    switchLabel.appendChild(switchInput);
+                    switchLabel.appendChild(slider);
+                    controlHeader.appendChild(switchLabel);
+                    controlDiv.appendChild(controlHeader);
+
+                    // Zawartość kontrolki
+                    const controlContent = document.createElement('div');
+                    controlContent.className = 'control-content';
+                    if (!switchInput.checked) {
+                        controlContent.classList.add('disabled');
+                    }
 
                     const input = document.createElement('input');
                     input.className = 'input-temp';
@@ -127,17 +226,19 @@
                     input.max = '30';
                     input.placeholder = '22';
                     input.value = control.temperature || 22;
-                    controlDiv.appendChild(input);
+                    input.disabled = !switchInput.checked;
+                    controlContent.appendChild(input);
 
                     const button = document.createElement('button');
                     button.className = 'control-button';
                     button.textContent = 'Ustaw';
+                    button.disabled = !switchInput.checked;
                     button.addEventListener('click', () => {
                         const tempValue = parseInt(input.value, 10);
                         if (!isNaN(tempValue) && tempValue >= 16 && tempValue <= 30) {
                             if (app.socket && app.socket.connected) {
                                 // Primary method: Use WebSocket
-                                app.socket.emit('set_temperature', { name: control.name, temperature: tempValue });
+                                app.socket.emit('set_temperature', { room: room, name: control.name, temperature: tempValue });
                             } else {
                                 // Fallback method: Use REST API
                                 console.log('WebSocket not available, using REST API fallback');
@@ -145,7 +246,34 @@
                             }
                         }
                     });
-                    controlDiv.appendChild(button);
+                    controlContent.appendChild(button);
+                    controlDiv.appendChild(controlContent);
+
+                    // Event listener dla przełącznika enabled
+                    switchInput.addEventListener('change', function() {
+                        const enabled = this.checked;
+                        
+                        if (enabled) {
+                            input.disabled = false;
+                            button.disabled = false;
+                            controlContent.classList.remove('disabled');
+                        } else {
+                            input.disabled = true;
+                            button.disabled = true;
+                            controlContent.classList.add('disabled');
+                        }
+                        
+                        if (app.socket && app.socket.connected) {
+                            app.socket.emit('toggle_temperature_control_enabled', { 
+                                room: room, 
+                                name: control.name, 
+                                enabled: enabled 
+                            });
+                        } else {
+                            console.log('WebSocket not available, using REST API fallback');
+                            toggleTemperatureEnabledViaAPI(control.name, enabled);
+                        }
+                    });
 
                     container.appendChild(controlDiv);
                 });
@@ -251,6 +379,70 @@
             console.error('Error setting temperature via API:', error);
             if (window.showNotification) {
                 window.showNotification('Błąd ustawiania temperatury', 'error');
+            }
+        }
+    }
+
+    async function toggleTemperatureEnabledViaAPI(controlName, enabled) {
+        try {
+            // Find temperature control ID first
+            const controls = await app.fetchData('/api/temperature_controls');
+            const control = controls.find(c => c.name === controlName && c.room === room);
+            
+            if (!control) {
+                console.error('Temperature control not found:', controlName, 'in room:', room);
+                if (window.showNotification) {
+                    window.showNotification('Nie znaleziono termostatu', 'error');
+                }
+                return;
+            }
+            
+            const response = await fetch(`/api/temperature_controls/${control.id}/enabled`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ enabled: enabled })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                // Update the UI manually since we're not using WebSocket
+                const switchElement = document.getElementById(`${controlName.replace(/\s+/g, '_')}EnabledSwitch`);
+                if (switchElement) {
+                    switchElement.checked = enabled;
+                    
+                    const controlItem = switchElement.closest('.control-item');
+                    const controlContent = controlItem.querySelector('.control-content');
+                    const tempInput = controlContent.querySelector('input');
+                    const button = controlContent.querySelector('button');
+                    
+                    if (enabled) {
+                        tempInput.disabled = false;
+                        button.disabled = false;
+                        controlContent.classList.remove('disabled');
+                    } else {
+                        tempInput.disabled = true;
+                        button.disabled = true;
+                        controlContent.classList.add('disabled');
+                    }
+                }
+                
+                if (window.showNotification) {
+                    window.showNotification(`Termostat ${controlName} ${enabled ? 'włączony' : 'wyłączony'}`, 'success');
+                }
+            } else {
+                console.error('Failed to toggle temperature control enabled:', result.message);
+                if (window.showNotification) {
+                    window.showNotification('Błąd przełączania termostatu: ' + result.message, 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling temperature control enabled via API:', error);
+            if (window.showNotification) {
+                window.showNotification('Błąd przełączania termostatu', 'error');
             }
         }
     }
