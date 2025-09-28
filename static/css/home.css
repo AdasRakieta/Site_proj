@@ -55,6 +55,7 @@
 
 .home-selector-dropdown.show {
     display: block;
+    width: 250px;
 }
 
 .home-option {

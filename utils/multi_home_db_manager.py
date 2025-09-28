@@ -130,7 +130,7 @@ class MultiHomeDBManager:
             
             return homes
 
-    def get_home_details(self, home_id: int, user_id: str) -> Optional[Dict]:
+    def get_home_details(self, home_id: str, user_id: str) -> Optional[Dict]:
         """Get detailed information about a home if user has access."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -164,7 +164,7 @@ class MultiHomeDBManager:
                 'is_owner': row[7]
             }
 
-    def user_has_home_access(self, user_id: str, home_id: int) -> bool:
+    def user_has_home_access(self, user_id: str, home_id: str) -> bool:
         """Check if user has access to a specific home."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -174,7 +174,7 @@ class MultiHomeDBManager:
             
             return cursor.fetchone() is not None
 
-    def user_has_home_permission(self, user_id: str, home_id: int, permission: str) -> bool:
+    def user_has_home_permission(self, user_id: str, home_id: str, permission: str) -> bool:
         """Check if user has specific permission in a home."""
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -199,7 +199,7 @@ class MultiHomeDBManager:
     # ROOM MANAGEMENT
     # ============================================================================
 
-    def create_room(self, home_id: int, name: str, user_id: str, 
+    def create_room(self, home_id: str, name: str, user_id: str, 
                    description: Optional[str] = None) -> int:
         """Create a new room in a home."""
         if not self.user_has_home_permission(user_id, home_id, 'manage_rooms'):
@@ -219,7 +219,7 @@ class MultiHomeDBManager:
             logger.info(f"Created room '{name}' with ID {room_id} in home {home_id}")
             return room_id
 
-    def get_home_rooms(self, home_id: int, user_id: str) -> List[Dict]:
+    def get_home_rooms(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all rooms in a home that user has access to."""
         if not self.user_has_home_access(user_id, home_id):
             return []
@@ -326,7 +326,7 @@ class MultiHomeDBManager:
             logger.info(f"Created {device_type} device '{name}' with ID {device_id} in room {room_id}")
             return device_id
 
-    def get_home_devices(self, home_id: int, user_id: str, 
+    def get_home_devices(self, home_id: str, user_id: str, 
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a home, optionally filtered by type."""
         if not self.user_has_home_access(user_id, home_id):
@@ -520,7 +520,7 @@ class MultiHomeDBManager:
             row = cursor.fetchone()
             return row[0] if row else None
 
-    def set_user_current_home(self, user_id: str, home_id: int, session_token: Optional[str] = None) -> bool:
+    def set_user_current_home(self, user_id: str, home_id: str, session_token: Optional[str] = None) -> bool:
         """Set user's current home in session."""
         if not self.user_has_home_access(user_id, home_id):
             return False
@@ -546,14 +546,14 @@ class MultiHomeDBManager:
     # CONVENIENCE METHODS (Type-specific device access)
     # ============================================================================
 
-    def get_lights(self, home_id: int, user_id: str) -> List[Dict]:
+    def get_lights(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all lights in a home."""
         return self.get_home_devices(home_id, user_id, 'light')
 
-    def get_temperature_controls(self, home_id: int, user_id: str) -> List[Dict]:
+    def get_temperature_controls(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all temperature controls in a home."""
         return self.get_home_devices(home_id, user_id, 'temperature_control')
 
-    def get_buttons(self, home_id: int, user_id: str) -> List[Dict]:
+    def get_buttons(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all buttons in a home."""
         return self.get_home_devices(home_id, user_id, 'button')

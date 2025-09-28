@@ -9,13 +9,14 @@ from utils.allowed_file import allowed_file
 
 
 class RoutesManager:
-    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None, multi_db=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.mail_manager = mail_manager
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
+        self.multi_db = multi_db
         print(f"[DEBUG] RoutesManager init - cache: {cache}, cached_data_access: {cached_data_access}")
         # Use injected cached_data_access if provided, else fallback
         self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
@@ -30,6 +31,32 @@ class RoutesManager:
         self.cache_manager = CacheManager(cache, smart_home) if cache else None
         
         self.register_routes()
+
+    def get_current_home_rooms(self, user_id):
+        """Get rooms from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.rooms
+        
+        try:
+            # Get current home ID from session or database
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get rooms from multi-home system
+                rooms_data = self.multi_db.get_home_rooms(current_home_id, user_id)
+                # Convert to simple room names list for compatibility
+                return [room['name'] for room in rooms_data]
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.rooms
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home rooms: {e}")
+            # Fallback to main database
+            return self.smart_home.rooms
 
     def get_cached_user_data(self, user_id, session_id=None):
         """
@@ -75,11 +102,29 @@ class RoutesManager:
             user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
             print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
             
-            # Always use DB-ordered rooms list directly (bypass cached rooms list)
-            rooms = self.smart_home.rooms
-            print(f"[DEBUG] Pre-loading {len(rooms)} rooms for home page")
+            # Get rooms from current home or fallback to main database
+            user_id = session.get('user_id')
+            rooms = self.get_current_home_rooms(user_id)
+            print(f"[DEBUG] Pre-loading {len(rooms)} rooms for home page (current home)")
             
-            return render_template('index.html', user_data=user_data, rooms=rooms)
+            # Get current home info with statistics for the header
+            current_home = None
+            if self.multi_db and user_id:
+                try:
+                    current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                    if current_home_id:
+                        current_home = self.multi_db.get_home_details(current_home_id, user_id)
+                        if current_home:
+                            # Add statistics
+                            home_rooms = self.multi_db.get_home_rooms(current_home_id, user_id)
+                            home_devices = self.multi_db.get_home_devices(current_home_id, user_id)
+                            current_home['room_count'] = len(home_rooms)
+                            current_home['device_count'] = len(home_devices)
+                            print(f"[DEBUG] Current home stats: {current_home['name']} - {current_home['room_count']} rooms, {current_home['device_count']} devices")
+                except Exception as e:
+                    print(f"[DEBUG] Error getting current home info: {e}")
+            
+            return render_template('index.html', user_data=user_data, rooms=rooms, current_home=current_home)
 
         @self.app.route('/temp')
         @self.auth_manager.login_required
@@ -226,8 +271,9 @@ class RoutesManager:
             # Use cached data for performance
             print(f"[DEBUG] /edit route - Getting data for template")
             print(f"[DEBUG] cached_data object: {type(self.cached_data)}")
-            # Always use DB-ordered rooms list directly (bypass cached rooms list)
-            rooms = self.smart_home.rooms
+            # Get rooms from current home or fallback to main database
+            user_id = session.get('user_id')
+            rooms = self.get_current_home_rooms(user_id)
             buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
             temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
             
