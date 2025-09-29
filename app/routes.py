@@ -1,4 +1,5 @@
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
+from flask_socketio import emit
 from werkzeug.utils import secure_filename
 from utils.cache_manager import CachedDataAccess
 from app.management_logger import ManagementLogger
@@ -6,6 +7,7 @@ import os
 import time
 import uuid
 from utils.allowed_file import allowed_file
+from datetime import datetime
 
 
 def normalize_device_id(raw_id):
@@ -283,6 +285,19 @@ class RoutesManager:
             try:
                 user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
                 current_security_state = self.smart_home.security_state
+                home_id = None
+
+                user_id = session.get('user_id')
+                if self.multi_db and user_id:
+                    try:
+                        home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                        if home_id:
+                            current_security_state = self.multi_db.get_security_state(str(home_id), str(user_id))
+                    except PermissionError:
+                        self.app.logger.warning("User lacks access to current home when fetching security state")
+                    except Exception as err:
+                        self.app.logger.error(f"Failed to fetch security state for home {home_id}: {err}")
+
                 return render_template('security.html', user_data=user_data, security_state=current_security_state)
             except Exception as e:
                 self.app.logger.error(f"Error in security route: {e}")
@@ -2686,10 +2701,28 @@ class APIManager:
             try:
                 if request.method == 'GET':
                     # Get current security state
+                    user_id = session.get('user_id')
+                    home_id = request.args.get('home_id')
                     current_state = self.smart_home.security_state
+
+                    if self.multi_db and user_id:
+                        try:
+                            if not home_id:
+                                home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                            if home_id:
+                                current_state = self.multi_db.get_security_state(str(home_id), str(user_id))
+                        except PermissionError:
+                            return jsonify({
+                                "status": "error",
+                                "message": "Brak dostępu do wybranego domu"
+                            }), 403
+                        except Exception as err:
+                            self.app.logger.error(f"Failed to fetch security state for home {home_id}: {err}")
+
                     return jsonify({
                         "status": "success",
-                        "security_state": current_state
+                        "security_state": current_state,
+                        "home_id": str(home_id) if home_id else None
                     })
                 
                 elif request.method == 'POST':
@@ -2705,21 +2738,61 @@ class APIManager:
                             "message": "Nieprawidłowy stan zabezpieczeń. Dopuszczalne wartości: 'Załączony', 'Wyłączony'"
                         }), 400
                     
-                    # Update security state using property
-                    self.smart_home.security_state = new_state
-                    
-                    # Save configuration (in database mode, this is automatic via setter)
-                    try:
-                        from app_db import DATABASE_MODE
-                    except ImportError:
-                        DATABASE_MODE = False
-                    
-                    if DATABASE_MODE:
-                        # Database mode - state is automatically saved via setter
-                        success = True
+                    user_id = session.get('user_id')
+                    home_id = data.get('home_id') if isinstance(data, dict) else None
+                    success = False
+
+                    if self.multi_db and user_id:
+                        try:
+                            if not home_id:
+                                home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                            if not home_id:
+                                return jsonify({
+                                    "status": "error",
+                                    "message": "Brak wybranego domu"
+                                }), 400
+
+                            success = self.multi_db.set_security_state(str(home_id), str(user_id), new_state, {
+                                'source': 'api',
+                                'timestamp': datetime.utcnow().isoformat()
+                            })
+
+                            if not success:
+                                return jsonify({
+                                    "status": "error",
+                                    "message": "Brak uprawnień do zmiany stanu zabezpieczeń"
+                                }), 403
+
+                            if success and self.socketio:
+                                self.socketio.emit('update_security_state', {
+                                    'state': new_state,
+                                    'home_id': str(home_id)
+                                })
+                        except PermissionError:
+                            return jsonify({
+                                "status": "error",
+                                "message": "Brak uprawnień do zmiany stanu zabezpieczeń"
+                            }), 403
+                        except Exception as err:
+                            self.app.logger.error(f"Failed to set security state for home {home_id}: {err}")
+                            return jsonify({
+                                "status": "error",
+                                "message": "Nie udało się zaktualizować stanu zabezpieczeń"
+                            }), 500
                     else:
-                        # JSON mode - explicitly save config
-                        success = self.smart_home.save_config()
+                        # Update security state using legacy property (single-home mode)
+                        self.smart_home.security_state = new_state
+
+                        try:
+                            from app_db import DATABASE_MODE
+                        except ImportError:
+                            DATABASE_MODE = False
+
+                        if DATABASE_MODE:
+                            success = True
+                        else:
+                            success = self.smart_home.save_config()
+                        home_id = None
                     
                     if success:
                         # Log the action
@@ -2731,14 +2804,15 @@ class APIManager:
                                 device_name='Security System',
                                 room='System',
                                 action='set_security_state',
-                                new_state=new_state,
+                                new_state={'state': new_state, 'home_id': str(home_id) if home_id else None},
                                 ip_address=request.environ.get('REMOTE_ADDR', '')
                             )
                         
                         return jsonify({
                             "status": "success",
                             "message": f"Stan zabezpieczeń zaktualizowany na: {new_state}",
-                            "security_state": new_state
+                            "security_state": new_state,
+                            "home_id": str(home_id) if home_id else None
                         })
                     else:
                         return jsonify({
@@ -2756,10 +2830,11 @@ class APIManager:
 
 class SocketManager:
     """Klasa zarządzająca obsługą WebSocket"""
-    def __init__(self, socketio, smart_home, management_logger=None):
+    def __init__(self, socketio, smart_home, management_logger=None, multi_db=None):
         self.socketio = socketio
         self.smart_home = smart_home
         self.management_logger = management_logger or ManagementLogger()
+        self.multi_db = multi_db
         self.register_handlers()
 
     def register_handlers(self):
@@ -2790,37 +2865,77 @@ class SocketManager:
             
             if new_state in ["Załączony", "Wyłączony"]:
                 try:
-                    print(f"[DEBUG] Setting security state to: {new_state}")
-                    self.smart_home.security_state = new_state
-                    
-                    current_state = self.smart_home.security_state
-                    print(f"[DEBUG] State after setting: {current_state}")
-                    
-                    print(f"[DEBUG] Emitting update_security_state with: {current_state}")
-                    self.socketio.emit('update_security_state', {'state': current_state})
-                    
-                    # In database mode, saving is automatic through the property setter
-                    try:
-                        from app_db import DATABASE_MODE
-                    except ImportError:
-                        DATABASE_MODE = False
-                    if not DATABASE_MODE:
-                        self.smart_home.save_config()
+                    user_id = session.get('user_id') or session.get('username')
+                    home_id = data.get('home_id') if isinstance(data, dict) else None
+                    success = False
+
+                    if self.multi_db and user_id:
+                        try:
+                            if not home_id:
+                                home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(str(user_id))
+                            if not home_id:
+                                emit('error', {'message': 'Brak wybranego domu'})
+                                return
+                            success = self.multi_db.set_security_state(str(home_id), str(user_id), new_state, {
+                                'source': 'socket_legacy',
+                                'timestamp': datetime.utcnow().isoformat()
+                            })
+                            if not success:
+                                emit('error', {'message': 'Brak uprawnień do zmiany stanu zabezpieczeń'})
+                                return
+                            payload = {'state': new_state, 'home_id': str(home_id)}
+                            current_state = new_state
+                        except PermissionError:
+                            emit('error', {'message': 'Brak dostępu do wybranego domu'})
+                            return
+                    else:
+                        print(f"[DEBUG] Setting security state to: {new_state}")
+                        self.smart_home.security_state = new_state
+                        current_state = self.smart_home.security_state
+                        payload = {'state': current_state, 'home_id': None}
                         
+                        print(f"[DEBUG] State after setting: {current_state}")
+                        
+                        print(f"[DEBUG] Emitting update_security_state with: {current_state}")
+                        self.socketio.emit('update_security_state', payload)
+                        
+                        # In database mode, saving is automatic through the property setter
+                        try:
+                            from app_db import DATABASE_MODE
+                        except ImportError:
+                            DATABASE_MODE = False
+                        if not DATABASE_MODE:
+                            self.smart_home.save_config()
+                        return
+
+                    self.socketio.emit('update_security_state', payload)
                 except Exception as e:
                     print(f"[ERROR] Error setting security state: {e}")
             else:
                 print(f"[DEBUG] Invalid state requested: {new_state}")
 
         @self.socketio.on('get_security_state')
-        def handle_get_security_state():
+        def handle_get_security_state(data=None):
             print(f"[DEBUG] get_security_state called")
             print(f"[DEBUG] Session contents: {dict(session)}")
             
             if 'username' in session or 'user_id' in session:
+                user_id = session.get('user_id') or session.get('username')
+                requested_home = data.get('home_id') if isinstance(data, dict) else None
+                home_id = requested_home or (session.get('current_home_id') if self.multi_db else None)
                 current_state = self.smart_home.security_state
-                print(f"[DEBUG] Emitting current state: {current_state}")
-                self.socketio.emit('update_security_state', {'state': current_state})
+
+                if self.multi_db and user_id:
+                    try:
+                        if not home_id:
+                            home_id = self.multi_db.get_user_current_home(str(user_id))
+                        if home_id:
+                            current_state = self.multi_db.get_security_state(str(home_id), str(user_id))
+                    except Exception as err:
+                        print(f"[DEBUG] Failed to fetch multi-home security state: {err}")
+
+                print(f"[DEBUG] Emitting current state: {current_state} (home: {home_id})")
+                self.socketio.emit('update_security_state', {'state': current_state, 'home_id': str(home_id) if home_id else None})
             else:
                 print("[DEBUG] No authentication found for get_security_state")
 

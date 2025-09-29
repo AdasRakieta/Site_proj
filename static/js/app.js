@@ -28,6 +28,7 @@ class SmartHomeApp {
         this.bindMenuEvents();
         this.map = null;
         this.mapInitialized = false;
+    this.currentHomeId = window.currentHomeId || null;
         this.showNotification = this.showNotification.bind(this);
         this.rooms = null; // cache na listę pokoi
         console.log('SmartHomeApp gotowy');
@@ -409,6 +410,12 @@ class SmartHomeApp {
          * @param {string} data.state - Security state ("Załączony" or "Wyłączony")
          */
         console.log('Global security state update received:', data);
+
+        const eventHomeId = data && typeof data === 'object' ? data.home_id ?? null : null;
+        if (this.currentHomeId && eventHomeId && String(eventHomeId) !== String(this.currentHomeId)) {
+            console.log('Ignoring security update for different home', eventHomeId, this.currentHomeId);
+            return;
+        }
         
         // Update main status element if it exists
         const statusElement = document.getElementById('securityStatus');

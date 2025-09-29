@@ -25,6 +25,7 @@ class MultiHomeDBManager:
         self.connection_timeout = connection_timeout
         self._connection = None
         self._ensure_connection()
+        self._ensure_security_state_table()
 
     @contextmanager
     def get_cursor(self):
@@ -86,6 +87,28 @@ class MultiHomeDBManager:
                     return value
             return value
         return device_id
+
+    @staticmethod
+    def _normalize_home_id(home_id: Any) -> Optional[str]:
+        """Normalize home identifier to a non-empty string."""
+        if home_id is None:
+            return None
+        value = str(home_id).strip()
+        return value or None
+
+    def _ensure_security_state_table(self):
+        """Ensure the per-home security state table exists."""
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS home_security_states (
+                home_id UUID PRIMARY KEY,
+                state VARCHAR(32) NOT NULL,
+                last_changed TIMESTAMPTZ NOT NULL,
+                changed_by UUID,
+                details JSONB
+            )
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(create_sql)
 
     # ============================================================================
     # HOME MANAGEMENT
@@ -598,3 +621,88 @@ class MultiHomeDBManager:
     def get_buttons(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all buttons in a home."""
         return self.get_home_devices(home_id, user_id, 'button')
+
+    # ============================================================================
+    # SECURITY MANAGEMENT
+    # ============================================================================
+
+    def _user_can_control_security(self, user_id: str, home_id: str) -> bool:
+        """Check whether user has permissions to control security in a home."""
+        # Owners/admins are covered by permission check in user_has_home_permission
+        # Try specific permission first, then fall back to device control permissions
+        return (
+            self.user_has_home_permission(user_id, home_id, 'control_security') or
+            self.user_has_home_permission(user_id, home_id, 'manage_security') or
+            self.user_has_home_permission(user_id, home_id, 'manage_devices') or
+            self.user_has_home_permission(user_id, home_id, 'control_devices')
+        )
+
+    def get_security_state(self, home_id: Any, user_id: str, default: str = "Wyłączony") -> str:
+        """Get the security state for a specific home, initializing defaults if needed."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id:
+            return default
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT state
+                FROM home_security_states
+                WHERE home_id = %s
+                """,
+                (normalized_home_id,)
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                return row[0]
+
+            # Initialize default state if missing
+            cursor.execute(
+                """
+                INSERT INTO home_security_states (home_id, state, last_changed)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (home_id) DO NOTHING
+                """,
+                (normalized_home_id, default, datetime.now())
+            )
+
+        return default
+
+    def set_security_state(self, home_id: Any, user_id: str, state: str, details: Optional[Dict] = None) -> bool:
+        """Set the security state for a specific home."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id:
+            raise ValueError("home_id is required")
+
+        if state not in ("Załączony", "Wyłączony"):
+            raise ValueError("Invalid security state")
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        if not self._user_can_control_security(user_id, normalized_home_id):
+            return False
+
+        payload_details = json.dumps(details) if details else None
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO home_security_states (home_id, state, last_changed, changed_by, details)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (home_id) DO UPDATE SET
+                    state = EXCLUDED.state,
+                    last_changed = EXCLUDED.last_changed,
+                    changed_by = EXCLUDED.changed_by,
+                    details = CASE
+                        WHEN EXCLUDED.details IS NOT NULL THEN EXCLUDED.details
+                        ELSE home_security_states.details
+                    END
+                """,
+                (normalized_home_id, state, datetime.now(), user_id, payload_details)
+            )
+
+        return True
