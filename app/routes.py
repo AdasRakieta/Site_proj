@@ -2114,8 +2114,7 @@ class APIManager:
                         return jsonify({'status': 'error', 'message': 'Temperature control not found or access denied'}), 404
 
                     update_payload = {
-                        'temperature': temperature,
-                        'current_temperature': temperature
+                        'temperature': temperature
                     }
                     target_device_id = normalize_device_id(device.get('id', device_identifier))
                     if target_device_id is None:
