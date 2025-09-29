@@ -599,7 +599,7 @@ class SmartHomeApp:
                         emit('error', {'message': 'Temperature control not found'})
                         return
 
-                    update_payload = {'temperature': temperature, 'current_temperature': temperature}
+                    update_payload = {'temperature': temperature}
                     target_device_id = self._normalize_device_id(device.get('id', device_identifier))
                     if target_device_id is None:
                         fallback_id = device_identifier if device_identifier is not None else device.get('id')

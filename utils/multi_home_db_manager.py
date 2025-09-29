@@ -473,15 +473,31 @@ class MultiHomeDBManager:
             update_fields.append("updated_at = %s")
             update_values.append(datetime.now())
             update_values.append(normalized_id)
-            
+
             cursor.execute(f"""
                 UPDATE devices 
                 SET {', '.join(update_fields)}
                 WHERE id = %s
             """, update_values)
-            
+
+            rows_updated = cursor.rowcount
+
+            # If temperature-related fields are being updated, sync room temperature states
+            if rows_updated and ('temperature' in updates or 'current_temperature' in updates or 'target_temperature' in updates):
+                current_temp = updates.get('current_temperature', updates.get('temperature'))
+                target_temp = updates.get('target_temperature', current_temp)
+                if current_temp is not None:
+                    cursor.execute("""
+                        INSERT INTO room_temperature_states (room_id, current_temperature, target_temperature, last_updated)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (room_id) DO UPDATE SET
+                            current_temperature = EXCLUDED.current_temperature,
+                            target_temperature = COALESCE(EXCLUDED.target_temperature, room_temperature_states.target_temperature),
+                            last_updated = EXCLUDED.last_updated
+                    """, (room_id, current_temp, target_temp, datetime.now()))
+
             logger.info(f"Updated device {normalized_id} with fields: {list(updates.keys())}")
-            return cursor.rowcount > 0
+            return rows_updated > 0
 
     def get_device(self, device_id: Any, user_id: str) -> Optional[Dict]:
         """Get device details if user has access."""
