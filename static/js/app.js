@@ -445,6 +445,23 @@ class SmartHomeApp {
             window.loadKanban();
         }
     }
+
+    onButtonStatesSync(states) {
+        if (!states || typeof states !== 'object') {
+            console.warn('Nieprawidłowe dane sync_button_states:', states);
+            return;
+        }
+
+        Object.entries(states).forEach(([key, state]) => {
+            if (!key) return;
+            const normalizedKey = String(key).replace(/\s+/g, '_');
+            const switchId = `${normalizedKey}Switch`;
+            const switchElement = document.getElementById(switchId) || document.getElementById(normalizedKey);
+            if (switchElement && 'checked' in switchElement) {
+                switchElement.checked = !!state;
+            }
+        });
+    }
     
     onTemperatureControlsUpdate(controls) {
         // Default handler for temperature controls update - can be overridden by specific pages

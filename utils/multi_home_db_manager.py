@@ -68,6 +68,25 @@ class MultiHomeDBManager:
             self._connection.close()
             logger.info("Database connection closed")
 
+    @staticmethod
+    def _normalize_device_id(device_id: Any) -> Optional[Any]:
+        """Normalize device identifier, allowing UUID strings alongside integers."""
+        if device_id is None:
+            return None
+        if isinstance(device_id, int):
+            return device_id
+        if isinstance(device_id, str):
+            value = device_id.strip()
+            if not value:
+                return None
+            if value.isdigit():
+                try:
+                    return int(value)
+                except ValueError:
+                    return value
+            return value
+        return device_id
+
     # ============================================================================
     # HOME MANAGEMENT
     # ============================================================================
@@ -412,8 +431,11 @@ class MultiHomeDBManager:
             
             return devices
 
-    def update_device(self, device_id: int, user_id: str, **updates) -> bool:
+    def update_device(self, device_id: Any, user_id: str, **updates) -> bool:
         """Update device properties."""
+        normalized_id = self._normalize_device_id(device_id)
+        if normalized_id is None:
+            raise ValueError("device_id is required for update")
         # First verify user has access to this device
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -422,7 +444,7 @@ class MultiHomeDBManager:
                 JOIN rooms r ON d.room_id = r.id
                 JOIN user_homes uh ON r.home_id = uh.home_id
                 WHERE d.id = %s AND uh.user_id = %s
-            """, (device_id, user_id))
+            """, (normalized_id, user_id))
             
             row = cursor.fetchone()
             if not row:
@@ -437,7 +459,7 @@ class MultiHomeDBManager:
             update_fields = []
             update_values = []
             
-            allowed_fields = ['name', 'state', 'brightness', 'color', 'current_temperature', 
+            allowed_fields = ['name', 'state', 'brightness', 'color', 'temperature', 'current_temperature', 
                             'target_temperature', 'mode', 'action', 'target_device_id', 'enabled']
             
             for field, value in updates.items():
@@ -450,7 +472,7 @@ class MultiHomeDBManager:
                 
             update_fields.append("updated_at = %s")
             update_values.append(datetime.now())
-            update_values.append(device_id)
+            update_values.append(normalized_id)
             
             cursor.execute(f"""
                 UPDATE devices 
@@ -458,11 +480,14 @@ class MultiHomeDBManager:
                 WHERE id = %s
             """, update_values)
             
-            logger.info(f"Updated device {device_id} with fields: {list(updates.keys())}")
+            logger.info(f"Updated device {normalized_id} with fields: {list(updates.keys())}")
             return cursor.rowcount > 0
 
-    def get_device(self, device_id: int, user_id: str) -> Optional[Dict]:
+    def get_device(self, device_id: Any, user_id: str) -> Optional[Dict]:
         """Get device details if user has access."""
+        normalized_id = self._normalize_device_id(device_id)
+        if normalized_id is None:
+            return None
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT d.*, r.name as room_name, r.home_id
@@ -470,7 +495,7 @@ class MultiHomeDBManager:
                 JOIN rooms r ON d.room_id = r.id
                 JOIN user_homes uh ON r.home_id = uh.home_id
                 WHERE d.id = %s AND uh.user_id = %s
-            """, (device_id, user_id))
+            """, (normalized_id, user_id))
             
             row = cursor.fetchone()
             if not row:
