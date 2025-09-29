@@ -887,27 +887,54 @@ class SmartHomeApp:
                     return
                 
                 print(f"[DEBUG] Setting security state to: {new_state}")
-                
-                # Update security state
-                self.smart_home.security_state = new_state
-                
-                # Save configuration
-                if DATABASE_MODE:
-                    # Database mode - state is automatically saved via setter
-                    success = True
-                    print("[DEBUG] Database mode - state saved automatically")
+                user_id = str(session.get('user_id'))
+                home_id = data.get('home_id')
+                success = False
+
+                if getattr(self, 'multi_db', None):
+                    try:
+                        if not home_id:
+                            home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                        if not home_id:
+                            emit('error', {'message': 'Brak wybranego domu'})
+                            return
+
+                        success = self.multi_db.set_security_state(str(home_id), user_id, new_state, {
+                            'source': 'socket',
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
+
+                        if not success:
+                            emit('error', {'message': 'Brak uprawnień do zmiany stanu zabezpieczeń'})
+                            return
+
+                        payload = {'state': new_state, 'home_id': str(home_id)}
+                        print(f"[DEBUG] Multi-home mode - security state persisted for home {home_id}")
+                    except PermissionError:
+                        emit('error', {'message': 'Brak dostępu do wybranego domu'})
+                        return
+                    except Exception as err:
+                        print(f"[DEBUG] Failed to set security state in multi-home mode: {err}")
+                        emit('error', {'message': 'Nie udało się zapisać stanu zabezpieczeń'})
+                        return
                 else:
-                    # JSON mode - explicitly save config
-                    success = self.smart_home.save_config()
-                    print(f"[DEBUG] JSON mode - save_config result: {success}")
-                
+                    # Update security state in legacy single-home mode
+                    self.smart_home.security_state = new_state
+                    if DATABASE_MODE:
+                        success = True
+                        print("[DEBUG] Database mode - state saved automatically")
+                    else:
+                        success = self.smart_home.save_config()
+                        print(f"[DEBUG] JSON mode - save_config result: {success}")
+                    payload = {'state': new_state, 'home_id': None}
+                    home_id = None
+
                 if success:
                     # Broadcast update to all connected clients
-                    self.socketio.emit('update_security_state', {'state': new_state})
-                    print(f"[DEBUG] Broadcasted security state update: {new_state}")
+                    self.socketio.emit('update_security_state', payload)
+                    print(f"[DEBUG] Broadcasted security state update: {payload}")
                     
                     # Log the action
-                    user_id = session.get('user_id')
                     if user_id:
                         user_data = self.smart_home.get_user_data(user_id)
                         self.management_logger.log_device_action(
@@ -915,7 +942,7 @@ class SmartHomeApp:
                             device_name='Security System',
                             room='System',
                             action='set_security_state',
-                            new_state=new_state,
+                            new_state={'state': new_state, 'home_id': str(home_id) if home_id else None},
                             ip_address=request.environ.get('REMOTE_ADDR') or ''
                         )
                         print(f"[DEBUG] Logged action for user: {user_data.get('name', 'Unknown')}")
@@ -932,7 +959,7 @@ class SmartHomeApp:
                 emit('error', {'message': 'Internal server error'})
         
         @self.socketio.on('get_security_state')
-        def handle_get_security_state():
+        def handle_get_security_state(data=None):
             """Handle security state request via WebSocket"""
             try:
                 print(f"[DEBUG] get_security_state called")
@@ -944,13 +971,26 @@ class SmartHomeApp:
                     return
                 
                 print(f"[DEBUG] Authenticated user_id: {session.get('user_id')}")
-                
-                # Get current security state
+                user_id = str(session.get('user_id'))
+                requested_home_id = None
+                if isinstance(data, dict):
+                    requested_home_id = data.get('home_id')
+                home_id = requested_home_id or (session.get('current_home_id') if getattr(self, 'multi_db', None) else None)
                 current_state = self.smart_home.security_state
-                print(f"[DEBUG] Current security state from smart_home: {current_state}")
+
+                if getattr(self, 'multi_db', None):
+                    try:
+                        if not home_id:
+                            home_id = self.multi_db.get_user_current_home(user_id)
+                        if home_id:
+                            current_state = self.multi_db.get_security_state(str(home_id), user_id)
+                    except Exception as err:
+                        print(f"[DEBUG] Failed to fetch multi-home security state: {err}")
+
+                print(f"[DEBUG] Current security state from backend: {current_state} (home: {home_id})")
                 
                 # Send current state to client
-                emit('update_security_state', {'state': current_state})
+                emit('update_security_state', {'state': current_state, 'home_id': str(home_id) if home_id else None})
                 print(f"Sent security state to client: {current_state}")
                 
             except Exception as e:
