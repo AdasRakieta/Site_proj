@@ -8,6 +8,25 @@ import uuid
 from utils.allowed_file import allowed_file
 
 
+def normalize_device_id(raw_id):
+    """Coerce device identifiers to int when numeric, otherwise return trimmed string."""
+    if raw_id is None:
+        return None
+    if isinstance(raw_id, int):
+        return raw_id
+    if isinstance(raw_id, str):
+        value = raw_id.strip()
+        if not value:
+            return None
+        if value.isdigit():
+            try:
+                return int(value)
+            except ValueError:
+                return value
+        return value
+    return raw_id
+
+
 class RoutesManager:
     def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None, multi_db=None):
         self.app = app
@@ -31,6 +50,14 @@ class RoutesManager:
         self.cache_manager = CacheManager(cache, smart_home) if cache else None
         
         self.register_routes()
+
+    def get_current_user(self):
+        """Get current logged in user from session"""
+        user_id = session.get('user_id')
+        if user_id:
+            # For now, return a simple user dict - this should integrate with your user system
+            return {'id': user_id}
+        return None
 
     def get_current_home_rooms(self, user_id):
         """Get rooms from current selected home or fallback to main database"""
@@ -57,6 +84,118 @@ class RoutesManager:
             print(f"[DEBUG] Error getting multi-home rooms: {e}")
             # Fallback to main database
             return self.smart_home.rooms
+
+    def get_current_home_buttons(self, user_id):
+        """Get buttons from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.buttons
+        
+        try:
+            # Get current home ID from session or database
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get buttons from multi-home system
+                buttons_data = self.multi_db.get_buttons(current_home_id, user_id)
+                # Convert to old format for compatibility
+                buttons = []
+                for button in buttons_data:
+                    buttons.append({
+                        'id': button['id'],
+                        'name': button['name'],
+                        'room': button['room_name'],
+                        'state': button['state'],
+                        'type': button['type']
+                    })
+                return buttons
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.buttons
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home buttons: {e}")
+            # Fallback to main database
+            return self.smart_home.buttons
+
+    def get_current_home_lights(self, user_id):
+        """Get lights from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.lights if hasattr(self.smart_home, 'lights') else []
+        
+        try:
+            # Get current home ID from session or database
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get lights from multi-home system
+                lights_data = self.multi_db.get_lights(current_home_id, user_id)
+                # Convert to old format for compatibility
+                lights = []
+                for light in lights_data:
+                    settings = light.get('settings', {}) or {}
+                    lights.append({
+                        'id': light['id'],
+                        'name': light['name'],
+                        'room': light['room_name'],
+                        'state': light['state'],
+                        'brightness': settings.get('brightness', 100),
+                        'color': settings.get('color', '#FFFFFF'),
+                        'type': light['type']
+                    })
+                return lights
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.lights if hasattr(self.smart_home, 'lights') else []
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home lights: {e}")
+            # Fallback to main database
+            return self.smart_home.lights if hasattr(self.smart_home, 'lights') else []
+
+    def get_current_home_temperature_controls(self, user_id):
+        """Get temperature controls from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+        
+        try:
+            # Get current home ID from session or database
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get temperature controls from multi-home system
+                temp_controls_data = self.multi_db.get_temperature_controls(current_home_id, user_id)
+                # Convert to old format for compatibility
+                temp_controls = []
+                for temp in temp_controls_data:
+                    settings = temp.get('settings', {}) or {}
+                    temp_controls.append({
+                        'id': temp['id'],
+                        'name': temp['name'],
+                        'room': temp['room_name'],
+                        'temperature': temp['temperature'],
+                        'target_temperature': settings.get('target_temperature', 21.0),
+                        'mode': settings.get('mode', 'auto'),
+                        'enabled': temp['enabled'],
+                        'type': temp['type']
+                    })
+                return temp_controls
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home temperature controls: {e}")
+            # Fallback to main database
+            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
 
     def get_cached_user_data(self, user_id, session_id=None):
         """
@@ -1081,12 +1220,13 @@ class RoutesManager:
 
 class APIManager:
     """Klasa zarządzająca endpointami API"""
-    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None):
+    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None, multi_db=None):
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.management_logger = management_logger or ManagementLogger()
+        self.multi_db = multi_db
         # Use the same caching approach as RoutesManager to share cache keys
         try:
             self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
@@ -1099,6 +1239,109 @@ class APIManager:
         """Safely emit socketio updates only if socketio is available"""
         if self.socketio:
             self.socketio.emit(event_name, data)
+
+    def get_current_home_rooms(self, user_id):
+        """Get rooms from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.rooms
+        
+        try:
+            # Get current home ID from session or database
+            from flask import session
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get rooms from multi-home system
+                rooms_data = self.multi_db.get_home_rooms(current_home_id, user_id)
+                # Convert to simple room names list for compatibility
+                return [room['name'] for room in rooms_data]
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.rooms
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home rooms: {e}")
+            # Fallback to main database
+            return self.smart_home.rooms
+
+    def get_current_home_buttons(self, user_id):
+        """Get buttons from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.buttons
+        
+        try:
+            # Get current home ID from session or database
+            from flask import session
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get buttons from multi-home system
+                buttons_data = self.multi_db.get_buttons(current_home_id, user_id)
+                # Convert to old format for compatibility
+                buttons = []
+                for button in buttons_data:
+                    buttons.append({
+                        'id': button['id'],
+                        'name': button['name'],
+                        'room': button['room_name'],
+                        'state': button['state'],
+                        'type': button['type']
+                    })
+                return buttons
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.buttons
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home buttons: {e}")
+            # Fallback to main database
+            return self.smart_home.buttons
+
+    def get_current_home_temperature_controls(self, user_id):
+        """Get temperature controls from current selected home or fallback to main database"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database
+            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+        
+        try:
+            # Get current home ID from session or database
+            from flask import session
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get temperature controls from multi-home system
+                temp_controls_data = self.multi_db.get_temperature_controls(current_home_id, user_id)
+                # Convert to old format for compatibility
+                temp_controls = []
+                for temp in temp_controls_data:
+                    settings = temp.get('settings', {}) or {}
+                    temp_controls.append({
+                        'id': temp['id'],
+                        'name': temp['name'],
+                        'room': temp['room_name'],
+                        'temperature': temp['temperature'],
+                        'target_temperature': settings.get('target_temperature', 21.0),
+                        'mode': settings.get('mode', 'auto'),
+                        'enabled': temp['enabled'],
+                        'type': temp['type']
+                    })
+                return temp_controls
+            else:
+                # No current home set, fallback to main database
+                return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home temperature controls: {e}")
+            # Fallback to main database
+            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
 
     def register_routes(self):
         @self.app.route('/api', methods=['GET'])
@@ -1124,8 +1367,9 @@ class APIManager:
         def manage_rooms():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                # Always reflect DB display_order: bypass room cache for this endpoint
-                rooms = self.smart_home.rooms
+                # Get current user and use multi-home system
+                user_id = session.get('user_id')
+                rooms = self.get_current_home_rooms(user_id)
                 return jsonify(rooms)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
@@ -1368,14 +1612,10 @@ class APIManager:
         def manage_buttons():
             self.smart_home.check_and_save()
             if request.method == 'GET':
-                # Use cached data if available
-                if self.cached_data:
-                    print("[DEBUG] GET /api/buttons using cached_data")
-                    buttons = self.cached_data.get('buttons', []) if isinstance(self.cached_data, dict) else self.cached_data.get_buttons()
-                else:
-                    print("[DEBUG] GET /api/buttons direct smart_home.buttons fetch")
-                    buttons = self.smart_home.buttons
-                print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons: {[ (b.get('name'), b.get('room')) for b in buttons ]}")
+                # Get current user and use multi-home system
+                user_id = session.get('user_id')
+                buttons = self.get_current_home_buttons(user_id)
+                print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons from multi-home: {[ (b.get('name'), b.get('room')) for b in buttons ]}")
                 return jsonify(buttons)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
@@ -1505,13 +1745,101 @@ class APIManager:
         @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
         @self.auth_manager.api_login_required
         def toggle_button_state(id):
-            """Toggle button state via REST API"""
+            """Toggle button state via REST API using multi-home system"""
             try:
-                print(f"[DEBUG] toggle_button_state called with id: {id}")
-                print(f"[DEBUG] Request content_type: {request.content_type}")
-                print(f"[DEBUG] Request method: {request.method}")
+                from flask import session
+                user_id = session.get('user_id')
+                print(f"[DEBUG] toggle_button_state called with id: {id}, user_id: {user_id}")
                 
-                # Find button by ID
+                if not user_id:
+                    return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+                
+                # Use multi-home system if available
+                if self.multi_db:
+                    device_id = normalize_device_id(id)
+                    print(f"[DEBUG] Using multi-home system, raw_device_id: {id} (type: {type(id)}), normalized: {device_id} (type: {type(device_id)}), user_id: {user_id}")
+
+                    if device_id is None:
+                        return jsonify({'status': 'error', 'message': 'Invalid device identifier'}), 400
+
+                    # Get device details from multi-home system
+                    try:
+                        device = self.multi_db.get_device(device_id, user_id)
+                        print(f"[DEBUG] get_device returned: {device}")
+                    except Exception as e:
+                        print(f"[DEBUG ERROR] Exception in get_device: {e}")
+                        return jsonify({'status': 'error', 'message': f'Error getting device: {str(e)}'}), 500
+                    
+                    if not device:
+                        print(f"[DEBUG] Device not found with id: {id}")
+                        return jsonify({'status': 'error', 'message': 'Device not found or access denied'}), 404
+                    
+                    print(f"[DEBUG] Found device: {device['name']} in room_id: {device['room_id']}, current state: {device.get('state', False)}")
+                    
+                    # Get new state from request or toggle current state
+                    data = {}
+                    if request.content_type and 'application/json' in request.content_type:
+                        data = request.get_json() or {}
+                    
+                    new_state = data.get('state')
+                    if new_state is None:
+                        new_state = not device.get('state', False)
+                    
+                    print(f"[DEBUG] New state will be: {new_state} (type: {type(new_state)})")
+                    
+                    # Update device state in multi-home system
+                    try:
+                        target_device_id = normalize_device_id(device.get('id', device_id))
+                        if target_device_id is None:
+                            fallback_id = device_id if device_id is not None else device.get('id')
+                            target_device_id = normalize_device_id(fallback_id)
+                        if target_device_id is None:
+                            return jsonify({'status': 'error', 'message': 'Invalid device identifier'}), 400
+                        print(f"[DEBUG] Calling update_device with device_id={target_device_id}, raw_id={id}, user_id={user_id}, state={new_state}")
+                        success = self.multi_db.update_device(target_device_id, user_id, state=new_state)
+                        print(f"[DEBUG] update_device returned: {success} (type: {type(success)})")
+                        if not success:
+                            return jsonify({'status': 'error', 'message': 'Failed to update device state'}), 500
+                        
+                        print(f"[DEBUG] Device state updated successfully in multi-home system")
+                    except Exception as e:
+                        print(f"[DEBUG ERROR] Exception in update_device: {e}")
+                        return jsonify({'status': 'error', 'message': f'Error updating device: {str(e)}'}), 500
+                    
+                    # Emit socket updates
+                    if self.socketio:
+                        self.socketio.emit('update_button', {
+                            'room': device.get('room_name', ''),
+                            'name': device['name'],
+                            'state': new_state
+                        })
+                    
+                    # Log the action
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=device['name'],
+                            room=device.get('room_name', ''),
+                            action='toggle',
+                            new_state=new_state,
+                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                        )
+                    
+                    return jsonify({
+                        'status': 'success',
+                        'button': {
+                            'id': device['id'],
+                            'name': device['name'],
+                            'room': device.get('room_name', ''),
+                            'state': new_state
+                        }
+                    })
+                
+                # Fallback to old system
+                print(f"[DEBUG] Using old system fallback")
+                
+                # Find button by ID in old system
                 button = None
                 button_idx = None
                 for i, b in enumerate(self.smart_home.buttons):
@@ -1594,9 +1922,12 @@ class APIManager:
         def manage_temperature_controls():
             self.smart_home.check_and_save()
             if request.method == 'GET':
+                # Get current user and use multi-home system
+                user_id = session.get('user_id')
+                temp_controls = self.get_current_home_temperature_controls(user_id)
                 return jsonify({
                     "status": "success", 
-                    "data": self.smart_home.temperature_controls
+                    "data": temp_controls
                 })
             elif request.method == 'POST':
                 try:
@@ -1742,7 +2073,94 @@ class APIManager:
         def set_temperature_control_value(id):
             """Set temperature control value via REST API"""
             try:
-                # Find temperature control by ID
+                user_id = session.get('user_id')
+                if not user_id:
+                    return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+                user_id_str = str(user_id)
+
+                data = request.get_json() or {}
+                temperature = data.get('temperature')
+
+                if temperature is None:
+                    return jsonify({'status': 'error', 'message': 'Temperature value is required'}), 400
+
+                try:
+                    temperature = float(temperature)
+                    if not (16 <= temperature <= 30):
+                        return jsonify({'status': 'error', 'message': 'Temperature must be between 16°C and 30°C'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'status': 'error', 'message': 'Invalid temperature value'}), 400
+
+                if self.multi_db:
+                    device = None
+                    device_identifier = normalize_device_id(id)
+                    if device_identifier is None:
+                        return jsonify({'status': 'error', 'message': 'Invalid temperature control identifier'}), 400
+                    try:
+                        device = self.multi_db.get_device(device_identifier, user_id_str)
+                    except Exception as get_err:
+                        print(f"[DEBUG] Error fetching temperature control {id} for user {user_id}: {get_err}")
+
+                    if not device:
+                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id_str)
+                        if current_home_id:
+                            controls = self.multi_db.get_temperature_controls(str(current_home_id), user_id_str)
+                            for ctrl in controls:
+                                if str(ctrl.get('id')) == str(id):
+                                    device = ctrl
+                                    break
+
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Temperature control not found or access denied'}), 404
+
+                    update_payload = {
+                        'temperature': temperature,
+                        'current_temperature': temperature
+                    }
+                    target_device_id = normalize_device_id(device.get('id', device_identifier))
+                    if target_device_id is None:
+                        fallback_id = device_identifier if device_identifier is not None else device.get('id')
+                        target_device_id = normalize_device_id(fallback_id)
+                    if target_device_id is None:
+                        return jsonify({'status': 'error', 'message': 'Invalid temperature control identifier'}), 400
+                    if not self.multi_db.update_device(target_device_id, user_id_str, **update_payload):
+                        return jsonify({'status': 'error', 'message': 'Failed to update temperature state'}), 500
+
+                    updated_device = self.multi_db.get_device(target_device_id, user_id_str) or device
+                    room_name = updated_device.get('room_name') or device.get('room') or ''
+                    control_payload = {
+                        'id': updated_device.get('id'),
+                        'name': updated_device.get('name'),
+                        'room': room_name,
+                        'temperature': updated_device.get('temperature') if updated_device.get('temperature') is not None else temperature,
+                        'enabled': updated_device.get('enabled', True)
+                    }
+
+                    if self.socketio:
+                        self.socketio.emit('update_temperature', {
+                            'room': room_name,
+                            'name': control_payload['name'],
+                            'temperature': control_payload['temperature']
+                        })
+                        self.socketio.emit('sync_temperature', {
+                            'name': control_payload['name'],
+                            'temperature': control_payload['temperature']
+                        })
+
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=control_payload['name'],
+                            room=room_name,
+                            action='set_temperature',
+                            new_state=control_payload['temperature'],
+                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                        )
+
+                    return jsonify({'status': 'success', 'control': control_payload})
+
+                # Fallback to legacy single-home implementation
                 control = None
                 control_idx = None
                 for i, c in enumerate(self.smart_home.temperature_controls):
@@ -1750,45 +2168,25 @@ class APIManager:
                         control = c
                         control_idx = i
                         break
-                
+
                 if not control:
                     return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
-                
-                # Get temperature from request
-                data = request.get_json() or {}
-                temperature = data.get('temperature')
-                
-                if temperature is None:
-                    return jsonify({'status': 'error', 'message': 'Temperature value is required'}), 400
-                
-                # Validate temperature range
-                try:
-                    temperature = float(temperature)
-                    if not (16 <= temperature <= 30):
-                        return jsonify({'status': 'error', 'message': 'Temperature must be between 16°C and 30°C'}), 400
-                except (ValueError, TypeError):
-                    return jsonify({'status': 'error', 'message': 'Invalid temperature value'}), 400
-                
-                # Update temperature control
+
                 if hasattr(self.smart_home, 'update_temperature_control_value'):
-                    # Use database method if available
                     success = self.smart_home.update_temperature_control_value(control['room'], control['name'], temperature)
                     if not success:
                         return jsonify({'status': 'error', 'message': 'Failed to update temperature in database'}), 500
                 else:
-                    # Fallback to JSON mode
                     self.smart_home.temperature_controls[control_idx]['temperature'] = temperature
                     if not self.smart_home.save_config():
                         return jsonify({'status': 'error', 'message': 'Failed to save temperature'}), 500
-                
-                # Update room temperature state
+
                 if hasattr(self.smart_home, 'set_room_temperature'):
                     self.smart_home.set_room_temperature(control['room'], temperature)
                 else:
                     self.smart_home.temperature_states[control['room']] = temperature
                     self.smart_home.save_config()
-                
-                # Emit socket updates
+
                 if self.socketio:
                     self.socketio.emit('update_temperature', {
                         'room': control['room'],
@@ -1799,10 +2197,8 @@ class APIManager:
                         'name': control['name'],
                         'temperature': temperature
                     })
-                
-                # Log the action
+
                 if hasattr(self.management_logger, 'log_device_action'):
-                    user_id = session.get('user_id')
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
                         user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
@@ -1812,7 +2208,7 @@ class APIManager:
                         new_state=temperature,
                         ip_address=request.environ.get('REMOTE_ADDR', '')
                     )
-                
+
                 return jsonify({
                     'status': 'success',
                     'control': {
@@ -1822,7 +2218,7 @@ class APIManager:
                         'temperature': temperature
                     }
                 })
-                
+
             except Exception as e:
                 print(f"Error in set_temperature_control_value: {e}")
                 return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
@@ -1832,7 +2228,84 @@ class APIManager:
         def toggle_temperature_control_enabled(id):
             """Toggle temperature control enabled/disabled state via REST API"""
             try:
-                # Find temperature control by ID
+                user_id = session.get('user_id')
+                if not user_id:
+                    return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+                user_id_str = str(user_id)
+
+                data = request.get_json() or {}
+                enabled_value = data.get('enabled')
+
+                if enabled_value is None:
+                    return jsonify({'status': 'error', 'message': 'Enabled value is required'}), 400
+
+                if isinstance(enabled_value, str):
+                    enabled = enabled_value.strip().lower() in ('true', '1', 'yes', 'on')
+                else:
+                    enabled = bool(enabled_value)
+
+                if self.multi_db:
+                    device = None
+                    device_identifier = normalize_device_id(id)
+                    if device_identifier is None:
+                        return jsonify({'status': 'error', 'message': 'Invalid temperature control identifier'}), 400
+                    try:
+                        device = self.multi_db.get_device(device_identifier, user_id_str)
+                    except Exception as get_err:
+                        print(f"[DEBUG] Error fetching temperature control {id} for user {user_id}: {get_err}")
+
+                    if not device:
+                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id_str)
+                        if current_home_id:
+                            controls = self.multi_db.get_temperature_controls(str(current_home_id), user_id_str)
+                            for ctrl in controls:
+                                if str(ctrl.get('id')) == str(id):
+                                    device = ctrl
+                                    break
+
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Temperature control not found or access denied'}), 404
+
+                    target_device_id = normalize_device_id(device.get('id', device_identifier))
+                    if target_device_id is None:
+                        fallback_id = device_identifier if device_identifier is not None else device.get('id')
+                        target_device_id = normalize_device_id(fallback_id)
+                    if target_device_id is None:
+                        return jsonify({'status': 'error', 'message': 'Invalid temperature control identifier'}), 400
+                    if not self.multi_db.update_device(target_device_id, user_id_str, enabled=enabled):
+                        return jsonify({'status': 'error', 'message': 'Failed to update enabled state'}), 500
+
+                    updated_device = self.multi_db.get_device(target_device_id, user_id_str) or device
+                    room_name = updated_device.get('room_name') or device.get('room') or ''
+                    control_payload = {
+                        'id': updated_device.get('id'),
+                        'name': updated_device.get('name'),
+                        'room': room_name,
+                        'enabled': bool(updated_device.get('enabled', enabled))
+                    }
+
+                    if self.socketio:
+                        self.socketio.emit('update_temperature_control_enabled', {
+                            'id': control_payload['id'],
+                            'room': room_name,
+                            'name': control_payload['name'],
+                            'enabled': control_payload['enabled']
+                        })
+
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=control_payload['name'],
+                            room=room_name,
+                            action='toggle_temperature_enabled',
+                            new_state=control_payload['enabled'],
+                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                        )
+
+                    return jsonify({'status': 'success', 'control': control_payload})
+
+                # Fallback to legacy single-home implementation
                 control = None
                 control_idx = None
                 for i, c in enumerate(self.smart_home.temperature_controls):
@@ -1840,43 +2313,28 @@ class APIManager:
                         control = c
                         control_idx = i
                         break
-                
+
                 if not control:
                     return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
-                
-                # Get enabled state from request
-                data = request.get_json() or {}
-                enabled = data.get('enabled')
-                
-                if enabled is None:
-                    return jsonify({'status': 'error', 'message': 'Enabled value is required'}), 400
-                
-                # Convert to boolean
-                enabled = bool(enabled)
-                
-                # Update temperature control enabled state
+
                 if hasattr(self.smart_home, 'toggle_temperature_control_enabled'):
-                    # Use database method if available
                     success = self.smart_home.toggle_temperature_control_enabled(control['room'], control['name'], enabled)
                     if not success:
                         return jsonify({'status': 'error', 'message': 'Failed to update enabled state in database'}), 500
                 else:
-                    # Fallback to JSON mode
                     self.smart_home.temperature_controls[control_idx]['enabled'] = enabled
                     if not self.smart_home.save_config():
                         return jsonify({'status': 'error', 'message': 'Failed to save enabled state'}), 500
-                
-                # Emit socket updates
+
                 if self.socketio:
                     self.socketio.emit('update_temperature_control_enabled', {
+                        'id': control['id'],
                         'room': control['room'],
                         'name': control['name'],
                         'enabled': enabled
                     })
-                
-                # Log the action
+
                 if hasattr(self.management_logger, 'log_device_action'):
-                    user_id = session.get('user_id')
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
                         user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
@@ -1886,7 +2344,7 @@ class APIManager:
                         new_state=enabled,
                         ip_address=request.environ.get('REMOTE_ADDR', '')
                     )
-                
+
                 return jsonify({
                     'status': 'success',
                     'control': {
@@ -1896,7 +2354,7 @@ class APIManager:
                         'enabled': enabled
                     }
                 })
-                
+
             except Exception as e:
                 print(f"Error in toggle_temperature_control_enabled: {e}")
                 return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
@@ -1904,10 +2362,18 @@ class APIManager:
         @self.app.route('/<room>')
         @self.auth_manager.login_required
         def dynamic_room(room):
-            if room.lower() in [r.lower() for r in self.smart_home.rooms]:
-                room_buttons = [button for button in self.smart_home.buttons if button.get('room') and button['room'].lower() == room.lower()]
-                room_temperature_controls = [control for control in self.smart_home.temperature_controls if control.get('room') and control['room'].lower() == room.lower()]
-                user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            user_id = session.get('user_id')
+            rooms = self.get_current_home_rooms(user_id)
+            
+            if room.lower() in [r.lower() for r in rooms]:
+                # Get buttons and temperature controls for current home
+                buttons = self.get_current_home_buttons(user_id)
+                temp_controls = self.get_current_home_temperature_controls(user_id)
+                
+                # Filter by room
+                room_buttons = [button for button in buttons if button.get('room') and button['room'].lower() == room.lower()]
+                room_temperature_controls = [control for control in temp_controls if control.get('room') and control['room'].lower() == room.lower()]
+                user_data = self.smart_home.get_user_data(user_id) if user_id else None
                 return render_template('room.html', 
                                       room=room.capitalize(), 
                                       buttons=room_buttons, 
