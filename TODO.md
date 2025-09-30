@@ -29,7 +29,7 @@
 5. Poprawić style na stronach home
    1. Poprawić ładowanie zdjęcia profilowego w prawym górnym rogu na stronach do zarządznia domem
 6. Sprawdzić wszystkie funkcjonalności dla multi home
-   1. [ ] edycja
+   1. [X] edycja - ok
    2. [X] światła - ok
    3. [X] temperatura - ok
    4. [ ] admin dashboard

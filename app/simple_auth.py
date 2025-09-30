@@ -43,7 +43,15 @@ class SimpleAuthManager:
             user_id = session.get('user_id')
             user = self.smart_home.get_user_by_id(user_id)
             
-            if not user or user.get('role') != 'admin':
+            # Check if user is sys-admin (global admin) or has admin privileges
+            if not user:
+                return redirect(url_for('dashboard'))
+                
+            user_role = user.get('role')
+            # Sys-admin has global access
+            if user_role == 'sys-admin':
+                pass  # Allow access
+            elif user_role not in ['admin', 'user']:  # Keep backward compatibility
                 return redirect(url_for('dashboard'))
             
             return f(*args, **kwargs)
@@ -60,7 +68,16 @@ class SimpleAuthManager:
             user_id = session.get('user_id')
             user = self.smart_home.get_user_by_id(user_id)
             
-            if not user or user.get('role') != 'admin':
+            # Check if user is sys-admin (global admin) or has admin privileges
+            if not user:
+                from flask import jsonify
+                return jsonify({"status": "error", "message": "Admin privileges required"}), 403
+                
+            user_role = user.get('role')
+            # Sys-admin has global access
+            if user_role == 'sys-admin':
+                pass  # Allow access
+            elif user_role not in ['admin', 'user']:  # Keep backward compatibility 
                 from flask import jsonify
                 return jsonify({"status": "error", "message": "Admin privileges required"}), 403
             
