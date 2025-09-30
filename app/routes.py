@@ -2240,6 +2240,76 @@ class APIManager(MultiHomeHelpersMixin):
 
             return jsonify({'status': 'success'})
 
+        @self.app.route('/api/devices/batch-update', methods=['POST'])
+        @self.auth_manager.login_required
+        @self.auth_manager.admin_required
+        def batch_update_devices():
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+                
+            data = request.get_json()
+            print(f"[DEBUG] POST /api/devices/batch-update - data: {data}")
+            
+            if not data or 'devices' not in data:
+                return jsonify({'status': 'error', 'message': 'Missing devices array'}), 400
+                
+            devices = data['devices']
+            if not isinstance(devices, list):
+                return jsonify({'status': 'error', 'message': 'devices must be an array'}), 400
+                
+            try:
+                if self.multi_db:
+                    print(f"[DEBUG] Processing batch update for {len(devices)} devices")
+                    result = self.multi_db.batch_update_devices(devices, str(user_id))
+                    
+                    updated_count = len(result['updated'])
+                    failed_count = len(result['failed'])
+                    
+                    print(f"[DEBUG] Batch update result: {updated_count} updated, {failed_count} failed")
+                    
+                    # Invalidate caches after batch update
+                    if updated_count > 0 and self.cached_data:
+                        try:
+                            methods = ['invalidate_buttons_cache', 'invalidate_temperature_cache', 'invalidate_room_cache']
+                            for method_name in methods:
+                                method = getattr(self.cached_data, method_name, None)
+                                if callable(method):
+                                    method()
+                            print(f"[DEBUG] Cache invalidation completed")
+                        except Exception as cache_error:
+                            print(f"[WARNING] Cache invalidation error: {cache_error}")
+                            
+                    # Emit socket updates for affected device types
+                    if updated_count > 0 and self.socketio:
+                        try:
+                            buttons = self.get_current_home_buttons(user_id)
+                            controls = self.get_current_home_temperature_controls(user_id)
+                            self.socketio.emit('update_buttons', buttons)
+                            self.socketio.emit('update_temperature_controls', controls)
+                            print(f"[DEBUG] Socket updates emitted")
+                        except Exception as socket_error:
+                            print(f"[WARNING] Socket emission error: {socket_error}")
+                            
+                    response_data = {
+                        'status': 'success' if failed_count == 0 else 'partial_success',
+                        'updated': updated_count,
+                        'total': len(devices)
+                    }
+                    
+                    if result['failed']:
+                        response_data['failed'] = result['failed']
+                        
+                    print(f"[DEBUG] Batch update completed successfully")
+                    return jsonify(response_data)
+                    
+                else:
+                    return jsonify({'status': 'error', 'message': 'Multi-home database not available'}), 500
+                    
+            except Exception as e:
+                print(f"[ERROR] Batch update failed: {e}")
+                return jsonify({'status': 'error', 'message': f'Batch update error: {str(e)}'}), 500
+
         @self.app.route('/api/buttons/order', methods=['POST'])
         @self.auth_manager.api_login_required
         @self.auth_manager.api_admin_required
@@ -2546,42 +2616,60 @@ class APIManager(MultiHomeHelpersMixin):
 
                 # Multi-home branch
                 if self.multi_db:
+                    print(f"[DEBUG] PUT /api/buttons/{id} - Multi-home mode")
                     device = self.multi_db.get_device(id, str(user_id))
+                    print(f"[DEBUG] Current device: {device}")
                     if not device:
                         return jsonify({'status': 'error', 'message': 'Button not found'}), 404
 
                     updates = {}
                     if 'name' in data and data['name']:
                         updates['name'] = data['name']
+                        print(f"[DEBUG] Name update: {data['name']}")
 
                     room_identifier = None
                     if data.get('room_id') not in (None, '', 'null'):
                         room_identifier = data.get('room_id')
+                        print(f"[DEBUG] Room ID provided: {room_identifier}")
                     elif 'room' in data and data['room'] not in (None, '', 'null'):
                         room_identifier = data['room']
+                        print(f"[DEBUG] Room name provided: {room_identifier}")
 
                     if room_identifier is not None:
+                        print(f"[DEBUG] Processing room change to: {room_identifier}")
                         try:
                             updates['room_id'] = int(room_identifier)
+                            print(f"[DEBUG] Using room_id as integer: {updates['room_id']}")
                         except (TypeError, ValueError):
                             resolved_room_id = self._resolve_room_identifier(room_identifier, user_id, device.get('home_id'))
+                            print(f"[DEBUG] Resolved room_id: {resolved_room_id}")
                             if resolved_room_id is None:
                                 return jsonify({'status': 'error', 'message': 'Nie znaleziono pokoju'}), 404
                             updates['room_id'] = resolved_room_id
 
+                    print(f"[DEBUG] Final updates dict: {updates}")
                     if not updates:
                         return jsonify({'status': 'error', 'message': 'Brak pól do aktualizacji'}), 400
 
                     try:
+                        print(f"[DEBUG] Calling multi_db.update_device with: id={id}, user_id={user_id}, updates={updates}")
                         success = self.multi_db.update_device(id, str(user_id), **updates)
-                    except PermissionError:
+                        print(f"[DEBUG] update_device result: {success}")
+                    except PermissionError as e:
+                        print(f"[DEBUG] Permission error: {e}")
                         return jsonify({'status': 'error', 'message': 'Brak uprawnień do edycji urządzenia'}), 403
                     except ValueError as exc:
+                        print(f"[DEBUG] Value error: {exc}")
                         return jsonify({'status': 'error', 'message': str(exc)}), 400
+                    except Exception as exc:
+                        print(f"[DEBUG] Unexpected error: {exc}")
+                        return jsonify({'status': 'error', 'message': f'Update failed: {exc}'}), 500
 
                     if not success:
+                        print(f"[DEBUG] Update returned False")
                         return jsonify({'status': 'error', 'message': 'Nie udało się zapisać edycji przycisku'}), 500
 
+                    print(f"[DEBUG] Update successful, invalidating cache")
                     if self.cached_data:
                         try:
                             invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
@@ -2591,7 +2679,9 @@ class APIManager(MultiHomeHelpersMixin):
                             pass
 
                     updated_device = self.multi_db.get_device(id, str(user_id))
+                    print(f"[DEBUG] Updated device: {updated_device}")
                     buttons = self.get_current_home_buttons(user_id)
+                    print(f"[DEBUG] Emitting {len(buttons)} buttons via socketio")
                     if self.socketio:
                         self.socketio.emit('update_buttons', buttons)
 
@@ -2600,6 +2690,7 @@ class APIManager(MultiHomeHelpersMixin):
                         'button': updated_device,
                         'meta': {'home_id': str(updated_device.get('home_id')) if updated_device else None}
                     }
+                    print(f"[DEBUG] PUT /api/buttons/{id} - Success response: {response}")
                     return jsonify(response)
 
                 # Legacy single-home fallback
@@ -3004,38 +3095,128 @@ class APIManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.api_admin_required
         def temp_control_by_id(id):
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+                
             if request.method == 'PUT':
+                print(f"[DEBUG] PUT /api/temperature_controls/{id} - Starting")
                 data = request.get_json()
+                print(f"[DEBUG] PUT data received: {data}")
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
-                
-                # Check if device exists first
+
+                # Multi-home branch
+                if self.multi_db:
+                    device = self.multi_db.get_device(id, str(user_id))
+                    print(f"[DEBUG] Current device: {device}")
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+
+                    updates = {}
+                    if 'name' in data and data['name']:
+                        updates['name'] = data['name']
+                        print(f"[DEBUG] Name update: {data['name']}")
+                    
+                    if 'display_order' in data:
+                        updates['display_order'] = data['display_order']
+                        print(f"[DEBUG] Display order update: {data['display_order']}")
+
+                    room_identifier = None
+                    if data.get('room_id') not in (None, '', 'null'):
+                        room_identifier = data.get('room_id')
+                        print(f"[DEBUG] Room ID provided: {room_identifier}")
+                    elif 'room' in data and data['room'] not in (None, '', 'null'):
+                        room_identifier = data['room']
+                        print(f"[DEBUG] Room name provided: {room_identifier}")
+
+                    if room_identifier is not None:
+                        print(f"[DEBUG] Processing room change to: {room_identifier}")
+                        try:
+                            updates['room_id'] = int(room_identifier)
+                            print(f"[DEBUG] Using room_id as integer: {updates['room_id']}")
+                        except (TypeError, ValueError):
+                            resolved_room_id = self._resolve_room_identifier(room_identifier, user_id, device.get('home_id'))
+                            print(f"[DEBUG] Resolved room_id: {resolved_room_id}")
+                            if resolved_room_id is None:
+                                return jsonify({'status': 'error', 'message': 'Nie znaleziono pokoju'}), 404
+                            updates['room_id'] = resolved_room_id
+
+                    print(f"[DEBUG] Final updates dict: {updates}")
+                    if not updates:
+                        return jsonify({'status': 'error', 'message': 'Brak pól do aktualizacji'}), 400
+
+                    try:
+                        print(f"[DEBUG] Calling multi_db.update_device with: id={id}, user_id={user_id}, updates={updates}")
+                        success = self.multi_db.update_device(id, str(user_id), **updates)
+                        print(f"[DEBUG] update_device result: {success}")
+                    except PermissionError as e:
+                        print(f"[DEBUG] Permission error: {e}")
+                        return jsonify({'status': 'error', 'message': 'Brak uprawnień do edycji urządzenia'}), 403
+                    except ValueError as exc:
+                        print(f"[DEBUG] Value error: {exc}")
+                        return jsonify({'status': 'error', 'message': str(exc)}), 400
+                    except Exception as exc:
+                        print(f"[DEBUG] Unexpected error: {exc}")
+                        return jsonify({'status': 'error', 'message': f'Update failed: {exc}'}), 500
+
+                    if not success:
+                        print(f"[DEBUG] Update returned False")
+                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać edycji termostatu'}), 500
+
+                    print(f"[DEBUG] Update successful, invalidating cache")
+                    if self.cached_data:
+                        try:
+                            invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                            if callable(invalidate):
+                                invalidate()
+                        except Exception:
+                            pass
+
+                    updated_device = self.multi_db.get_device(id, str(user_id))
+                    print(f"[DEBUG] Updated device: {updated_device}")
+                    controls = self.get_current_home_temperature_controls(user_id)
+                    print(f"[DEBUG] Emitting {len(controls)} temperature controls via socketio")
+                    if self.socketio:
+                        self.socketio.emit('update_temperature_controls', controls)
+
+                    response = {
+                        'status': 'success',
+                        'control': updated_device,
+                        'meta': {'home_id': str(updated_device.get('home_id')) if updated_device else None}
+                    }
+                    print(f"[DEBUG] PUT /api/temperature_controls/{id} - Success response: {response}")
+                    return jsonify(response)
+
+                # Legacy single-home fallback  
                 device = self.smart_home.get_device_by_id(id)
+                print(f"[DEBUG] Device found: {device}")
                 if not device:
                     return jsonify({'status': 'error', 'message': 'Control not found'}), 404
-                
-                # Prepare updates
+
                 updates = {}
                 if 'name' in data:
                     updates['name'] = data['name']
                 if 'room' in data:
                     updates['room'] = data['room']
-                
+                if 'display_order' in data:
+                    updates['display_order'] = data['display_order']
+
+                print(f"[DEBUG] Updates prepared: {updates}")
                 if not updates:
                     return jsonify({'status': 'error', 'message': 'No valid fields to update'}), 400
-                
-                # Update device in database
+
                 if hasattr(self.smart_home, 'update_device'):
-                    # Database mode - use proper database update method
+                    print(f"[DEBUG] Using database mode - calling update_device")
                     success = self.smart_home.update_device(id, updates)
+                    print(f"[DEBUG] update_device result: {success}")
                     if not success:
                         return jsonify({"status": "error", "message": "Nie udało się zapisać edycji termostatu"}), 500
-                    
-                    # Invalidate cache after successful update
                     if self.cached_data:
+                        print(f"[DEBUG] Invalidating cache")
                         self.cached_data.invalidate_temperature_cache()
                 else:
-                    # JSON mode fallback
+                    print(f"[DEBUG] Using JSON mode fallback")
                     idx = next((i for i, c in enumerate(self.smart_home.temperature_controls) if str(c.get('id')) == str(id)), None)
                     if idx is None:
                         return jsonify({'status': 'error', 'message': 'Control not found'}), 404
@@ -3044,14 +3225,19 @@ class APIManager(MultiHomeHelpersMixin):
                         self.smart_home.temperature_controls[idx]['name'] = updates['name']
                     if 'room' in updates:
                         self.smart_home.temperature_controls[idx]['room'] = updates['room']
+                    if 'display_order' in updates:
+                        self.smart_home.temperature_controls[idx]['display_order'] = updates['display_order']
                     
                     self.smart_home.save_config()
-                
-                # Emit updates only if socketio is available
+
                 if self.socketio:
-                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                
-                return jsonify({'status': 'success'})
+                    print(f"[DEBUG] Emitting socket update")
+                    fresh_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
+                    print(f"[DEBUG] Fresh temperature controls data from cache: {fresh_controls}")
+                    self.socketio.emit('update_temperature_controls', fresh_controls)
+
+                print(f"[DEBUG] PUT /api/temperature_controls/{id} - Success (legacy mode)")
+                return jsonify({'status': 'success', 'message': 'Termostat zaktualizowany poprawnie!'}), 200
                 
             elif request.method == 'DELETE':
                 user_id = session.get('user_id')
@@ -3332,6 +3518,119 @@ class APIManager(MultiHomeHelpersMixin):
             except Exception as e:
                 print(f"Error in set_temperature_control_value: {e}")
                 return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
+        @self.app.route('/api/temperature_controls/<id>/toggle', methods=['POST'])
+        @self.auth_manager.api_login_required
+        def toggle_temperature_control(id):
+            """Toggle temperature control state via REST API"""
+            try:
+                user_id = session.get('user_id')
+                if not user_id:
+                    return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+                user_id_str = str(user_id)
+
+                print(f"[DEBUG] Temperature control toggle for ID: {id}")
+
+                if self.multi_db:
+                    device = self.multi_db.get_device(id, user_id_str)
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
+
+                    # Toggle enabled state
+                    current_enabled = device.get('enabled', True)
+                    new_enabled = not current_enabled
+                    print(f"[DEBUG] Toggling enabled: {current_enabled} -> {new_enabled}")
+
+                    try:
+                        success = self.multi_db.update_device(id, user_id_str, enabled=new_enabled)
+                        if not success:
+                            return jsonify({'status': 'error', 'message': 'Failed to toggle temperature control'}), 500
+
+                        # Get updated device
+                        updated_device = self.multi_db.get_device(id, user_id_str) or device
+                        room_name = updated_device.get('room_name') or device.get('room')
+
+                        # Invalidate cache
+                        if self.cached_data:
+                            try:
+                                invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                                if callable(invalidate):
+                                    invalidate()
+                            except Exception:
+                                pass
+
+                        # Emit updates
+                        controls = self.get_current_home_temperature_controls(user_id)
+                        if self.socketio:
+                            self.socketio.emit('update_temperature_controls', controls)
+                            self.socketio.emit('toggle_temperature_control', {
+                                'id': updated_device.get('id'),
+                                'name': updated_device.get('name'),
+                                'room': room_name,
+                                'enabled': updated_device.get('enabled')
+                            })
+
+                        # Log action
+                        if hasattr(self.management_logger, 'log_device_action'):
+                            try:
+                                username = session.get('username', 'unknown')
+                                self.management_logger.log_device_action(
+                                    user=username,
+                                    device_name=updated_device.get('name'),
+                                    room=room_name,
+                                    action='toggle_temperature_control',
+                                    new_state=new_enabled,
+                                    ip_address=request.remote_addr or ''
+                                )
+                            except Exception:
+                                pass
+
+                        return jsonify({
+                            'status': 'success',
+                            'control': {
+                                'id': updated_device.get('id'),
+                                'name': updated_device.get('name'),
+                                'room': room_name,
+                                'enabled': updated_device.get('enabled')
+                            }
+                        })
+                    except PermissionError:
+                        return jsonify({'status': 'error', 'message': 'Permission denied'}), 403
+                    except Exception as exc:
+                        print(f"[DEBUG] Error toggling temperature control: {exc}")
+                        return jsonify({'status': 'error', 'message': str(exc)}), 500
+
+                # Legacy fallback
+                control = None
+                for i, c in enumerate(self.smart_home.temperature_controls):
+                    if str(c.get('id')) == str(id):
+                        control = c
+                        break
+
+                if not control:
+                    return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
+
+                # Toggle enabled state
+                current_enabled = control.get('enabled', True)
+                control['enabled'] = not current_enabled
+                self.smart_home.save_config()
+
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+
+                return jsonify({
+                    'status': 'success',
+                    'control': {
+                        'id': control.get('id'),
+                        'name': control.get('name'),
+                        'room': control.get('room'),
+                        'enabled': control.get('enabled')
+                    }
+                })
+
+            except Exception as e:
+                print(f"[DEBUG] Exception in toggle_temperature_control: {e}")
+                return jsonify({'status': 'error', 'message': str(e)}), 500
 
         @self.app.route('/api/temperature_controls/<id>/enabled', methods=['POST'])
         @self.auth_manager.login_required

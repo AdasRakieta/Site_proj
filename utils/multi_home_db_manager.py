@@ -693,7 +693,7 @@ class MultiHomeDBManager:
                 query += " AND d.device_type = %s"
                 params.append(device_type)
                 
-            query += " ORDER BY r.name NULLS LAST, d.name"
+            query += " ORDER BY r.name NULLS LAST, d.display_order NULLS LAST, d.name"
             
             cursor.execute(query, params)
             
@@ -735,7 +735,7 @@ class MultiHomeDBManager:
                 query += " AND device_type = %s"
                 params.append(device_type)
                 
-            query += " ORDER BY name"
+            query += " ORDER BY display_order NULLS LAST, name"
             
             cursor.execute(query, params)
             
@@ -770,9 +770,9 @@ class MultiHomeDBManager:
             cursor.execute("""
                 SELECT d.room_id, r.home_id
                 FROM devices d
-                JOIN rooms r ON d.room_id = r.id
-                JOIN user_homes uh ON r.home_id = uh.home_id
-                WHERE d.id = %s AND uh.user_id = %s
+                LEFT JOIN rooms r ON d.room_id = r.id
+                LEFT JOIN user_homes uh ON r.home_id = uh.home_id
+                WHERE d.id = %s AND (uh.user_id = %s OR d.room_id IS NULL)
             """, (normalized_id, user_id))
             
             row = cursor.fetchone()
@@ -781,7 +781,8 @@ class MultiHomeDBManager:
                 
             room_id, home_id = row
             
-            if not self.user_has_home_permission(user_id, home_id, 'control_devices'):
+            # If device has no room, we'll need to validate permission on target room during update
+            if home_id and not self.user_has_home_permission(user_id, home_id, 'control_devices'):
                 return False
             
             # Build update query
@@ -789,12 +790,28 @@ class MultiHomeDBManager:
             update_values = []
             
             allowed_fields = ['name', 'state', 'brightness', 'color', 'temperature', 'current_temperature', 
-                            'target_temperature', 'mode', 'action', 'target_device_id', 'enabled']
+                            'target_temperature', 'mode', 'action', 'target_device_id', 'enabled', 'room_id', 'display_order']
             
             for field, value in updates.items():
                 if field in allowed_fields:
-                    update_fields.append(f"{field} = %s")
-                    update_values.append(value)
+                    if field == 'room_id':
+                        # Validate new room exists and user has access
+                        if value is not None:
+                            cursor.execute("""
+                                SELECT home_id FROM rooms 
+                                WHERE id = %s
+                            """, (value,))
+                            room_row = cursor.fetchone()
+                            if not room_row:
+                                raise ValueError(f"Room with ID {value} not found")
+                            new_room_home_id = room_row[0]
+                            if not self.user_has_home_permission(user_id, new_room_home_id, 'manage_devices'):
+                                raise PermissionError("No permission to move device to target room")
+                        update_fields.append(f"{field} = %s")
+                        update_values.append(value)
+                    else:
+                        update_fields.append(f"{field} = %s")
+                        update_values.append(value)
             
             if not update_fields:
                 return False
@@ -827,6 +844,116 @@ class MultiHomeDBManager:
 
             logger.info(f"Updated device {normalized_id} with fields: {list(updates.keys())}")
             return rows_updated > 0
+
+    def batch_update_devices(self, device_updates: List[Dict], user_id: str) -> Dict:
+        """Update multiple devices in a single transaction for optimal performance."""
+        if not device_updates:
+            return {'updated': [], 'failed': []}
+
+        updated_devices = []
+        failed_updates = []
+
+        with self.get_cursor() as cursor:
+            try:
+                # Start transaction
+                cursor.execute("BEGIN")
+                
+                for update_data in device_updates:
+                    if not isinstance(update_data, dict) or 'id' not in update_data:
+                        failed_updates.append({'update': update_data, 'error': 'Missing device id'})
+                        continue
+                        
+                    device_id = update_data['id']
+                    normalized_id = self._normalize_device_id(device_id)
+                    
+                    if normalized_id is None:
+                        failed_updates.append({'device_id': device_id, 'error': 'Invalid device id'})
+                        continue
+                        
+                    try:
+                        # Verify user has access to this device
+                        cursor.execute("""
+                            SELECT d.room_id, r.home_id
+                            FROM devices d
+                            LEFT JOIN rooms r ON d.room_id = r.id
+                            LEFT JOIN user_homes uh ON r.home_id = uh.home_id
+                            WHERE d.id = %s AND (uh.user_id = %s OR d.room_id IS NULL)
+                        """, (normalized_id, user_id))
+                        
+                        row = cursor.fetchone()
+                        if not row:
+                            failed_updates.append({'device_id': device_id, 'error': 'No permission or device not found'})
+                            continue
+                            
+                        room_id, home_id = row
+                        
+                        # If device has no room, we'll need to validate permission on target room during update
+                        if home_id and not self.user_has_home_permission(user_id, home_id, 'control_devices'):
+                            failed_updates.append({'device_id': device_id, 'error': 'No permission to access device'})
+                            continue
+                        
+                        # Build update query
+                        update_fields = []
+                        update_values = []
+                        
+                        allowed_fields = ['name', 'state', 'brightness', 'color', 'temperature', 'current_temperature', 
+                                        'target_temperature', 'mode', 'action', 'target_device_id', 'enabled', 'room_id', 'display_order']
+                        
+                        for field, value in update_data.items():
+                            if field in allowed_fields and field != 'id':
+                                if field == 'room_id':
+                                    # Validate new room exists and user has access
+                                    if value is not None:
+                                        cursor.execute("SELECT home_id FROM rooms WHERE id = %s", (value,))
+                                        room_row = cursor.fetchone()
+                                        if not room_row:
+                                            failed_updates.append({'device_id': device_id, 'error': f'Room {value} not found'})
+                                            break
+                                        new_room_home_id = room_row[0]
+                                        if not self.user_has_home_permission(user_id, new_room_home_id, 'manage_devices'):
+                                            failed_updates.append({'device_id': device_id, 'error': 'No permission to move device to target room'})
+                                            break
+                                    update_fields.append(f"{field} = %s")
+                                    update_values.append(value)
+                                else:
+                                    update_fields.append(f"{field} = %s")
+                                    update_values.append(value)
+                        
+                        if not update_fields:
+                            failed_updates.append({'device_id': device_id, 'error': 'No valid update fields'})
+                            continue
+                            
+                        update_fields.append("updated_at = %s")
+                        update_values.append(datetime.now())
+                        update_values.append(normalized_id)
+
+                        cursor.execute(f"""
+                            UPDATE devices 
+                            SET {', '.join(update_fields)}
+                            WHERE id = %s
+                        """, update_values)
+
+                        if cursor.rowcount > 0:
+                            updated_devices.append(str(normalized_id))
+                            logger.info(f"Batch updated device {normalized_id} with fields: {[f for f in update_data.keys() if f != 'id']}")
+                        else:
+                            failed_updates.append({'device_id': device_id, 'error': 'No rows updated'})
+                            
+                    except Exception as device_error:
+                        failed_updates.append({'device_id': device_id, 'error': str(device_error)})
+                        logger.error(f"Error updating device {device_id} in batch: {device_error}")
+                        continue
+                
+                # Commit transaction
+                cursor.execute("COMMIT")
+                logger.info(f"Batch update completed: {len(updated_devices)} updated, {len(failed_updates)} failed")
+                return {'updated': updated_devices, 'failed': failed_updates}
+                
+            except Exception as e:
+                # Rollback on any error
+                cursor.execute("ROLLBACK")
+                logger.error(f"Batch update transaction failed: {e}")
+                raise e
 
     def delete_device(self, device_id: Any, user_id: str, home_id: Optional[str] = None) -> bool:
         """Delete a device if the user has permission within the target home."""

@@ -3,6 +3,8 @@ console.log('dragula available?', typeof dragula !== 'undefined');
 
 // Edit mode state and changes tracking
 window.editMode = false;
+// Save operation state to prevent race conditions
+let isSaving = false;
 let pendingChanges = {
     // Używamy obiektu zamiast tablicy aby przechowywać tylko ostatnią zmianę dla każdego ID
     deviceMoves: {},
@@ -116,6 +118,12 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
 
 // Funkcja do włączania/wyłączania trybu edycji
 window.toggleEditMode = function(enabled) {
+    // Prevent edit mode changes during save operations
+    if (enabled && isSaving) {
+        console.log('Cannot enter edit mode while save operation is in progress');
+        return;
+    }
+    
     window.editMode = enabled;
     const controlPanel = document.querySelector('.control-panel');
     const editButton = document.getElementById('editModeButton');
@@ -146,7 +154,27 @@ window.toggleEditMode = function(enabled) {
 
 // Save changes function
 window.saveChanges = async function() {
+    // Prevent concurrent save operations
+    if (isSaving) {
+        console.log('Save already in progress, ignoring duplicate call');
+        return;
+    }
+    
+    isSaving = true;
     console.log('Saving changes:', pendingChanges);
+    
+    // Disable buttons during save
+    const editButton = document.getElementById('editModeButton');
+    const saveButton = document.querySelector('[onclick="saveChanges()"]');
+    const cancelButton = document.querySelector('[onclick="cancelChanges()"]');
+    
+    if (editButton) editButton.disabled = true;
+    if (saveButton) {
+        saveButton.disabled = true;
+        const originalText = saveButton.textContent;
+        saveButton.textContent = 'Zapisywanie...';
+    }
+    if (cancelButton) cancelButton.disabled = true;
     
     // Save column order if changed
     if (Array.isArray(pendingChanges.columnMoves) && pendingChanges.columnMoves.length) {
@@ -185,24 +213,85 @@ window.saveChanges = async function() {
         }
     }
 
-    // Save device moves - now only the last change for each device
+    // Save device moves using batch API for optimal performance
     const deviceMoves = Object.values(pendingChanges.deviceMoves);
-    for (const move of deviceMoves) {
+    if (deviceMoves.length > 0) {
         try {
-            const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
-            await fetch(endpoint, {
-                method: 'PUT',
+            console.log('Preparing batch update for', deviceMoves.length, 'devices');
+            
+            // Prepare devices array with display_order based on current DOM position
+            const devicesWithOrder = deviceMoves.map(move => {
+                // Calculate display_order based on position in target container
+                let displayOrder = 0;
+                if (move.target && move.target.children) {
+                    const children = Array.from(move.target.children);
+                    const deviceElement = children.find(child => child.getAttribute('data-id') === move.id);
+                    if (deviceElement) {
+                        displayOrder = children.indexOf(deviceElement);
+                    }
+                }
+                
+                return {
+                    id: move.id,
+                    room_id: move.newRoomId || null,
+                    display_order: displayOrder
+                };
+            });
+            
+            console.log('Batch update payload:', devicesWithOrder);
+            
+            const response = await fetch('/api/devices/batch-update', {
+                method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                body: JSON.stringify({ devices: devicesWithOrder })
             });
-            if (window.updateDeviceOrders) {
-                window.updateDeviceOrders(move.target, move.newRoom, move.newRoomId || null);
+            
+            const result = await response.json();
+            console.log('Batch update result:', result);
+            
+            if (result.status === 'success' || result.status === 'partial_success') {
+                console.log('Batch update successful:', result);
+            } else {
+                console.error('Batch update failed:', result);
+                // Fallback to individual updates if batch fails
+                console.log('Falling back to individual updates...');
+                for (const move of deviceMoves) {
+                    try {
+                        const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
+                        await fetch(endpoint, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': window.getCSRFToken()
+                            },
+                            body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                        });
+                    } catch (error) {
+                        console.error('Error in fallback device update:', error);
+                    }
+                }
             }
         } catch (error) {
-            console.error('Error saving device move:', error);
+            console.error('Error in batch device update:', error);
+            // Fallback to individual updates
+            for (const move of deviceMoves) {
+                try {
+                    const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
+                    await fetch(endpoint, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.getCSRFToken()
+                        },
+                        body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                    });
+                } catch (fallbackError) {
+                    console.error('Error in fallback device update:', fallbackError);
+                }
+            }
         }
     }
 
@@ -216,10 +305,17 @@ window.saveChanges = async function() {
     // Exit edit mode
     window.toggleEditMode(false);
     
-    // Reload kanban to show updated state
-    if (window.loadKanban) {
-        window.loadKanban();
+    // Re-enable buttons after successful save
+    isSaving = false;
+    if (editButton) editButton.disabled = false;
+    if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Zapisz';
     }
+    if (cancelButton) cancelButton.disabled = false;
+    
+    console.log('Save operation completed successfully');
+    // Socket updates should handle UI refresh - no need for loadKanban() to prevent race conditions
 };
 
 // Cancel changes function
