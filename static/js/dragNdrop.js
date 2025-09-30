@@ -220,14 +220,25 @@ window.saveChanges = async function() {
             console.log('Preparing batch update for', deviceMoves.length, 'devices');
             
             // Prepare devices array with display_order based on current DOM position
+            // Calculate display_order separately for each device type
             const devicesWithOrder = deviceMoves.map(move => {
-                // Calculate display_order based on position in target container
                 let displayOrder = 0;
                 if (move.target && move.target.children) {
                     const children = Array.from(move.target.children);
                     const deviceElement = children.find(child => child.getAttribute('data-id') === move.id);
                     if (deviceElement) {
-                        displayOrder = children.indexOf(deviceElement);
+                        // Get device type to calculate proper order
+                        const deviceType = deviceElement.getAttribute('data-type');
+                        
+                        // Filter children to only include devices of the same type
+                        const sameTypeDevices = children.filter(child => 
+                            child.getAttribute('data-type') === deviceType
+                        );
+                        
+                        // Find position within devices of the same type
+                        displayOrder = sameTypeDevices.indexOf(deviceElement);
+                        
+                        console.log(`Device ${move.id} (${deviceType}): position ${displayOrder} among ${sameTypeDevices.length} devices of same type`);
                     }
                 }
                 

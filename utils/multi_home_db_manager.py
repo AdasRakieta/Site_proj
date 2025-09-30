@@ -693,7 +693,15 @@ class MultiHomeDBManager:
                 query += " AND d.device_type = %s"
                 params.append(device_type)
                 
-            query += " ORDER BY r.name NULLS LAST, d.display_order NULLS LAST, d.name"
+            # Sort by room name, then device type (buttons first, then temperature_controls), then display_order within type
+            query += """ ORDER BY r.name NULLS LAST, 
+                        CASE d.device_type 
+                            WHEN 'light' THEN 1 
+                            WHEN 'button' THEN 1
+                            WHEN 'temperature_control' THEN 2 
+                            ELSE 3 
+                        END,
+                        d.display_order NULLS LAST, d.name"""
             
             cursor.execute(query, params)
             
@@ -735,7 +743,15 @@ class MultiHomeDBManager:
                 query += " AND device_type = %s"
                 params.append(device_type)
                 
-            query += " ORDER BY display_order NULLS LAST, name"
+            # Sort by device type (buttons first, then temperature_controls), then display_order within type
+            query += """ ORDER BY 
+                        CASE device_type 
+                            WHEN 'light' THEN 1 
+                            WHEN 'button' THEN 1
+                            WHEN 'temperature_control' THEN 2 
+                            ELSE 3 
+                        END,
+                        display_order NULLS LAST, name"""
             
             cursor.execute(query, params)
             
