@@ -1,3 +1,4 @@
+    # No property stubs: subclasses must provide app, multi_db, smart_home, socketio attributes directly.
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from flask_socketio import emit
 from werkzeug.utils import secure_filename
@@ -6,6 +7,8 @@ from app.management_logger import ManagementLogger
 import os
 import time
 import uuid
+import json
+from decimal import Decimal
 from utils.allowed_file import allowed_file
 from datetime import datetime
 
@@ -29,7 +32,239 @@ def normalize_device_id(raw_id):
     return raw_id
 
 
-class RoutesManager:
+class MultiHomeHelpersMixin:
+    def _resolve_home_id(self, user_id, preferred_home_id=None):
+        """Resolve current home for the given user."""
+        if not self.multi_db or not user_id:  # type: ignore
+            return None
+
+        user_id_str = str(user_id)
+        home_id = preferred_home_id or session.get('current_home_id')
+
+        if not home_id:
+            try:
+                home_id = self.multi_db.get_user_current_home(user_id_str)  # type: ignore
+            except Exception as exc:
+                if self.app:  # type: ignore
+                    self.app.logger.error(f"Failed to resolve home for user {user_id_str}: {exc}")  # type: ignore
+                home_id = None
+
+        return str(home_id) if home_id else None
+
+    def _normalize_rooms_for_response(self, rooms, default_home_id=None):
+        """Normalize various room payload formats to a consistent API response."""
+        normalized = []
+        if not rooms:
+            return normalized
+
+        for index, room in enumerate(rooms):
+            if isinstance(room, dict):
+                room_id = room.get('id') or room.get('room_id')
+                name = room.get('name') or room.get('room') or room.get('title')
+                description = room.get('description')
+                display_order = room.get('display_order', index)
+                home_id = room.get('home_id', default_home_id)
+            else:
+                room_id = room
+                name = room
+                description = None
+                display_order = index
+                home_id = default_home_id
+
+            if not name:
+                continue
+
+            normalized.append({
+                'id': str(room_id) if room_id is not None else str(name),
+                'name': str(name),
+                'description': description,
+                'display_order': int(display_order) if display_order is not None else index,
+                'home_id': str(home_id) if home_id else None
+            })
+
+        # Ensure stable ordering by display_order then name
+        normalized.sort(key=lambda r: (r.get('display_order', 0), r.get('name', '').lower()))
+        return normalized
+
+    def _get_rooms_payload(self, user_id, preferred_home_id=None):
+        """Fetch rooms for a user/home pair and return normalized response payload."""
+        resolved_home_id = self._resolve_home_id(user_id, preferred_home_id)
+        rooms_data = []
+
+        if self.multi_db and resolved_home_id:  # type: ignore
+            try:
+                rooms_data = self.multi_db.get_home_rooms(resolved_home_id, str(user_id))  # type: ignore
+            except Exception as exc:
+                if self.app:  # type: ignore
+                    self.app.logger.error(f"Failed to load rooms for home {resolved_home_id}: {exc}")  # type: ignore
+                rooms_data = []
+        else:
+            rooms_data = list(self.smart_home.rooms)  # type: ignore
+
+        normalized = self._normalize_rooms_for_response(rooms_data, resolved_home_id)
+        return normalized, resolved_home_id
+
+    def _broadcast_rooms_update(self, user_id, preferred_home_id=None):
+        """Emit socket updates with the latest room payload for the user/home context."""
+        if not self.socketio:  # type: ignore
+            return
+
+        try:
+            rooms_payload, resolved_home_id = self._get_rooms_payload(user_id, preferred_home_id)
+            payload = {
+                'status': 'success',
+                'data': rooms_payload
+            }
+            if resolved_home_id:
+                payload['meta'] = {'home_id': resolved_home_id}
+            self.socketio.emit('update_rooms', payload)  # type: ignore
+        except Exception as exc:
+            if self.app:  # type: ignore
+                self.app.logger.warning(f"Failed to broadcast room update: {exc}")  # type: ignore
+
+    def get_current_home_temperature_controls(self, user_id):
+        """Return normalized temperature control payload for the active home, sanitizing Decimal values."""
+        base_controls = list(getattr(self.smart_home, 'temperature_controls', []))  # type: ignore
+        if not user_id:
+            return base_controls
+
+        if not getattr(self, 'multi_db', None):  # type: ignore
+            return base_controls
+
+        try:
+            resolved_home_id = self._resolve_home_id(user_id)
+            if not resolved_home_id:
+                return base_controls
+
+            raw_controls = self.multi_db.get_temperature_controls(resolved_home_id, str(user_id))  # type: ignore
+            normalized = []
+            for control in raw_controls or []:
+                settings = control.get('settings') or {}
+                if isinstance(settings, str):
+                    try:
+                        settings = json.loads(settings)
+                    except json.JSONDecodeError:
+                        settings = {}
+
+                temperature_value = control.get('temperature')
+                if isinstance(temperature_value, Decimal):
+                    temperature_value = float(temperature_value)
+                elif isinstance(temperature_value, str):
+                    try:
+                        temperature_value = float(temperature_value)
+                    except (TypeError, ValueError):
+                        temperature_value = None
+
+                min_temperature = control.get('min_temperature')
+                if isinstance(min_temperature, Decimal):
+                    min_temperature = float(min_temperature)
+                elif isinstance(min_temperature, str):
+                    try:
+                        min_temperature = float(min_temperature)
+                    except (TypeError, ValueError):
+                        min_temperature = None
+
+                max_temperature = control.get('max_temperature')
+                if isinstance(max_temperature, Decimal):
+                    max_temperature = float(max_temperature)
+                elif isinstance(max_temperature, str):
+                    try:
+                        max_temperature = float(max_temperature)
+                    except (TypeError, ValueError):
+                        max_temperature = None
+
+                target_temperature = settings.get('target_temperature', 21.0)
+                if isinstance(target_temperature, Decimal):
+                    target_temperature = float(target_temperature)
+                elif isinstance(target_temperature, str):
+                    try:
+                        target_temperature = float(target_temperature)
+                    except (TypeError, ValueError):
+                        target_temperature = 21.0
+
+                mode_value = settings.get('mode', 'auto') or 'auto'
+                if isinstance(mode_value, Decimal):
+                    mode_value = str(mode_value)
+                elif not isinstance(mode_value, str):
+                    mode_value = str(mode_value)
+
+                room_id = control.get('room_id')
+                room_name = control.get('room_name') or control.get('room')
+                normalized.append({
+                    'id': control.get('id'),
+                    'name': control.get('name'),
+                    'room': room_name,
+                    'room_name': room_name,
+                    'room_id': str(room_id) if room_id is not None else None,
+                    'temperature': temperature_value,
+                    'target_temperature': target_temperature,
+                    'mode': mode_value,
+                    'min_temperature': min_temperature,
+                    'max_temperature': max_temperature,
+                    'enabled': control.get('enabled', True),
+                    'type': control.get('type', 'temperature_control')
+                })
+            return normalized
+        except Exception as exc:
+            print(f"[DEBUG] Error getting multi-home temperature controls: {exc}")
+            return base_controls
+
+    def _resolve_room_identifier(self, identifier, user_id, preferred_home_id=None):
+        """Resolve room identifiers supplied as ID or name into a concrete room ID."""
+        if identifier is None:
+            return None
+
+        if isinstance(identifier, dict):
+            identifier = identifier.get('id') or identifier.get('room_id') or identifier.get('name')
+
+        if identifier is None:
+            return None
+
+        if isinstance(identifier, str):
+            normalized_identifier = identifier.strip()
+            if normalized_identifier.lower() in {'', 'nieprzypisane', 'unassigned', 'none', 'null'}:
+                # Treat common unassigned labels as no-room (NULL) and do not create any special room
+                return None
+            identifier = normalized_identifier
+
+        if not self.multi_db:  # type: ignore
+            return None
+
+        resolved_home_id = self._resolve_home_id(user_id, preferred_home_id)
+        if not resolved_home_id:
+            return None
+
+        # Try direct lookup by room ID (supports both UUID/string and integer identifiers)
+        direct_lookup_candidates = [identifier]
+        if isinstance(identifier, str) and identifier.isdigit():
+            direct_lookup_candidates.append(int(identifier))
+
+        for candidate in direct_lookup_candidates:
+            try:
+                room = self.multi_db.get_room(candidate, str(user_id))  # type: ignore
+                if room:
+                    return room['id']
+            except Exception as exc:
+                if self.app:  # type: ignore
+                    self.app.logger.debug(f"Direct room lookup failed for '{candidate}': {exc}")  # type: ignore
+
+        # Attempt to interpret as integer ID for legacy numeric identifiers
+        try:
+            return int(identifier)
+        except (TypeError, ValueError):
+            pass
+
+        # Fallback to name-based lookup
+        try:
+            room = self.multi_db.get_room_by_name(resolved_home_id, str(user_id), str(identifier))  # type: ignore
+            return room['id'] if room else None
+        except Exception as exc:
+            if self.app:  # type: ignore
+                self.app.logger.debug(f"Failed to resolve room identifier '{identifier}': {exc}")  # type: ignore
+            return None
+
+
+class RoutesManager(MultiHomeHelpersMixin):
     def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None, multi_db=None):
         self.app = app
         self.smart_home = smart_home
@@ -292,43 +527,6 @@ class RoutesManager:
             print(f"[DEBUG] Error getting multi-home lights: {e}")
             # Fallback to main database
             return self.smart_home.lights if hasattr(self.smart_home, 'lights') else []
-
-    def get_current_home_temperature_controls(self, user_id):
-        """Get temperature controls from current selected home or fallback to main database"""
-        base_controls = self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
-        if not user_id:
-            return list(base_controls)
-
-        if not self.multi_db:
-            return base_controls
-
-        try:
-            resolved_home_id = self._resolve_home_id(user_id)
-            if not resolved_home_id:
-                return base_controls
-
-            raw_controls = self.multi_db.get_temperature_controls(resolved_home_id, str(user_id))
-            normalized = []
-            for control in raw_controls or []:
-                settings = control.get('settings') or {}
-                room_id = control.get('room_id')
-                room_name = control.get('room_name') or control.get('room')
-                normalized.append({
-                    'id': control.get('id'),
-                    'name': control.get('name'),
-                    'room': room_name,
-                    'room_name': room_name,
-                    'room_id': str(room_id) if room_id is not None else None,
-                    'temperature': control.get('temperature'),
-                    'target_temperature': settings.get('target_temperature', 21.0),
-                    'mode': settings.get('mode', 'auto'),
-                    'enabled': control.get('enabled', True),
-                    'type': control.get('type', 'temperature_control')
-                })
-            return normalized
-        except Exception as e:
-            print(f"[DEBUG] Error getting multi-home temperature controls: {e}")
-            return base_controls
 
     def get_cached_user_data(self, user_id, session_id=None):
         """
@@ -1428,7 +1626,7 @@ class RoutesManager:
         """Pobiera rzeczywiste logi zarządzania systemem"""
         return self.management_logger.get_logs(limit=50)
 
-class APIManager:
+class APIManager(MultiHomeHelpersMixin):
     """Klasa zarządzająca endpointami API"""
     def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None, multi_db=None):
         self.app = app
@@ -1557,46 +1755,6 @@ class APIManager:
             print(f"[DEBUG] Error getting multi-home buttons: {e}")
             # Fallback to main database
             return self.smart_home.buttons
-
-    def get_current_home_temperature_controls(self, user_id):
-        """Get temperature controls from current selected home or fallback to main database"""
-        if not self.multi_db or not user_id:
-            # Fallback to main database
-            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
-        
-        try:
-            # Get current home ID from session or database
-            from flask import session
-            current_home_id = session.get('current_home_id')
-            if not current_home_id:
-                current_home_id = self.multi_db.get_user_current_home(user_id)
-            
-            if current_home_id:
-                # Get temperature controls from multi-home system
-                temp_controls_data = self.multi_db.get_temperature_controls(current_home_id, user_id)
-                # Convert to old format for compatibility
-                temp_controls = []
-                for temp in temp_controls_data:
-                    settings = temp.get('settings', {}) or {}
-                    temp_controls.append({
-                        'id': temp['id'],
-                        'name': temp['name'],
-                        'room': temp['room_name'],
-                        'temperature': temp['temperature'],
-                        'target_temperature': settings.get('target_temperature', 21.0),
-                        'mode': settings.get('mode', 'auto'),
-                        'enabled': temp['enabled'],
-                        'type': temp['type']
-                    })
-                return temp_controls
-            else:
-                # No current home set, fallback to main database
-                return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
-                
-        except Exception as e:
-            print(f"[DEBUG] Error getting multi-home temperature controls: {e}")
-            # Fallback to main database
-            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
 
     def register_routes(self):
         @self.app.route('/api', methods=['GET'])
@@ -2083,8 +2241,8 @@ class APIManager:
             return jsonify({'status': 'success'})
 
         @self.app.route('/api/buttons/order', methods=['POST'])
-        @self.auth_manager.login_required
-        @self.auth_manager.admin_required
+        @self.auth_manager.api_login_required
+        @self.auth_manager.api_admin_required
         def set_buttons_order():
             data = request.get_json() or {}
             order = data.get('order')
@@ -2244,7 +2402,7 @@ class APIManager:
             return jsonify({'status': 'error', 'message': 'Brak danych lub nieprawidłowy format'}), 400
 
         @self.app.route('/api/buttons', methods=['GET', 'POST'])
-        @self.auth_manager.login_required
+        @self.auth_manager.api_login_required
         def manage_buttons():
             self.smart_home.check_and_save()
             if request.method == 'GET':
@@ -2265,8 +2423,24 @@ class APIManager:
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
                 payload = request.get_json(silent=True) or {}
                 name = (payload.get('name') or '').strip()
-                room_value = payload.get('room')
-                room_id_value = payload.get('room_id')
+                raw_room = payload.get('room')
+                raw_room_id = payload.get('room_id')
+                try:
+                    print(f"[DEBUG] POST /api/buttons payload: name={name!r}, raw_room={raw_room!r}, raw_room_id={raw_room_id!r}")
+                except Exception:
+                    pass
+
+                if raw_room is None:
+                    raw_room = payload.get('room_name') or payload.get('roomName')
+                if raw_room_id in (None, '', 'null'):
+                    raw_room_id = payload.get('roomId') or payload.get('roomIdentifier') or payload.get('room_id_value')
+
+                if isinstance(raw_room, dict):
+                    raw_room_id = raw_room_id or raw_room.get('id') or raw_room.get('room_id')
+                    raw_room = raw_room.get('name') or raw_room.get('room')
+
+                room_value = raw_room
+                room_id_value = raw_room_id
                 user_id = session.get('user_id')
 
                 if not name:
@@ -2280,23 +2454,33 @@ class APIManager:
                     if not resolved_home_id:
                         return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
 
-                    room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
-                    if room_identifier is None and room_value not in (None, '', 'null'):
-                        room_identifier = room_value
-
-                    if room_identifier is None:
-                        return jsonify({"status": "error", "message": "Brak pokoju docelowego"}), 400
-
                     try:
+                        room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
+                        if room_identifier is None and room_value not in (None, '', 'null'):
+                            room_identifier = room_value
+
+                        room_id = None
+                        if room_identifier is None:
+                            room_id = None  # explicit unassigned
+                        else:
+                            # Treat common unassigned aliases as unassigned rather than erroring
+                            if isinstance(room_identifier, str) and room_identifier.strip().lower() in {"", "nieprzypisane", "unassigned", "none", "null"}:
+                                room_id = None
+                            else:
+                                try:
+                                    room_id = int(room_identifier)
+                                except (TypeError, ValueError):
+                                    room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
                         try:
-                            room_id = int(room_identifier)
-                        except (TypeError, ValueError):
-                            room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+                            print(f"[DEBUG] POST /api/buttons home={resolved_home_id}, room_identifier={room_identifier!r} -> resolved room_id={room_id!r}")
+                        except Exception:
+                            pass
 
-                        if room_id is None:
-                            return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+                            # If user provided a specific non-unassigned identifier but resolution failed -> 404
+                            if room_id is None and not (isinstance(room_identifier, str) and room_identifier.strip().lower() in {"", "nieprzypisane", "unassigned", "none", "null"}):
+                                return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
 
-                        new_id = self.multi_db.create_device(room_id, name, 'button', str(user_id), state=False, enabled=True)
+                        new_id = self.multi_db.create_device(room_id, name, 'button', str(user_id), state=False, enabled=True, home_id=resolved_home_id)
                         if self.cached_data:
                             invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
                             if callable(invalidate):
@@ -2346,7 +2530,7 @@ class APIManager:
                 return jsonify({"status": "error", "message": "Invalid button data"}), 400
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
-        @self.auth_manager.login_required
+        @self.auth_manager.api_login_required
         @self.auth_manager.api_admin_required
         def button_by_id(id):
             user_id = session.get('user_id')
@@ -2691,7 +2875,7 @@ class APIManager:
                 return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
         @self.app.route('/api/temperature_controls', methods=['GET', 'POST'])
-        @self.auth_manager.login_required
+        @self.auth_manager.api_login_required
         def manage_temperature_controls():
             self.smart_home.check_and_save()
             if request.method == 'GET':
@@ -2712,9 +2896,21 @@ class APIManager:
                         return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
                     payload = request.get_json(silent=True) or {}
                     name = (payload.get('name') or '').strip()
-                    room_value = payload.get('room')
-                    room_id_value = payload.get('room_id')
+                    raw_room = payload.get('room')
+                    raw_room_id = payload.get('room_id')
                     user_id = session.get('user_id')
+
+                    if raw_room is None:
+                        raw_room = payload.get('room_name') or payload.get('roomName')
+                    if raw_room_id in (None, '', 'null'):
+                        raw_room_id = payload.get('roomId') or payload.get('roomIdentifier') or payload.get('room_id_value')
+
+                    if isinstance(raw_room, dict):
+                        raw_room_id = raw_room_id or raw_room.get('id') or raw_room.get('room_id')
+                        raw_room = raw_room.get('name') or raw_room.get('room')
+
+                    room_value = raw_room
+                    room_id_value = raw_room_id
 
                     if not name:
                         return jsonify({"status": "error", "message": "Brak nazwy sterownika"}), 400
@@ -2727,20 +2923,22 @@ class APIManager:
                         if not resolved_home_id:
                             return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
 
-                        room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
-                        if room_identifier is None and room_value not in (None, '', 'null'):
-                            room_identifier = room_value
-
-                        if room_identifier is None:
-                            return jsonify({"status": "error", "message": "Brak pokoju docelowego"}), 400
-
                         try:
-                            try:
-                                room_id = int(room_identifier)
-                            except (TypeError, ValueError):
-                                room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+                            room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
+                            if room_identifier is None and room_value not in (None, '', 'null'):
+                                room_identifier = room_value
 
-                            if room_id is None:
+                            room_id = None
+                            if room_identifier is None:
+                                room_id = None  # create unassigned device (room_id NULL)
+                            else:
+                                try:
+                                    room_id = int(room_identifier)
+                                except (TypeError, ValueError):
+                                    room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+
+                            # If user provided a specific room identifier but resolution failed -> 404
+                            if room_identifier is not None and room_id is None:
                                 return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
 
                             target_temp = payload.get('target_temperature', 21.0)
@@ -2753,7 +2951,8 @@ class APIManager:
                                 state=None,
                                 target_temperature=target_temp,
                                 mode=mode,
-                                enabled=payload.get('enabled', True)
+                                enabled=payload.get('enabled', True),
+                                home_id=resolved_home_id
                             )
 
                             if self.cached_data:
@@ -2854,34 +3053,96 @@ class APIManager:
                 return jsonify({'status': 'success'})
                 
             elif request.method == 'DELETE':
-                # Check if device exists first
+                user_id = session.get('user_id')
+
+                if self.multi_db:
+                    if not user_id:
+                        return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+
+                    resolved_home_id = self._resolve_home_id(user_id)
+                    user_id_str = str(user_id)
+                    device_identifier = normalize_device_id(id)
+
+                    device = None
+                    try:
+                        lookup_id = device_identifier if device_identifier is not None else id
+                        device = self.multi_db.get_device(lookup_id, user_id_str)
+                    except Exception as exc:
+                        if self.app:
+                            self.app.logger.debug(f"Failed to fetch temperature control {id} for delete: {exc}")
+
+                    if not device and resolved_home_id:
+                        try:
+                            controls = self.multi_db.get_temperature_controls(resolved_home_id, user_id_str)
+                            device = next((ctrl for ctrl in controls if str(ctrl.get('id')) == str(id)), None)
+                            if device and device_identifier is None:
+                                device_identifier = normalize_device_id(device.get('id'))
+                        except Exception as exc:
+                            if self.app:
+                                self.app.logger.debug(f"Failed to resolve temperature control {id} from home list: {exc}")
+
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Control not found'}), 404
+
+                    target_device_id = device_identifier if device_identifier is not None else device.get('id')
+                    if not self.multi_db.delete_device(target_device_id, user_id_str, resolved_home_id):
+                        return jsonify({"status": "error", "message": "Nie udało się usunąć termostatu"}), 500
+
+                    if self.cached_data:
+                        invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                        if callable(invalidate):
+                            invalidate()
+
+                    updated_controls = self.get_current_home_temperature_controls(user_id)
+                    if self.socketio:
+                        self.socketio.emit('update_temperature_controls', updated_controls)
+
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        try:
+                            username = session.get('username', 'unknown')
+                            room_name = device.get('room_name') or device.get('room')
+                            self.management_logger.log_device_action(
+                                user=username,
+                                device_name=device.get('name'),
+                                room=room_name,
+                                action='delete_temperature_control',
+                                new_state=None,
+                                ip_address=request.remote_addr or ''
+                            )
+                        except Exception:
+                            pass
+
+                    return jsonify({'status': 'success'})
+
+                # Legacy JSON storage fallback
                 device = self.smart_home.get_device_by_id(id)
                 if not device:
                     return jsonify({'status': 'error', 'message': 'Control not found'}), 404
-                
-                # Delete device
+
+                updated_controls = []
                 if hasattr(self.smart_home, 'delete_device'):
-                    # Database mode - use proper database delete method
                     success = self.smart_home.delete_device(id)
                     if not success:
                         return jsonify({"status": "error", "message": "Nie udało się usunąć termostatu"}), 500
-                    
-                    # Invalidate cache after successful delete
+
                     if self.cached_data:
-                        self.cached_data.invalidate_temperature_cache()
+                        invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                        if callable(invalidate):
+                            invalidate()
+
+                    updated_controls = self.get_current_home_temperature_controls(user_id)
                 else:
-                    # JSON mode fallback
                     idx = next((i for i, c in enumerate(self.smart_home.temperature_controls) if str(c.get('id')) == str(id)), None)
                     if idx is None:
                         return jsonify({'status': 'error', 'message': 'Control not found'}), 404
-                    
+
                     self.smart_home.temperature_controls.pop(idx)
                     self.smart_home.save_config()
-                
-                # Emit updates only if socketio is available
+                    updated_controls = list(self.smart_home.temperature_controls)
+
                 if self.socketio:
-                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                
+                    self.socketio.emit('update_temperature_controls', updated_controls)
+
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/temperature_controls/<int:index>', methods=['DELETE'])

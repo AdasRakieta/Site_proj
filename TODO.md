@@ -19,3 +19,23 @@
    3. [X] poprawienie usuwania pokoi
 
 ---
+
+
+
+4. Wprowadzic zmiany do sposobu przypisywania użytkowników.
+   1. Tworząc dom użytkownik staje się automatycznie adminem tego domu,
+   2. role są przypisywane do domów a nie całego systemu.
+   3. Utworzyć nową rolę dla mnie sys-admin, którą można otrzymać tylko za pomocą bazy danych, ma dostęp do wszystkich domów i ich funkcji jako admin, ale nie wyświetla się na liście użytkowników
+5. Poprawić style na stronach home
+   1. Poprawić ładowanie zdjęcia profilowego w prawym górnym rogu na stronach do zarządznia domem
+6. Sprawdzić wszystkie funkcjonalności dla multi home
+   1. [ ] edycja
+   2. [X] światła - ok
+   3. [X] temperatura - ok
+   4. [ ] admin dashboard
+   5. [ ] ustawienia
+   6. [ ] ustawienia użytkownika
+   7. [X] zabezpieczenia -ok
+   8. [X] strona głowna - ok
+   9. [ ] strona 404
+   1. [ ] strony home
