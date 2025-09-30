@@ -63,64 +63,197 @@ class RoutesManager:
 
     def get_current_home_rooms(self, user_id):
         """Get rooms from current selected home or fallback to main database"""
-        if not self.multi_db or not user_id:
-            # Fallback to main database
-            return self.smart_home.rooms
-        
+        if not user_id:
+            return list(self.smart_home.rooms)
+
         try:
-            # Get current home ID from session or database
-            current_home_id = session.get('current_home_id')
-            if not current_home_id:
-                current_home_id = self.multi_db.get_user_current_home(user_id)
-            
-            if current_home_id:
-                # Get rooms from multi-home system
-                rooms_data = self.multi_db.get_home_rooms(current_home_id, user_id)
-                # Convert to simple room names list for compatibility
-                return [room['name'] for room in rooms_data]
-            else:
-                # No current home set, fallback to main database
-                return self.smart_home.rooms
-                
+            rooms_payload, _ = self._get_rooms_payload(user_id)
+            return [room['name'] for room in rooms_payload]
         except Exception as e:
             print(f"[DEBUG] Error getting multi-home rooms: {e}")
-            # Fallback to main database
-            return self.smart_home.rooms
+            return list(self.smart_home.rooms)
 
     def get_current_home_buttons(self, user_id):
         """Get buttons from current selected home or fallback to main database"""
-        if not self.multi_db or not user_id:
-            # Fallback to main database
+        if not user_id:
+            return list(getattr(self.smart_home, 'buttons', []))
+
+        if not self.multi_db:
             return self.smart_home.buttons
-        
+
         try:
-            # Get current home ID from session or database
-            current_home_id = session.get('current_home_id')
-            if not current_home_id:
-                current_home_id = self.multi_db.get_user_current_home(user_id)
-            
-            if current_home_id:
-                # Get buttons from multi-home system
-                buttons_data = self.multi_db.get_buttons(current_home_id, user_id)
-                # Convert to old format for compatibility
-                buttons = []
-                for button in buttons_data:
-                    buttons.append({
-                        'id': button['id'],
-                        'name': button['name'],
-                        'room': button['room_name'],
-                        'state': button['state'],
-                        'type': button['type']
-                    })
-                return buttons
-            else:
-                # No current home set, fallback to main database
+            resolved_home_id = self._resolve_home_id(user_id)
+            if not resolved_home_id:
                 return self.smart_home.buttons
-                
+
+            raw_buttons = self.multi_db.get_buttons(resolved_home_id, str(user_id))
+            normalized = []
+            for button in raw_buttons or []:
+                room_id = button.get('room_id')
+                room_name = button.get('room_name') or button.get('room')
+                normalized.append({
+                    'id': button.get('id'),
+                    'name': button.get('name'),
+                    'room': room_name,
+                    'room_name': room_name,
+                    'room_id': str(room_id) if room_id is not None else None,
+                    'state': button.get('state'),
+                    'type': button.get('type', 'button'),
+                    'enabled': button.get('enabled', True),
+                    'display_order': button.get('display_order')
+                })
+            return normalized
         except Exception as e:
             print(f"[DEBUG] Error getting multi-home buttons: {e}")
-            # Fallback to main database
             return self.smart_home.buttons
+
+    def _resolve_home_id(self, user_id, preferred_home_id=None):
+        """Resolve current home for the given user."""
+        if not self.multi_db or not user_id:
+            return None
+
+        user_id_str = str(user_id)
+        home_id = preferred_home_id or session.get('current_home_id')
+
+        if not home_id:
+            try:
+                home_id = self.multi_db.get_user_current_home(user_id_str)
+            except Exception as exc:
+                if self.app:
+                    self.app.logger.error(f"Failed to resolve home for user {user_id_str}: {exc}")
+                home_id = None
+
+        return str(home_id) if home_id else None
+
+    def _normalize_rooms_for_response(self, rooms, default_home_id=None):
+        """Normalize various room payload formats to a consistent API response."""
+        normalized = []
+        if not rooms:
+            return normalized
+
+        for index, room in enumerate(rooms):
+            if isinstance(room, dict):
+                room_id = room.get('id') or room.get('room_id')
+                name = room.get('name') or room.get('room') or room.get('title')
+                description = room.get('description')
+                display_order = room.get('display_order', index)
+                home_id = room.get('home_id', default_home_id)
+            else:
+                room_id = room
+                name = room
+                description = None
+                display_order = index
+                home_id = default_home_id
+
+            if not name:
+                continue
+
+            normalized.append({
+                'id': str(room_id) if room_id is not None else str(name),
+                'name': str(name),
+                'description': description,
+                'display_order': int(display_order) if display_order is not None else index,
+                'home_id': str(home_id) if home_id else None
+            })
+
+        # Ensure stable ordering by display_order then name
+        normalized.sort(key=lambda r: (r.get('display_order', 0), r.get('name', '').lower()))
+        return normalized
+
+    def _get_rooms_payload(self, user_id, preferred_home_id=None):
+        """Fetch rooms for a user/home pair and return normalized response payload."""
+        resolved_home_id = self._resolve_home_id(user_id, preferred_home_id)
+        rooms_data = []
+
+        if self.multi_db and resolved_home_id:
+            try:
+                rooms_data = self.multi_db.get_home_rooms(resolved_home_id, str(user_id))
+            except Exception as exc:
+                if self.app:
+                    self.app.logger.error(f"Failed to load rooms for home {resolved_home_id}: {exc}")
+                rooms_data = []
+        else:
+            rooms_data = list(self.smart_home.rooms)
+
+        normalized = self._normalize_rooms_for_response(rooms_data, resolved_home_id)
+        return normalized, resolved_home_id
+
+    def _broadcast_rooms_update(self, user_id, preferred_home_id=None):
+        """Emit socket updates with the latest room payload for the user/home context."""
+        if not self.socketio:
+            return
+
+        try:
+            rooms_payload, resolved_home_id = self._get_rooms_payload(user_id, preferred_home_id)
+            payload = {
+                'status': 'success',
+                'data': rooms_payload
+            }
+            if resolved_home_id:
+                payload['meta'] = {'home_id': resolved_home_id}
+            self.socketio.emit('update_rooms', payload)
+        except Exception as exc:
+            if self.app:
+                self.app.logger.warning(f"Failed to broadcast room update: {exc}")
+
+    def _resolve_room_identifier(self, identifier, user_id, preferred_home_id=None):
+        """Resolve room identifiers supplied as ID or name into a concrete room ID."""
+        if identifier is None:
+            return None
+
+        if isinstance(identifier, dict):
+            identifier = identifier.get('id') or identifier.get('room_id') or identifier.get('name')
+
+        if identifier is None:
+            return None
+
+        # Attempt to interpret as integer ID first
+        try:
+            return int(identifier)
+        except (TypeError, ValueError):
+            pass
+
+        if not self.multi_db:
+            return None
+
+        resolved_home_id = self._resolve_home_id(user_id, preferred_home_id)
+        if not resolved_home_id:
+            return None
+
+        try:
+            room = self.multi_db.get_room_by_name(resolved_home_id, str(user_id), str(identifier))
+            return room['id'] if room else None
+        except Exception as exc:
+            if self.app:
+                self.app.logger.debug(f"Failed to resolve room identifier '{identifier}': {exc}")
+            return None
+
+    def get_current_home_automations(self, user_id, home_id=None):
+        """Fetch automations for the resolved home context."""
+        if not self.multi_db or not user_id:
+            return list(self.smart_home.automations), None
+
+        resolved_home_id = self._resolve_home_id(user_id, home_id)
+        if not resolved_home_id:
+            return [], None
+
+        try:
+            automations = self.multi_db.get_home_automations(resolved_home_id, str(user_id))
+            return automations, resolved_home_id
+        except PermissionError:
+            raise
+        except Exception as exc:
+            if self.app:
+                self.app.logger.error(f"Failed to load automations for home {resolved_home_id}: {exc}")
+            return [], resolved_home_id
+
+    def _emit_automation_update(self, home_id, automations):
+        """Emit automation updates with home identifier."""
+        payload = {
+            'home_id': str(home_id) if home_id else None,
+            'automations': automations
+        }
+        self.emit_update('update_automations', payload)
 
     def get_current_home_lights(self, user_id):
         """Get lights from current selected home or fallback to main database"""
@@ -162,42 +295,40 @@ class RoutesManager:
 
     def get_current_home_temperature_controls(self, user_id):
         """Get temperature controls from current selected home or fallback to main database"""
-        if not self.multi_db or not user_id:
-            # Fallback to main database
-            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
-        
+        base_controls = self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+        if not user_id:
+            return list(base_controls)
+
+        if not self.multi_db:
+            return base_controls
+
         try:
-            # Get current home ID from session or database
-            current_home_id = session.get('current_home_id')
-            if not current_home_id:
-                current_home_id = self.multi_db.get_user_current_home(user_id)
-            
-            if current_home_id:
-                # Get temperature controls from multi-home system
-                temp_controls_data = self.multi_db.get_temperature_controls(current_home_id, user_id)
-                # Convert to old format for compatibility
-                temp_controls = []
-                for temp in temp_controls_data:
-                    settings = temp.get('settings', {}) or {}
-                    temp_controls.append({
-                        'id': temp['id'],
-                        'name': temp['name'],
-                        'room': temp['room_name'],
-                        'temperature': temp['temperature'],
-                        'target_temperature': settings.get('target_temperature', 21.0),
-                        'mode': settings.get('mode', 'auto'),
-                        'enabled': temp['enabled'],
-                        'type': temp['type']
-                    })
-                return temp_controls
-            else:
-                # No current home set, fallback to main database
-                return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
-                
+            resolved_home_id = self._resolve_home_id(user_id)
+            if not resolved_home_id:
+                return base_controls
+
+            raw_controls = self.multi_db.get_temperature_controls(resolved_home_id, str(user_id))
+            normalized = []
+            for control in raw_controls or []:
+                settings = control.get('settings') or {}
+                room_id = control.get('room_id')
+                room_name = control.get('room_name') or control.get('room')
+                normalized.append({
+                    'id': control.get('id'),
+                    'name': control.get('name'),
+                    'room': room_name,
+                    'room_name': room_name,
+                    'room_id': str(room_id) if room_id is not None else None,
+                    'temperature': control.get('temperature'),
+                    'target_temperature': settings.get('target_temperature', 21.0),
+                    'mode': settings.get('mode', 'auto'),
+                    'enabled': control.get('enabled', True),
+                    'type': control.get('type', 'temperature_control')
+                })
+            return normalized
         except Exception as e:
             print(f"[DEBUG] Error getting multi-home temperature controls: {e}")
-            # Fallback to main database
-            return self.smart_home.temperature_controls if hasattr(self.smart_home, 'temperature_controls') else []
+            return base_controls
 
     def get_cached_user_data(self, user_id, session_id=None):
         """
@@ -344,6 +475,12 @@ class RoutesManager:
         def cache_stats():
             """Get cache performance statistics"""
             from utils.cache_manager import cache_stats, get_cache_hit_rate
+            cache_type = 'Disabled'
+            cache_default_timeout = 'Unknown'
+            cache_obj = getattr(self, 'cache', None)
+            if cache_obj and hasattr(cache_obj, 'config'):
+                cache_type = cache_obj.config.get('CACHE_TYPE', 'Unknown')
+                cache_default_timeout = cache_obj.config.get('CACHE_DEFAULT_TIMEOUT', 'Unknown')
             return jsonify({
                 'status': 'success',
                 'cache_stats': {
@@ -353,8 +490,8 @@ class RoutesManager:
                     'hit_rate_percentage': round(get_cache_hit_rate(), 2)
                 },
                 'cache_config': {
-                    'type': self.cache.config.get('CACHE_TYPE', 'Unknown'),
-                    'default_timeout': self.cache.config.get('CACHE_DEFAULT_TIMEOUT', 'Unknown')
+                    'type': cache_type,
+                    'default_timeout': cache_default_timeout
                 }
             })
         
@@ -425,29 +562,74 @@ class RoutesManager:
             # Use cached data for performance
             print(f"[DEBUG] /edit route - Getting data for template")
             print(f"[DEBUG] cached_data object: {type(self.cached_data)}")
-            # Get rooms from current home or fallback to main database
             user_id = session.get('user_id')
-            rooms = self.get_current_home_rooms(user_id)
-            buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
-            temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else self.smart_home.temperature_controls
-            
+            resolved_home_id = None
+            rooms = []
+            buttons = []
+            temperature_controls = []
+
+            if self.multi_db and user_id:
+                try:
+                    resolved_home_id = self._resolve_home_id(user_id)
+                    if resolved_home_id:
+                        rooms = self.multi_db.get_home_rooms(resolved_home_id, str(user_id))
+                        buttons = self.multi_db.get_buttons(resolved_home_id, str(user_id))
+                        temperature_controls = self.multi_db.get_temperature_controls(resolved_home_id, str(user_id))
+                        print(f"[DEBUG] /edit route - Loaded {len(rooms)} rooms from multi-home DB (home_id={resolved_home_id})")
+                except PermissionError as perm_err:
+                    if self.app:
+                        self.app.logger.warning(f"User {user_id} lacks permissions for home {resolved_home_id}: {perm_err}")
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f"Failed to load multi-home data for user {user_id}: {exc}")
+
+            if not rooms:
+                legacy_rooms = self.get_current_home_rooms(user_id)
+                rooms = [{
+                    'id': str(idx),
+                    'name': name,
+                    'home_id': resolved_home_id,
+                    'description': None,
+                    'display_order': idx
+                } for idx, name in enumerate(legacy_rooms or [])]
+
+            if not buttons:
+                buttons = self.cached_data.get_buttons() if self.cached_data else getattr(self.smart_home, 'buttons', [])
+
+            if not temperature_controls:
+                temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else getattr(self.smart_home, 'temperature_controls', [])
+
             print(f"[DEBUG] /edit route - Buttons data for template: {buttons}")
-            
-            # Add type attribute to devices for proper kanban rendering
-            if buttons:
-                for button in buttons:
-                    if not hasattr(button, 'type') and not isinstance(button, dict):
-                        button.type = 'light'
-                    elif isinstance(button, dict) and 'type' not in button:
-                        button['type'] = 'light'
-            
-            if temperature_controls:
-                for control in temperature_controls:
-                    if not hasattr(control, 'type') and not isinstance(control, dict):
-                        control.type = 'thermostat'
-                    elif isinstance(control, dict) and 'type' not in control:
-                        control['type'] = 'thermostat'
-            
+
+            def _normalize_devices(devices, fallback_type):
+                normalized = []
+                for device in devices or []:
+                    if isinstance(device, dict):
+                        normalized.append({
+                            'id': device.get('id'),
+                            'name': device.get('name'),
+                            'room': device.get('room_name') or device.get('room'),
+                            'room_id': device.get('room_id'),
+                            'type': 'light' if fallback_type == 'light' else ('thermostat' if fallback_type == 'thermostat' else device.get('type', fallback_type)),
+                            'state': device.get('state'),
+                            'enabled': device.get('enabled', True)
+                        })
+                    else:
+                        # Legacy object with attributes
+                        normalized.append({
+                            'id': getattr(device, 'id', None),
+                            'name': getattr(device, 'name', None),
+                            'room': getattr(device, 'room', None),
+                            'room_id': getattr(device, 'room_id', None),
+                            'type': fallback_type,
+                            'state': getattr(device, 'state', None),
+                            'enabled': getattr(device, 'enabled', True)
+                        })
+                return normalized
+
+            buttons = _normalize_devices(buttons, 'light')
+            temperature_controls = _normalize_devices(temperature_controls, 'thermostat')
+
             return render_template(
                 'edit.html',
                 user_data=user_data,
@@ -1182,8 +1364,21 @@ class RoutesManager:
         # Podstawowe statystyki
         users_count = len(self.smart_home.users)
         devices_count = len(self.smart_home.buttons) + len(self.smart_home.temperature_controls)
-        automations_count = len(self.smart_home.automations)
-        active_automations = sum(1 for auto in self.smart_home.automations if auto.get('enabled', False))
+
+        automations_source = self.smart_home.automations
+        if self.multi_db:
+            user_id = session.get('user_id')
+            if user_id:
+                try:
+                    automations_source, _ = self.get_current_home_automations(user_id)
+                except PermissionError:
+                    automations_source = []
+                except Exception as exc:
+                    self.app.logger.error(f"Failed to compute automation stats for multi-home dashboard: {exc}")
+                    automations_source = []
+
+        automations_count = len(automations_source)
+        active_automations = sum(1 for auto in automations_source if auto.get('enabled', False))
         
         # Symulowane dane energii (w rzeczywistości pobierane z urządzeń)
         energy_today = round(random.uniform(10, 30), 1)
@@ -1246,14 +1441,59 @@ class APIManager:
         try:
             self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
         except Exception:
-            # Fallback to simple dict if cache not available
-            self.cached_data = {}
+            # Fallback to no caching helper if backend cache isn't available
+            self.cached_data = None
         self.register_routes()
 
     def emit_update(self, event_name, data):
         """Safely emit socketio updates only if socketio is available"""
         if self.socketio:
             self.socketio.emit(event_name, data)
+
+    def _resolve_home_id(self, user_id, preferred_home_id=None):
+        """Resolve the active home identifier for the given user."""
+        if not self.multi_db or not user_id:
+            return None
+
+        user_id_str = str(user_id)
+        home_id = preferred_home_id or session.get('current_home_id')
+
+        if not home_id:
+            try:
+                home_id = self.multi_db.get_user_current_home(user_id_str)
+            except Exception as exc:
+                if self.app:
+                    self.app.logger.error(f"Failed to resolve current home for user {user_id_str}: {exc}")
+                home_id = None
+
+        return str(home_id) if home_id else None
+
+    def get_current_home_automations(self, user_id, home_id=None):
+        """Fetch automations for the current home context."""
+        if not self.multi_db or not user_id:
+            return list(self.smart_home.automations), None
+
+        resolved_home_id = self._resolve_home_id(user_id, home_id)
+        if not resolved_home_id:
+            return [], None
+
+        try:
+            automations = self.multi_db.get_home_automations(resolved_home_id, str(user_id))
+            return automations, resolved_home_id
+        except PermissionError:
+            raise
+        except Exception as exc:
+            if self.app:
+                self.app.logger.error(f"Failed to load automations for home {resolved_home_id}: {exc}")
+            return [], resolved_home_id
+
+    def _emit_automation_update(self, home_id, automations):
+        """Emit automation update events with home scoping information."""
+        payload = {
+            'home_id': str(home_id) if home_id else None,
+            'automations': automations
+        }
+        self.emit_update('update_automations', payload)
 
     def get_current_home_rooms(self, user_id):
         """Get rooms from current selected home or fallback to main database"""
@@ -1381,63 +1621,197 @@ class APIManager:
         @self.auth_manager.login_required
         def manage_rooms():
             self.smart_home.check_and_save()
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({"status": "error", "message": "Nie jesteś zalogowany"}), 401
+
             if request.method == 'GET':
-                # Get current user and use multi-home system
-                user_id = session.get('user_id')
-                rooms = self.get_current_home_rooms(user_id)
-                return jsonify(rooms)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_room = (request.json or {}).get('room')
-                if new_room and new_room.lower() not in [room.lower() for room in self.smart_home.rooms]:
-                    self.smart_home.rooms.append(new_room)
-                    self.socketio.emit('update_rooms', self.smart_home.rooms)
-                    if not self.smart_home.save_config():
-                        return jsonify({"status": "error", "message": "Nie udało się zapisać nowego pokoju"}), 500
-                    
-                    # Log room addition
-                    self.management_logger.log_room_change(
-                        username=session.get('username', 'unknown'),
-                        action='add',
-                        room_name=new_room,
-                        ip_address=request.remote_addr or ""
-                    )
-                    
-                    # Invalidate cache after modification
+                rooms_payload, resolved_home_id = self._get_rooms_payload(user_id)
+                response = {
+                    'status': 'success',
+                    'data': rooms_payload
+                }
+                if resolved_home_id:
+                    response['meta'] = {'home_id': resolved_home_id}
+                return jsonify(response)
+
+            # POST branch
+            if session.get('role') != 'admin':
+                return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+
+            payload = request.get_json(silent=True) or {}
+            requested_name = payload.get('name') or payload.get('room')
+            description = payload.get('description')
+
+            if not requested_name or not str(requested_name).strip():
+                return jsonify({"status": "error", "message": "Brak nazwy pokoju"}), 400
+
+            room_name = str(requested_name).strip()
+            resolved_home_id = self._resolve_home_id(user_id)
+
+            if self.multi_db and resolved_home_id:
+                try:
+                    new_room_id = self.multi_db.create_room(resolved_home_id, room_name, str(user_id), description)
+                    rooms_payload, _ = self._get_rooms_payload(user_id, resolved_home_id)
+                    self._broadcast_rooms_update(user_id, resolved_home_id)
+
                     if self.cached_data:
                         invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
                         if callable(invalidate):
                             invalidate()
-                    return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Invalid room name or room already exists"}), 400
 
-        @self.app.route('/api/rooms/<room>', methods=['DELETE'])
+                    try:
+                        self.management_logger.log_room_change(
+                            username=session.get('username', 'unknown'),
+                            action='add',
+                            room_name=room_name,
+                            ip_address=request.remote_addr or ""
+                        )
+                    except Exception:
+                        pass
+
+                    new_room = next((room for room in rooms_payload if str(room.get('id')) == str(new_room_id)), None)
+                    response = {
+                        'status': 'success',
+                        'room': new_room,
+                        'meta': {'home_id': resolved_home_id}
+                    }
+                    return jsonify(response), 201
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak uprawnień do zarządzania pokojami"}), 403
+                except ValueError as exc:
+                    return jsonify({"status": "error", "message": str(exc)}), 400
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f"Failed to create room '{room_name}': {exc}")
+                    return jsonify({"status": "error", "message": "Nie udało się utworzyć pokoju"}), 500
+
+            # Legacy fallback when multi-home DB is unavailable
+            if room_name.lower() in [room.lower() for room in self.smart_home.rooms]:
+                return jsonify({"status": "error", "message": "Pokój o tej nazwie już istnieje"}), 400
+
+            self.smart_home.rooms.append(room_name)
+            if not self.smart_home.save_config():
+                self.smart_home.rooms.pop()
+                return jsonify({"status": "error", "message": "Nie udało się zapisać nowego pokoju"}), 500
+
+            if self.cached_data:
+                invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                if callable(invalidate):
+                    invalidate()
+
+            try:
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='add',
+                    room_name=room_name,
+                    ip_address=request.remote_addr or ""
+                )
+            except Exception:
+                pass
+
+            self._broadcast_rooms_update(user_id)
+            fallback_room = self._normalize_rooms_for_response([
+                {'id': room_name, 'name': room_name}
+            ])[0]
+            return jsonify({'status': 'success', 'room': fallback_room}), 201
+
+        @self.app.route('/api/rooms/<room_identifier>', methods=['DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
-        def delete_room(room):
-            print("DELETE /api/rooms/<room> room:", room)
-            if not room:
-                return jsonify({"status": "error", "message": "Brak nazwy pokoju"}), 400
+        def delete_room(room_identifier):
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({"status": "error", "message": "Nie jesteś zalogowany"}), 401
 
-            # Prefer DB-backed deletion when available
-            db_deleted = False
-            if hasattr(self.smart_home, 'delete_room'):
-                db_deleted = self.smart_home.delete_room(room)
-                if not db_deleted:
-                    return jsonify({"status": "error", "message": "Nie udało się usunąć pokoju w bazie"}), 500
+            if not room_identifier:
+                return jsonify({"status": "error", "message": "Brak identyfikatora pokoju"}), 400
 
-            # Log room deletion
-            self.management_logger.log_room_change(
-                username=session.get('username', 'unknown'),
-                action='delete',
-                room_name=room,
-                ip_address=request.remote_addr or ""
-            )
+            resolved_home_id = self._resolve_home_id(user_id)
 
-            # Invalidate caches so subsequent GETs return fresh data
+            if self.multi_db and resolved_home_id:
+                try:
+                    room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+                    if room_id is None:
+                        return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                    room_before = self.multi_db.get_room(room_id, str(user_id))
+                    if not room_before:
+                        return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                    deleted = self.multi_db.delete_room(room_id, str(user_id))
+                    if not deleted:
+                        return jsonify({"status": "error", "message": "Nie udało się usunąć pokoju"}), 500
+
+                    if self.cached_data:
+                        try:
+                            invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                            if callable(invalidate_rooms):
+                                invalidate_rooms()
+                            invalidate_buttons = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                            if callable(invalidate_buttons):
+                                invalidate_buttons()
+                            invalidate_temp = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                            if callable(invalidate_temp):
+                                invalidate_temp()
+                        except Exception:
+                            pass
+
+                    try:
+                        self.management_logger.log_room_change(
+                            username=session.get('username', 'unknown'),
+                            action='delete',
+                            room_name=room_before.get('name', ''),
+                            ip_address=request.remote_addr or "",
+                            old_name=room_before.get('name', '')
+                        )
+                    except Exception:
+                        pass
+
+                    self._broadcast_rooms_update(user_id, resolved_home_id)
+
+                    if self.socketio:
+                        buttons = self.get_current_home_buttons(user_id)
+                        temp_controls = self.get_current_home_temperature_controls(user_id)
+                        self.socketio.emit('update_buttons', buttons)
+                        self.socketio.emit('update_temperature_controls', temp_controls)
+
+                    return jsonify({"status": "success", "meta": {"home_id": resolved_home_id}})
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak uprawnień do usuwania pokoju"}), 403
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f"Failed to delete room {room_identifier}: {exc}")
+                    return jsonify({"status": "error", "message": "Nie udało się usunąć pokoju"}), 500
+
+            # Legacy fallback
+            room_name = room_identifier
+            if room_name not in self.smart_home.rooms:
+                matching = [r for r in self.smart_home.rooms if r.lower() == room_name.lower()]
+                if matching:
+                    room_name = matching[0]
+                else:
+                    return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+            self.smart_home.rooms = [r for r in self.smart_home.rooms if r != room_name]
+            self.smart_home.buttons = [b for b in self.smart_home.buttons if b.get('room') != room_name]
+            self.smart_home.temperature_controls = [c for c in self.smart_home.temperature_controls if c.get('room') != room_name]
+
+            if not self.smart_home.save_config():
+                return jsonify({"status": "error", "message": "Nie udało się usunąć pokoju"}), 500
+
             try:
-                if hasattr(self, 'cached_data') and self.cached_data:
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='delete',
+                    room_name=room_name,
+                    ip_address=request.remote_addr or ""
+                )
+            except Exception:
+                pass
+
+            if self.cached_data:
+                try:
                     invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
                     if callable(invalidate_rooms):
                         invalidate_rooms()
@@ -1447,158 +1821,351 @@ class APIManager:
                     invalidate_temp = getattr(self.cached_data, 'invalidate_temperature_cache', None)
                     if callable(invalidate_temp):
                         invalidate_temp()
-            except Exception as _e:
-                print(f"[DEBUG] Cache invalidation after room delete failed: {_e}")
+                except Exception:
+                    pass
 
-            # Emit socket updates with fresh data from source (DB mode properties fetch fresh)
-            self.socketio.emit('update_rooms', self.smart_home.rooms)
-            self.socketio.emit('update_buttons', self.smart_home.buttons)
-            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+            self._broadcast_rooms_update(user_id)
+
+            if self.socketio:
+                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+
             return jsonify({"status": "success"})
 
-        @self.app.route('/api/rooms/<room>', methods=['PUT'])
+        @self.app.route('/api/rooms/<room_identifier>', methods=['PUT'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
-        def edit_room(room):
-            data = request.get_json()
-            new_name = data.get('new_name') if data else None
-            old_name = room
-            # Check for valid new name
-            if not new_name or new_name.lower() in [r.lower() for r in self.smart_home.rooms]:
-                return jsonify({"status": "error", "message": "Nieprawidłowa lub już istniejąca nazwa pokoju"}), 400
+        def edit_room(room_identifier):
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({"status": "error", "message": "Nie jesteś zalogowany"}), 401
 
-            # If DB mode, persist to DB
-            db_success = None
-            if hasattr(self.smart_home, 'update_room'):
-                db_success = self.smart_home.update_room(old_name, new_name)
-                if not db_success:
-                    return jsonify({"status": "error", "message": "Błąd zapisu do bazy danych"}), 500
+            data = request.get_json(silent=True) or {}
+            new_name = data.get('name') or data.get('new_name')
+            new_description = data.get('description') if 'description' in data else None
 
-            # Always update config for legacy/JSON mode
-            if not db_success:
-                for i, r in enumerate(self.smart_home.rooms):
-                    if r.lower() == old_name.lower():
-                        self.smart_home.rooms[i] = new_name
-                        old_name = r
-                        break
-                for button in self.smart_home.buttons:
-                    if button.get('room') and button['room'].lower() == old_name.lower():
-                        button['room'] = new_name
-                for control in self.smart_home.temperature_controls:
-                    if control.get('room') and control['room'].lower() == old_name.lower():
-                        control['room'] = new_name
-                self.smart_home.save_config()
+            if new_name is not None and not str(new_name).strip():
+                return jsonify({"status": "error", "message": "Nieprawidłowa nazwa pokoju"}), 400
 
-            # Log room rename
-            self.management_logger.log_room_change(
-                username=session.get('username', 'unknown'),
-                action='rename',
-                room_name=new_name,
-                ip_address=request.remote_addr or "",
-                old_name=old_name
-            )
+            if new_name is None and new_description is None:
+                return jsonify({"status": "error", "message": "Brak danych do aktualizacji"}), 400
 
-            # Invalidate caches so subsequent GETs return fresh data
+            resolved_home_id = self._resolve_home_id(user_id)
+
+            if self.multi_db and resolved_home_id:
+                try:
+                    room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+                    if room_id is None:
+                        return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                    current_room = self.multi_db.get_room(room_id, str(user_id))
+                    if not current_room:
+                        return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                    updates = {}
+                    if new_name is not None:
+                        updates['name'] = str(new_name).strip()
+                    if new_description is not None:
+                        updates['description'] = new_description
+
+                    updated_room = self.multi_db.update_room(room_id, str(user_id), **updates)
+                    if not updated_room:
+                        return jsonify({"status": "error", "message": "Nie udało się zaktualizować pokoju"}), 500
+
+                    if self.cached_data:
+                        try:
+                            invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                            if callable(invalidate_rooms):
+                                invalidate_rooms()
+                        except Exception:
+                            pass
+
+                    try:
+                        self.management_logger.log_room_change(
+                            username=session.get('username', 'unknown'),
+                            action='rename',
+                            room_name=updated_room.get('name', ''),
+                            ip_address=request.remote_addr or "",
+                            old_name=current_room.get('name', '')
+                        )
+                    except Exception:
+                        pass
+
+                    self._broadcast_rooms_update(user_id, resolved_home_id)
+
+                    if self.socketio:
+                        buttons = self.get_current_home_buttons(user_id)
+                        temp_controls = self.get_current_home_temperature_controls(user_id)
+                        self.socketio.emit('update_buttons', buttons)
+                        self.socketio.emit('update_temperature_controls', temp_controls)
+
+                    normalized_room = self._normalize_rooms_for_response([updated_room], resolved_home_id)[0]
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Nazwa pokoju zaktualizowana poprawnie!',
+                        'room': normalized_room,
+                        'meta': {'home_id': resolved_home_id}
+                    }), 200
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak uprawnień do edycji pokoju"}), 403
+                except ValueError as exc:
+                    return jsonify({"status": "error", "message": str(exc)}), 400
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f"Failed to update room {room_identifier}: {exc}")
+                    return jsonify({"status": "error", "message": "Nie udało się zaktualizować pokoju"}), 500
+
+            # Legacy fallback
+            if new_name is None:
+                return jsonify({"status": "error", "message": "Nieprawidłowa nazwa pokoju"}), 400
+
+            old_name = room_identifier
+            matching = [r for r in self.smart_home.rooms if r.lower() == str(old_name).lower()]
+            if not matching:
+                return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+            resolved_old_name = matching[0]
+
+            if str(new_name).strip().lower() in [r.lower() for r in self.smart_home.rooms if r != resolved_old_name]:
+                return jsonify({"status": "error", "message": "Pokój o tej nazwie już istnieje"}), 400
+
+            for idx, value in enumerate(self.smart_home.rooms):
+                if value == resolved_old_name:
+                    self.smart_home.rooms[idx] = str(new_name).strip()
+                    break
+
+            for button in self.smart_home.buttons:
+                if button.get('room') and button['room'].lower() == resolved_old_name.lower():
+                    button['room'] = str(new_name).strip()
+
+            for control in self.smart_home.temperature_controls:
+                if control.get('room') and control['room'].lower() == resolved_old_name.lower():
+                    control['room'] = str(new_name).strip()
+
+            if not self.smart_home.save_config():
+                return jsonify({"status": "error", "message": "Nie udało się zapisać edycji pokoju"}), 500
+
             try:
-                if hasattr(self, 'cached_data') and self.cached_data:
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='rename',
+                    room_name=str(new_name).strip(),
+                    ip_address=request.remote_addr or "",
+                    old_name=resolved_old_name
+                )
+            except Exception:
+                pass
+
+            if self.cached_data:
+                try:
                     invalidate_rooms = getattr(self.cached_data, 'invalidate_rooms_cache', None)
                     if callable(invalidate_rooms):
                         invalidate_rooms()
-                    # Be explicit as well (redundant but safe with SimpleCache)
                     invalidate_buttons = getattr(self.cached_data, 'invalidate_buttons_cache', None)
                     if callable(invalidate_buttons):
                         invalidate_buttons()
                     invalidate_temp = getattr(self.cached_data, 'invalidate_temperature_cache', None)
                     if callable(invalidate_temp):
                         invalidate_temp()
-            except Exception as _e:
-                # Non-fatal: caching is best-effort
-                print(f"[DEBUG] Cache invalidation after room rename failed: {_e}")
+                except Exception:
+                    pass
 
-            # Emit socket updates
-            self.socketio.emit('update_rooms', self.smart_home.rooms)
-            self.socketio.emit('update_buttons', self.smart_home.buttons)
-            self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-            return jsonify({"status": "success", "message": "Nazwa pokoju zaktualizowana poprawnie!"}), 200
+            self._broadcast_rooms_update(user_id)
+
+            if self.socketio:
+                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+
+            return jsonify({
+                "status": "success",
+                "message": "Nazwa pokoju zaktualizowana poprawnie!"
+            }), 200
 
         @self.app.route('/api/rooms/order', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_rooms_order():
             data = request.get_json()
-            rooms = data.get('rooms')
-            if not isinstance(rooms, list):
-                return jsonify({'status': 'error', 'message': 'Brak listy pokoi'}), 400
-            try:
-                # Prefer database-backed reordering when available
-                if hasattr(self.smart_home, 'reorder_rooms'):
-                    # Only pass valid existing room names in desired order
-                    current = set([r for r in self.smart_home.rooms])
-                    desired_order = [r for r in rooms if r in current]
-                    success = self.smart_home.reorder_rooms(desired_order)
-                    if not success:
-                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności pokoi w bazie'}), 500
-                    # Fetch fresh ordered rooms from DB-backed property
-                    ordered_rooms = self.smart_home.rooms
-                else:
-                    # JSON mode fallback preserves original behavior
-                    self.smart_home.rooms = [r for r in rooms if r in self.smart_home.rooms]
-                    self.smart_home.save_config()
-                    ordered_rooms = self.smart_home.rooms
+            rooms_input = []
+            if data:
+                if isinstance(data.get('room_ids'), list):
+                    rooms_input = data.get('room_ids')
+                elif isinstance(data.get('rooms'), list):
+                    rooms_input = data.get('rooms')
 
-                # Emit updates and invalidate caches if available
-                if self.socketio:
-                    self.socketio.emit('update_rooms', ordered_rooms)
-                if hasattr(self, 'cached_data') and self.cached_data:
+            if not isinstance(rooms_input, list) or not rooms_input:
+                return jsonify({'status': 'error', 'message': 'Brak listy pokoi'}), 400
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+
+            resolved_home_id = self._resolve_home_id(user_id)
+
+            if self.multi_db and resolved_home_id:
+                try:
+                    normalized_ids = []
+                    for item in rooms_input:
+                        room_id = self._resolve_room_identifier(item, user_id, resolved_home_id)
+                        if room_id is not None and room_id not in normalized_ids:
+                            normalized_ids.append(room_id)
+
+                    if not normalized_ids:
+                        return jsonify({'status': 'error', 'message': 'Nie znaleziono żadnych pokoi do aktualizacji'}), 400
+
+                    self.multi_db.reorder_rooms(resolved_home_id, str(user_id), normalized_ids)
+
+                    if self.cached_data:
+                        try:
+                            invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
+                            if callable(invalidate):
+                                invalidate()
+                        except Exception:
+                            pass
+
+                    self._broadcast_rooms_update(user_id, resolved_home_id)
+
+                    try:
+                        self.management_logger.log_room_change(
+                            username=session.get('username', 'unknown'),
+                            action='reorder',
+                            room_name='order_update',
+                            ip_address=request.remote_addr or ""
+                        )
+                    except Exception:
+                        pass
+
+                    rooms_payload, _ = self._get_rooms_payload(user_id, resolved_home_id)
+                    return jsonify({'status': 'success', 'data': rooms_payload, 'meta': {'home_id': resolved_home_id}})
+                except PermissionError:
+                    return jsonify({'status': 'error', 'message': 'Brak uprawnień do zmiany kolejności pokoi'}), 403
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f'Failed to reorder rooms: {exc}')
+                    return jsonify({'status': 'error', 'message': 'Błąd zapisu kolejności'}), 500
+
+            # Legacy fallback for non multi-home setups
+            normalized_names = []
+            for item in rooms_input:
+                if isinstance(item, dict):
+                    candidate = item.get('name')
+                else:
+                    candidate = item
+                if candidate and candidate in self.smart_home.rooms and candidate not in normalized_names:
+                    normalized_names.append(candidate)
+
+            if normalized_names:
+                self.smart_home.rooms = normalized_names
+                if not self.smart_home.save_config():
+                    return jsonify({'status': 'error', 'message': 'Nie udało się zapisać kolejności pokoi'}), 500
+            else:
+                return jsonify({'status': 'error', 'message': 'Brak prawidłowych pokoi do zapisania'}), 400
+
+            if self.cached_data:
+                try:
                     invalidate = getattr(self.cached_data, 'invalidate_rooms_cache', None)
                     if callable(invalidate):
                         invalidate()
-
-                # Log reorder (optional detail only)
-                try:
-                    self.management_logger.log_room_change(
-                        username=session.get('username', 'unknown'),
-                        action='reorder',
-                        room_name='order_update',
-                        ip_address=request.remote_addr or "",
-                        old_name=''
-                    )
                 except Exception:
                     pass
 
-                return jsonify({'status': 'success'})
-            except Exception as e:
-                return jsonify({'status': 'error', 'message': f'Błąd zapisu kolejności: {e}'}), 500
+            self._broadcast_rooms_update(user_id)
+
+            try:
+                self.management_logger.log_room_change(
+                    username=session.get('username', 'unknown'),
+                    action='reorder',
+                    room_name='order_update',
+                    ip_address=request.remote_addr or ""
+                )
+            except Exception:
+                pass
+
+            return jsonify({'status': 'success'})
 
         @self.app.route('/api/buttons/order', methods=['POST'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_buttons_order():
-            data = request.get_json()
-            if 'room' in data and 'order' in data:
+            data = request.get_json() or {}
+            order = data.get('order')
+            if not isinstance(order, list):
+                order = data.get('buttons')
+
+            if not isinstance(order, list):
+                return jsonify({'status': 'error', 'message': 'Brak listy przycisków'}), 400
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+
+            if self.multi_db:
+                resolved_home_id = self._resolve_home_id(user_id)
+                if not resolved_home_id:
+                    return jsonify({'status': 'error', 'message': 'Nie wybrano domu'}), 400
+
+                room_identifier = data.get('room_id') if data.get('room_id') not in (None, '', 'null') else None
+                if room_identifier is None and data.get('room') not in (None, '', 'null'):
+                    room_identifier = data.get('room')
+
+                room_id = None
+                if room_identifier is not None:
+                    try:
+                        room_id = int(room_identifier)
+                    except (TypeError, ValueError):
+                        room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+
+                if room_id is None:
+                    return jsonify({'status': 'error', 'message': 'Nie znaleziono pokoju'}), 400
+
+                try:
+                    for index, device_id in enumerate(order):
+                        if device_id in (None, '', 'null'):
+                            continue
+                        self.multi_db.update_device(device_id, str(user_id), display_order=index)
+
+                    if self.cached_data:
+                        invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                        if callable(invalidate):
+                            invalidate()
+
+                    buttons_payload = self.get_current_home_buttons(user_id)
+                    if self.socketio:
+                        self.socketio.emit('update_buttons', buttons_payload)
+
+                    response = {'status': 'success', 'data': buttons_payload, 'meta': {'home_id': resolved_home_id}}
+                    return jsonify(response)
+                except PermissionError:
+                    return jsonify({'status': 'error', 'message': 'Brak uprawnień do zmiany kolejności urządzeń'}), 403
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f'Failed to reorder buttons: {exc}')
+                    return jsonify({'status': 'error', 'message': 'Błąd zapisu kolejności'}), 500
+
+            # Legacy fallback for single-home mode
+            if 'room' in data and isinstance(data.get('order'), list):
                 room = data['room']
-                order = data['order']
+                order_list = data['order']
                 room_buttons = [b for b in self.smart_home.buttons if b.get('room') == room]
                 new_room_buttons = []
-                for btn_id in order:
+                for btn_id in order_list:
                     found = next((b for b in room_buttons if str(b.get('id')) == str(btn_id)), None)
                     if found:
                         new_room_buttons.append(found)
                 other_buttons = [b for b in self.smart_home.buttons if b.get('room') != room]
                 self.smart_home.buttons = other_buttons + new_room_buttons
-                self.socketio.emit('update_buttons', self.smart_home.buttons)
+                if self.socketio:
+                    self.socketio.emit('update_buttons', self.smart_home.buttons)
                 self.smart_home.save_config()
                 return jsonify({'status': 'success'})
-            buttons = data.get('buttons')
-            if not isinstance(buttons, list):
-                return jsonify({'status': 'error', 'message': 'Brak listy przycisków'}), 400
+
             new_order = []
-            for btn in buttons:
+            for btn in order:
                 found = next((b for b in self.smart_home.buttons if b['name'] == btn.get('name') and b['room'] == btn.get('room')), None)
                 if found:
                     new_order.append(found)
             self.smart_home.buttons = new_order
-            self.socketio.emit('update_buttons', self.smart_home.buttons)
+            if self.socketio:
+                self.socketio.emit('update_buttons', self.smart_home.buttons)
             self.smart_home.save_config()
             return jsonify({'status': 'success'})
 
@@ -1606,20 +2173,74 @@ class APIManager:
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def set_temp_controls_order():
-            data = request.get_json()
-            if 'room' in data and 'order' in data:
+            data = request.get_json() or {}
+            order = data.get('order')
+            if not isinstance(order, list):
+                return jsonify({'status': 'error', 'message': 'Brak danych lub nieprawidłowy format'}), 400
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+
+            if self.multi_db:
+                resolved_home_id = self._resolve_home_id(user_id)
+                if not resolved_home_id:
+                    return jsonify({'status': 'error', 'message': 'Nie wybrano domu'}), 400
+
+                room_identifier = data.get('room_id') if data.get('room_id') not in (None, '', 'null') else None
+                if room_identifier is None and data.get('room') not in (None, '', 'null'):
+                    room_identifier = data.get('room')
+
+                room_id = None
+                if room_identifier is not None:
+                    try:
+                        room_id = int(room_identifier)
+                    except (TypeError, ValueError):
+                        room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+
+                if room_id is None:
+                    return jsonify({'status': 'error', 'message': 'Nie znaleziono pokoju'}), 400
+
+                try:
+                    for index, control_id in enumerate(order):
+                        if control_id in (None, '', 'null'):
+                            continue
+                        self.multi_db.update_device(control_id, str(user_id), display_order=index)
+
+                    if self.cached_data:
+                        invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                        if callable(invalidate):
+                            invalidate()
+
+                    controls_payload = self.get_current_home_temperature_controls(user_id)
+                    if self.socketio:
+                        self.socketio.emit('update_temperature_controls', controls_payload)
+
+                    response = {'status': 'success', 'data': controls_payload, 'meta': {'home_id': resolved_home_id}}
+                    return jsonify(response)
+                except PermissionError:
+                    return jsonify({'status': 'error', 'message': 'Brak uprawnień do zmiany kolejności urządzeń'}), 403
+                except Exception as exc:
+                    if self.app:
+                        self.app.logger.error(f'Failed to reorder temperature controls: {exc}')
+                    return jsonify({'status': 'error', 'message': 'Błąd zapisu kolejności'}), 500
+
+            # Legacy fallback
+            if 'room' in data:
                 room = data['room']
-                order = data['order']
+                order_list = data['order']
                 room_controls = [c for c in self.smart_home.temperature_controls if c.get('room') == room]
                 new_room_controls = []
-                for ctrl_id in order:
+                for ctrl_id in order_list:
                     found = next((c for c in room_controls if c['id'] == ctrl_id), None)
                     if found:
                         new_room_controls.append(found)
                 self.smart_home.temperature_controls = [c for c in self.smart_home.temperature_controls if c.get('room') != room] + new_room_controls
-                self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
+                if self.socketio:
+                    self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
                 self.smart_home.save_config()
                 return jsonify({'status': 'success'})
+
             return jsonify({'status': 'error', 'message': 'Brak danych lub nieprawidłowy format'}), 400
 
         @self.app.route('/api/buttons', methods=['GET', 'POST'])
@@ -1630,78 +2251,200 @@ class APIManager:
                 # Get current user and use multi-home system
                 user_id = session.get('user_id')
                 buttons = self.get_current_home_buttons(user_id)
-                print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons from multi-home: {[ (b.get('name'), b.get('room')) for b in buttons ]}")
-                return jsonify(buttons)
+                resolved_home_id = self._resolve_home_id(user_id) if user_id else None
+                payload = {
+                    "status": "success",
+                    "data": buttons
+                }
+                if resolved_home_id:
+                    payload['meta'] = {'home_id': resolved_home_id}
+                print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons")
+                return jsonify(payload)
             elif request.method == 'POST':
                 if session.get('role') != 'admin':
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_button = request.json
-                if new_button:
-                    name = new_button.get('name')
-                    room = new_button.get('room')
-                    if not name or not room:
-                        return jsonify({"status": "error", "message": "Brak nazwy lub pokoju"}), 400
+                payload = request.get_json(silent=True) or {}
+                name = (payload.get('name') or '').strip()
+                room_value = payload.get('room')
+                room_id_value = payload.get('room_id')
+                user_id = session.get('user_id')
+
+                if not name:
+                    return jsonify({"status": "error", "message": "Brak nazwy urządzenia"}), 400
+
+                if self.multi_db:
+                    if not user_id:
+                        return jsonify({"status": "error", "message": "Nie jesteś zalogowany"}), 401
+
+                    resolved_home_id = self._resolve_home_id(user_id)
+                    if not resolved_home_id:
+                        return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
+
+                    room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
+                    if room_identifier is None and room_value not in (None, '', 'null'):
+                        room_identifier = room_value
+
+                    if room_identifier is None:
+                        return jsonify({"status": "error", "message": "Brak pokoju docelowego"}), 400
+
                     try:
-                        if hasattr(self.smart_home, 'add_button'):
-                            print(f"[DEBUG] POST /api/buttons add_button DB path: name={name}, room={room}")
-                            new_id = self.smart_home.add_button(name, room, state=False)
-                            # Invalidate cache if available
-                            if self.cached_data and hasattr(self.cached_data, 'cache'):
-                                self.cached_data.cache.delete('buttons_list')
-                            # Emit updated list
+                        try:
+                            room_id = int(room_identifier)
+                        except (TypeError, ValueError):
+                            room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+
+                        if room_id is None:
+                            return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                        new_id = self.multi_db.create_device(room_id, name, 'button', str(user_id), state=False, enabled=True)
+                        if self.cached_data:
+                            invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                            if callable(invalidate):
+                                invalidate()
+
+                        buttons = self.get_current_home_buttons(user_id)
+                        created_button = next((btn for btn in buttons if str(btn.get('id')) == str(new_id)), None)
+
+                        if self.socketio:
+                            self.socketio.emit('update_buttons', buttons)
+
+                        response = {
+                            "status": "success",
+                            "id": new_id,
+                            "button": created_button,
+                            "meta": {"home_id": resolved_home_id}
+                        }
+                        return jsonify(response), 201
+                    except PermissionError:
+                        return jsonify({"status": "error", "message": "Brak uprawnień do dodawania urządzeń"}), 403
+                    except ValueError as exc:
+                        return jsonify({"status": "error", "message": str(exc)}), 400
+                    except Exception as exc:
+                        if self.app:
+                            self.app.logger.error(f"Failed to create button '{name}': {exc}")
+                        return jsonify({"status": "error", "message": "Nie udało się utworzyć urządzenia"}), 500
+
+                # Legacy single-home fallback
+                if not room_value:
+                    return jsonify({"status": "error", "message": "Brak nazwy lub pokoju"}), 400
+
+                try:
+                    if hasattr(self.smart_home, 'add_button'):
+                        print(f"[DEBUG] POST /api/buttons add_button legacy path: name={name}, room={room_value}")
+                        new_id = self.smart_home.add_button(name, room_value, state=False)
+                        if self.cached_data and hasattr(self.cached_data, 'cache'):
+                            self.cached_data.cache.delete('buttons_list')
+                        if self.socketio:
                             self.socketio.emit('update_buttons', self.smart_home.buttons)
-                            return jsonify({"status": "success", "id": new_id})
-                        else:
-                            return jsonify({"status": "error", "message": "Brak metody add_button"}), 500
-                    except Exception as e:
-                        print(f"[DEBUG] POST /api/buttons error: {e}")
-                        return jsonify({"status": "error", "message": str(e)}), 500
+                        return jsonify({"status": "success", "id": new_id})
+                    else:
+                        return jsonify({"status": "error", "message": "Brak metody add_button"}), 500
+                except Exception as e:
+                    print(f"[DEBUG] POST /api/buttons error: {e}")
+                    return jsonify({"status": "error", "message": str(e)}), 500
+
                 return jsonify({"status": "error", "message": "Invalid button data"}), 400
 
         @self.app.route('/api/buttons/<id>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
         @self.auth_manager.api_admin_required
         def button_by_id(id):
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'Nie jesteś zalogowany'}), 401
+
             if request.method == 'PUT':
                 print(f"[DEBUG] PUT /api/buttons/{id} - Starting")
                 data = request.get_json()
                 print(f"[DEBUG] PUT data received: {data}")
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych'}), 400
-                
-                # Check if device exists first
+
+                # Multi-home branch
+                if self.multi_db:
+                    device = self.multi_db.get_device(id, str(user_id))
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+
+                    updates = {}
+                    if 'name' in data and data['name']:
+                        updates['name'] = data['name']
+
+                    room_identifier = None
+                    if data.get('room_id') not in (None, '', 'null'):
+                        room_identifier = data.get('room_id')
+                    elif 'room' in data and data['room'] not in (None, '', 'null'):
+                        room_identifier = data['room']
+
+                    if room_identifier is not None:
+                        try:
+                            updates['room_id'] = int(room_identifier)
+                        except (TypeError, ValueError):
+                            resolved_room_id = self._resolve_room_identifier(room_identifier, user_id, device.get('home_id'))
+                            if resolved_room_id is None:
+                                return jsonify({'status': 'error', 'message': 'Nie znaleziono pokoju'}), 404
+                            updates['room_id'] = resolved_room_id
+
+                    if not updates:
+                        return jsonify({'status': 'error', 'message': 'Brak pól do aktualizacji'}), 400
+
+                    try:
+                        success = self.multi_db.update_device(id, str(user_id), **updates)
+                    except PermissionError:
+                        return jsonify({'status': 'error', 'message': 'Brak uprawnień do edycji urządzenia'}), 403
+                    except ValueError as exc:
+                        return jsonify({'status': 'error', 'message': str(exc)}), 400
+
+                    if not success:
+                        return jsonify({'status': 'error', 'message': 'Nie udało się zapisać edycji przycisku'}), 500
+
+                    if self.cached_data:
+                        try:
+                            invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                            if callable(invalidate):
+                                invalidate()
+                        except Exception:
+                            pass
+
+                    updated_device = self.multi_db.get_device(id, str(user_id))
+                    buttons = self.get_current_home_buttons(user_id)
+                    if self.socketio:
+                        self.socketio.emit('update_buttons', buttons)
+
+                    response = {
+                        'status': 'success',
+                        'button': updated_device,
+                        'meta': {'home_id': str(updated_device.get('home_id')) if updated_device else None}
+                    }
+                    return jsonify(response)
+
+                # Legacy single-home fallback
                 device = self.smart_home.get_device_by_id(id)
                 print(f"[DEBUG] Device found: {device}")
                 if not device:
                     return jsonify({'status': 'error', 'message': 'Button not found'}), 404
-                
-                # Prepare updates
+
                 updates = {}
                 if 'name' in data:
                     updates['name'] = data['name']
                 if 'room' in data:
                     updates['room'] = data['room']
-                
+
                 print(f"[DEBUG] Updates prepared: {updates}")
                 if not updates:
                     return jsonify({'status': 'error', 'message': 'No valid fields to update'}), 400
-                
-                # Update device in database
+
                 if hasattr(self.smart_home, 'update_device'):
                     print(f"[DEBUG] Using database mode - calling update_device")
-                    # Database mode - use proper database update method
                     success = self.smart_home.update_device(id, updates)
                     print(f"[DEBUG] update_device result: {success}")
                     if not success:
                         return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                    # Invalidate cache after successful update
                     if self.cached_data:
                         print(f"[DEBUG] Invalidating cache")
                         self.cached_data.invalidate_buttons_cache()
-                    update_mode = 'db'
                 else:
                     print(f"[DEBUG] Using JSON mode fallback")
-                    # JSON mode fallback
                     idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
                     if idx is None:
                         return jsonify({'status': 'error', 'message': 'Button not found'}), 404
@@ -1711,50 +2454,65 @@ class APIManager:
                         self.smart_home.buttons[idx]['room'] = updates['room']
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać edycji przycisku"}), 500
-                    update_mode = 'json'
 
-                # Emit socket update (both modes)
                 if self.socketio:
                     print(f"[DEBUG] Emitting socket update")
-                    # Get fresh data from cache (same source as main page) for socket update
                     fresh_buttons = self.cached_data.get_buttons() if self.cached_data else self.smart_home.buttons
                     print(f"[DEBUG] Fresh buttons data from cache: {fresh_buttons}")
                     self.socketio.emit('update_buttons', fresh_buttons)
 
-                print(f"[DEBUG] PUT /api/buttons/{id} - Success ({update_mode} mode)")
+                print(f"[DEBUG] PUT /api/buttons/{id} - Success (legacy mode)")
                 return jsonify({'status': 'success', 'message': 'Nazwa przycisku zaktualizowana poprawnie!'}), 200
                 
             elif request.method == 'DELETE':
-                # Check if device exists first
+                if self.multi_db:
+                    device = self.multi_db.get_device(id, str(user_id))
+                    if not device:
+                        return jsonify({'status': 'error', 'message': 'Button not found'}), 404
+
+                    try:
+                        success = self.multi_db.delete_device(id, str(user_id))
+                    except PermissionError:
+                        return jsonify({'status': 'error', 'message': 'Brak uprawnień do usunięcia urządzenia'}), 403
+
+                    if not success:
+                        return jsonify({"status": "error", "message": "Nie udało się usunąć przycisku"}), 500
+
+                    if self.cached_data:
+                        try:
+                            invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
+                            if callable(invalidate):
+                                invalidate()
+                        except Exception:
+                            pass
+
+                    buttons = self.get_current_home_buttons(user_id)
+                    if self.socketio:
+                        self.socketio.emit('update_buttons', buttons)
+
+                    return jsonify({'status': 'success', 'meta': {'home_id': str(device.get('home_id')) if device else None}})
+
                 device = self.smart_home.get_device_by_id(id)
                 if not device:
                     return jsonify({'status': 'error', 'message': 'Button not found'}), 404
-                
-                # Delete device
+
                 if hasattr(self.smart_home, 'delete_device'):
-                    # Database mode - use proper database delete method
                     success = self.smart_home.delete_device(id)
                     if not success:
                         return jsonify({"status": "error", "message": "Nie udało się usunąć przycisku"}), 500
-                    
-                    # Invalidate cache after successful delete
                     if self.cached_data:
                         self.cached_data.invalidate_buttons_cache()
                 else:
-                    # JSON mode fallback
                     idx = next((i for i, b in enumerate(self.smart_home.buttons) if str(b.get('id')) == str(id)), None)
                     if idx is None:
                         return jsonify({'status': 'error', 'message': 'Button not found'}), 404
-                    
                     self.smart_home.buttons.pop(idx)
                     if not self.smart_home.save_config():
                         return jsonify({"status": "error", "message": "Nie udało się zapisać po usunięciu przycisku"}), 500
-                
-                # Emit socket update
+
                 if self.socketio:
                     self.socketio.emit('update_buttons', self.smart_home.buttons)
                 
-                return jsonify({'status': 'success'})
                 return jsonify({'status': 'success'})
 
         @self.app.route('/api/buttons/<id>/toggle', methods=['POST'])
@@ -1940,26 +2698,102 @@ class APIManager:
                 # Get current user and use multi-home system
                 user_id = session.get('user_id')
                 temp_controls = self.get_current_home_temperature_controls(user_id)
-                return jsonify({
+                resolved_home_id = self._resolve_home_id(user_id) if user_id else None
+                response = {
                     "status": "success", 
                     "data": temp_controls
-                })
+                }
+                if resolved_home_id:
+                    response['meta'] = {'home_id': resolved_home_id}
+                return jsonify(response)
             elif request.method == 'POST':
                 try:
                     if session.get('role') != 'admin':
                         return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                    new_control = request.json
-                    if new_control:
-                        if 'id' not in new_control:
-                            new_control['id'] = str(uuid.uuid4())
-                        new_control['temperature'] = 22
-                        self.smart_home.temperature_controls.append(new_control)
-                        # Emit updates only if socketio is available
+                    payload = request.get_json(silent=True) or {}
+                    name = (payload.get('name') or '').strip()
+                    room_value = payload.get('room')
+                    room_id_value = payload.get('room_id')
+                    user_id = session.get('user_id')
+
+                    if not name:
+                        return jsonify({"status": "error", "message": "Brak nazwy sterownika"}), 400
+
+                    if self.multi_db:
+                        if not user_id:
+                            return jsonify({"status": "error", "message": "Nie jesteś zalogowany"}), 401
+
+                        resolved_home_id = self._resolve_home_id(user_id)
+                        if not resolved_home_id:
+                            return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
+
+                        room_identifier = room_id_value if room_id_value not in (None, '', 'null') else None
+                        if room_identifier is None and room_value not in (None, '', 'null'):
+                            room_identifier = room_value
+
+                        if room_identifier is None:
+                            return jsonify({"status": "error", "message": "Brak pokoju docelowego"}), 400
+
+                        try:
+                            try:
+                                room_id = int(room_identifier)
+                            except (TypeError, ValueError):
+                                room_id = self._resolve_room_identifier(room_identifier, user_id, resolved_home_id)
+
+                            if room_id is None:
+                                return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
+
+                            target_temp = payload.get('target_temperature', 21.0)
+                            mode = payload.get('mode', 'auto')
+                            new_id = self.multi_db.create_device(
+                                room_id,
+                                name,
+                                'temperature_control',
+                                str(user_id),
+                                state=None,
+                                target_temperature=target_temp,
+                                mode=mode,
+                                enabled=payload.get('enabled', True)
+                            )
+
+                            if self.cached_data:
+                                invalidate = getattr(self.cached_data, 'invalidate_temperature_cache', None)
+                                if callable(invalidate):
+                                    invalidate()
+
+                            controls = self.get_current_home_temperature_controls(user_id)
+                            created_control = next((ctrl for ctrl in controls if str(ctrl.get('id')) == str(new_id)), None)
+
+                            if self.socketio:
+                                self.socketio.emit('update_temperature_controls', controls)
+
+                            response = {
+                                "status": "success",
+                                "id": new_id,
+                                "control": created_control,
+                                "meta": {"home_id": resolved_home_id}
+                            }
+                            return jsonify(response), 201
+                        except PermissionError:
+                            return jsonify({"status": "error", "message": "Brak uprawnień do dodawania urządzeń"}), 403
+                        except ValueError as exc:
+                            return jsonify({"status": "error", "message": str(exc)}), 400
+                        except Exception as exc:
+                            if self.app:
+                                self.app.logger.error(f"Failed to create temperature control '{name}': {exc}")
+                            return jsonify({"status": "error", "message": "Nie udało się utworzyć sterownika"}), 500
+
+                    # Legacy single-home fallback
+                    if payload:
+                        if 'id' not in payload:
+                            payload['id'] = str(uuid.uuid4())
+                        payload['temperature'] = payload.get('temperature', 22)
+                        self.smart_home.temperature_controls.append(payload)
                         if self.socketio:
                             self.socketio.emit('update_temperature_controls', self.smart_home.temperature_controls)
-                            self.socketio.emit('update_room_temperature_controls', new_control)
+                            self.socketio.emit('update_room_temperature_controls', payload)
                         self.smart_home.save_config()
-                        return jsonify({"status": "success", "id": new_control['id']})
+                        return jsonify({"status": "success", "id": payload['id']})
                     return jsonify({"status": "error", "message": "Invalid control data"}), 400
                 except Exception as e:
                     import traceback
@@ -2599,47 +3433,84 @@ class APIManager:
         @self.auth_manager.login_required
         def manage_automations():
             self.smart_home.check_and_save()
+            user_id = session.get('user_id')
+            preferred_home_id = request.args.get('home_id')
+
             if request.method == 'GET':
-                # Always fetch fresh automations from DB-backed property
-                return jsonify(self.smart_home.automations)
-            elif request.method == 'POST':
-                if session.get('role') != 'admin':
-                    return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
-                new_automation = request.json
-                if new_automation:
-                    required_fields = ['name', 'trigger', 'actions', 'enabled']
-                    if not all(field in new_automation for field in required_fields):
-                        return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
-                    # Always check for duplicates using the DB-backed property
-                    if any(auto['name'].lower() == new_automation['name'].lower() for auto in self.smart_home.automations):
-                        return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+                if self.multi_db and user_id:
                     try:
-                        from app_db import DATABASE_MODE
-                    except ImportError:
-                        DATABASE_MODE = False
-                    if DATABASE_MODE:
-                        self.smart_home.add_automation(
-                            name=new_automation['name'],
-                            trigger=new_automation['trigger'],
-                            actions=new_automation['actions'],
-                            enabled=new_automation['enabled']
-                        )
-                        # Always fetch updated automations from DB after insert
-                        automations = self.smart_home.automations
-                    else:
-                        self.smart_home.automations.append(new_automation)
-                        self.smart_home.save_config()
-                        automations = self.smart_home.automations
-                    self.socketio.emit('update_automations', automations)
-                    # Log automation addition
-                    self.management_logger.log_automation_change(
-                        username=session.get('username', 'unknown'),
-                        action='add',
-                        automation_name=new_automation['name'],
-                        ip_address=request.remote_addr or ""
-                    )
-                    return jsonify({"status": "success", "automations": automations})
-                return jsonify({"status": "error", "message": "Invalid automation data"}), 400
+                        automations, _ = self.get_current_home_automations(user_id, preferred_home_id)
+                        return jsonify(automations)
+                    except PermissionError:
+                        return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+                # Legacy/global mode
+                return jsonify(self.smart_home.automations)
+
+            if session.get('role') != 'admin':
+                return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
+
+            new_automation = request.get_json(silent=True) or {}
+            required_fields = ['name', 'trigger', 'actions', 'enabled']
+            if not all(field in new_automation for field in required_fields):
+                return jsonify({"status": "error", "message": "Brak wymaganych pól"}), 400
+
+            if self.multi_db and user_id:
+                home_hint = new_automation.get('home_id') or preferred_home_id
+                home_id = self._resolve_home_id(user_id, home_hint)
+                if not home_id:
+                    return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
+                try:
+                    automations, _ = self.get_current_home_automations(user_id, home_id)
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                if any(auto.get('name', '').lower() == new_automation['name'].lower() for auto in automations):
+                    return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+
+                try:
+                    created = self.multi_db.add_home_automation(home_id, str(user_id), new_automation)
+                    automations = self.multi_db.get_home_automations(home_id, str(user_id))
+                except ValueError as exc:
+                    return jsonify({"status": "error", "message": str(exc)}), 400
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                self._emit_automation_update(home_id, automations)
+
+                self.management_logger.log_automation_change(
+                    username=session.get('username', 'unknown'),
+                    action='add',
+                    automation_name=new_automation['name'],
+                    ip_address=request.remote_addr or ""
+                )
+                return jsonify({"status": "success", "automations": automations, "home_id": home_id, "created": created})
+
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if DATABASE_MODE:
+                self.smart_home.add_automation(
+                    name=new_automation['name'],
+                    trigger=new_automation['trigger'],
+                    actions=new_automation['actions'],
+                    enabled=new_automation['enabled']
+                )
+                automations = self.smart_home.automations
+            else:
+                self.smart_home.automations.append(new_automation)
+                self.smart_home.save_config()
+                automations = self.smart_home.automations
+
+            self._emit_automation_update(None, automations)
+            self.management_logger.log_automation_change(
+                username=session.get('username', 'unknown'),
+                action='add',
+                automation_name=new_automation['name'],
+                ip_address=request.remote_addr or ""
+            )
+            return jsonify({"status": "success", "automations": automations})
 
         @self.app.route('/api/automations/<int:index>', methods=['PUT', 'DELETE'])
         @self.auth_manager.login_required
@@ -2649,9 +3520,48 @@ class APIManager:
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
+
+            user_id = session.get('user_id')
             if request.method == 'PUT':
+                updated_automation = request.get_json(silent=True) or {}
+
+                if self.multi_db and user_id:
+                    home_hint = updated_automation.get('home_id') or request.args.get('home_id')
+                    home_id = self._resolve_home_id(user_id, home_hint)
+                    if not home_id:
+                        return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
+                    try:
+                        automations, _ = self.get_current_home_automations(user_id, home_id)
+                    except PermissionError:
+                        return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                    if not (0 <= index < len(automations)):
+                        return jsonify({"status": "error", "message": "Automation not found"}), 404
+
+                    if 'name' in updated_automation:
+                        proposed = updated_automation['name'].lower()
+                        if any(i != index and auto.get('name', '').lower() == proposed for i, auto in enumerate(automations)):
+                            return jsonify({"status": "error", "message": "Automatyzacja o tej nazwie już istnieje"}), 400
+
+                    target = automations[index]
+                    try:
+                        self.multi_db.update_home_automation(home_id, str(user_id), target.get('id'), updated_automation)
+                        automations = self.multi_db.get_home_automations(home_id, str(user_id))
+                    except ValueError as exc:
+                        return jsonify({"status": "error", "message": str(exc)}), 400
+                    except PermissionError:
+                        return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                    self._emit_automation_update(home_id, automations)
+                    self.management_logger.log_automation_change(
+                        username=session.get('username', 'unknown'),
+                        action='edit',
+                        automation_name=updated_automation.get('name', target.get('name', 'unknown')),
+                        ip_address=request.remote_addr or ""
+                    )
+                    return jsonify({"status": "success"})
+
                 if 0 <= index < len(self.smart_home.automations):
-                    updated_automation = request.json
                     if updated_automation:
                         name_exists = any(
                             i != index and auto['name'].lower() == updated_automation['name'].lower()
@@ -2664,8 +3574,7 @@ class APIManager:
                         else:
                             self.smart_home.automations[index] = updated_automation
                             self.smart_home.save_config()
-                        self.socketio.emit('update_automations', self.smart_home.automations)
-                        # Log automation edit
+                        self._emit_automation_update(None, self.smart_home.automations)
                         self.management_logger.log_automation_change(
                             username=session.get('username', 'unknown'),
                             action='edit',
@@ -2675,24 +3584,53 @@ class APIManager:
                         return jsonify({"status": "success"})
                     return jsonify({"status": "error", "message": "Invalid data"}), 400
                 return jsonify({"status": "error", "message": "Automation not found"}), 404
-            elif request.method == 'DELETE':
-                if 0 <= index < len(self.smart_home.automations):
-                    automation_name = self.smart_home.automations[index].get('name', 'unknown')
-                    if DATABASE_MODE:
-                        self.smart_home.delete_automation_by_index(index)
-                    else:
-                        del self.smart_home.automations[index]
-                        self.smart_home.save_config()
-                    self.socketio.emit('update_automations', self.smart_home.automations)
-                    # Log automation deletion
-                    self.management_logger.log_automation_change(
-                        username=session.get('username', 'unknown'),
-                        action='delete',
-                        automation_name=automation_name,
-                        ip_address=request.remote_addr or ""
-                    )
-                    return jsonify({"status": "success"})
-                return jsonify({"status": "error", "message": "Automation not found"}), 404
+
+            # DELETE method
+            if self.multi_db and user_id:
+                home_id = self._resolve_home_id(user_id, request.args.get('home_id'))
+                if not home_id:
+                    return jsonify({"status": "error", "message": "Nie wybrano domu"}), 400
+                try:
+                    automations, _ = self.get_current_home_automations(user_id, home_id)
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                if not (0 <= index < len(automations)):
+                    return jsonify({"status": "error", "message": "Automation not found"}), 404
+
+                target = automations[index]
+                automation_name = target.get('name', 'unknown')
+                try:
+                    self.multi_db.delete_home_automation(home_id, str(user_id), target.get('id'))
+                    automations = self.multi_db.get_home_automations(home_id, str(user_id))
+                except PermissionError:
+                    return jsonify({"status": "error", "message": "Brak dostępu do wybranego domu"}), 403
+
+                self._emit_automation_update(home_id, automations)
+                self.management_logger.log_automation_change(
+                    username=session.get('username', 'unknown'),
+                    action='delete',
+                    automation_name=automation_name,
+                    ip_address=request.remote_addr or ""
+                )
+                return jsonify({"status": "success"})
+
+            if 0 <= index < len(self.smart_home.automations):
+                automation_name = self.smart_home.automations[index].get('name', 'unknown')
+                if DATABASE_MODE:
+                    self.smart_home.delete_automation_by_index(index)
+                else:
+                    del self.smart_home.automations[index]
+                    self.smart_home.save_config()
+                self._emit_automation_update(None, self.smart_home.automations)
+                self.management_logger.log_automation_change(
+                    username=session.get('username', 'unknown'),
+                    action='delete',
+                    automation_name=automation_name,
+                    ip_address=request.remote_addr or ""
+                )
+                return jsonify({"status": "success"})
+            return jsonify({"status": "error", "message": "Automation not found"}), 404
 
         @self.app.route('/api/security', methods=['GET', 'POST'])
         @self.auth_manager.login_required
