@@ -69,6 +69,9 @@ class SmartHomeApp:
         # Initialize core components
         self.initialize_components()
         
+        # Setup system administrator if in database mode
+        self.setup_sys_admin()
+        
         # Setup routes and socket events
         self.setup_routes()
         self.setup_socket_events()
@@ -175,6 +178,11 @@ class SmartHomeApp:
             # Convert MultiDict to regular dict for urlencode
             args_dict = {k: v for k, v in args.items()}
             return f'{request.path}?{urlencode(args_dict)}'
+    
+    def setup_sys_admin(self):
+        """Setup system administrator if in database mode"""
+        # Sys-admin setup will happen in setup_routes after multi_db is initialized
+        pass
     
     def initialize_components(self):
         """Initialize all application components"""
@@ -288,6 +296,17 @@ class SmartHomeApp:
             from app.multi_home_routes import multi_db
             
             self.multi_db = multi_db
+            
+            # Setup system administrator after multi_db is available
+            if multi_db and hasattr(multi_db, 'setup_initial_sys_admin'):
+                try:
+                    success = multi_db.setup_initial_sys_admin('admin')
+                    if success:
+                        print("✓ System administrator (admin) initialized")
+                    else:
+                        print("⚠ Failed to setup system administrator")
+                except Exception as e:
+                    print(f"⚠ Error setting up system administrator: {e}")
 
             self.route_manager = RoutesManager(
                 app=self.app,

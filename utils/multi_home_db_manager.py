@@ -175,11 +175,13 @@ class MultiHomeDBManager:
                 raise Exception("Failed to create home")
             home_id = result[0]
             
-            # Add owner to user_homes with admin role
+            # Add owner to user_homes with admin role (creator becomes admin of their home)
             cursor.execute("""
                 INSERT INTO user_homes (user_id, home_id, role, permissions, joined_at)
                 VALUES (%s, %s, 'admin', %s, %s)
             """, (owner_id, home_id, json.dumps(['full_control']), datetime.now()))
+            
+            # Note: Owner field in homes table tracks ownership, but user gets admin role in user_homes
             
             logger.info(f"Created home '{name}' with ID {home_id} for owner {owner_id}")
             return home_id
@@ -255,12 +257,25 @@ class MultiHomeDBManager:
 
     def user_has_home_access(self, user_id: str, home_id: str) -> bool:
         """Check if user has access to a specific home."""
+        # First check if user is sys-admin (has global access)
+        if self.is_sys_admin(user_id):
+            return True
+            
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT 1 FROM user_homes 
                 WHERE user_id = %s AND home_id = %s
             """, (user_id, home_id))
             
+            return cursor.fetchone() is not None
+            
+    def is_sys_admin(self, user_id: str) -> bool:
+        """Check if user has system administrator role."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT 1 FROM users 
+                WHERE id = %s AND role = 'sys-admin'
+            """, (user_id,))
             return cursor.fetchone() is not None
 
     def user_has_home_permission(self, user_id: str, home_id: str, permission: str) -> bool:
@@ -278,8 +293,8 @@ class MultiHomeDBManager:
             permissions = row[0] if row[0] else []  # Already parsed by psycopg2
             role = row[1]
             
-            # Admin and owner roles have all permissions
-            if role in ['admin', 'owner']:
+            # Admin, owner, and sys-admin roles have all permissions
+            if role in ['admin', 'owner', 'sys-admin']:
                 return True
                 
             return permission in permissions
@@ -1118,6 +1133,45 @@ class MultiHomeDBManager:
     def get_buttons(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all buttons in a home."""
         return self.get_home_devices(home_id, user_id, 'button')
+    
+    # ============================================================================
+    # SYSTEM ADMINISTRATION
+    # ============================================================================
+    
+    def upgrade_user_to_sys_admin(self, user_id: str) -> bool:
+        """Upgrade a user to system administrator. Can only be done via direct database access."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                UPDATE users 
+                SET role = 'sys-admin', updated_at = %s
+                WHERE id = %s AND role = 'admin'
+            """, (datetime.now(), user_id))
+            
+            if cursor.rowcount > 0:
+                logger.info(f"User {user_id} upgraded to sys-admin")
+                return True
+            return False
+            
+    def get_sys_admin_users(self) -> List[Dict]:
+        """Get all system administrators. Internal use only."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT id, name, email, created_at, updated_at
+                FROM users 
+                WHERE role = 'sys-admin'
+                ORDER BY created_at
+            """)
+            
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': str(row[0]),
+                    'name': row[1],
+                    'email': row[2],
+                    'created_at': row[3],
+                    'updated_at': row[4]
+                })
+            return users
 
     # ============================================================================
     # SECURITY MANAGEMENT
@@ -1411,3 +1465,4 @@ class MultiHomeDBManager:
                 (automation_id, normalized_home_id)
             )
             return cursor.rowcount > 0
+    
