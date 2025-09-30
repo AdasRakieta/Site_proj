@@ -1,6 +1,7 @@
 import psycopg2
 import json
 import uuid
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Tuple
 from contextlib import contextmanager
@@ -15,15 +16,16 @@ class MultiHomeDBManager:
     Handles all database operations with home context isolation.
     """
     
-    def __init__(self, host: str = "localhost", port: int = 5432, 
-                 user: str = "postgres", password: str = "", 
-                 database: str = "smarthome_multihouse", 
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None, 
+                 user: Optional[str] = None, password: Optional[str] = None, 
+                 database: Optional[str] = None, 
                  connection_timeout: int = 10):
-        self.host = host
-        self.port = port
-        self.user = user
-        self.password = password
-        self.database = database
+        # Use environment variables if parameters not provided
+        self.host = host or os.getenv('DB_HOST', '100.103.184.90')
+        self.port = port or int(os.getenv('DB_PORT', '5432'))
+        self.user = user or os.getenv('DB_USER', 'admin')
+        self.password = password or os.getenv('DB_PASSWORD', 'Qwuizzy123.')
+        self.database = database or os.getenv('DB_NAME', 'smarthome_multihouse')
         self.connection_timeout = connection_timeout
         self._connection = None
         self._ensure_connection()
@@ -344,6 +346,299 @@ class MultiHomeDBManager:
         # 3. If no home specified, check if user has admin/owner access in any home
         user_homes = self.get_user_homes(user_id)
         return any(home.get('role') in ['admin', 'owner'] for home in user_homes)
+
+    # ============================================================================
+    # HOME ADMIN FUNCTIONS
+    # ============================================================================
+    
+    def get_home_users(self, home_id: str, admin_user_id: str) -> List[Dict]:
+        """
+        Get all users in a specific home (for admin dashboard).
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin requesting the list
+            
+        Returns:
+            List of users with their roles in this home
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+            
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT u.id, u.name, u.email, u.role as global_role,
+                       uh.role as home_role, uh.joined_at, uh.last_access,
+                       (h.owner_id = u.id) as is_home_owner
+                FROM users u
+                JOIN user_homes uh ON u.id = uh.user_id  
+                JOIN homes h ON uh.home_id = h.id
+                WHERE uh.home_id = %s
+                ORDER BY uh.role DESC, u.name
+            """, (home_id,))
+            
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'user_id': str(row[0]),
+                    'username': row[1], 
+                    'email': row[2] or '',
+                    'global_role': row[3],
+                    'home_role': row[4],
+                    'joined_at': row[5],
+                    'last_access': row[6],
+                    'is_home_owner': row[7]
+                })
+            
+            return users
+            
+    def add_user_to_home(self, home_id: str, username: str, email: str, password: str, 
+                        role: str, admin_user_id: str) -> str:
+        """
+        Add new user to the system and assign to home.
+        
+        Args:
+            home_id: ID of the home to add user to
+            username: Username for new user
+            email: Email for new user
+            password: Plain text password (will be hashed)
+            role: Role in the home ('admin', 'member', 'guest')
+            admin_user_id: ID of the admin adding the user
+            
+        Returns:
+            ID of the created user
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+            
+        # Validate role
+        if role not in ['admin', 'member', 'guest']:
+            raise ValueError(f"Invalid home role: {role}")
+            
+        with self.get_cursor() as cursor:
+            # Check if user already exists globally
+            cursor.execute("SELECT id FROM users WHERE name = %s OR email = %s", (username, email))
+            existing = cursor.fetchone()
+            
+            if existing:
+                existing_user_id = str(existing[0])
+                
+                # Check if user is already in this home
+                cursor.execute("SELECT 1 FROM user_homes WHERE user_id = %s AND home_id = %s", 
+                             (existing_user_id, home_id))
+                if cursor.fetchone():
+                    raise ValueError("User already exists in this home")
+                    
+                # Add existing user to home
+                cursor.execute("""
+                    INSERT INTO user_homes (user_id, home_id, role, joined_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (existing_user_id, home_id, role, datetime.now()))
+                
+                logger.info(f"Added existing user {username} to home {home_id} with role {role}")
+                return existing_user_id
+            else:
+                # Create new user and add to home
+                user_id, _ = self.create_user(username, email, password, create_default_home=False)
+                
+                # Add to specified home
+                cursor.execute("""
+                    INSERT INTO user_homes (user_id, home_id, role, joined_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (user_id, home_id, role, datetime.now()))
+                
+                logger.info(f"Created new user {username} and added to home {home_id} with role {role}")
+                return user_id
+                
+    def get_home_management_logs(self, home_id: str, admin_user_id: str, limit: int = 50) -> List[Dict]:
+        """
+        Get management logs for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin requesting logs
+            limit: Maximum number of logs to return
+            
+        Returns:
+            List of log entries for this home
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+            
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT id, timestamp, level, message, event_type, 
+                       user_id, username, ip_address, details
+                FROM management_logs 
+                WHERE home_id = %s
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """, (home_id, limit))
+            
+            logs = []
+            for row in cursor.fetchall():
+                logs.append({
+                    'id': str(row[0]),
+                    'timestamp': row[1],
+                    'level': row[2],
+                    'message': row[3],
+                    'event_type': row[4],
+                    'user_id': str(row[5]) if row[5] else None,
+                    'username': row[6],
+                    'ip_address': str(row[7]) if row[7] else None,
+                    'details': row[8] or {}
+                })
+            
+            return logs
+
+    def add_home_management_log(self, home_id: str, level: str, message: str,
+                              event_type: str = 'general', user_id: Optional[str] = None,
+                              username: Optional[str] = None, ip_address: Optional[str] = None,
+                              details: Optional[Dict] = None) -> bool:
+        """
+        Add a management log entry for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            level: Log level (info, warning, error)
+            message: Log message
+            event_type: Type of event (device_creation, room_creation, etc.)
+            user_id: ID of user performing the action
+            username: Username of user performing the action
+            ip_address: IP address of user
+            details: Additional details as JSON
+            
+        Returns:
+            True if log was added successfully
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO management_logs 
+                (home_id, timestamp, level, message, event_type, user_id, username, ip_address, details)
+                VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                home_id, level, message, event_type,
+                user_id, username, ip_address, 
+                details or {}
+            ))
+            return True
+
+    def get_home_stats(self, home_id: str, admin_user_id: str) -> Dict:
+        """
+        Get statistics for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin requesting stats
+            
+        Returns:
+            Dictionary with home statistics
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+            
+        with self.get_cursor() as cursor:
+            # Get basic counts
+            cursor.execute("""
+                SELECT 
+                    (SELECT COUNT(*) FROM user_homes WHERE home_id = %s) as users_count,
+                    (SELECT COUNT(*) FROM rooms WHERE home_id = %s) as rooms_count,
+                    (SELECT COUNT(*) FROM devices d JOIN rooms r ON d.room_id = r.id WHERE r.home_id = %s) as devices_count,
+                    (SELECT COUNT(*) FROM automations WHERE home_id = %s) as automations_count,
+                    (SELECT COUNT(*) FROM management_logs WHERE home_id = %s) as logs_count
+            """, (home_id, home_id, home_id, home_id, home_id))
+            
+            row = cursor.fetchone()
+            
+            if not row:
+                return {
+                    'users_count': 0,
+                    'rooms_count': 0,
+                    'devices_count': 0,
+                    'automations_count': 0,
+                    'logs_count': 0
+                }
+            
+            return {
+                'users_count': row[0] or 0,
+                'rooms_count': row[1] or 0, 
+                'devices_count': row[2] or 0,
+                'automations_count': row[3] or 0,
+                'logs_count': row[4] or 0
+            }
+            
+    def get_notification_recipients(self, home_id: str, admin_user_id: str) -> List[Dict]:
+        """
+        Get notification recipients for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin requesting recipients
+            
+        Returns:
+            List of notification recipients
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        with self.get_cursor() as cursor:
+            # For now, return home users as potential recipients
+            # In future, this could be a separate notification_recipients table
+            cursor.execute("""
+                SELECT u.id, u.name, u.email, uh.role, 
+                       TRUE as enabled  -- Default all users to enabled
+                FROM users u
+                JOIN user_homes uh ON u.id = uh.user_id
+                WHERE uh.home_id = %s
+                ORDER BY uh.role DESC, u.name
+            """, (home_id,))
+            
+            recipients = []
+            for row in cursor.fetchall():
+                recipients.append({
+                    'user_id': str(row[0]),
+                    'user': row[1],  # username
+                    'email': row[2] or '',
+                    'role': row[3],
+                    'enabled': row[4]
+                })
+            
+            return recipients
+            
+    def set_notification_recipients(self, home_id: str, recipients: List[Dict], admin_user_id: str) -> bool:
+        """
+        Set notification recipients for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            recipients: List of recipients with enabled status
+            admin_user_id: ID of the admin setting recipients
+            
+        Returns:
+            True if successful
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        # For now, just validate the input since we don't have a separate notifications table
+        # In the future, this could update a notification_recipients table
+        try:
+            for recipient in recipients:
+                if not isinstance(recipient.get('enabled'), bool):
+                    raise ValueError("Invalid recipient format")
+            
+            logger.info(f"Updated notification recipients for home {home_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update notification recipients for home {home_id}: {e}")
+            return False
 
     # ============================================================================
     # ROOM MANAGEMENT
@@ -823,6 +1118,7 @@ class MultiHomeDBManager:
                     'name': row[1],        # name
                     'room_id': row[2],     # room_id
                     'type': row[3],        # device_type
+                    'device_type': row[3], # alias for compatibility
                     'state': row[4],       # state
                     'temperature': row[5], # temperature
                     'min_temperature': row[6],  # min_temperature

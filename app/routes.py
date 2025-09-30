@@ -844,12 +844,19 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def admin_dashboard():
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            if not user_id or not current_home_id:
+                flash('Błąd: Brak kontekstu domu. Wybierz dom.', 'error')
+                return redirect(url_for('multi_home.home_select'))
+            
             if request.method == 'POST':
-                # Handle admin user creation
+                # Handle admin user creation for current home
                 username = request.form.get('username', '').strip()
                 email = request.form.get('email', '').strip()
                 password = request.form.get('password', '')
-                role = request.form.get('role', 'user')
+                role = request.form.get('role', 'member')
                 
                 # Basic validation
                 if not username or len(username) < 3:
@@ -864,59 +871,96 @@ class RoutesManager(MultiHomeHelpersMixin):
                     flash('Hasło musi mieć co najmniej 6 znaków.', 'error')
                     return redirect(url_for('admin_dashboard'))
                 
-                if role not in ['user', 'admin']:
+                if role not in ['admin', 'member', 'guest']:
                     flash('Nieprawidłowa rola użytkownika.', 'error')
                     return redirect(url_for('admin_dashboard'))
                 
-                # Check if user already exists
-                for user in self.smart_home.users.values():
-                    if user.get('name') == username:
-                        flash('Użytkownik już istnieje.', 'error')
-                        return redirect(url_for('admin_dashboard'))
-                    if user.get('email') == email:
-                        flash('Adres email jest już używany.', 'error')
-                        return redirect(url_for('admin_dashboard'))
-                
-                # Dodawanie użytkownika - obsługa trybu DB i plikowego
+                # Add user to current home using multihouse system
                 try:
-                    if hasattr(self.smart_home, 'add_user'):
-                        self.smart_home.add_user(username, password, role, email)
+                    if self.multi_db:
+                        self.multi_db.add_user_to_home(
+                            home_id=current_home_id,
+                            username=username,
+                            email=email,
+                            password=password,
+                            role=role,
+                            admin_user_id=user_id
+                        )
+                        flash(f'Użytkownik {username} został dodany do domu z rolą {role}!', 'success')
                     else:
-                        import uuid
-                        from werkzeug.security import generate_password_hash
-                        user_id = str(uuid.uuid4())
-                        self.smart_home.users[user_id] = {
-                            'name': username,
-                            'password': generate_password_hash(password),
-                            'role': role,
-                            'email': email,
-                            'profile_picture': ''
-                        }
-                        self.smart_home.save_config()
-                    flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
+                        # Fallback to old system
+                        if hasattr(self.smart_home, 'add_user'):
+                            self.smart_home.add_user(username, password, role, email)
+                        else:
+                            import uuid
+                            from werkzeug.security import generate_password_hash
+                            new_user_id = str(uuid.uuid4())
+                            self.smart_home.users[new_user_id] = {
+                                'name': username,
+                                'password': generate_password_hash(password),
+                                'role': role,
+                                'email': email,
+                                'profile_picture': ''
+                            }
+                            self.smart_home.save_config()
+                        flash(f'Użytkownik {username} został dodany pomyślnie!', 'success')
                 except Exception as e:
                     flash(f'Błąd podczas dodawania użytkownika: {e}', 'error')
                 return redirect(url_for('admin_dashboard'))
             
-            # Przygotowanie statystyk dla dashboardu
-            stats = self._generate_dashboard_stats()
-            device_states = self._get_device_states()
-            management_logs = self._get_management_logs()
-            
-            # Pre-load users data for immediate rendering
-            users_list = [
-                {
-                    'user_id': user_id,
-                    'username': data['name'],
-                    'email': data.get('email', ''),
-                    'role': data['role'],
-                    'password': '••••••••'  # Always show dots for password
-                }
-                for user_id, data in self.smart_home.users.items()
-            ]
-            
-            # Pobierz dane użytkownika dla wyświetlenia zdjęcia profilowego
-            user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
+            # Get data for current home
+            try:
+                if self.multi_db:
+                    # Multihouse system - data for current home only
+                    stats = self.multi_db.get_home_stats(current_home_id, user_id)
+                    management_logs = self.multi_db.get_home_management_logs(current_home_id, user_id)
+                    users_list = self.multi_db.get_home_users(current_home_id, user_id)
+                    
+                    # Convert for template compatibility
+                    for user in users_list:
+                        user['role'] = user['home_role']  # Use home role for display
+                        user['password'] = '••••••••'  # Always show dots
+                        
+                    device_states = self._get_device_states_for_home(current_home_id, user_id)
+                    
+                    # Get user data for profile picture
+                    user_data = self.multi_db.get_user_by_id(user_id)
+                    if user_data:
+                        user_data.update({
+                            'user_id': user_data.get('id'),
+                            'username': user_data.get('name')
+                        })
+                else:
+                    # Fallback to old system
+                    stats = self._generate_dashboard_stats()
+                    device_states = self._get_device_states()
+                    management_logs = self._get_management_logs()
+                    
+                    # Pre-load users data for immediate rendering
+                    users_list = [
+                        {
+                            'user_id': uid,
+                            'username': data['name'],
+                            'email': data.get('email', ''),
+                            'role': data['role'],
+                            'password': '••••••••'
+                        }
+                        for uid, data in self.smart_home.users.items()
+                    ]
+                    
+                    user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    
+            except PermissionError:
+                flash('Nie masz uprawnień administratora w tym domu.', 'error')
+                return redirect(url_for('dashboard'))
+            except Exception as e:
+                flash(f'Błąd podczas ładowania danych: {e}', 'error')
+                # Fallback data
+                stats = {'users_count': 0, 'devices_count': 0, 'automations_count': 0, 'logs_count': 0}
+                device_states = []
+                management_logs = []
+                users_list = []
+                user_data = None
             
             return render_template('admin_dashboard.html', 
                                  stats=stats, 
@@ -929,14 +973,38 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def api_admin_device_states():
-            device_states = self._get_device_states()
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            if self.multi_db and user_id and current_home_id:
+                try:
+                    device_states = self._get_device_states_for_home(current_home_id, user_id)
+                except PermissionError:
+                    return jsonify({"error": "Access denied"}), 403
+                except Exception as e:
+                    return jsonify({"error": str(e)}), 500
+            else:
+                device_states = self._get_device_states()
+            
             return jsonify(device_states)
 
         @self.app.route('/api/admin/logs')
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def api_admin_logs():
-            logs = self._get_management_logs()
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            if self.multi_db and user_id and current_home_id:
+                try:
+                    logs = self.multi_db.get_home_management_logs(current_home_id, user_id)
+                except PermissionError:
+                    return jsonify({"error": "Access denied"}), 403
+                except Exception as e:
+                    return jsonify({"error": str(e)}), 500
+            else:
+                logs = self._get_management_logs()
+            
             return jsonify(logs)
 
         # Notification settings (recipients) API
@@ -944,105 +1012,145 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def api_notification_settings():
-            """Get or set notification recipients for the home.
+            """Get or set notification recipients for the current home.
             Frontend expects:
               GET -> { recipients: [{ email, user, enabled }] }
               POST body -> { recipients: [{ email, user, enabled }] }
-            where 'user' is the username (not id). DB stores user_id.
             """
-            from utils.db_manager import (
-                get_notification_recipients,
-                set_notification_recipients,
-            )
-            import os, json
-            from pathlib import Path
-
-            # Map users: id <-> name
-            users_by_id = {}
-            users_by_name = {}
-            try:
-                for uid, data in self.smart_home.users.items():
-                    name = data.get('name')
-                    if name:
-                        users_by_id[str(uid)] = name
-                        users_by_name[name] = str(uid)
-            except Exception:
-                pass
-
-            # Choose a home id for persistence (single-home setup default = 1)
-            home_id_env = os.getenv('HOME_ID')
-            try:
-                home_id = int(home_id_env) if home_id_env else 1
-            except ValueError:
-                home_id = 1
-
-            def _fallback_file_path():
-                base = Path(os.path.dirname(os.path.abspath(__file__))).parent
-                return base / 'backups' / 'notification_recipients.json'
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            if not user_id or not current_home_id:
+                return jsonify({"error": "Missing user or home context"}), 400
 
             if request.method == 'GET':
                 try:
-                    recipients_db = get_notification_recipients(home_id)
-                    # Convert to frontend shape: use username
-                    recipients = []
-                    for r in recipients_db:
-                        uid = r.get('user_id')
-                        recipients.append({
-                            'email': r.get('email', ''),
-                            'user': users_by_id.get(str(uid), ''),
-                            'enabled': bool(r.get('enabled', True))
-                        })
-                    return jsonify({ 'recipients': recipients })
-                except Exception:
-                    # Fallback to JSON file store
-                    try:
-                        fp = _fallback_file_path()
-                        if fp.exists():
-                            data = json.loads(fp.read_text(encoding='utf-8'))
-                            if isinstance(data, dict) and 'recipients' in data:
-                                return jsonify({ 'recipients': data['recipients'] })
-                    except Exception:
-                        pass
-                    return jsonify({ 'recipients': [] }), 200
+                    if self.multi_db:
+                        # Use multihouse system
+                        recipients = self.multi_db.get_notification_recipients(current_home_id, user_id)
+                        return jsonify({ 'recipients': recipients })
+                    else:
+                        # Fallback to old system
+                        from utils.db_manager import get_notification_recipients
+                        import os, json
+                        from pathlib import Path
+
+                        # Map users: id <-> name
+                        users_by_id = {}
+                        try:
+                            for uid, data in self.smart_home.users.items():
+                                name = data.get('name')
+                                if name:
+                                    users_by_id[str(uid)] = name
+                        except Exception:
+                            pass
+
+                        home_id_env = os.getenv('HOME_ID')
+                        try:
+                            home_id = int(home_id_env) if home_id_env else 1
+                        except ValueError:
+                            home_id = 1
+
+                        try:
+                            recipients_db = get_notification_recipients(home_id)
+                            recipients = []
+                            for r in recipients_db:
+                                uid = r.get('user_id')
+                                recipients.append({
+                                    'email': r.get('email', ''),
+                                    'user': users_by_id.get(str(uid), ''),
+                                    'enabled': bool(r.get('enabled', True))
+                                })
+                            return jsonify({ 'recipients': recipients })
+                        except Exception:
+                            # Fallback to JSON file
+                            base = Path(os.path.dirname(os.path.abspath(__file__))).parent
+                            fp = base / 'backups' / 'notification_recipients.json'
+                            try:
+                                if fp.exists():
+                                    data = json.loads(fp.read_text(encoding='utf-8'))
+                                    if isinstance(data, dict) and 'recipients' in data:
+                                        return jsonify({ 'recipients': data['recipients'] })
+                            except Exception:
+                                pass
+                            return jsonify({ 'recipients': [] }), 200
+                            
+                except PermissionError:
+                    return jsonify({"error": "Access denied"}), 403
+                except Exception as e:
+                    return jsonify({"error": str(e)}), 500
 
             # POST
             try:
                 data = request.get_json(silent=True) or {}
                 recipients = data.get('recipients', [])
-                # Validate and map to DB shape (email, user_id, enabled)
-                recipients_db = []
-                for r in recipients:
-                    username = (r.get('user') or '').strip()
-                    email = (r.get('email') or '').strip()
-                    enabled = bool(r.get('enabled', True))
-                    uid_str = users_by_name.get(username)
-                    uid_val = None
-                    if uid_str is not None:
-                        # Coerce to int when possible
-                        try:
-                            uid_val = int(uid_str)
-                        except (TypeError, ValueError):
-                            # keep None if not numeric
-                            uid_val = None
-                    recipients_db.append({
-                        'email': email,
-                        'user_id': uid_val,
-                        'enabled': enabled,
-                    })
-                # Try DB first
-                try:
-                    set_notification_recipients(recipients_db, home_id)
-                    return jsonify({ 'status': 'success' })
-                except Exception as db_err:
-                    # Fallback to JSON file store to avoid 500s
+                
+                if self.multi_db:
+                    # Use multihouse system
+                    success = self.multi_db.set_notification_recipients(current_home_id, recipients, user_id)
+                    if success:
+                        return jsonify({"status": "success"})
+                    else:
+                        return jsonify({"error": "Failed to update recipients"}), 500
+                else:
+                    # Fallback to old system
+                    import json
+                    from pathlib import Path
+                    from utils.db_manager import set_notification_recipients
+                    
+                    # Map users: name -> id
+                    users_by_name = {}
                     try:
-                        fp = _fallback_file_path()
-                        fp.parent.mkdir(parents=True, exist_ok=True)
-                        payload = { 'recipients': recipients }
-                        fp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
-                        return jsonify({ 'status': 'success', 'warning': 'DB unavailable, saved to file store' })
-                    except Exception as file_err:
-                        return jsonify({ 'status': 'error', 'message': f'{db_err}; fallback failed: {file_err}' }), 500
+                        for uid, data in self.smart_home.users.items():
+                            name = data.get('name')
+                            if name:
+                                users_by_name[name] = str(uid)
+                    except Exception:
+                        pass
+
+                    recipients_db = []
+                    for r in recipients:
+                        username = (r.get('user') or '').strip()
+                        email = (r.get('email') or '').strip()
+                        enabled = bool(r.get('enabled', True))
+                        uid_str = users_by_name.get(username)
+                        uid_val = None
+                        if uid_str is not None:
+                            try:
+                                uid_val = int(uid_str)
+                            except (TypeError, ValueError):
+                                uid_val = None
+                        recipients_db.append({
+                            'email': email,
+                            'user_id': uid_val,
+                            'enabled': enabled,
+                        })
+                    
+                    # Try DB first
+                    try:
+                        import os
+                        home_id_env = os.getenv('HOME_ID')
+                        try:
+                            home_id = int(home_id_env) if home_id_env else 1
+                        except ValueError:
+                            home_id = 1
+                            
+                        set_notification_recipients(recipients_db, home_id)
+                        return jsonify({ 'status': 'success' })
+                    except Exception as db_err:
+                        # Fallback to JSON file store
+                        try:
+                            base = Path(os.path.dirname(os.path.abspath(__file__))).parent
+                            fp = base / 'backups' / 'notification_recipients.json'
+                            fp.parent.mkdir(parents=True, exist_ok=True)
+                            payload = { 'recipients': recipients }
+                            fp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+                            return jsonify({ 'status': 'success', 'warning': 'DB unavailable, saved to file store' })
+                        except Exception as file_err:
+                            return jsonify({ 'status': 'error', 'message': f'{db_err}; fallback failed: {file_err}' }), 500
+                            
+            except PermissionError:
+                return jsonify({"error": "Access denied"}), 403
             except Exception as e:
                 return jsonify({ 'status': 'error', 'message': str(e) }), 500
 
@@ -1930,6 +2038,42 @@ class RoutesManager(MultiHomeHelpersMixin):
         
         return device_states
 
+    def _get_device_states_for_home(self, home_id: str, user_id: str):
+        """Pobiera stan urządzeń dla konkretnego domu"""
+        device_states = []
+        
+        if self.multi_db:
+            try:
+                # Get rooms from multihouse system
+                rooms = self.multi_db.get_home_rooms(home_id, user_id)
+                print(f"DEBUG: Found {len(rooms)} rooms for home {home_id}")
+                
+                for room in rooms:
+                    room_id = room['id']
+                    room_name = room['name']
+                    
+                    # Get devices in this room
+                    devices = self.multi_db.get_room_devices(room_id, user_id)
+                    print(f"DEBUG: Found {len(devices)} devices in room {room_name}")
+                    
+                    for device in devices:
+                        # Fix: use 'type' instead of 'device_type' (what get_room_devices returns)
+                        device_type = device['type']
+                        device_states.append({
+                            'name': device['name'],
+                            'room': room_name,
+                            'state': device['state'],
+                            'type': device_type,
+                            'temperature': device.get('temperature', 22) if device_type == 'temperature_control' else None
+                        })
+                        
+            except Exception as e:
+                print(f"Error getting device states for home {home_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                
+        return device_states
+
     def _get_management_logs(self):
         """Pobiera rzeczywiste logi zarządzania systemem"""
         return self.management_logger.get_logs(limit=50)
@@ -2101,8 +2245,17 @@ class APIManager(MultiHomeHelpersMixin):
                     response['meta'] = {'home_id': resolved_home_id}
                 return jsonify(response)
 
-            # POST branch
-            if session.get('role') != 'admin':
+            # POST branch - Check admin permissions
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            has_admin = False
+            if self.multi_db and user_id:
+                has_admin = self.multi_db.has_admin_access(user_id, current_home_id)
+            else:
+                has_admin = session.get('role') in ['admin', 'sys-admin']
+                
+            if not has_admin:
                 return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
 
             payload = request.get_json(silent=True) or {}
@@ -2135,6 +2288,29 @@ class APIManager(MultiHomeHelpersMixin):
                         )
                     except Exception:
                         pass
+                    
+                    # Additional multihouse logging
+                    if hasattr(self.multi_db, 'add_home_management_log'):
+                        try:
+                            username = session.get('username', 'Unknown')
+                            ip_address = request.environ.get('REMOTE_ADDR')
+                            
+                            self.multi_db.add_home_management_log(
+                                home_id=str(resolved_home_id),
+                                level='info',
+                                message=f'Utworzono nowy pokój "{room_name}"',
+                                event_type='room_creation',
+                                user_id=str(user_id),
+                                username=username,
+                                ip_address=ip_address,
+                                details={
+                                    'room_id': str(new_room_id),
+                                    'room_name': room_name,
+                                    'description': description or ''
+                                }
+                            )
+                        except Exception as log_error:
+                            print(f"[WARNING] Failed to log room creation: {log_error}")
 
                     new_room = next((room for room in rooms_payload if str(room.get('id')) == str(new_room_id)), None)
                     response = {
@@ -2797,7 +2973,18 @@ class APIManager(MultiHomeHelpersMixin):
                 print(f"[DEBUG] GET /api/buttons returning {len(buttons)} buttons")
                 return jsonify(payload)
             elif request.method == 'POST':
-                if session.get('role') != 'admin':
+                # Check admin permissions using multihouse system
+                user_id = session.get('user_id')
+                current_home_id = session.get('current_home_id')
+                
+                has_admin = False
+                if self.multi_db and user_id:
+                    has_admin = self.multi_db.has_admin_access(user_id, current_home_id)
+                else:
+                    # Fallback to old system
+                    has_admin = session.get('role') in ['admin', 'sys-admin']
+                    
+                if not has_admin:
                     return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
                 payload = request.get_json(silent=True) or {}
                 name = (payload.get('name') or '').strip()
@@ -2859,6 +3046,40 @@ class APIManager(MultiHomeHelpersMixin):
                                 return jsonify({"status": "error", "message": "Nie znaleziono pokoju"}), 404
 
                         new_id = self.multi_db.create_device(room_id, name, 'button', str(user_id), state=False, enabled=True, home_id=resolved_home_id)
+                        
+                        # Log device creation
+                        if self.multi_db and hasattr(self.multi_db, 'add_home_management_log'):
+                            try:
+                                # Get room name for logging
+                                room_name = "Nieprzypisane"
+                                if room_id:
+                                    room_info = self.multi_db.get_room(room_id, str(user_id))
+                                    if room_info:
+                                        room_name = room_info.get('name', 'Nieznany')
+                                
+                                # Get username for logging
+                                username = session.get('username', 'Unknown')
+                                ip_address = request.environ.get('REMOTE_ADDR')
+                                
+                                self.multi_db.add_home_management_log(
+                                    home_id=str(resolved_home_id),
+                                    level='info',
+                                    message=f'Utworzono nowe urządzenie przycisk "{name}" w pokoju "{room_name}"',
+                                    event_type='device_creation',
+                                    user_id=str(user_id),
+                                    username=username,
+                                    ip_address=ip_address,
+                                    details={
+                                        'device_id': str(new_id),
+                                        'device_name': name,
+                                        'device_type': 'button',
+                                        'room_id': str(room_id) if room_id else None,
+                                        'room_name': room_name
+                                    }
+                                )
+                            except Exception as log_error:
+                                print(f"[WARNING] Failed to log device creation: {log_error}")
+                        
                         if self.cached_data:
                             invalidate = getattr(self.cached_data, 'invalidate_buttons_cache', None)
                             if callable(invalidate):
@@ -3292,7 +3513,17 @@ class APIManager(MultiHomeHelpersMixin):
                 return jsonify(response)
             elif request.method == 'POST':
                 try:
-                    if session.get('role') != 'admin':
+                    # Check admin permissions using multihouse system
+                    user_id = session.get('user_id')
+                    current_home_id = session.get('current_home_id')
+                    
+                    has_admin = False
+                    if self.multi_db and user_id:
+                        has_admin = self.multi_db.has_admin_access(user_id, current_home_id)
+                    else:
+                        has_admin = session.get('role') in ['admin', 'sys-admin']
+                        
+                    if not has_admin:
                         return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
                     payload = request.get_json(silent=True) or {}
                     name = (payload.get('name') or '').strip()
@@ -4315,7 +4546,16 @@ class APIManager(MultiHomeHelpersMixin):
                 # Legacy/global mode
                 return jsonify(self.smart_home.automations)
 
-            if session.get('role') != 'admin':
+            # Check admin permissions using multihouse system
+            current_home_id = session.get('current_home_id')
+            
+            has_admin = False
+            if self.multi_db and user_id:
+                has_admin = self.multi_db.has_admin_access(user_id, current_home_id)
+            else:
+                has_admin = session.get('role') in ['admin', 'sys-admin']
+                
+            if not has_admin:
                 return jsonify({"status": "error", "message": "Brak uprawnień"}), 403
 
             new_automation = request.get_json(silent=True) or {}

@@ -74,7 +74,9 @@ class SmartHomeSystemDB:
             else:
                 print(f"✓ Security state loaded from database: {current_security_state}")
         except Exception as e:
-            print(f"⚠ Warning: Could not initialize default security state: {e}")
+            # Gracefully handle missing system_settings table (multihouse migration)
+            print(f"⚠ Warning: Legacy security state initialization failed (multihouse migration): {e}")
+            print("ℹ Security state will be handled by multihouse system per-home")
     
     
     # ========================================================================
@@ -150,12 +152,20 @@ class SmartHomeSystemDB:
     @property
     def security_state(self) -> str:
         """Get security state (compatibility property)"""
-        return self.db.get_security_state()
+        try:
+            return self.db.get_security_state()
+        except Exception:
+            # Fallback for multihouse migration - return default
+            return "Wyłączony"
     
     @security_state.setter
     def security_state(self, value: str):
         """Set security state (compatibility property)"""
-        self.db.set_security_state(value)
+        try:
+            self.db.set_security_state(value)
+        except Exception as e:
+            # Gracefully handle system_settings table not existing
+            print(f"⚠ Warning: Could not set security state (multihouse migration): {e}")
     
     # ========================================================================
     # USER MANAGEMENT METHODS (compatible with original interface)
