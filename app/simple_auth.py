@@ -11,8 +11,9 @@ from flask import session, redirect, url_for
 class SimpleAuthManager:
     """Simple authentication manager for testing"""
     
-    def __init__(self, smart_home):
+    def __init__(self, smart_home, multi_db=None):
         self.smart_home = smart_home
+        self.multi_db = multi_db
     
     def login_required(self, f):
         """Decorator for requiring login"""
@@ -34,23 +35,49 @@ class SimpleAuthManager:
         return decorated_function
     
     def admin_required(self, f):
-        """Decorator for requiring admin role"""
+        """Decorator for requiring admin role (supports multihouse per-home admin roles)"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
                 return redirect(url_for('login'))
             
             user_id = session.get('user_id')
-            user = self.smart_home.get_user_by_id(user_id)
             
-            # Check if user is sys-admin (global admin) or has admin privileges
+            # Check multihouse system first (preferred)
+            if self.multi_db:
+                try:
+                    current_home_id = session.get('current_home_id')
+                    
+                    # Use the centralized admin access check
+                    if self.multi_db.has_admin_access(user_id, current_home_id):
+                        # Get details for logging
+                        if self.multi_db.is_sys_admin(user_id):
+                            print(f"[DEBUG] Admin access granted - sys-admin: {user_id}")
+                        elif current_home_id:
+                            home_role = self.multi_db.get_user_role_in_home(user_id, current_home_id)
+                            print(f"[DEBUG] Admin access granted - home role '{home_role}' in home {current_home_id}")
+                        else:
+                            print(f"[DEBUG] Admin access granted - has admin role in some home")
+                        
+                        return f(*args, **kwargs)
+                    
+                    # No admin access found
+                    print(f"[DEBUG] Admin access denied for user {user_id}")
+                    return redirect(url_for('dashboard'))
+                    
+                except Exception as e:
+                    # Fallback to old system on error
+                    print(f"[DEBUG] Multihouse admin check failed, falling back to old system: {e}")
+            
+            # Fallback to old system
+            user = self.smart_home.get_user_by_id(user_id)
             if not user:
                 return redirect(url_for('dashboard'))
                 
             user_role = user.get('role')
             # Sys-admin has global access
             if user_role == 'sys-admin':
-                pass  # Allow access
+                return f(*args, **kwargs)
             elif user_role not in ['admin', 'user']:  # Keep backward compatibility
                 return redirect(url_for('dashboard'))
             
@@ -58,27 +85,42 @@ class SimpleAuthManager:
         return decorated_function
     
     def api_admin_required(self, f):
-        """Decorator for requiring admin role on API endpoints (returns JSON instead of redirect)"""
+        """Decorator for requiring admin role on API endpoints (supports multihouse per-home admin roles)"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            from flask import jsonify
+            
             if 'user_id' not in session:
-                from flask import jsonify
                 return jsonify({"status": "error", "message": "Authentication required"}), 401
             
             user_id = session.get('user_id')
-            user = self.smart_home.get_user_by_id(user_id)
             
-            # Check if user is sys-admin (global admin) or has admin privileges
+            # Check multihouse system first (preferred)
+            if self.multi_db:
+                try:
+                    current_home_id = session.get('current_home_id')
+                    
+                    # Use the centralized admin access check
+                    if self.multi_db.has_admin_access(user_id, current_home_id):
+                        return f(*args, **kwargs)
+                    
+                    # No admin access found
+                    return jsonify({"status": "error", "message": "Admin privileges required"}), 403
+                    
+                except Exception as e:
+                    # Fallback to old system on error
+                    print(f"[DEBUG] Multihouse API admin check failed, falling back to old system: {e}")
+            
+            # Fallback to old system
+            user = self.smart_home.get_user_by_id(user_id)
             if not user:
-                from flask import jsonify
                 return jsonify({"status": "error", "message": "Admin privileges required"}), 403
                 
             user_role = user.get('role')
             # Sys-admin has global access
             if user_role == 'sys-admin':
-                pass  # Allow access
+                return f(*args, **kwargs)
             elif user_role not in ['admin', 'user']:  # Keep backward compatibility 
-                from flask import jsonify
                 return jsonify({"status": "error", "message": "Admin privileges required"}), 403
             
             return f(*args, **kwargs)

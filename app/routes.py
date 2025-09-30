@@ -8,9 +8,13 @@ import os
 import time
 import uuid
 import json
+import logging
 from decimal import Decimal
 from utils.allowed_file import allowed_file
 from datetime import datetime
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 def normalize_device_id(raw_id):
@@ -1146,35 +1150,90 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.app.route('/user')
         @self.auth_manager.login_required
         def user_profile():
-            user_id, user = self.smart_home.get_user_by_login(session['username'])
-            user_data = self.smart_home.get_user_data(user_id) if user else None
+            user_id = session.get('user_id')
+            if not user_id:
+                flash('Błąd autoryzacji', 'error')
+                return redirect(url_for('login'))
+                
+            # Use multihouse system if available
+            if self.multi_db:
+                user_data = self.multi_db.get_user_by_id(user_id)
+                # Convert for template compatibility
+                if user_data:
+                    user_data.update({
+                        'user_id': user_data.get('id'),
+                        'username': user_data.get('name')
+                    })
+            else:
+                # Fallback to old system
+                user_id, user = self.smart_home.get_user_by_login(session['username'])
+                user_data = self.smart_home.get_user_data(user_id) if user else None
+                
             return render_template('user.html', user_data=user_data)
 
         @self.app.route('/api/user/profile', methods=['GET', 'PUT'])
         @self.auth_manager.login_required
         def manage_profile():
-            user_id, user = self.smart_home.get_user_by_login(session['username'])
-            if not user:
+            user_id = session.get('user_id')
+            if not user_id:
                 return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-            if request.method == 'GET':
+                
+            # Get user data from multihouse system if available
+            if self.multi_db:
+                user_data = self.multi_db.get_user_by_id(user_id)
+                if not user_data:
+                    return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
+            else:
+                # Fallback to old system
+                user_id, user = self.smart_home.get_user_by_login(session['username'])
+                if not user:
+                    return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
                 user_data = self.smart_home.get_user_data(user_id)
+                
+            if request.method == 'GET':
                 return jsonify(user_data)
             elif request.method == 'PUT':
                 data = request.get_json()
                 if not data:
                     return jsonify({"status": "error", "message": "Brak danych"}), 400
 
-                updates = {}
-                if 'username' in data and data['username'] != user['name']:
-                    updates['name'] = data['username']
-                if 'name' in data:
-                    updates['name'] = data['name']
-                if 'email' in data:
-                    updates['email'] = data['email']
-                if data.get('current_password') and data.get('new_password'):
-                    if not self.smart_home.verify_password(user_id, data['current_password']):
-                        return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
-                    updates['password'] = data['new_password']
+                # Use multihouse system if available
+                if self.multi_db:
+                    updates = {}
+                    if 'username' in data and data['username'] != user_data['name']:
+                        updates['name'] = data['username']
+                    if 'name' in data:
+                        updates['name'] = data['name']  
+                    if 'email' in data:
+                        updates['email'] = data['email']
+                    
+                    # Handle password change separately
+                    if data.get('current_password') and data.get('new_password'):
+                        if not self.multi_db.verify_user_password(user_id, data['current_password']):
+                            return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
+                        
+                        from werkzeug.security import generate_password_hash
+                        password_hash = generate_password_hash(data['new_password'])
+                        if not self.multi_db.update_user_password(user_id, password_hash):
+                            return jsonify({"status": "error", "message": "Błąd podczas zmiany hasła"}), 500
+                    
+                    # Update other fields
+                    if updates:
+                        if not self.multi_db.update_user(user_id, updates):
+                            return jsonify({"status": "error", "message": "Błąd podczas aktualizacji profilu"}), 500
+                else:
+                    # Fallback to old system
+                    updates = {}
+                    if 'username' in data and data['username'] != user['name']:
+                        updates['name'] = data['username']
+                    if 'name' in data:
+                        updates['name'] = data['name']
+                    if 'email' in data:
+                        updates['email'] = data['email']
+                    if data.get('current_password') and data.get('new_password'):
+                        if not self.smart_home.verify_password(user_id, data['current_password']):
+                            return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
+                        updates['password'] = data['new_password']
                 success, message = self.smart_home.update_user_profile(user_id, updates)
                 if success:
                     # Log user profile change
@@ -1253,12 +1312,36 @@ class RoutesManager(MultiHomeHelpersMixin):
                     
                     print(f"[DEBUG] Login attempt: username='{login_name}', password_length={len(password) if password else 0}")
                     
-                    # Get user by name/email (DB mode: use get_user_by_login)
+                    # Get user by name/email using multihouse system
                     user_id = None
                     user = None
-                    if hasattr(self.smart_home, 'get_user_by_login'):
+                    password_verified = False
+                    
+                    if self.multi_db:
+                        # Use new multihouse system
+                        user = self.multi_db.find_user_by_email_or_username(login_name)
+                        if user:
+                            user_id = user['id']
+                            print(f"[DEBUG] Multihouse mode: found user {user_id} for '{login_name}'")
+                            
+                            # Verify password using werkzeug
+                            from werkzeug.security import check_password_hash
+                            stored_password_hash = user.get('password_hash', '')
+                            if stored_password_hash and isinstance(stored_password_hash, str) and password:
+                                password_verified = check_password_hash(stored_password_hash, password)
+                            else:
+                                password_verified = False
+                            print(f"[DEBUG] Password verification result: {password_verified}")
+                        else:
+                            print(f"[DEBUG] No user found in multihouse system for login_name: '{login_name}'")
+                    
+                    # Fallback to old system if multi_db not available
+                    elif hasattr(self.smart_home, 'get_user_by_login'):
                         user_id, user = self.smart_home.get_user_by_login(login_name)
                         print(f"[DEBUG] DB mode: get_user_by_login('{login_name}') -> {user_id}")
+                        if user:
+                            password_verified = self.smart_home.verify_password(user_id, password)
+                            print(f"[DEBUG] Password verification result: {password_verified}")
                     else:
                         users = self.smart_home.users
                         print(f"[DEBUG] Got users: {list(users.keys())}")
@@ -1268,20 +1351,49 @@ class RoutesManager(MultiHomeHelpersMixin):
                                 user = user_data
                                 user_id = uid
                                 print(f"[DEBUG] Found matching user: {uid}")
+                                password_verified = self.smart_home.verify_password(user_id, password)
                                 break
-                    if user:
-                        print(f"[DEBUG] User found, checking password...")
-                        password_check = self.smart_home.verify_password(user_id, password)
-                        print(f"[DEBUG] Password verification result: {password_check}")
-                    else:
-                        print(f"[DEBUG] No user found for login_name: '{login_name}'")
                     
-                    # Proper password verification
-                    if user and user.get('password') and self.smart_home.verify_password(user_id, password):
+                    # Check authentication result
+                    if user and password_verified:
                         session['user_id'] = user_id
                         session['username'] = user['name']
                         session['role'] = user.get('role', 'user')
                         session.permanent = True
+                        
+                        # For multihouse system, set current home and load user homes
+                        if self.multi_db:
+                            # Get user's default home or first available home
+                            user_homes = self.multi_db.get_user_homes(user_id)
+                            if user_homes:
+                                # Use default home if set, otherwise first home
+                                default_home = user.get('default_home_id')
+                                current_home = None
+                                
+                                if default_home:
+                                    # Find the default home in user's homes
+                                    for home in user_homes:
+                                        if home['id'] == default_home:
+                                            current_home = home
+                                            break
+                                
+                                # If no default home found, use first home
+                                if not current_home and user_homes:
+                                    current_home = user_homes[0]
+                                
+                                if current_home:
+                                    session['current_home_id'] = current_home['id']
+                                    session['current_home_name'] = current_home['name']
+                                    session['home_role'] = current_home['role']
+                                    
+                                    # Set user's current home in database
+                                    self.multi_db.set_user_current_home(user_id, current_home['id'])
+                                    
+                                    print(f"[DEBUG] Set current home: {current_home['name']} (ID: {current_home['id']}) with role: {current_home['role']}")
+                                else:
+                                    print(f"[DEBUG] User {user['name']} has no homes")
+                            else:
+                                print(f"[DEBUG] User {user['name']} has no homes in multihouse system")
                         
                         print(f"[DEBUG] Login successful for user: {user['name']}")
                         
@@ -1291,8 +1403,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                         
                         # Return appropriate response based on request type
                         if request.is_json:
-                            # JSON API response for mobile - format compatible with Android ApiResponse<LoginResponse>
-                            return jsonify({
+                            # Prepare response data
+                            response_data = {
                                 "status": "success",
                                 "message": "Login successful",
                                 "data": {
@@ -1306,7 +1418,28 @@ class RoutesManager(MultiHomeHelpersMixin):
                                     },
                                     "session_id": None  # Flask sessions don't use explicit session IDs
                                 }
-                            })
+                            }
+                            
+                            # Add home information for multihouse system
+                            if self.multi_db:
+                                user_homes = self.multi_db.get_user_homes(user_id)
+                                current_home_id = session.get('current_home_id')
+                                current_home = None
+                                
+                                # Find current home details
+                                for home in user_homes:
+                                    if home['id'] == current_home_id:
+                                        current_home = home
+                                        break
+                                
+                                response_data["data"]["homes"] = user_homes
+                                response_data["data"]["current_home"] = current_home
+                                response_data["data"]["multihouse_enabled"] = True
+                            else:
+                                response_data["data"]["multihouse_enabled"] = False
+                            
+                            # JSON API response for mobile - format compatible with Android ApiResponse<LoginResponse>
+                            return jsonify(response_data)
                         else:
                             # Web response
                             flash('Zalogowano pomyślnie!', 'success')
@@ -1358,6 +1491,81 @@ class RoutesManager(MultiHomeHelpersMixin):
             session.clear()
             flash('Wylogowano pomyślnie!', 'info')
             return redirect(url_for('login'))
+
+        @self.app.route('/api/switch_home', methods=['POST'])
+        def switch_home():
+            """Switch user's current home in multihouse system"""
+            if not self.multi_db:
+                return jsonify({'status': 'error', 'message': 'Multihouse system not available'}), 400
+                
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+            
+            data = request.get_json()
+            if not data:
+                return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+                
+            home_id = data.get('home_id')
+            if not home_id:
+                return jsonify({'status': 'error', 'message': 'home_id is required'}), 400
+            
+            try:
+                # Verify user has access to this home
+                if not self.multi_db.user_has_home_access(user_id, home_id):
+                    return jsonify({'status': 'error', 'message': 'Access denied to this home'}), 403
+                
+                # Get home details
+                home_details = self.multi_db.get_home_details(home_id, user_id)
+                if not home_details:
+                    return jsonify({'status': 'error', 'message': 'Home not found'}), 404
+                
+                # Update session
+                session['current_home_id'] = home_id
+                session['current_home_name'] = home_details['name']
+                session['home_role'] = home_details['role']
+                
+                # Update database
+                self.multi_db.set_user_current_home(user_id, home_id)
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Switched to home: {home_details["name"]}',
+                    'current_home': {
+                        'id': home_id,
+                        'name': home_details['name'],
+                        'role': home_details['role'],
+                        'is_owner': home_details['is_owner']
+                    }
+                }), 200
+                
+            except Exception as e:
+                logger.error(f"Error switching home for user {user_id}: {e}")
+                return jsonify({'status': 'error', 'message': 'Failed to switch home'}), 500
+
+        @self.app.route('/api/get_user_homes', methods=['GET'])
+        def get_user_homes():
+            """Get list of homes user has access to"""
+            if not self.multi_db:
+                return jsonify({'status': 'error', 'message': 'Multihouse system not available'}), 400
+                
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+            
+            try:
+                user_homes = self.multi_db.get_user_homes(user_id)
+                current_home_id = session.get('current_home_id')
+                
+                return jsonify({
+                    'status': 'success',
+                    'homes': user_homes,
+                    'current_home_id': current_home_id
+                }), 200
+                
+            except Exception as e:
+                logger.error(f"Error getting user homes for {user_id}: {e}")
+                return jsonify({'status': 'error', 'message': 'Failed to get user homes'}), 500
 
         @self.app.route('/register', methods=['GET', 'POST'])
         def register():
@@ -1441,12 +1649,41 @@ class RoutesManager(MultiHomeHelpersMixin):
             if verified_user_id != user_id:
                 return jsonify({'status': 'error', 'message': 'Błąd weryfikacji użytkownika'}), 400
             
-            # Zmień hasło
-            success, msg = self.smart_home.change_password(user_id, new_password)
-            if success:
-                return jsonify({'status': 'success', 'message': 'Hasło zostało pomyślnie zresetowane. Możesz się teraz zalogować.'}), 200
+            # Zmień hasło w multihouse systemie
+            if self.multi_db:
+                try:
+                    from werkzeug.security import generate_password_hash
+                    new_password_hash = generate_password_hash(new_password)
+                    
+                    success = self.multi_db.update_user_password(user_id, new_password_hash)
+                    if success:
+                        # Log password reset
+                        self.management_logger.log_user_change(
+                            username=user.get('name', 'Unknown'),
+                            action='password_reset',
+                            target_user=user.get('name', 'Unknown'),
+                            ip_address=request.remote_addr or "",
+                            details={'email': email, 'user_id': user_id}
+                        )
+                        
+                        return jsonify({
+                            'status': 'success', 
+                            'message': 'Hasło zostało pomyślnie zresetowane. Możesz się teraz zalogować.'
+                        }), 200
+                    else:
+                        return jsonify({'status': 'error', 'message': 'Błąd podczas resetowania hasła.'}), 500
+                        
+                except Exception as e:
+                    logger.error(f"Password reset failed for user {user_id}: {e}")
+                    return jsonify({'status': 'error', 'message': 'Błąd podczas resetowania hasła.'}), 500
+            
+            # Fallback to old system
             else:
-                return jsonify({'status': 'error', 'message': msg}), 500
+                success, msg = self.smart_home.change_password(user_id, new_password)
+                if success:
+                    return jsonify({'status': 'success', 'message': 'Hasło zostało pomyślnie zresetowane. Możesz się teraz zalogować.'}), 200
+                else:
+                    return jsonify({'status': 'error', 'message': msg}), 500
         
     def _send_verification_code(self, data):
         """Pierwszy krok rejestracji - wysłanie kodu weryfikacyjnego"""
@@ -1462,12 +1699,19 @@ class RoutesManager(MultiHomeHelpersMixin):
         if not password or len(password) < 6:
             return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
         
-        # Sprawdź czy użytkownik już istnieje
-        for user in self.smart_home.users.values():
-            if user.get('name') == username:
-                return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
-            if user.get('email') == email:
-                return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+        # Sprawdź czy użytkownik już istnieje w multihouse systemie
+        if self.multi_db and self.multi_db.check_user_exists(username=username):
+            return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+        if self.multi_db and self.multi_db.check_user_exists(email=email):
+            return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+        
+        # Fallback to old system if multi_db not available
+        if not self.multi_db:
+            for user in self.smart_home.users.values():
+                if user.get('name') == username:
+                    return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+                if user.get('email') == email:
+                    return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
         
         # Wygeneruj i wyślij kod weryfikacyjny
         verification_code = self.mail_manager.generate_verification_code()
@@ -1506,28 +1750,82 @@ class RoutesManager(MultiHomeHelpersMixin):
         if len(password) < 6:
             return jsonify({'status': 'error', 'message': 'Hasło musi mieć co najmniej 6 znaków.'}), 400
         
-        # Sprawdź czy użytkownik już istnieje (ponownie)
-        for user in self.smart_home.users.values():
-            if user.get('name') == username:
-                return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
-            if user.get('email') == email:
-                return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+        # Utwórz użytkownika w multihouse systemie z domyślnym domem
+        if self.multi_db:
+            try:
+                from werkzeug.security import generate_password_hash
+                password_hash = generate_password_hash(password)
+                
+                # Utwórz użytkownika z automatycznym tworzeniem domyślnego domu
+                # Nowy użytkownik otrzymuje rolę 'user' globalnie i 'admin' w swoim domyślnym domu
+                user_id, home_id = self.multi_db.create_user(
+                    username=username,
+                    email=email, 
+                    password_hash=password_hash,
+                    role='user',  # Global role
+                    create_default_home=True  # Automatically create home with admin role
+                )
+                
+                # Log successful registration with home creation
+                self.management_logger.log_user_change(
+                    username=username,
+                    action='register',
+                    target_user=username,
+                    ip_address=request.remote_addr or "",
+                    details={
+                        'email': email,
+                        'user_id': user_id,
+                        'home_id': home_id,
+                        'home_created': True if home_id else False
+                    }
+                )
+                
+                return jsonify({
+                    'status': 'success', 
+                    'message': f'Rejestracja zakończona sukcesem! Utworzono domyślny dom: {username} Home.'
+                }), 200
+                
+            except ValueError as e:
+                return jsonify({'status': 'error', 'message': str(e)}), 400
+            except Exception as e:
+                logger.error(f"Registration failed for {username}: {e}")
+                return jsonify({'status': 'error', 'message': 'Błąd podczas rejestracji. Spróbuj ponownie.'}), 500
         
-        # Utwórz użytkownika
-        if hasattr(self.smart_home, 'add_user'):
-            self.smart_home.add_user(username, password, 'user', email)
+        # Fallback to old system if multi_db not available  
         else:
-            from werkzeug.security import generate_password_hash
-            import uuid
-            user_id = str(uuid.uuid4())
-            self.smart_home.users[user_id] = {
-                'name': username,
-                'password': generate_password_hash(password),
-                'role': 'user',
-                'email': email,
-                'profile_picture': ''
-            }
-            self.smart_home.save_config()
+            # Sprawdź czy użytkownik już istnieje (ponownie)
+            for user in self.smart_home.users.values():
+                if user.get('name') == username:
+                    return jsonify({'status': 'error', 'message': 'Użytkownik już istnieje.'}), 400
+                if user.get('email') == email:
+                    return jsonify({'status': 'error', 'message': 'Adres email jest już używany.'}), 400
+            
+            # Utwórz użytkownika w starym systemie
+            if hasattr(self.smart_home, 'add_user'):
+                self.smart_home.add_user(username, password, 'user', email)
+            else:
+                from werkzeug.security import generate_password_hash
+                import uuid
+                user_id = str(uuid.uuid4())
+                self.smart_home.users[user_id] = {
+                    'name': username,
+                    'password': generate_password_hash(password),
+                    'role': 'user',
+                    'email': email,
+                    'profile_picture': ''
+                }
+                self.smart_home.save_config()
+                
+            # Log user registration for old system
+            self.management_logger.log_user_change(
+                username=username, 
+                action='register', 
+                target_user=username,
+                ip_address=request.remote_addr or "",
+                details={'email': email, 'system': 'legacy'}
+            )
+            
+            return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
         
         # Log user registration
         self.management_logger.log_user_change(
@@ -1542,17 +1840,27 @@ class RoutesManager(MultiHomeHelpersMixin):
 
     def _find_user_by_email_or_username(self, email_or_username):
         """Znajduje użytkownika po email lub nazwie użytkownika"""
-        # Najpierw spróbuj znaleźć po email
-        for user_id, user in self.smart_home.users.items():
-            if user.get('email') == email_or_username:
-                return user_id, user, user.get('email')
         
-        # Jeśli nie znaleziono po email, spróbuj po nazwie użytkownika
-        for user_id, user in self.smart_home.users.items():
-            if user.get('name') == email_or_username:
-                return user_id, user, user.get('email')
+        # Use multihouse system if available
+        if self.multi_db:
+            user = self.multi_db.find_user_by_email_or_username(email_or_username)
+            if user:
+                return user['id'], user, user.get('email')
+            return None, None, None
         
-        return None, None, None
+        # Fallback to old system
+        else:
+            # Najpierw spróbuj znaleźć po email
+            for user_id, user in self.smart_home.users.items():
+                if user.get('email') == email_or_username:
+                    return user_id, user, user.get('email')
+            
+            # Jeśli nie znaleziono po email, spróbuj po nazwie użytkownika
+            for user_id, user in self.smart_home.users.items():
+                if user.get('name') == email_or_username:
+                    return user_id, user, user.get('email')
+            
+            return None, None, None
 
     def _generate_dashboard_stats(self):
         """Generuje statystyki dla dashboardu administratora"""

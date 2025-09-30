@@ -26,16 +26,22 @@ def multi_home_context_processor():
         user_homes = []
         
         if current_home_id:
-            current_home = multi_db.get_home_details(current_home_id, user_id)
+            current_home = multi_db.get_home_details(str(current_home_id), user_id)
         
         # Get all user homes for the dropdown
         user_homes = multi_db.get_user_homes(user_id)
+        
+        # Check admin access
+        is_sys_admin = multi_db.is_sys_admin(user_id)
+        has_admin_access = multi_db.has_admin_access(user_id, str(current_home_id) if current_home_id else None)
         
         return {
             'multi_home_enabled': True,
             'current_home': current_home,
             'user_homes': user_homes,
-            'current_home_id': current_home_id
+            'current_home_id': current_home_id,
+            'is_sys_admin': is_sys_admin,
+            'has_admin_access': has_admin_access
         }
         
     except Exception as e:

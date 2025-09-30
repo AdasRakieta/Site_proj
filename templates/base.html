@@ -95,7 +95,7 @@
                 <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
                 <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
                 <li><a href="/automations" class="menu-link"><img id="automations-icon" class="menu-icon" src="{{ url_for('static', filename='icons/automations_icon_light.png') }}" alt="Automations"> Automatyzacje</a></li>
-                {% if session.role == 'admin' %}
+                {% if has_admin_access %}
                 <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
                 <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
                 {% endif %}
