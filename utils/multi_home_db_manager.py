@@ -837,6 +837,7 @@ class MultiHomeDBManager:
         normalized_home_id = self._normalize_home_id(home_id)
 
         with self.get_cursor() as cursor:
+            # First check if device exists and get its home context
             cursor.execute("""
                 SELECT r.home_id
                 FROM devices d
@@ -848,12 +849,12 @@ class MultiHomeDBManager:
             if not row:
                 return False
 
-            device_home_id = self._normalize_home_id(row[0])
-            effective_home_id = device_home_id or normalized_home_id
-            if not effective_home_id:
+            # For unassigned devices (room_id NULL), use passed home_id
+            device_home_id = self._normalize_home_id(row[0]) or normalized_home_id
+            if not device_home_id:
                 return False
 
-            if not self.user_has_home_permission(user_id, effective_home_id, 'manage_devices'):
+            if not self.user_has_home_permission(user_id, device_home_id, 'manage_devices'):
                 return False
 
             cursor.execute("DELETE FROM devices WHERE id = %s", (normalized_id,))
@@ -865,8 +866,9 @@ class MultiHomeDBManager:
         if normalized_id is None:
             return None
         with self.get_cursor() as cursor:
+            # Query to find device in any home user has access to
             cursor.execute("""
-                SELECT 
+                SELECT DISTINCT
                     d.id,
                     d.name,
                     d.room_id,
@@ -884,8 +886,8 @@ class MultiHomeDBManager:
                     r.name AS room_name
                 FROM devices d
                 LEFT JOIN rooms r ON d.room_id = r.id
-                JOIN user_homes uh ON r.home_id = uh.home_id
-                WHERE d.id = %s AND uh.user_id = %s
+                LEFT JOIN user_homes uh ON r.home_id = uh.home_id
+                WHERE d.id = %s AND (uh.user_id = %s OR r.home_id IS NULL)
             """, (normalized_id, user_id))
             
             row = cursor.fetchone()

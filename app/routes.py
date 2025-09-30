@@ -2650,12 +2650,13 @@ class APIManager(MultiHomeHelpersMixin):
                 
             elif request.method == 'DELETE':
                 if self.multi_db:
+                    resolved_home_id = self._resolve_home_id(user_id)
                     device = self.multi_db.get_device(id, str(user_id))
                     if not device:
                         return jsonify({'status': 'error', 'message': 'Button not found'}), 404
 
                     try:
-                        success = self.multi_db.delete_device(id, str(user_id))
+                        success = self.multi_db.delete_device(id, str(user_id), resolved_home_id)
                     except PermissionError:
                         return jsonify({'status': 'error', 'message': 'Brak uprawnień do usunięcia urządzenia'}), 403
 
@@ -2674,7 +2675,7 @@ class APIManager(MultiHomeHelpersMixin):
                     if self.socketio:
                         self.socketio.emit('update_buttons', buttons)
 
-                    return jsonify({'status': 'success', 'meta': {'home_id': str(device.get('home_id')) if device else None}})
+                    return jsonify({'status': 'success', 'meta': {'home_id': str(resolved_home_id) if resolved_home_id else None}})
 
                 device = self.smart_home.get_device_by_id(id)
                 if not device:
