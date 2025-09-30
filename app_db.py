@@ -203,6 +203,16 @@ class SmartHomeApp:
                 self.smart_home = SmartHomeSystem()
                 print("✓ SmartHome system initialized with JSON backend")
             
+            # Initialize multi_db for database mode
+            self.multi_db = None
+            if DATABASE_MODE:
+                try:
+                    from app.multi_home_routes import multi_db
+                    self.multi_db = multi_db
+                    print("✓ Multi-home database manager initialized")
+                except Exception as e:
+                    print(f"⚠ Failed to initialize multi-home database manager: {e}")
+            
             # Initialize management logger
             # Use database logger when in database mode, JSON logger otherwise
             if DATABASE_MODE:
@@ -221,9 +231,9 @@ class SmartHomeApp:
             self.mail_manager = MailManager()
             self.async_mail_manager = AsyncMailManager(self.mail_manager)
             
-            # Initialize simple auth manager for database mode
+            # Initialize simple auth manager for database mode with multihouse support
             from app.simple_auth import SimpleAuthManager
-            self.auth_manager = SimpleAuthManager(self.smart_home)
+            self.auth_manager = SimpleAuthManager(self.smart_home, multi_db=self.multi_db)
             
             # Initialize cache with Redis if available, fallback to SimpleCache
             from flask_caching import Cache
@@ -292,15 +302,11 @@ class SmartHomeApp:
         """Setup Flask routes and API endpoints"""
         try:
             from app.routes import APIManager
-            # Import multi_db from multi_home_routes
-            from app.multi_home_routes import multi_db
-            
-            self.multi_db = multi_db
             
             # Setup system administrator after multi_db is available
-            if multi_db and hasattr(multi_db, 'setup_initial_sys_admin'):
+            if self.multi_db and hasattr(self.multi_db, 'setup_initial_sys_admin'):
                 try:
-                    success = multi_db.setup_initial_sys_admin('admin')
+                    success = self.multi_db.setup_initial_sys_admin('admin')
                     if success:
                         print("✓ System administrator (admin) initialized")
                     else:
@@ -317,7 +323,7 @@ class SmartHomeApp:
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger,
                 socketio=self.socketio,  # Add socketio parameter
-                multi_db=multi_db  # Add multi_db parameter
+                multi_db=self.multi_db  # Add multi_db parameter
             )
             # Register API endpoints (including /api/automations etc.)
             # Be resilient to different APIManager signatures across deployments
@@ -331,7 +337,7 @@ class SmartHomeApp:
                 'auth_manager': self.auth_manager,
                 'management_logger': self.management_logger,
                 'cache': self.cache,
-                'multi_db': multi_db,
+                'multi_db': self.multi_db,
             }
             filtered_kwargs = {k: v for k, v in possible_kwargs.items() if k in accepted_params}
             # Helpful debug

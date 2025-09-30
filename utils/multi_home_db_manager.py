@@ -175,29 +175,40 @@ class MultiHomeDBManager:
                 raise Exception("Failed to create home")
             home_id = result[0]
             
-            # Add owner to user_homes with admin role (creator becomes admin of their home)
+            # Add owner to user_homes with owner role (creator becomes owner of their home)
             cursor.execute("""
                 INSERT INTO user_homes (user_id, home_id, role, permissions, joined_at)
-                VALUES (%s, %s, 'admin', %s, %s)
+                VALUES (%s, %s, 'owner', %s, %s)
             """, (owner_id, home_id, json.dumps(['full_control']), datetime.now()))
             
-            # Note: Owner field in homes table tracks ownership, but user gets admin role in user_homes
+            # Note: Owner field in homes table tracks ownership, and user gets owner role in user_homes
             
             logger.info(f"Created home '{name}' with ID {home_id} for owner {owner_id}")
             return home_id
 
     def get_user_homes(self, user_id: str) -> List[Dict]:
-        """Get all homes a user has access to."""
+        """Get all homes a user has access to. Sys-admin sees all homes."""
         with self.get_cursor() as cursor:
-            cursor.execute("""
-                SELECT h.id, h.name, h.description, h.owner_id, 
-                       uh.role, uh.permissions, uh.joined_at,
-                       (h.owner_id = %s) as is_owner
-                FROM homes h
-                JOIN user_homes uh ON h.id = uh.home_id
-                WHERE uh.user_id = %s
-                ORDER BY h.name
-            """, (user_id, user_id))
+            # Check if user is sys-admin - if so, return all homes with sys-admin role
+            if self.is_sys_admin(user_id):
+                cursor.execute("""
+                    SELECT h.id, h.name, h.description, h.owner_id, 
+                           'sys-admin' as role, '[]' as permissions, NOW() as joined_at,
+                           (h.owner_id = %s) as is_owner
+                    FROM homes h
+                    ORDER BY h.name
+                """, (user_id,))
+            else:
+                # Regular users - only homes they're members of
+                cursor.execute("""
+                    SELECT h.id, h.name, h.description, h.owner_id, 
+                           uh.role, uh.permissions, uh.joined_at,
+                           (h.owner_id = %s) as is_owner
+                    FROM homes h
+                    JOIN user_homes uh ON h.id = uh.home_id
+                    WHERE uh.user_id = %s
+                    ORDER BY h.name
+                """, (user_id, user_id))
             
             homes = []
             for row in cursor.fetchall():
@@ -298,6 +309,41 @@ class MultiHomeDBManager:
                 return True
                 
             return permission in permissions
+
+    def get_user_role_in_home(self, user_id: str, home_id: str) -> Optional[str]:
+        """Get user's role in a specific home."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT role FROM user_homes 
+                WHERE user_id = %s AND home_id = %s
+            """, (user_id, home_id))
+            
+            row = cursor.fetchone()
+            return row[0] if row else None
+            
+    def has_admin_access(self, user_id: str, home_id: Optional[str] = None) -> bool:
+        """
+        Check if user has admin access (sys-admin globally or admin/owner in specific home).
+        
+        Args:
+            user_id: ID of the user
+            home_id: ID of the home to check (if None, checks global access only)
+            
+        Returns:
+            True if user has admin access, False otherwise
+        """
+        # 1. Check if user is sys-admin (global access)
+        if self.is_sys_admin(user_id):
+            return True
+            
+        # 2. If home_id provided, check home-specific access
+        if home_id:
+            home_role = self.get_user_role_in_home(user_id, home_id)
+            return home_role in ['owner', 'admin']
+            
+        # 3. If no home specified, check if user has admin/owner access in any home
+        user_homes = self.get_user_homes(user_id)
+        return any(home.get('role') in ['admin', 'owner'] for home in user_homes)
 
     # ============================================================================
     # ROOM MANAGEMENT
@@ -1465,4 +1511,283 @@ class MultiHomeDBManager:
                 (automation_id, normalized_home_id)
             )
             return cursor.rowcount > 0
+
+    # ============================================================================
+    # USER MANAGEMENT (for registration, authentication, password management)
+    # ============================================================================
+
+    def create_user(self, username: str, email: str, password_hash: str, 
+                   role: str = 'user', create_default_home: bool = True) -> Tuple[str, Optional[str]]:
+        """
+        Create a new user and optionally create their default home.
+        
+        Args:
+            username: User's username (must be unique)
+            email: User's email address (must be unique) 
+            password_hash: Pre-hashed password
+            role: Global user role ('user', 'admin', 'sys-admin')
+            create_default_home: Whether to create a default home for the user
+            
+        Returns:
+            Tuple of (user_id, home_id) where home_id is None if no home was created
+            
+        Raises:
+            ValueError: If username or email already exists
+        """
+        with self.get_cursor() as cursor:
+            try:
+                # Check if username already exists
+                cursor.execute("SELECT id FROM users WHERE name = %s", (username,))
+                if cursor.fetchone():
+                    raise ValueError("Użytkownik o tej nazwie już istnieje")
+                
+                # Check if email already exists  
+                cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    raise ValueError("Adres email jest już używany")
+                
+                # Create user
+                user_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, username, email, password_hash, role, datetime.now(), datetime.now()))
+                
+                home_id = None
+                if create_default_home:
+                    # Create default home for user (they become owner of their own home)
+                    home_name = f"{username} Home"
+                    
+                    # Ensure unique home name
+                    counter = 1
+                    original_name = home_name
+                    while True:
+                        cursor.execute("SELECT id FROM homes WHERE name = %s AND owner_id = %s", (home_name, user_id))
+                        if not cursor.fetchone():
+                            break
+                        counter += 1
+                        home_name = f"{original_name} {counter}"
+                    
+                    # Create the home
+                    home_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO homes (id, name, owner_id, description, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (home_id, home_name, user_id, f"Domyślny dom użytkownika {username}", datetime.now(), datetime.now()))
+                    
+                    # Add user to their home with owner role (home creators become owners)
+                    cursor.execute("""
+                        INSERT INTO user_homes (user_id, home_id, role, permissions, joined_at)
+                        VALUES (%s, %s, 'owner', %s, %s)
+                    """, (user_id, home_id, json.dumps(['full_control']), datetime.now()))
+                    
+                    # Set as user's default home
+                    cursor.execute("""
+                        UPDATE users SET default_home_id = %s WHERE id = %s
+                    """, (home_id, user_id))
+                
+                logger.info(f"Created user '{username}' with ID {user_id}" + 
+                          (f" and default home {home_id}" if home_id else ""))
+                
+                return user_id, home_id
+                
+            except Exception as e:
+                logger.error(f"Error creating user '{username}': {e}")
+                raise
+
+    def find_user_by_email_or_username(self, identifier: str) -> Optional[Dict]:
+        """
+        Find user by email address or username.
+        
+        Args:
+            identifier: Email address or username to search for
+            
+        Returns:
+            User dict with keys: id, name, email, password_hash, role, etc.
+            Returns None if user not found
+        """
+        with self.get_cursor() as cursor:
+            # First try by email
+            cursor.execute("""
+                SELECT id, name, email, password_hash, role, default_home_id, 
+                       created_at, updated_at
+                FROM users 
+                WHERE email = %s
+            """, (identifier,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': str(row[0]),
+                    'name': row[1], 
+                    'email': row[2],
+                    'password_hash': row[3],
+                    'role': row[4],
+                    'default_home_id': str(row[5]) if row[5] else None,
+                    'created_at': row[6],
+                    'updated_at': row[7]
+                }
+            
+            # If not found by email, try by username
+            cursor.execute("""
+                SELECT id, name, email, password_hash, role, default_home_id,
+                       created_at, updated_at
+                FROM users 
+                WHERE name = %s
+            """, (identifier,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': str(row[0]),
+                    'name': row[1],
+                    'email': row[2], 
+                    'password_hash': row[3],
+                    'role': row[4],
+                    'default_home_id': str(row[5]) if row[5] else None,
+                    'created_at': row[6],
+                    'updated_at': row[7]
+                }
+            
+            return None
+
+    def verify_user_password(self, user_id: str, password_hash: str) -> bool:
+        """
+        Verify user's password hash matches stored hash.
+        
+        Args:
+            user_id: User's ID
+            password_hash: Hashed password to verify
+            
+        Returns:
+            True if password matches, False otherwise
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT password_hash FROM users WHERE id = %s
+            """, (user_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return row[0] == password_hash
+            return False
+
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        """
+        Update user's password.
+        
+        Args:
+            user_id: User's ID
+            new_password_hash: New hashed password
+            
+        Returns:
+            True if password was updated, False if user not found
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = %s, updated_at = %s
+                WHERE id = %s
+            """, (new_password_hash, datetime.now(), user_id))
+            
+            success = cursor.rowcount > 0
+            if success:
+                logger.info(f"Updated password for user {user_id}")
+            return success
+            
+    def update_user(self, user_id: str, updates: dict) -> bool:
+        """
+        Update user profile data.
+        
+        Args:
+            user_id: User's ID
+            updates: Dict of fields to update (name, email, profile_picture, etc.)
+            
+        Returns:
+            True if user was updated, False if user not found
+        """
+        if not updates:
+            return False
+            
+        # Build dynamic update query
+        valid_fields = {'name', 'email', 'profile_picture', 'timezone', 'language'}
+        update_fields = {k: v for k, v in updates.items() if k in valid_fields}
+        
+        if not update_fields:
+            return False
+            
+        set_clause = ', '.join([f"{field} = %s" for field in update_fields.keys()])
+        values = list(update_fields.values())
+        values.extend([datetime.now(), user_id])  # updated_at, WHERE user_id
+        
+        with self.get_cursor() as cursor:
+            cursor.execute(f"""
+                UPDATE users 
+                SET {set_clause}, updated_at = %s
+                WHERE id = %s
+            """, values)
+            
+            success = cursor.rowcount > 0
+            if success:
+                logger.info(f"Updated user {user_id} fields: {list(update_fields.keys())}")
+            return success
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """
+        Get user details by ID.
+        
+        Args:
+            user_id: User's ID
+            
+        Returns:
+            User dict or None if not found
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT id, name, email, password_hash, role, default_home_id,
+                       profile_picture, timezone, language, created_at, updated_at
+                FROM users 
+                WHERE id = %s
+            """, (user_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': str(row[0]),
+                    'name': row[1],
+                    'email': row[2],
+                    'password_hash': row[3], 
+                    'role': row[4],
+                    'default_home_id': str(row[5]) if row[5] else None,
+                    'profile_picture': row[6] or '',
+                    'timezone': row[7] or 'UTC',
+                    'language': row[8] or 'pl',
+                    'created_at': row[9],
+                    'updated_at': row[10]
+                }
+            return None
+
+    def check_user_exists(self, username: Optional[str] = None, email: Optional[str] = None) -> bool:
+        """
+        Check if user exists by username or email.
+        
+        Args:
+            username: Username to check (optional)
+            email: Email to check (optional)
+            
+        Returns:
+            True if user exists, False otherwise
+        """
+        with self.get_cursor() as cursor:
+            if username:
+                cursor.execute("SELECT 1 FROM users WHERE name = %s", (username,))
+                if cursor.fetchone():
+                    return True
+            
+            if email:
+                cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    return True
+                    
+            return False
     
