@@ -368,15 +368,69 @@ class MultiHomeDBManager:
             
             return rooms
 
-    def get_room(self, room_id: int, user_id: str) -> Optional[Dict]:
+    def ensure_unassigned_room(self, home_id: Any, user_id: str) -> Optional[int]:
+        """Ensure the special 'Nieprzypisane' room exists for a home and return its ID."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id:
+            return None
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        system_room_name = 'Nieprzypisane'
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM rooms
+                WHERE home_id = %s AND LOWER(name) = LOWER(%s)
+                LIMIT 1
+                """,
+                (normalized_home_id, system_room_name)
+            )
+
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+
+            cursor.execute(
+                """
+                INSERT INTO rooms (home_id, name, description, display_order, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    normalized_home_id,
+                    system_room_name,
+                    'Systemowy pokój na urządzenia bez przypisania',
+                    9999,
+                    datetime.now(),
+                    datetime.now()
+                )
+            )
+
+            result = cursor.fetchone()
+            return result[0] if result else None
+
+    def get_room(self, room_id: Any, user_id: str) -> Optional[Dict]:
         """Get room details if user has access."""
+        if room_id is None:
+            return None
+
+        normalized_id: Any = room_id
+        if isinstance(room_id, str):
+            normalized_id = room_id.strip()
+            if not normalized_id:
+                return None
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT r.id, r.home_id, r.name, r.description, r.created_at, r.updated_at
                 FROM rooms r
                 JOIN user_homes uh ON r.home_id = uh.home_id
                 WHERE r.id = %s AND uh.user_id = %s
-            """, (room_id, user_id))
+            """, (normalized_id, user_id))
             
             row = cursor.fetchone()
             if not row:
@@ -553,15 +607,28 @@ class MultiHomeDBManager:
     # DEVICE MANAGEMENT
     # ============================================================================
 
-    def create_device(self, room_id: int, name: str, device_type: str, 
+    def create_device(self, room_id: Optional[int], name: str, device_type: str,
                       user_id: str, **kwargs) -> int:
-        """Create a new device in a room."""
-        # Verify user has access to the room's home
-        room = self.get_room(room_id, user_id)
-        if not room:
-            raise PermissionError("User doesn't have access to this room")
-            
-        if not self.user_has_home_permission(user_id, room['home_id'], 'manage_devices'):
+        """Create a new device, optionally unassigned (room_id = NULL).
+
+        When room_id is None, a 'home_id' kwarg must be provided to validate permissions.
+        """
+        target_home_id: Optional[str] = None
+        if room_id is not None:
+            # Verify user has access to the room's home
+            room = self.get_room(room_id, user_id)
+            if not room:
+                raise PermissionError("User doesn't have access to this room")
+            target_home_id = room['home_id']
+        else:
+            # Unassigned device creation requires explicit home context for permissions
+            target_home_id = self._normalize_home_id(kwargs.get('home_id'))
+            if not target_home_id:
+                raise ValueError("home_id is required when creating device without room")
+
+        if not target_home_id:
+            raise ValueError("Unable to determine home context for device creation")
+        if not self.user_has_home_permission(user_id, target_home_id, 'manage_devices'):
             raise PermissionError("User doesn't have permission to manage devices")
             
         with self.get_cursor() as cursor:
@@ -584,7 +651,7 @@ class MultiHomeDBManager:
                 }
             
             cursor.execute("""
-                INSERT INTO devices (room_id, name, device_type, state, temperature, 
+                INSERT INTO devices (room_id, name, device_type, state, temperature,
                                    enabled, settings, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
@@ -607,7 +674,7 @@ class MultiHomeDBManager:
             logger.info(f"Created {device_type} device '{name}' with ID {device_id} in room {room_id}")
             return device_id
 
-    def get_home_devices(self, home_id: str, user_id: str, 
+    def get_home_devices(self, home_id: str, user_id: str,
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a home, optionally filtered by type."""
         if not self.user_has_home_access(user_id, home_id):
@@ -617,8 +684,8 @@ class MultiHomeDBManager:
             query = """
                 SELECT d.*, r.name as room_name, r.home_id
                 FROM devices d
-                JOIN rooms r ON d.room_id = r.id
-                WHERE r.home_id = %s
+                LEFT JOIN rooms r ON d.room_id = r.id
+                WHERE (r.home_id = %s OR d.room_id IS NULL)
             """
             params: List[Any] = [home_id]
             
@@ -626,7 +693,7 @@ class MultiHomeDBManager:
                 query += " AND d.device_type = %s"
                 params.append(device_type)
                 
-            query += " ORDER BY r.name, d.name"
+            query += " ORDER BY r.name NULLS LAST, d.name"
             
             cursor.execute(query, params)
             
@@ -761,6 +828,37 @@ class MultiHomeDBManager:
             logger.info(f"Updated device {normalized_id} with fields: {list(updates.keys())}")
             return rows_updated > 0
 
+    def delete_device(self, device_id: Any, user_id: str, home_id: Optional[str] = None) -> bool:
+        """Delete a device if the user has permission within the target home."""
+        normalized_id = self._normalize_device_id(device_id)
+        if normalized_id is None:
+            return False
+
+        normalized_home_id = self._normalize_home_id(home_id)
+
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT r.home_id
+                FROM devices d
+                LEFT JOIN rooms r ON d.room_id = r.id
+                WHERE d.id = %s
+            """, (normalized_id,))
+
+            row = cursor.fetchone()
+            if not row:
+                return False
+
+            device_home_id = self._normalize_home_id(row[0])
+            effective_home_id = device_home_id or normalized_home_id
+            if not effective_home_id:
+                return False
+
+            if not self.user_has_home_permission(user_id, effective_home_id, 'manage_devices'):
+                return False
+
+            cursor.execute("DELETE FROM devices WHERE id = %s", (normalized_id,))
+            return cursor.rowcount > 0
+
     def get_device(self, device_id: Any, user_id: str) -> Optional[Dict]:
         """Get device details if user has access."""
         normalized_id = self._normalize_device_id(device_id)
@@ -768,9 +866,24 @@ class MultiHomeDBManager:
             return None
         with self.get_cursor() as cursor:
             cursor.execute("""
-                SELECT d.*, r.name as room_name, r.home_id
+                SELECT 
+                    d.id,
+                    d.name,
+                    d.room_id,
+                    d.device_type,
+                    d.state,
+                    d.temperature,
+                    d.min_temperature,
+                    d.max_temperature,
+                    d.display_order,
+                    d.enabled,
+                    d.settings,
+                    d.created_at,
+                    d.updated_at,
+                    r.home_id,
+                    r.name AS room_name
                 FROM devices d
-                JOIN rooms r ON d.room_id = r.id
+                LEFT JOIN rooms r ON d.room_id = r.id
                 JOIN user_homes uh ON r.home_id = uh.home_id
                 WHERE d.id = %s AND uh.user_id = %s
             """, (normalized_id, user_id))
@@ -793,8 +906,8 @@ class MultiHomeDBManager:
                 'settings': row[10],   # settings
                 'created_at': row[11], # created_at
                 'updated_at': row[12], # updated_at
-                'room_name': row[13],  # room_name
-                'home_id': row[14]     # home_id
+                'home_id': row[13],    # home_id
+                'room_name': row[14]   # room_name
             }
 
     # ============================================================================

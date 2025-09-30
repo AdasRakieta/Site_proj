@@ -2186,11 +2186,6 @@ footer {
     transform: scale(0.9);
   }
 }
-@-o-keyframes wave-4 {
-  50% {
-    transform: scale(0.9);
-  }
-}
 @keyframes wave-4 {
   50% {
     transform: scale(0.9);
