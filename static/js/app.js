@@ -1,3 +1,57 @@
+// Helpery do normalizacji danych pokoi niezależnie od formatu API
+function normalizeRoomsData(payload) {
+    const source = payload && typeof payload === 'object' && Array.isArray(payload.data)
+        ? payload.data
+        : payload;
+
+    if (!Array.isArray(source)) {
+        return [];
+    }
+
+    return source
+        .map((room, index) => {
+            if (!room) return null;
+
+            if (typeof room === 'string') {
+                return {
+                    id: room,
+                    name: room,
+                    description: null,
+                    display_order: index,
+                    home_id: null
+                };
+            }
+
+            const name = room.name || room.room || room.title;
+            if (!name) {
+                return null;
+            }
+
+            const id = room.id ?? room.room_id ?? room.uuid ?? name;
+
+            return {
+                id: id != null ? String(id) : String(name),
+                name: String(name),
+                description: room.description ?? null,
+                display_order: room.display_order != null ? room.display_order : index,
+                home_id: room.home_id != null ? String(room.home_id) : null
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+            const orderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+            if (orderDiff !== 0) return orderDiff;
+            return a.name.localeCompare(b.name, 'pl');
+        });
+}
+
+function extractRoomNames(payload) {
+    return normalizeRoomsData(payload).map(room => room.name);
+}
+
+window.normalizeRoomsData = normalizeRoomsData;
+window.extractRoomNames = extractRoomNames;
+
 // Aplikacja SmartHomeApp
 
 class SmartHomeApp {
@@ -50,12 +104,13 @@ class SmartHomeApp {
             return this.rooms;
         }
         try {
-            const rooms = await this.fetchData('/api/rooms');
-            if (Array.isArray(rooms)) {
-                this.rooms = rooms;
-                return rooms;
+            const response = await this.fetchData('/api/rooms');
+            const normalizedRooms = normalizeRoomsData(response);
+            if (response && typeof response === 'object' && response.meta && response.meta.home_id) {
+                this.currentHomeId = response.meta.home_id;
             }
-            return [];
+            this.rooms = normalizedRooms;
+            return normalizedRooms;
         } catch (e) {
             return [];
         }
@@ -264,10 +319,14 @@ class SmartHomeApp {
             }
         });
         // Dodaj obsługę update_rooms do cache
-        this.socket.on('update_rooms', (rooms) => {
-            this.rooms = rooms;
+        this.socket.on('update_rooms', (roomsPayload) => {
+            if (roomsPayload && typeof roomsPayload === 'object' && roomsPayload.meta && roomsPayload.meta.home_id) {
+                this.currentHomeId = roomsPayload.meta.home_id;
+            }
+            const normalizedRooms = normalizeRoomsData(roomsPayload);
+            this.rooms = normalizedRooms;
             if (typeof this.onRoomsUpdate === 'function') {
-                this.onRoomsUpdate(rooms);
+                this.onRoomsUpdate(normalizedRooms);
             }
         });
         
@@ -518,16 +577,56 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
     const container = document.getElementById("roomsAndButtonsList");
     if (!container) return;
     container.innerHTML = "";
-    rooms.forEach((room) => {
+    const normalizedRooms = window.normalizeRoomsData ? window.normalizeRoomsData(rooms) : [];
+    const normalizedButtons = (buttons && Array.isArray(buttons.data)) ? buttons.data : (Array.isArray(buttons) ? buttons : []);
+    const preparedButtons = normalizedButtons.map(button => {
+        const mapped = { ...button };
+        if (!mapped.room_name) {
+            mapped.room_name = mapped.room || null;
+        }
+        if (mapped.room_id != null) {
+            mapped.room_id = String(mapped.room_id);
+        } else if (mapped.room && typeof mapped.room === 'object' && mapped.room.id != null) {
+            mapped.room_id = String(mapped.room.id);
+        } else {
+            mapped.room_id = null;
+        }
+        return mapped;
+    });
+
+    const matchedButtonKeys = new Set();
+    const buttonKey = (button) => {
+        if (!button) return null;
+        if (button.id != null) {
+            return `id:${button.id}`;
+        }
+        const roomPart = button.room_name || 'null';
+        return `name:${button.name}|room:${roomPart}`;
+    };
+
+    normalizedRooms.forEach((room) => {
+        const roomName = room && room.name ? room.name : String(room || '');
+        const roomId = room && room.id != null ? String(room.id) : null;
+        if (!roomName && !roomId) {
+            return;
+        }
         const roomContainer = document.createElement("div");
         roomContainer.classList.add("lights-container");
         const roomHeader = document.createElement("h2");
-        roomHeader.textContent = `${room}:`;
+        roomHeader.textContent = `${roomName || 'Nieprzypisane'}:`;
         roomContainer.appendChild(roomHeader);
         const buttonsContainer = document.createElement("div");
         buttonsContainer.classList.add("center-container");
-        const roomButtons = buttons.filter(button => button.room === room);
+        const roomButtons = preparedButtons.filter(button => {
+            const matchesId = roomId && button.room_id && button.room_id === roomId;
+            const matchesName = roomName && button.room_name && button.room_name === roomName;
+            return matchesId || matchesName;
+        });
         roomButtons.forEach(button => {
+            const key = buttonKey(button);
+            if (key) {
+                matchedButtonKeys.add(key);
+            }
             const buttonName = document.createElement("div");
             buttonName.textContent = button.name;
             buttonName.className = "light-button-label";
@@ -536,10 +635,12 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
             switchLabel.classList.add("switch");
             const switchInput = document.createElement("input");
             switchInput.type = "checkbox";
-            switchInput.id = `${room}_${button.name.replace(/\s+/g, '_')}Switch`;
+            const roomKey = (roomId || roomName || 'unassigned').toString().replace(/\s+/g, '_');
+            switchInput.id = `${roomKey}_${button.name.replace(/\s+/g, '_')}Switch`;
             switchInput.checked = button.state;
             switchInput.addEventListener('change', function() {
-                if (window.toggleLight) window.toggleLight(room, button.name, this.checked);
+                const targetRoom = button.room_name || roomName || null;
+                if (window.toggleLight) window.toggleLight(targetRoom, button.name, this.checked);
             });
             const switchSlider = document.createElement("span");
             switchSlider.classList.add("slider");
@@ -550,6 +651,48 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
         roomContainer.appendChild(buttonsContainer);
         container.appendChild(roomContainer);
     });
+
+    const unassignedButtons = preparedButtons.filter(button => {
+        const key = buttonKey(button);
+        return key && !matchedButtonKeys.has(key);
+    });
+
+    if (unassignedButtons.length > 0) {
+        const roomContainer = document.createElement("div");
+        roomContainer.classList.add("lights-container");
+        const roomHeader = document.createElement("h2");
+        roomHeader.textContent = "Nieprzypisane:";
+        roomContainer.appendChild(roomHeader);
+        const buttonsContainer = document.createElement("div");
+        buttonsContainer.classList.add("center-container");
+
+        unassignedButtons.forEach(button => {
+            const buttonName = document.createElement("div");
+            buttonName.textContent = button.name;
+            buttonName.className = "light-button-label";
+            buttonsContainer.appendChild(buttonName);
+
+            const switchLabel = document.createElement("label");
+            switchLabel.classList.add("switch");
+            const switchInput = document.createElement("input");
+            switchInput.type = "checkbox";
+            const targetRoom = button.room_name || (typeof button.room === 'string' ? button.room : null) || 'Nieprzypisane';
+            const roomKey = (button.room_id || targetRoom || 'unassigned').toString().replace(/\s+/g, '_');
+            switchInput.id = `${roomKey}_${button.name.replace(/\s+/g, '_')}Switch`;
+            switchInput.checked = button.state;
+            switchInput.addEventListener('change', function() {
+                if (window.toggleLight) window.toggleLight(targetRoom, button.name, this.checked);
+            });
+            const switchSlider = document.createElement("span");
+            switchSlider.classList.add("slider");
+            switchLabel.appendChild(switchInput);
+            switchLabel.appendChild(switchSlider);
+            buttonsContainer.appendChild(switchLabel);
+        });
+
+        roomContainer.appendChild(buttonsContainer);
+        container.appendChild(roomContainer);
+    }
 };
 
 function initializeApp() {

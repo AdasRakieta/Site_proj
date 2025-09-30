@@ -6,7 +6,8 @@ window.editMode = false;
 let pendingChanges = {
     // Używamy obiektu zamiast tablicy aby przechowywać tylko ostatnią zmianę dla każdego ID
     deviceMoves: {},
-    columnMoves: null
+    columnMoves: null,
+    columnMovesRaw: null
 };
 
 // Dynamic Kanban Dragula initialization for room columns
@@ -75,8 +76,13 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
             
             const deviceId = el.getAttribute('data-id');
             const deviceType = el.getAttribute('data-type');
-            const newRoom = target.parentElement.querySelector('h3')?.textContent;
+            const columnElement = target.closest ? target.closest('.kanban-column') : target.parentElement;
+            const newRoom = columnElement?.querySelector('h3')?.textContent;
             const actualRoom = newRoom === 'Nieprzypisane' ? null : newRoom;
+            const newRoomIdAttr = columnElement ? columnElement.getAttribute('data-room-id') : null;
+            const newRoomId = newRoomIdAttr && newRoomIdAttr !== 'null' && newRoomIdAttr !== 'undefined'
+                ? newRoomIdAttr
+                : null;
             
             // Store only the latest change for each device
             if (deviceId && deviceType) {
@@ -84,6 +90,7 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
                     id: deviceId,
                     type: deviceType,
                     newRoom: actualRoom,
+                    newRoomId,
                     target: target
                 };
             }
@@ -124,7 +131,8 @@ window.toggleEditMode = function(enabled) {
             // Reset pending changes
             pendingChanges = {
                 deviceMoves: {},
-                columnMoves: null
+                columnMoves: null,
+                columnMovesRaw: null
             };
         } else {
             controlPanel.classList.remove('active');
@@ -141,15 +149,34 @@ window.saveChanges = async function() {
     console.log('Saving changes:', pendingChanges);
     
     // Save column order if changed
-    if (pendingChanges.columnMoves) {
+    if (Array.isArray(pendingChanges.columnMoves) && pendingChanges.columnMoves.length) {
         try {
+            const payload = {
+                room_ids: pendingChanges.columnMoves
+            };
+            if (Array.isArray(pendingChanges.columnMovesRaw) && pendingChanges.columnMovesRaw.length) {
+                payload.rooms = pendingChanges.columnMovesRaw
+                    .map(entry => {
+                        if (!entry) return null;
+                        const id = entry.id != null && entry.id !== '' ? String(entry.id) : null;
+                        const name = entry.name != null && entry.name !== '' ? String(entry.name) : null;
+                        if (!id && !name) {
+                            return null;
+                        }
+                        return { id, name };
+                    })
+                    .filter(Boolean);
+                if (!payload.rooms.length) {
+                    delete payload.rooms;
+                }
+            }
             const response = await fetch('/api/rooms/order', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ rooms: pendingChanges.columnMoves })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
             console.log('Room order updated:', data);
@@ -169,10 +196,10 @@ window.saveChanges = async function() {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ room: move.newRoom })
+                body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
             });
             if (window.updateDeviceOrders) {
-                window.updateDeviceOrders(move.target, move.newRoom);
+                window.updateDeviceOrders(move.target, move.newRoom, move.newRoomId || null);
             }
         } catch (error) {
             console.error('Error saving device move:', error);
@@ -182,7 +209,8 @@ window.saveChanges = async function() {
     // Clear pending changes
     pendingChanges = {
         deviceMoves: {},
-        columnMoves: null
+        columnMoves: null,
+        columnMovesRaw: null
     };
 
     // Exit edit mode
@@ -199,7 +227,8 @@ window.cancelChanges = function() {
     // Clear pending changes
     pendingChanges = {
         deviceMoves: {},
-        columnMoves: null
+        columnMoves: null,
+        columnMovesRaw: null
     };
     
     // Exit edit mode and reload data from server to restore original state
@@ -213,8 +242,11 @@ window.cancelChanges = function() {
     ]).then(([rooms, buttons, controls]) => {
         if (window.loadKanban) {
             // Add types to devices for proper rendering
-            buttons.forEach(button => button.type = 'light');
-            controls.forEach(control => control.type = 'thermostat');
+            const normalizedButtons = Array.isArray(buttons?.data) ? buttons.data : (Array.isArray(buttons) ? buttons : []);
+            const normalizedControls = Array.isArray(controls?.data) ? controls.data : (Array.isArray(controls) ? controls : []);
+
+            normalizedButtons.forEach(button => button.type = 'light');
+            normalizedControls.forEach(control => control.type = 'thermostat');
             
             // Update room select and render kanban
             if (window.updateRoomSelect) {
@@ -229,7 +261,34 @@ window.cancelChanges = function() {
 
 // Store column moves
 window.storeColumnMove = function(roomOrder) {
-    pendingChanges.columnMoves = roomOrder;
+    if (!Array.isArray(roomOrder)) {
+        pendingChanges.columnMoves = null;
+        pendingChanges.columnMovesRaw = null;
+        return;
+    }
+
+    const rawItems = roomOrder
+        .map(item => {
+            if (!item) return null;
+            if (typeof item === 'object') {
+                const id = item.id != null && item.id !== '' ? String(item.id) : null;
+                const name = item.name != null && item.name !== '' ? String(item.name) : null;
+                if (!id && !name) {
+                    return null;
+                }
+                return { id, name };
+            }
+            const value = String(item);
+            if (!value) return null;
+            return { id: null, name: value };
+        })
+        .filter(Boolean);
+
+    pendingChanges.columnMovesRaw = rawItems.length ? rawItems : null;
+    const ids = rawItems
+        .map(entry => entry.id || entry.name)
+        .filter(Boolean);
+    pendingChanges.columnMoves = ids.length ? ids : null;
 };
 
 // Room management functions
@@ -310,16 +369,17 @@ function updateColumnHeader(columnElement, roomName) {
                 e.stopPropagation();
                 const newName = roomNameInputEdit.value.trim();
                 if (newName && newName !== roomNameH3.textContent) {
-                    // Use current visible room name as path param to match backend route
+                    const roomId = columnElement.getAttribute('data-room-id');
                     const currentName = roomNameH3.textContent;
                     try {
-                        const response = await fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
+                        const endpointId = roomId ? roomId : encodeURIComponent(currentName);
+                        const response = await fetch(`/api/rooms/${endpointId}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRFToken': window.getCSRFToken()
                             },
-                            body: JSON.stringify({ new_name: newName })
+                            body: JSON.stringify({ name: newName })
                         });
                         const data = await response.json().catch(() => ({}));
                         if (!response.ok || data.status === 'error') {
@@ -452,13 +512,15 @@ function startRenameRoom(columnElement) {
         const newName = nameInput.value.trim();
         if (newName && newName !== nameSpan.textContent) {
             const currentName = nameSpan.textContent;
-            fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
+            const roomId = columnElement.getAttribute('data-room-id');
+            const endpointId = roomId ? roomId : encodeURIComponent(currentName);
+            fetch(`/api/rooms/${endpointId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ new_name: newName })
+                body: JSON.stringify({ name: newName })
             })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));

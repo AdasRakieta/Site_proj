@@ -1,9 +1,11 @@
 import psycopg2
 import json
+import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Tuple
 from contextlib import contextmanager
 import logging
+from psycopg2 import errors
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class MultiHomeDBManager:
         self._connection = None
         self._ensure_connection()
         self._ensure_security_state_table()
+        self._ensure_automation_table()
 
     @contextmanager
     def get_cursor(self):
@@ -96,6 +99,24 @@ class MultiHomeDBManager:
         value = str(home_id).strip()
         return value or None
 
+    @staticmethod
+    def _normalize_automation_name(name: Any) -> str:
+        """Normalize automation name and raise if invalid."""
+        if name is None:
+            raise ValueError("Automation name is required")
+        value = str(name).strip()
+        if not value:
+            raise ValueError("Automation name cannot be empty")
+        return value
+
+    def _can_manage_automations(self, user_id: str, home_id: str) -> bool:
+        """Check whether a user can manage automations in the given home."""
+        return (
+            self.user_has_home_permission(user_id, home_id, 'manage_automations') or
+            self.user_has_home_permission(user_id, home_id, 'manage_devices') or
+            self.user_has_home_permission(user_id, home_id, 'control_devices')
+        )
+
     def _ensure_security_state_table(self):
         """Ensure the per-home security state table exists."""
         create_sql = """
@@ -109,6 +130,32 @@ class MultiHomeDBManager:
         """
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
+
+    def _ensure_automation_table(self):
+        """Ensure the per-home automations table exists."""
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS home_automations (
+                id UUID PRIMARY KEY,
+                home_id UUID NOT NULL REFERENCES homes(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                name_normalized TEXT NOT NULL,
+                trigger_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+                actions_config JSONB NOT NULL DEFAULT '[]'::jsonb,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                execution_count INTEGER NOT NULL DEFAULT 0,
+                last_executed TIMESTAMPTZ,
+                error_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """
+        index_sql = """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_home_automations_unique
+            ON home_automations (home_id, name_normalized)
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(create_sql)
+            cursor.execute(index_sql)
 
     # ============================================================================
     # HOME MANAGEMENT
@@ -246,19 +293,49 @@ class MultiHomeDBManager:
         """Create a new room in a home."""
         if not self.user_has_home_permission(user_id, home_id, 'manage_rooms'):
             raise PermissionError("User doesn't have permission to manage rooms")
-            
+
+        normalized_name = (name or '').strip()
+        if not normalized_name:
+            raise ValueError("Room name is required")
+
         with self.get_cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO rooms (home_id, name, description, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-            """, (home_id, name, description, datetime.now(), datetime.now()))
-            
+            # Ensure uniqueness of room name within the home (case-insensitive)
+            cursor.execute(
+                """
+                SELECT 1 FROM rooms 
+                WHERE home_id = %s AND LOWER(name) = LOWER(%s)
+                """,
+                (home_id, normalized_name)
+            )
+            if cursor.fetchone():
+                raise ValueError("Room with this name already exists in the selected home")
+
+            cursor.execute(
+                """
+                SELECT COALESCE(MAX(display_order), 0) + 1 
+                FROM rooms 
+                WHERE home_id = %s
+                """,
+                (home_id,)
+            )
+            next_order_row = cursor.fetchone()
+            next_order = next_order_row[0] if next_order_row else 1
+
+            cursor.execute(
+                """
+                INSERT INTO rooms (home_id, name, description, display_order, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, display_order
+                """,
+                (home_id, normalized_name, description, next_order, datetime.now(), datetime.now())
+            )
+
             result = cursor.fetchone()
             if not result:
                 raise Exception("Failed to create room")
+
             room_id = result[0]
-            logger.info(f"Created room '{name}' with ID {room_id} in home {home_id}")
+            logger.info(f"Created room '{normalized_name}' with ID {room_id} in home {home_id}")
             return room_id
 
     def get_home_rooms(self, home_id: str, user_id: str) -> List[Dict]:
@@ -267,21 +344,25 @@ class MultiHomeDBManager:
             return []
             
         with self.get_cursor() as cursor:
-            cursor.execute("""
-                SELECT id, name, description, created_at, updated_at
+            cursor.execute(
+                """
+                SELECT id, name, description, display_order, created_at, updated_at
                 FROM rooms 
                 WHERE home_id = %s
-                ORDER BY name
-            """, (home_id,))
-            
+                ORDER BY display_order ASC NULLS LAST, name
+                """,
+                (home_id,)
+            )
+
             rooms = []
             for row in cursor.fetchall():
                 rooms.append({
                     'id': row[0],
                     'name': row[1],
                     'description': row[2],
-                    'created_at': row[3],
-                    'updated_at': row[4],
+                    'display_order': row[3],
+                    'created_at': row[4],
+                    'updated_at': row[5],
                     'home_id': home_id
                 })
             
@@ -309,6 +390,164 @@ class MultiHomeDBManager:
                 'created_at': row[4],
                 'updated_at': row[5]
             }
+
+    def get_room_by_name(self, home_id: str, user_id: str, name: str) -> Optional[Dict]:
+        """Fetch a room within a home by its name (case-insensitive)."""
+        if not name:
+            return None
+
+        if not self.user_has_home_access(user_id, home_id):
+            return None
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM rooms
+                WHERE home_id = %s AND LOWER(name) = LOWER(%s)
+                LIMIT 1
+                """,
+                (home_id, name)
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return self.get_room(row[0], user_id)
+
+    def update_room(self, room_id: Any, user_id: str, **changes) -> Optional[Dict]:
+        """Update room metadata (name, description, display order)."""
+        if room_id is None:
+            return None
+
+        room = self.get_room(room_id, user_id)
+        if not room:
+            return None
+
+        if not self.user_has_home_permission(user_id, room['home_id'], 'manage_rooms'):
+            raise PermissionError("User doesn't have permission to update rooms")
+
+        allowed_fields = {}
+        if 'name' in changes and changes['name'] is not None:
+            new_name = str(changes['name']).strip()
+            if not new_name:
+                raise ValueError("Room name cannot be empty")
+
+            with self.get_cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT 1 FROM rooms
+                    WHERE home_id = %s AND LOWER(name) = LOWER(%s) AND id != %s
+                    """,
+                    (room['home_id'], new_name, room['id'])
+                )
+                if cursor.fetchone():
+                    raise ValueError("Another room with this name already exists")
+
+            allowed_fields['name'] = new_name
+
+        if 'description' in changes:
+            allowed_fields['description'] = changes['description']
+
+        if 'display_order' in changes and changes['display_order'] is not None:
+            try:
+                allowed_fields['display_order'] = int(changes['display_order'])
+            except (TypeError, ValueError):
+                raise ValueError("display_order must be an integer")
+
+        if not allowed_fields:
+            return room
+
+        set_fragments = []
+        values: List[Any] = []
+        for column, value in allowed_fields.items():
+            set_fragments.append(f"{column} = %s")
+            values.append(value)
+
+        values.extend([datetime.now(), room['id']])
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE rooms
+                SET {', '.join(set_fragments)}, updated_at = %s
+                WHERE id = %s
+                """,
+                tuple(values)
+            )
+
+        return self.get_room(room['id'], user_id)
+
+    def delete_room(self, room_id: Any, user_id: str) -> bool:
+        """Delete a room and unassign associated devices."""
+        if room_id is None:
+            return False
+
+        room = self.get_room(room_id, user_id)
+        if not room:
+            return False
+
+        if not self.user_has_home_permission(user_id, room['home_id'], 'manage_rooms'):
+            raise PermissionError("User doesn't have permission to delete rooms")
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE devices
+                SET room_id = NULL, updated_at = %s
+                WHERE room_id = %s
+                """,
+                (datetime.now(), room['id'])
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM room_temperature_states
+                WHERE room_id = %s
+                """,
+                (room['id'],)
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM rooms
+                WHERE id = %s
+                """,
+                (room['id'],)
+            )
+
+            return cursor.rowcount > 0
+
+    def reorder_rooms(self, home_id: str, user_id: str, room_ids: List[Any]) -> bool:
+        """Update display order of rooms within a home."""
+        if not room_ids:
+            return False
+
+        if not self.user_has_home_permission(user_id, home_id, 'manage_rooms'):
+            raise PermissionError("User doesn't have permission to reorder rooms")
+
+        normalized_ids: List[Any] = []
+        for room_id in room_ids:
+            if room_id is None:
+                continue
+            normalized_ids.append(room_id)
+
+        if not normalized_ids:
+            return False
+
+        with self.get_cursor() as cursor:
+            for order_index, room_id in enumerate(normalized_ids):
+                cursor.execute(
+                    """
+                    UPDATE rooms
+                    SET display_order = %s, updated_at = %s
+                    WHERE id = %s AND home_id = %s
+                    """,
+                    (order_index, datetime.now(), room_id, home_id)
+                )
+
+        return True
 
     # ============================================================================
     # DEVICE MANAGEMENT
@@ -706,3 +945,211 @@ class MultiHomeDBManager:
             )
 
         return True
+
+    # ============================================================================
+    # AUTOMATION MANAGEMENT
+    # ============================================================================
+
+    def get_home_automations(self, home_id: Any, user_id: str) -> List[Dict]:
+        """Retrieve automations for a specific home accessible by the user."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id:
+            return []
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, name, trigger_config, actions_config, enabled,
+                       execution_count, last_executed, error_count
+                FROM home_automations
+                WHERE home_id = %s
+                ORDER BY name
+                """,
+                (normalized_home_id,)
+            )
+            rows = cursor.fetchall() or []
+
+        automations: List[Dict] = []
+        for row in rows:
+            trigger_cfg = row[2]
+            actions_cfg = row[3]
+
+            if isinstance(trigger_cfg, str):
+                try:
+                    trigger_cfg = json.loads(trigger_cfg)
+                except json.JSONDecodeError:
+                    trigger_cfg = {}
+            elif trigger_cfg is None:
+                trigger_cfg = {}
+
+            if isinstance(actions_cfg, str):
+                try:
+                    actions_cfg = json.loads(actions_cfg)
+                except json.JSONDecodeError:
+                    actions_cfg = []
+            elif actions_cfg is None:
+                actions_cfg = []
+
+            if not isinstance(trigger_cfg, dict):
+                trigger_cfg = {}
+            if not isinstance(actions_cfg, list):
+                if isinstance(actions_cfg, dict):
+                    actions_cfg = list(actions_cfg.values())
+                else:
+                    actions_cfg = []
+
+            last_executed = row[6]
+            automations.append({
+                'id': str(row[0]) if row[0] is not None else None,
+                'home_id': normalized_home_id,
+                'name': row[1],
+                'trigger': trigger_cfg,
+                'actions': actions_cfg,
+                'enabled': bool(row[4]),
+                'execution_count': row[5] or 0,
+                'last_executed': last_executed.isoformat() if last_executed and hasattr(last_executed, 'isoformat') else None,
+                'error_count': row[7] or 0
+            })
+
+        return automations
+
+    def add_home_automation(self, home_id: Any, user_id: str, automation: Dict) -> Dict:
+        """Create a new automation within a home."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id:
+            raise ValueError("home_id and user_id are required")
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        if not self._can_manage_automations(user_id, normalized_home_id):
+            raise PermissionError("User lacks permissions to manage automations in this home")
+
+        name_clean = self._normalize_automation_name(automation.get('name'))
+        trigger_cfg = automation.get('trigger') or {}
+        actions_cfg = automation.get('actions') or []
+        enabled = bool(automation.get('enabled', True))
+
+        automation_id = str(uuid.uuid4())
+
+        try:
+            with self.get_cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO home_automations (
+                        id, home_id, name, name_normalized, trigger_config,
+                        actions_config, enabled, created_at, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, NOW(), NOW())
+                    """,
+                    (
+                        automation_id,
+                        normalized_home_id,
+                        name_clean,
+                        name_clean.casefold(),
+                        json.dumps(trigger_cfg),
+                        json.dumps(actions_cfg),
+                        enabled
+                    )
+                )
+        except errors.UniqueViolation as exc:
+            logger.warning("Duplicate automation name for home %s: %s", normalized_home_id, name_clean)
+            raise ValueError("Automatyzacja o tej nazwie już istnieje w tym domu") from exc
+
+        return {
+            'id': automation_id,
+            'home_id': normalized_home_id,
+            'name': name_clean,
+            'trigger': trigger_cfg,
+            'actions': actions_cfg,
+            'enabled': enabled,
+            'execution_count': 0,
+            'last_executed': None,
+            'error_count': 0
+        }
+
+    def update_home_automation(self, home_id: Any, user_id: str, automation_id: Any, updates: Dict) -> bool:
+        """Update an existing automation within a home."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id or not automation_id:
+            raise ValueError("home_id, user_id and automation_id are required")
+
+        automation_id = str(automation_id)
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        if not self._can_manage_automations(user_id, normalized_home_id):
+            raise PermissionError("User lacks permissions to manage automations in this home")
+
+        set_clauses: List[str] = []
+        params: List[Any] = []
+
+        if 'name' in updates:
+            name_clean = self._normalize_automation_name(updates.get('name'))
+            set_clauses.append("name = %s")
+            params.append(name_clean)
+            set_clauses.append("name_normalized = %s")
+            params.append(name_clean.casefold())
+
+        if 'trigger' in updates:
+            trigger_cfg = updates.get('trigger') or {}
+            set_clauses.append("trigger_config = %s::jsonb")
+            params.append(json.dumps(trigger_cfg))
+
+        if 'actions' in updates:
+            actions_cfg = updates.get('actions') or []
+            set_clauses.append("actions_config = %s::jsonb")
+            params.append(json.dumps(actions_cfg))
+
+        if 'enabled' in updates:
+            set_clauses.append("enabled = %s")
+            params.append(bool(updates.get('enabled')))
+
+        if not set_clauses:
+            return False
+
+        set_clauses.append("updated_at = NOW()")
+
+        query = f"""
+            UPDATE home_automations
+            SET {', '.join(set_clauses)}
+            WHERE id = %s AND home_id = %s
+        """
+
+        params.extend([automation_id, normalized_home_id])
+
+        try:
+            with self.get_cursor() as cursor:
+                cursor.execute(query, tuple(params))
+                return cursor.rowcount > 0
+        except errors.UniqueViolation as exc:
+            logger.warning("Duplicate automation name during update for home %s: %s", normalized_home_id, updates.get('name'))
+            raise ValueError("Automatyzacja o tej nazwie już istnieje w tym domu") from exc
+
+    def delete_home_automation(self, home_id: Any, user_id: str, automation_id: Any) -> bool:
+        """Delete an automation from a home."""
+        normalized_home_id = self._normalize_home_id(home_id)
+        if not normalized_home_id or not user_id or not automation_id:
+            raise ValueError("home_id, user_id and automation_id są wymagane")
+
+        automation_id = str(automation_id)
+
+        if not self.user_has_home_access(user_id, normalized_home_id):
+            raise PermissionError("User doesn't have access to this home")
+
+        if not self._can_manage_automations(user_id, normalized_home_id):
+            raise PermissionError("User lacks permissions to manage automations in this home")
+
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM home_automations
+                WHERE id = %s AND home_id = %s
+                """,
+                (automation_id, normalized_home_id)
+            )
+            return cursor.rowcount > 0

@@ -36,7 +36,8 @@ async function toggleLightViaAPI(room, buttonName, state, attempt = 0) {
         const buttons = await app.fetchData('/api/buttons');
         const roomNorm = norm(room);
         const nameNorm = norm(buttonName);
-        let button = Array.isArray(buttons) ? buttons.find(b => norm(b.name) === nameNorm && norm(b.room) === roomNorm) : null;
+        const roomMatcher = b => norm(b?.room_name || b?.room);
+        let button = Array.isArray(buttons) ? buttons.find(b => norm(b.name) === nameNorm && roomMatcher(b) === roomNorm) : null;
         if (!button && Array.isArray(buttons)) {
             const sameName = buttons.filter(b => norm(b.name) === nameNorm);
             if (sameName.length === 1) {

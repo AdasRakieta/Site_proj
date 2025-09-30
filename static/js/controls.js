@@ -225,6 +225,11 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
     const roomNameSet = new Set(
         rooms.map(r => (typeof r === 'string' ? r : (r && r.name ? r.name : r))).filter(Boolean)
     );
+    const roomIdSet = new Set(
+        rooms
+            .map(r => (typeof r === 'object' && r !== null && r.id != null ? String(r.id) : null))
+            .filter(Boolean)
+    );
 
     // Rozdziel urządzenia na przypisane poprawnie i do przeniesienia do "Nieprzypisane"
     const unassignedButtons = [];
@@ -233,14 +238,22 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
     const assignedControls = [];
 
     (buttons || []).forEach(b => {
-        if (!b.room || !roomNameSet.has(b.room)) {
+        const buttonRoomName = b.room_name || b.room;
+        const buttonRoomId = b.room_id != null ? String(b.room_id) : null;
+        const hasNameMatch = buttonRoomName ? roomNameSet.has(buttonRoomName) : false;
+        const hasIdMatch = buttonRoomId ? roomIdSet.has(buttonRoomId) : false;
+        if (!hasNameMatch && !hasIdMatch) {
             unassignedButtons.push(b);
         } else {
             assignedButtons.push(b);
         }
     });
     (controls || []).forEach(c => {
-        if (!c.room || !roomNameSet.has(c.room)) {
+        const controlRoomName = c.room_name || c.room;
+        const controlRoomId = c.room_id != null ? String(c.room_id) : null;
+        const hasNameMatch = controlRoomName ? roomNameSet.has(controlRoomName) : false;
+        const hasIdMatch = controlRoomId ? roomIdSet.has(controlRoomId) : false;
+        if (!hasNameMatch && !hasIdMatch) {
             unassignedControls.push(c);
         } else {
             assignedControls.push(c);
@@ -264,8 +277,18 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
         }
         const column = createKanbanColumn(
             roomObj,
-            assignedButtons.filter(button => button.room === roomObj.name),
-            assignedControls.filter(control => control.room === roomObj.name)
+            assignedButtons.filter(button => {
+                const buttonRoomName = button.room_name || button.room;
+                const buttonRoomId = button.room_id;
+                return (buttonRoomName && buttonRoomName === roomObj.name) ||
+                       (buttonRoomId != null && roomObj.id != null && String(buttonRoomId) === String(roomObj.id));
+            }),
+            assignedControls.filter(control => {
+                const controlRoomName = control.room_name || control.room;
+                const controlRoomId = control.room_id;
+                return (controlRoomName && controlRoomName === roomObj.name) ||
+                       (controlRoomId != null && roomObj.id != null && String(controlRoomId) === String(roomObj.id));
+            })
         );
         columnsWrapper.appendChild(column);
     });
@@ -311,7 +334,10 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
         const columns = Array.from(columnsWrapper.children);
         const roomOrder = columns
             .filter(col => !col.hasAttribute('data-fixed'))
-            .map(col => col.querySelector('h3').textContent);
+            .map(col => ({
+                id: col.getAttribute('data-room-id') || null,
+                name: col.getAttribute('data-room-name') || (col.querySelector('h3') ? col.querySelector('h3').textContent : null)
+            }));
         
         // Store the column order instead of sending it immediately
         if (window.storeColumnMove) {
@@ -337,9 +363,16 @@ function createKanbanColumn(room, roomButtons, roomControls, isFixed = false) {
             setTimeout(() => window.updateColumnHeader(column, roomName), 0);
         }
         // Set data-room-id to room.id if available, else to name
-        const roomId = typeof room === 'object' && room !== null && room.id ? room.id : roomName;
-        column.setAttribute('data-room-id', roomId);
+        const rawRoomId = typeof room === 'object' && room !== null && room.id != null ? room.id : null;
+        const resolvedRoomId = rawRoomId != null ? String(rawRoomId) : null;
+        if (resolvedRoomId) {
+            column.setAttribute('data-room-id', resolvedRoomId);
+        } else {
+            column.removeAttribute('data-room-id');
+        }
+        column.setAttribute('data-room-name', roomName || '');
     }
+    column.setAttribute('data-room-name', roomName || '');
     column.appendChild(header);
 
     const list = document.createElement('ul');
@@ -388,7 +421,7 @@ function createKanbanColumn(room, roomButtons, roomControls, isFixed = false) {
 }
 
 // Pomocnicza funkcja do aktualizacji kolejności urządzeń
-function updateDeviceOrders(targetList, room) {
+function updateDeviceOrders(targetList, room, roomId = null) {
     const allLis = Array.from(targetList.querySelectorAll('li.kanban-card'));
     const lightsOrder = allLis
         .filter(li => li.getAttribute('data-type') === 'light')
@@ -404,7 +437,7 @@ function updateDeviceOrders(targetList, room) {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
-            body: JSON.stringify({ room: room, order: lightsOrder })
+            body: JSON.stringify({ room: room, room_id: roomId, order: lightsOrder })
         }).then(r => r.json())
           .then(data => console.log('Lights order updated:', data));
     }
@@ -416,7 +449,7 @@ function updateDeviceOrders(targetList, room) {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
-            body: JSON.stringify({ room: room, order: thermostatsOrder })
+            body: JSON.stringify({ room: room, room_id: roomId, order: thermostatsOrder })
         }).then(r => r.json())
           .then(data => console.log('Thermostats order updated:', data));
     }
@@ -424,6 +457,14 @@ function updateDeviceOrders(targetList, room) {
 
 // Funkcje obsługi dodawania z Kanban
 window.addDeviceFromKanban = function(name, type, room) {
+    let roomName = null;
+    let roomId = null;
+    if (room && typeof room === 'object') {
+        roomName = room.name || null;
+        roomId = room.id || room.room_id || null;
+    } else {
+        roomName = room || null;
+    }
     const endpoint = type === 'light' ? '/api/buttons' : '/api/temperature_controls';
     fetch(endpoint, {
         method: 'POST',
@@ -431,7 +472,7 @@ window.addDeviceFromKanban = function(name, type, room) {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCSRFToken()
         },
-        body: JSON.stringify({ name, room })
+        body: JSON.stringify({ name, room: roomName, room_id: roomId })
     }).then(r => r.json()).then(() => window.loadKanban());
 };
 
@@ -509,16 +550,33 @@ window.updateRoomSelect = function updateRoomSelect(rooms) {
     const select = document.getElementById('newDeviceRoom');
     if (!select) return;
 
-    // Zachowaj pierwszy option (Nieprzypisane)
-    const firstOption = select.firstChild;
+    // Zachowaj opcję "Nieprzypisane" (jeśli istnieje) lub utwórz nową
+    const existingPlaceholder = select.querySelector('option[value=""]');
+    const placeholderOption = existingPlaceholder
+        ? existingPlaceholder.cloneNode(true)
+        : (() => {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Nieprzypisane';
+            return option;
+        })();
+
+    placeholderOption.selected = true;
+
     select.innerHTML = '';
-    select.appendChild(firstOption);
+    select.appendChild(placeholderOption);
 
     // Dodaj pozostałe pokoje
-    rooms.forEach(room => {
+    const normalizedRooms = window.normalizeRoomsData ? window.normalizeRoomsData(rooms) : rooms;
+    (normalizedRooms || []).forEach(room => {
+        const roomName = room && room.name ? room.name : String(room || '');
+        if (!roomName) return;
         const option = document.createElement('option');
-        option.value = room;
-        option.textContent = room;
+        option.value = roomName;
+        option.textContent = roomName;
+        if (room && room.id) {
+            option.dataset.roomId = room.id;
+        }
         select.appendChild(option);
     });
 };
@@ -559,6 +617,8 @@ window.addNewDevice = function() {
     const name = nameInput.value.trim();
     const type = typeSelect.value;
     const room = roomSelect.value || null; // null dla "Nieprzypisane"
+    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+    const roomId = selectedOption && selectedOption.dataset ? selectedOption.dataset.roomId || null : null;
     
     if (!name || !type) return;
     
@@ -570,7 +630,7 @@ window.addNewDevice = function() {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCSRFToken()
         },
-        body: JSON.stringify({ name, room })
+        body: JSON.stringify({ name, room, room_id: roomId })
     })
     .then(r => r.json())
     .then(data => {
@@ -594,12 +654,15 @@ window.loadKanban = function() {
     ]).then(([rooms, buttons, controls]) => {
         console.log('Promise.all resolved', rooms, buttons, controls);
         // Handle API responses that return {data: [...], status: 'success'}
-        if (buttons && buttons.data) buttons = buttons.data;
-        if (controls && controls.data) controls = controls.data;
-        buttons.forEach(button => button.type = 'light');
-        controls.forEach(control => control.type = 'thermostat');
-        window.updateRoomSelect(rooms); // Aktualizuj selectbox
-        window.renderKanbanLists(rooms, buttons, controls);
+        const normalizedRooms = window.normalizeRoomsData ? window.normalizeRoomsData(rooms) : (Array.isArray(rooms) ? rooms : []);
+        let normalizedButtons = (buttons && Array.isArray(buttons.data)) ? buttons.data : (Array.isArray(buttons) ? buttons : []);
+        let normalizedControls = (controls && Array.isArray(controls.data)) ? controls.data : (Array.isArray(controls) ? controls : []);
+
+        normalizedButtons = normalizedButtons.map(button => ({ ...button, type: 'light' }));
+        normalizedControls = normalizedControls.map(control => ({ ...control, type: 'thermostat' }));
+
+        window.updateRoomSelect(normalizedRooms); // Aktualizuj selectbox
+        window.renderKanbanLists(normalizedRooms, normalizedButtons, normalizedControls);
     }).catch(e => {
         console.error('Promise.all error', e);
     });
