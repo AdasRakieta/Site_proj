@@ -217,7 +217,7 @@ class SmartHomeApp:
             # Use database logger when in database mode, JSON logger otherwise
             if DATABASE_MODE:
                 try:
-                    self.management_logger = DatabaseManagementLogger()
+                    self.management_logger = DatabaseManagementLogger(multi_db=self.multi_db)
                     print("✓ Management logger initialized with database backend")
                 except Exception as e:
                     print(f"⚠ Failed to initialize database logger: {e}")
