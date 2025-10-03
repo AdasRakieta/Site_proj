@@ -1169,7 +1169,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                     f'Administrator {session.get("username", "unknown")} wyczyścił wszystkie logi',
                     'admin_action',
                     session.get('username', 'unknown'),
-                    request.remote_addr
+                    request.remote_addr,
+                    home_id=session.get('current_home_id')
                 )
                 
                 return jsonify({'status': 'success', 'message': 'Wszystkie logi zostały usunięte'})
@@ -1222,7 +1223,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                     'admin_action',
                     session.get('username', 'unknown'),
                     request.remote_addr,
-                    {'deleted_count': deleted_count, 'action': 'delete_logs'}
+                    {'deleted_count': deleted_count, 'action': 'delete_logs'},
+                    home_id=session.get('current_home_id')
                 )
                 
                 return jsonify({
@@ -1369,7 +1371,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                             action=action,
                             target_user=user['name'],
                             ip_address=request.remote_addr or "",
-                            details={'fields_updated': list(updates.keys())}
+                            details={'fields_updated': list(updates.keys())},
+                            home_id=session.get('current_home_id')
                         )
                         
                         if any(k in updates for k in ['name', 'email', 'password']):
@@ -1570,7 +1573,7 @@ class RoutesManager(MultiHomeHelpersMixin):
                         
                         # Log successful login
                         if self.management_logger:
-                            self.management_logger.log_login(user['name'], ip_address or 'unknown', success=True)
+                            self.management_logger.log_login(user['name'], ip_address or 'unknown', success=True, home_id=session.get('current_home_id'))
                         
                         # Return appropriate response based on request type
                         if request.is_json:
@@ -1621,7 +1624,7 @@ class RoutesManager(MultiHomeHelpersMixin):
                         # Log failed login attempt
                         if self.management_logger:
                             self.management_logger.log_login(
-                                login_name or 'unknown', ip_address or 'unknown', success=False
+                                login_name or 'unknown', ip_address or 'unknown', success=False, home_id=session.get('current_home_id')
                             )
                         
                         # Return appropriate error response
@@ -1834,7 +1837,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                             action='password_reset',
                             target_user=user.get('name', 'Unknown'),
                             ip_address=request.remote_addr or "",
-                            details={'email': email, 'user_id': user_id}
+                            details={'email': email, 'user_id': user_id},
+                            home_id=session.get('current_home_id')
                         )
                         
                         return jsonify({
@@ -1948,8 +1952,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                         'user_id': user_id,
                         'home_id': home_id,
                         'home_created': True if home_id else False
-                    }
-                )
+                    },
+                home_id=session.get('current_home_id'))
                 
                 return jsonify({
                     'status': 'success', 
@@ -1993,7 +1997,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                 action='register', 
                 target_user=username,
                 ip_address=request.remote_addr or "",
-                details={'email': email, 'system': 'legacy'}
+                details={'email': email, 'system': 'legacy'},
+                home_id=session.get('current_home_id')
             )
             
             return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
@@ -2004,7 +2009,8 @@ class RoutesManager(MultiHomeHelpersMixin):
             action='register', 
             target_user=username,
             ip_address=request.remote_addr or "",
-            details={'email': email}
+            details={'email': email},
+            home_id=session.get('current_home_id')
         )
         
         return jsonify({'status': 'success', 'message': 'Rejestracja zakończona sukcesem!'}), 200
@@ -2344,10 +2350,12 @@ class APIManager(MultiHomeHelpersMixin):
 
                     try:
                         self.management_logger.log_room_change(
-                            username=session.get('username', 'unknown'),
+                            username=session.get('username', 'unknown',
+                            home_id=session.get('current_home_id')),
                             action='add',
                             room_name=room_name,
-                            ip_address=request.remote_addr or ""
+                            ip_address=request.remote_addr or "",
+                            home_id=session.get('current_home_id')
                         )
                     except Exception:
                         pass
@@ -2407,10 +2415,12 @@ class APIManager(MultiHomeHelpersMixin):
 
             try:
                 self.management_logger.log_room_change(
-                    username=session.get('username', 'unknown'),
+                    username=session.get('username', 'unknown',
+                    home_id=session.get('current_home_id')),
                     action='add',
                     room_name=room_name,
-                    ip_address=request.remote_addr or ""
+                    ip_address=request.remote_addr or "",
+                    home_id=session.get('current_home_id')
                 )
             except Exception:
                 pass
@@ -2464,7 +2474,8 @@ class APIManager(MultiHomeHelpersMixin):
 
                     try:
                         self.management_logger.log_room_change(
-                            username=session.get('username', 'unknown'),
+                            username=session.get('username', 'unknown',
+                            home_id=session.get('current_home_id')),
                             action='delete',
                             room_name=room_before.get('name', ''),
                             ip_address=request.remote_addr or "",
@@ -2507,7 +2518,8 @@ class APIManager(MultiHomeHelpersMixin):
 
             try:
                 self.management_logger.log_room_change(
-                    username=session.get('username', 'unknown'),
+                    username=session.get('username', 'unknown',
+                    home_id=session.get('current_home_id')),
                     action='delete',
                     room_name=room_name,
                     ip_address=request.remote_addr or ""
@@ -2587,7 +2599,8 @@ class APIManager(MultiHomeHelpersMixin):
 
                     try:
                         self.management_logger.log_room_change(
-                            username=session.get('username', 'unknown'),
+                            username=session.get('username', 'unknown',
+                            home_id=session.get('current_home_id')),
                             action='rename',
                             room_name=updated_room.get('name', ''),
                             ip_address=request.remote_addr or "",
@@ -2651,7 +2664,8 @@ class APIManager(MultiHomeHelpersMixin):
 
             try:
                 self.management_logger.log_room_change(
-                    username=session.get('username', 'unknown'),
+                    username=session.get('username', 'unknown',
+                    home_id=session.get('current_home_id')),
                     action='rename',
                     room_name=str(new_name).strip(),
                     ip_address=request.remote_addr or "",
@@ -2731,7 +2745,8 @@ class APIManager(MultiHomeHelpersMixin):
 
                     try:
                         self.management_logger.log_room_change(
-                            username=session.get('username', 'unknown'),
+                            username=session.get('username', 'unknown',
+                            home_id=session.get('current_home_id')),
                             action='reorder',
                             room_name='order_update',
                             ip_address=request.remote_addr or ""
@@ -2777,7 +2792,8 @@ class APIManager(MultiHomeHelpersMixin):
 
             try:
                 self.management_logger.log_room_change(
-                    username=session.get('username', 'unknown'),
+                    username=session.get('username', 'unknown',
+                    home_id=session.get('current_home_id')),
                     action='reorder',
                     room_name='order_update',
                     ip_address=request.remote_addr or ""
@@ -3459,12 +3475,14 @@ class APIManager(MultiHomeHelpersMixin):
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown',
+                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
                             device_name=device['name'],
                             room=device.get('room_name', ''),
                             action='toggle',
                             new_state=new_state,
-                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                            ip_address=request.environ.get('REMOTE_ADDR', ''),
+                            home_id=session.get('current_home_id')
                         )
                     
                     return jsonify({
@@ -3541,7 +3559,8 @@ class APIManager(MultiHomeHelpersMixin):
                         room=button['room'],
                         action='toggle',
                         new_state=new_state,
-                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        home_id=session.get('current_home_id')
                     )
                 
                 return jsonify({
@@ -3892,7 +3911,8 @@ class APIManager(MultiHomeHelpersMixin):
                             room_name = device.get('room_name') or device.get('room')
                             self.management_logger.log_device_action(
                                 user=username,
-                                device_name=device.get('name'),
+                                device_name=device.get('name',
+                                home_id=session.get('current_home_id')),
                                 room=room_name,
                                 action='delete_temperature_control',
                                 new_state=None,
@@ -4048,7 +4068,8 @@ class APIManager(MultiHomeHelpersMixin):
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown',
+                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
                             room=room_name,
                             action='set_temperature',
@@ -4099,7 +4120,8 @@ class APIManager(MultiHomeHelpersMixin):
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                        user=user_data.get('name', 'Unknown',
+                        home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
                         room=control['room'],
                         action='set_temperature',
@@ -4178,7 +4200,8 @@ class APIManager(MultiHomeHelpersMixin):
                                 username = session.get('username', 'unknown')
                                 self.management_logger.log_device_action(
                                     user=username,
-                                    device_name=updated_device.get('name'),
+                                    device_name=updated_device.get('name',
+                                    home_id=session.get('current_home_id')),
                                     room=room_name,
                                     action='toggle_temperature_control',
                                     new_state=new_enabled,
@@ -4306,7 +4329,8 @@ class APIManager(MultiHomeHelpersMixin):
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown',
+                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
                             room=room_name,
                             action='toggle_temperature_enabled',
@@ -4348,7 +4372,8 @@ class APIManager(MultiHomeHelpersMixin):
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                        user=user_data.get('name', 'Unknown',
+                        home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
                         room=control['room'],
                         action='toggle_temperature_enabled',
@@ -4459,7 +4484,8 @@ class APIManager(MultiHomeHelpersMixin):
                     self.smart_home.save_config()
                 # Log admin user creation
                 self.management_logger.log_user_change(
-                    username=session.get('username', 'unknown'),
+                    username=session.get('username', 'unknown',
+                    home_id=session.get('current_home_id')),
                     action='add',
                     target_user=username,
                     ip_address=request.remote_addr or "",
@@ -4536,7 +4562,8 @@ class APIManager(MultiHomeHelpersMixin):
                 # Optionally log the deletion
                 try:
                     self.management_logger.log_user_change(
-                        username=session.get('username', 'unknown'),
+                        username=session.get('username', 'unknown',
+                        home_id=session.get('current_home_id')),
                         action='delete',
                         target_user=user_id,
                         ip_address=request.remote_addr or "",
@@ -4653,7 +4680,8 @@ class APIManager(MultiHomeHelpersMixin):
                     username=session.get('username', 'unknown'),
                     action='add',
                     automation_name=new_automation['name'],
-                    ip_address=request.remote_addr or ""
+                    ip_address=request.remote_addr or "",
+                    home_id=session.get('current_home_id')
                 )
                 return jsonify({"status": "success", "automations": automations, "home_id": home_id, "created": created})
 
@@ -4680,7 +4708,8 @@ class APIManager(MultiHomeHelpersMixin):
                 username=session.get('username', 'unknown'),
                 action='add',
                 automation_name=new_automation['name'],
-                ip_address=request.remote_addr or ""
+                ip_address=request.remote_addr or "",
+                home_id=session.get('current_home_id')
             )
             return jsonify({"status": "success", "automations": automations})
 
@@ -4729,7 +4758,8 @@ class APIManager(MultiHomeHelpersMixin):
                         username=session.get('username', 'unknown'),
                         action='edit',
                         automation_name=updated_automation.get('name', target.get('name', 'unknown')),
-                        ip_address=request.remote_addr or ""
+                        ip_address=request.remote_addr or "",
+                        home_id=session.get('current_home_id')
                     )
                     return jsonify({"status": "success"})
 
@@ -4751,7 +4781,8 @@ class APIManager(MultiHomeHelpersMixin):
                             username=session.get('username', 'unknown'),
                             action='edit',
                             automation_name=updated_automation['name'],
-                            ip_address=request.remote_addr or ""
+                            ip_address=request.remote_addr or "",
+                            home_id=session.get('current_home_id')
                         )
                         return jsonify({"status": "success"})
                     return jsonify({"status": "error", "message": "Invalid data"}), 400
@@ -4783,7 +4814,8 @@ class APIManager(MultiHomeHelpersMixin):
                     username=session.get('username', 'unknown'),
                     action='delete',
                     automation_name=automation_name,
-                    ip_address=request.remote_addr or ""
+                    ip_address=request.remote_addr or "",
+                    home_id=session.get('current_home_id')
                 )
                 return jsonify({"status": "success"})
 
@@ -4799,7 +4831,8 @@ class APIManager(MultiHomeHelpersMixin):
                     username=session.get('username', 'unknown'),
                     action='delete',
                     automation_name=automation_name,
-                    ip_address=request.remote_addr or ""
+                    ip_address=request.remote_addr or "",
+                    home_id=session.get('current_home_id')
                 )
                 return jsonify({"status": "success"})
             return jsonify({"status": "error", "message": "Automation not found"}), 404
@@ -4910,7 +4943,8 @@ class APIManager(MultiHomeHelpersMixin):
                         if user_id:
                             user_data = self.smart_home.get_user_data(user_id)
                             self.management_logger.log_device_action(
-                                user=user_data.get('name', 'Unknown'),
+                                user=user_data.get('name', 'Unknown',
+                                home_id=session.get('current_home_id')),
                                 device_name='Security System',
                                 room='System',
                                 action='set_security_state',
