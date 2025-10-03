@@ -4,6 +4,7 @@ from flask_socketio import emit
 from werkzeug.utils import secure_filename
 from utils.cache_manager import CachedDataAccess
 from app.management_logger import ManagementLogger
+from utils.image_optimizer import optimize_profile_picture, delete_old_profile_picture
 import os
 import time
 import uuid
@@ -1329,8 +1330,24 @@ class RoutesManager(MultiHomeHelpersMixin):
                     if updates:
                         if not self.multi_db.update_user(user_id, updates):
                             return jsonify({"status": "error", "message": "Błąd podczas aktualizacji profilu"}), 500
+                    
+                    # Invalidate cache after successful update
+                    if self.cache_manager and (updates or data.get('current_password')):
+                        self.cache_manager.invalidate_user_cache(user_id)
+                        if session.get('user_id'):
+                            self.cache_manager.invalidate_session_user_cache(session.get('user_id'), user_id)
+                    
+                    # Return success response
+                    if data.get('current_password') or any(k in updates for k in ['name', 'email']):
+                        return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
+                    return jsonify({"status": "success", "message": "Profil zaktualizowany"})
+                    
                 else:
-                    # Fallback to old system
+                    # Fallback to old system - get user data first
+                    user_id_temp, user = self.smart_home.get_user_by_login(session['username'])
+                    if not user:
+                        return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
+                    
                     updates = {}
                     if 'username' in data and data['username'] != user['name']:
                         updates['name'] = data['username']
@@ -1342,26 +1359,34 @@ class RoutesManager(MultiHomeHelpersMixin):
                         if not self.smart_home.verify_password(user_id, data['current_password']):
                             return jsonify({"status": "error", "message": "Nieprawidłowe aktualne hasło"}), 400
                         updates['password'] = data['new_password']
-                success, message = self.smart_home.update_user_profile(user_id, updates)
-                if success:
-                    # Log user profile change
-                    action = 'password_change' if 'password' in updates else 'edit'
-                    self.management_logger.log_user_change(
-                        username=user['name'],
-                        action=action,
-                        target_user=user['name'],
-                        ip_address=request.remote_addr or "",
-                        details={'fields_updated': list(updates.keys())}
-                    )
                     
-                    if any(k in updates for k in ['name', 'email', 'password']):
-                        return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
-                    return jsonify({"status": "success", "message": message})
-                return jsonify({"status": "error", "message": message}), 400
+                    success, message = self.smart_home.update_user_profile(user_id, updates)
+                    if success:
+                        # Log user profile change
+                        action = 'password_change' if 'password' in updates else 'edit'
+                        self.management_logger.log_user_change(
+                            username=user['name'],
+                            action=action,
+                            target_user=user['name'],
+                            ip_address=request.remote_addr or "",
+                            details={'fields_updated': list(updates.keys())}
+                        )
+                        
+                        if any(k in updates for k in ['name', 'email', 'password']):
+                            return jsonify({"status": "success", "logout": True, "message": "pomyślnie zmieniono dane"})
+                        return jsonify({"status": "success", "message": message})
+                    return jsonify({"status": "error", "message": message}), 400
 
         @self.app.route('/api/user/profile-picture', methods=['POST'])
         @self.auth_manager.login_required
         def update_profile_picture():
+            """
+            Update user profile picture with automatic optimization.
+            - Compresses images to reduce file size
+            - Resizes to max 800x800px (maintains aspect ratio)
+            - Converts to WebP format for better compression
+            - Deletes old profile picture to save disk space
+            """
             if 'profile_picture' not in request.files:
                 return jsonify({"status": "error", "message": "Brak pliku"}), 400
 
@@ -1373,30 +1398,68 @@ class RoutesManager(MultiHomeHelpersMixin):
                 return jsonify({"status": "error", "message": "Niedozwolony typ pliku"}), 400
 
             try:
+                # Get user data
                 user_id, user = self.smart_home.get_user_by_login(session['username'])
                 if not user:
                     return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 400
-                filename = secure_filename(f"{user_id}_{int(time.time())}{os.path.splitext(file.filename or '')[1]}")
+                
+                # Store old profile picture URL for cleanup
+                old_picture_url = user.get('profile_picture')
+                
+                # Ensure upload directory exists
                 profile_pictures_dir = os.path.join(self.app.static_folder, 'profile_pictures')
                 if not os.path.exists(profile_pictures_dir):
-                    os.makedirs(profile_pictures_dir)
-
-                file_path = os.path.join(profile_pictures_dir, filename)
-                file.save(file_path)
-
-                profile_picture_url = url_for('static', filename=f'profile_pictures/{filename}')
-                success, message = self.smart_home.update_user_profile(user_id, {'profile_picture': profile_picture_url})
+                    os.makedirs(profile_pictures_dir, exist_ok=True)
+                
+                # Generate unique filename prefix
+                timestamp = int(time.time())
+                file.filename = f"{user_id}_{timestamp}_{file.filename}"
+                
+                # Optimize and save image (auto-converts to WebP)
+                profile_picture_url = optimize_profile_picture(
+                    image_file=file,
+                    upload_folder=profile_pictures_dir,
+                    max_size=(800, 800),
+                    use_webp=True
+                )
+                
+                # Convert to proper URL using url_for (e.g., /static/profile_pictures/file.webp)
+                # Extract filename from path (returns 'static/profile_pictures/file.webp')
+                filename_part = profile_picture_url.replace('static/', '', 1)  # Remove 'static/' prefix
+                profile_picture_url = url_for('static', filename=filename_part)
+                
+                # Update database with new profile picture URL
+                success, message = self.smart_home.update_user_profile(
+                    user_id, 
+                    {'profile_picture': profile_picture_url}
+                )
 
                 if success:
+                    # Invalidate user cache to force refresh of profile picture on all pages
+                    if self.cache_manager:
+                        self.cache_manager.invalidate_user_cache(user_id)
+                        # Also invalidate session cache if session_id is available
+                        if session.get('user_id'):
+                            self.cache_manager.invalidate_session_user_cache(session.get('user_id'), user_id)
+                    
+                    # Delete old profile picture after successful DB update
+                    base_dir = os.path.dirname(self.app.static_folder)
+                    delete_old_profile_picture(old_picture_url, base_dir)
+                    
                     return jsonify({
                         "status": "success",
-                        "message": "Zdjęcie profilowe zostało zaktualizowane",
+                        "message": "Zdjęcie profilowe zostało zaktualizowane i zoptymalizowane",
                         "profile_picture_url": profile_picture_url
                     })
+                    
                 return jsonify({"status": "error", "message": message}), 500
 
+            except ValueError as e:
+                # Image processing error (invalid format, corrupted file, etc.)
+                return jsonify({"status": "error", "message": f"Błąd przetwarzania obrazu: {str(e)}"}), 400
             except Exception as e:
-                return jsonify({"status": "error", "message": str(e)}), 500
+                logger.error(f"Profile picture upload error: {e}", exc_info=True)
+                return jsonify({"status": "error", "message": "Błąd serwera podczas przesyłania zdjęcia"}), 500
 
         @self.app.route('/login', methods=['GET', 'POST'])
         def login():

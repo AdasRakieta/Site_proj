@@ -120,6 +120,7 @@
             window.currentHomeId = null;
         }
     </script>
+    <script src="{{ url_for('static', filename='js/common.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/automations.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/setup.js') }}?v={{ asset_version }}"></script>
