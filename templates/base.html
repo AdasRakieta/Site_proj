@@ -20,6 +20,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user_menu.css') }}?v={{ asset_version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v={{ asset_version }}">
+    {% if request.endpoint != 'home_settings.home_settings_page' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v={{ asset_version }}">
+    {% endif %}
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
@@ -43,10 +46,35 @@
                     <a href="/user" class="menu-item">
                         <img class="user-menu-icon" id="user-menu-user-icon" src="{{ url_for('static', filename='icons/user_icon_light.png') }}" alt="Profil">
                     </a>
+                    {% if multi_home_enabled and user_homes %}
+                    <div class="menu-item home-selector-item">
+                        <div class="current-home-display" onclick="toggleHomeSelector()">
+                            <img class="user-menu-icon" src="{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
+                            <span class="current-home-name">{{ current_home.name if current_home else 'Wybierz Dom' }}</span>
+                            <span class="home-dropdown-arrow">▼</span>
+                        </div>
+                        <div class="home-selector-dropdown" id="home-selector-dropdown">
+                            {% for home in user_homes %}
+                            <div class="home-option {% if home.id == current_home_id %}active{% endif %}"
+                                 onclick="switchHome('{{ home.id }}')">
+                                <span class="home-name">{{ home.name }}</span>
+                                <span class="home-role">{{ home.role }}</span>
+                                {% if home.is_owner %}
+                                <span class="home-owner-badge">👑</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            <div class="home-selector-actions">
+                                <a href="/home/select" class="home-action-link">Zarządzaj Domami</a>
+                                <a href="/home/create" class="home-action-link">Utwórz Nowy</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     <a href="/settings" class="menu-item">
                         <img class="user-menu-icon" id="user-menu-settings-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Ustawienia">
                     </a>
-                        <a href="/logout" class="menu-item">
+                        <a href="/logout" class="menu-item" style="margin-left: -30px;">
                         <img class="user-menu-icon" id="user-menu-logout-icon" src="{{ url_for('static', filename='icons/leave_icon.png') }}" alt="Wyloguj">
                     </a>
                 </div>
@@ -67,7 +95,7 @@
                 <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
                 <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
                 <li><a href="/automations" class="menu-link"><img id="automations-icon" class="menu-icon" src="{{ url_for('static', filename='icons/automations_icon_light.png') }}" alt="Automations"> Automatyzacje</a></li>
-                {% if session.role == 'admin' %}
+                {% if has_admin_access %}
                 <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
                 <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
                 {% endif %}
@@ -86,10 +114,93 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+    <script>
+        window.currentHomeId = "{{ current_home_id or '' }}";
+        if (!window.currentHomeId) {
+            window.currentHomeId = null;
+        }
+    </script>
+    <script src="{{ url_for('static', filename='js/common.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/automations.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/setup.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/user_menu.js') }}?v={{ asset_version }}"></script>
+    
+    <script>
+        // Home Selector JavaScript
+        function toggleHomeSelector() {
+            const dropdown = document.getElementById('home-selector-dropdown');
+            const arrow = document.querySelector('.home-dropdown-arrow');
+            
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+                if (arrow) {
+                    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            }
+        }
+        
+        function switchHome(homeId) {
+            // Show loading state
+            const currentHomeName = document.querySelector('.current-home-name');
+            const originalText = currentHomeName ? currentHomeName.textContent : '';
+            
+            if (currentHomeName) {
+                currentHomeName.textContent = 'Przełączanie...';
+            }
+            
+            // Send request to switch home
+            fetch('/api/home/select', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ home_id: homeId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to reflect the new home context
+                    window.location.reload();
+                } else {
+                    // Restore original text and show error
+                    if (currentHomeName) {
+                        currentHomeName.textContent = originalText;
+                    }
+                    alert('Nie udało się przełączyć domu: ' + (data.error || 'Nieznany błąd'));
+                }
+            })
+            .catch(error => {
+                // Restore original text and show error
+                if (currentHomeName) {
+                    currentHomeName.textContent = originalText;
+                }
+                console.error('Error switching home:', error);
+                alert('Nie udało się przełączyć domu. Spróbuj ponownie.');
+            });
+            
+            // Hide dropdown
+            const dropdown = document.getElementById('home-selector-dropdown');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const homeSelector = document.querySelector('.home-selector-item');
+            const dropdown = document.getElementById('home-selector-dropdown');
+            
+            if (homeSelector && dropdown && !homeSelector.contains(event.target)) {
+                dropdown.classList.remove('show');
+                const arrow = document.querySelector('.home-dropdown-arrow');
+                if (arrow) {
+                    arrow.style.transform = 'rotate(0deg)';
+                }
+            }
+        });
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

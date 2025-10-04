@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('userProfileForm');
     const profilePictureInput = document.getElementById('profilePictureInput');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
     // Aktualizuj dane w menu użytkownika i avatarze po zmianie profilu lub zdjęcia
     function updateUserMenu({ name, profile_picture, role }) {
@@ -26,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/user/profile', {
                 method: 'GET',
-                headers: { 'X-CSRFToken': csrfToken }
+                headers: { 'X-CSRFToken': window.getCSRFToken() }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -58,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/user/profile-picture', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': window.getCSRFToken()
                 },
                 body: formData
             });
@@ -67,17 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (response.ok) {
                 await refreshUserData();
-                // Use global notification for profile picture update success
-                if (typeof showNotification === 'function') {
-                    showNotification('Zdjęcie profilowe zostało zaktualizowane.', 'success');
-                } else {
-                    showMessage('Zdjęcie profilowe zostało zaktualizowane.', 'success');
-                }
+                showNotification(data.message || 'Zdjęcie profilowe zostało zaktualizowane.', 'success');
             } else {
-                showMessage(data.message || 'Wystąpił błąd podczas aktualizacji zdjęcia.', 'error');
+                showNotification(data.message || 'Wystąpił błąd podczas aktualizacji zdjęcia.', 'error');
             }
         } catch (error) {
-            showMessage('Wystąpił błąd podczas wysyłania zdjęcia.', 'error');
+            showNotification('Wystąpił błąd podczas wysyłania zdjęcia.', 'error');
             console.error('Error:', error);
         }
     });
@@ -98,15 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add password change if provided
         if (currentPassword || newPassword || confirmPassword) {
             if (!currentPassword) {
-                showMessage('Wprowadź aktualne hasło.', 'error');
+                showNotification('Wprowadź aktualne hasło.', 'error');
                 return;
             }
             if (!newPassword) {
-                showMessage('Wprowadź nowe hasło.', 'error');
+                showNotification('Wprowadź nowe hasło.', 'error');
                 return;
             }
             if (newPassword !== confirmPassword) {
-                showMessage('Nowe hasło i potwierdzenie nie są identyczne.', 'error');
+                showNotification('Nowe hasło i potwierdzenie nie są identyczne.', 'error');
                 return;
             }
             formData.current_password = currentPassword;
@@ -118,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': window.getCSRFToken()
                 },
                 body: JSON.stringify(formData)
             });
@@ -128,37 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = '/logout?changed=1';
                 return;
             } else if (response.ok) {
-                // Use global notification for profile update success
-                if (typeof showNotification === 'function') {
-                    showNotification(data.message || 'Zapisano zmiany.', 'success');
-                } else {
-                    showMessage(data.message || 'Zapisano zmiany.', 'success');
-                }
+                showNotification(data.message || 'Zapisano zmiany.', 'success');
                 await refreshUserData();
             } else {
-                showMessage(data.message || 'Wystąpił błąd podczas aktualizacji profilu.', 'error');
+                showNotification(data.message || 'Wystąpił błąd podczas aktualizacji profilu.', 'error');
             }
         } catch (error) {
-            showMessage('Wystąpił błąd podczas zapisywania zmian.', 'error');
+            showNotification('Wystąpił błąd podczas zapisywania zmian.', 'error');
             console.error('Error:', error);
         }
     });
 
-    // Helper function to show messages
-    function showMessage(message, type) {
-        const existingMessage = document.querySelector('.message');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
-
-        const messageElement = document.createElement('div');
-        messageElement.className = `message ${type}-message`;
-        messageElement.textContent = message;
-
-        form.insertBefore(messageElement, form.firstChild);
-
-        setTimeout(() => {
-            messageElement.remove();
-        }, 5000);
-    }
 });

@@ -984,12 +984,10 @@ input:checked+.slider:before {
 }
 
 .theme-form {
-
     margin-left: auto;
     margin-right: auto;
     align-content: center;
     min-width: 200px;
-    height: 50px;
     padding: 20px;
     max-width: fit-content;
     background: var(--card-bg);
@@ -2184,11 +2182,6 @@ footer {
   }
 }
 @-webkit-keyframes wave-4 {
-  50% {
-    transform: scale(0.9);
-  }
-}
-@-o-keyframes wave-4 {
   50% {
     transform: scale(0.9);
   }

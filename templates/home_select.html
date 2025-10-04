@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Wybierz Dom - SmartHome{% endblock %}
+
+
+
+{% block content %}
+<div class="home-selection-container">
+    <div class="home-selection-header">
+        <h1>Wybierz Dom</h1>
+        <p>Wybierz, którym domem chcesz zarządzać</p>
+    </div>
+
+    <div class="homes-grid">
+        {% for home in homes %}
+        <div class="home-card {% if home.id == current_home_id %}active{% endif %}" 
+             onclick="selectHome('{{ home.id }}')">
+            <div class="home-header">
+                <h3>{{ home.name }}</h3>
+                <div class="home-badges">
+                    {% if home.is_owner %}
+                        <span class="badge owner">Właściciel</span>
+                    {% else %}
+                        <span class="badge role">{{ home.role.title() }}</span>
+                    {% endif %}
+                    {% if home.id == current_home_id %}
+                        <span class="badge current">Aktualny</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if home.description %}
+            <p class="home-description">{{ home.description }}</p>
+            {% endif %}
+            
+            <div class="home-stats">
+                <div class="stat">
+                    <span class="stat-number">{{ home.room_count or 0 }}</span>
+                    <span class="stat-label">Pokoje</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">{{ home.device_count or 0 }}</span>
+                    <span class="stat-label">Urządzenia</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">{{ home.user_count or 1 }}</span>
+                    <span class="stat-label">Użytkownicy</span>
+                </div>
+            </div>
+            
+            <div class="home-permissions">
+                {% for permission in home.permissions %}
+                    <span class="permission-tag">{{ permission.replace('_', ' ').title() }}</span>
+                {% endfor %}
+            </div>
+            
+            <div class="home-footer">
+                <small>Dołączono: {{ home.joined_at.strftime('%B %Y') if home.joined_at else 'Nieznane' }}</small>
+                {% if home.is_owner %}
+                    <a href="/home/{{ home.id }}/settings" class="settings-link">⚙️ Ustawienia</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not homes %}
+    <div class="no-homes">
+        <h3>Brak Dostępnych Domów</h3>
+        <p>Nie masz jeszcze dostępu do żadnych domów.</p>
+        <a href="/home/create" class="btn btn-primary">Utwórz Swój Pierwszy Dom</a>
+    </div>
+    {% endif %}
+
+    <div class="home-actions">
+        <a href="/home/create" class="btn btn-secondary">
+            <i class="icon">🏠</i> Utwórz Nowy Dom
+        </a>
+        <a href="/home/join" class="btn btn-secondary">
+            <i class="icon">👥</i> Dołącz do Domu
+        </a>
+    </div>
+</div>
+
+
+
+<script>
+function selectHome(homeId) {
+    console.log('🏠 selectHome called with homeId:', homeId);
+    
+    // Show loading state
+    const card = document.querySelector(`.home-card[onclick="selectHome('${homeId}')"]`);
+    if (!card) {
+        console.error('❌ Card not found for homeId:', homeId);
+        return;
+    }
+    
+    const originalContent = card.innerHTML;
+    card.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Przełączanie domu...</p></div>';
+    
+    console.log('📤 Sending request to /api/home/select with homeId:', homeId);
+    
+    // Send request to switch home
+    fetch('/api/home/select', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ home_id: homeId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Redirect to dashboard or previous page
+            const returnUrl = new URLSearchParams(window.location.search).get('return') || '/';
+            window.location.href = returnUrl;
+        } else {
+            // Restore card content and show error
+            card.innerHTML = originalContent;
+            alert('Nie udało się przełączyć domu: ' + (data.error || 'Nieznany błąd'));
+        }
+    })
+    .catch(error => {
+        // Restore card content and show error
+        card.innerHTML = originalContent;
+        console.error('Error switching home:', error);
+        alert('Nie udało się przełączyć domu. Spróbuj ponownie.');
+    });
+}
+
+// Add loading spinner styles
+const style = document.createElement('style');
+style.textContent = `
+.loading-spinner {
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--accent-color);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
