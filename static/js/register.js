@@ -164,7 +164,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     showMessage('Rejestracja zakończona sukcesem! Możesz się zalogować.', 'success');
                 }
-                setTimeout(() => { window.location.href = '/login'; }, 1500);
+                // Get next parameter from URL if present
+                const urlParams = new URLSearchParams(window.location.search);
+                const next = urlParams.get('next');
+                const loginUrl = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
+                setTimeout(() => { window.location.href = loginUrl; }, 1500);
             } else {
                 showMessage(data.message || 'Wystąpił błąd podczas weryfikacji.');
             }
@@ -185,7 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn.id !== 'backToStep1') {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                window.location.href = '/login';
+                // Get next parameter from URL if present
+                const urlParams = new URLSearchParams(window.location.search);
+                const next = urlParams.get('next');
+                const loginUrl = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
+                window.location.href = loginUrl;
             });
         }
     });

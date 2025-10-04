@@ -1617,6 +1617,10 @@ class RoutesManager(MultiHomeHelpersMixin):
                         else:
                             # Web response
                             flash('Zalogowano pomyślnie!', 'success')
+                            # Check for next parameter (for invitation redirects)
+                            next_url = request.args.get('next') or request.form.get('next')
+                            if next_url and next_url.startswith('/'):
+                                return redirect(next_url)
                             return redirect(url_for('home'))
                     else:
                         print(f"[DEBUG] Login failed - user exists: {user is not None}, has password: {user.get('password') is not None if user else False}")
@@ -1654,9 +1658,11 @@ class RoutesManager(MultiHomeHelpersMixin):
                     else:
                         # Web error response
                         flash('Błąd podczas logowania!', 'error')
-                        return render_template('login.html')
+                        return render_template('login.html', next=request.args.get('next'))
             
-            return render_template('login.html')
+            # GET request - show login form
+            next_url = request.args.get('next', '')
+            return render_template('login.html', next=next_url)
 
         @self.app.route('/logout')
         def logout():
@@ -1756,7 +1762,9 @@ class RoutesManager(MultiHomeHelpersMixin):
                     # Pierwszy krok - wysłanie kodu weryfikacyjnego
                     return self._send_verification_code(data)
             
-            return render_template('register.html')
+            # GET request - show registration form
+            next_url = request.args.get('next', '')
+            return render_template('register.html', next=next_url)
 
         @self.app.route('/forgot_password', methods=['GET', 'POST'])
         def forgot_password():
@@ -4989,6 +4997,231 @@ class APIManager(MultiHomeHelpersMixin):
                     "status": "error", 
                     "message": f"Błąd podczas operacji na zabezpieczeniach: {str(e)}"
                 }), 500
+
+        # ============================================================================
+        # HOME INVITATIONS API
+        # ============================================================================
+
+        @app.route('/api/home/<home_id>/invite', methods=['POST'])
+        @login_required
+        def send_home_invitation(home_id):
+            """Send invitation to join a home"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if not DATABASE_MODE or not self.multi_db:
+                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
+
+            try:
+                data = request.json
+                email = data.get('email', '').strip().lower()
+                role = data.get('role', 'member')
+
+                if not email:
+                    return jsonify({"success": False, "error": "Email is required"}), 400
+
+                # Validate email format
+                import re
+                email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                if not re.match(email_pattern, email):
+                    return jsonify({"success": False, "error": "Invalid email format"}), 400
+
+                # Create invitation
+                invitation_code = self.multi_db.create_invitation(
+                    home_id=home_id,
+                    email=email,
+                    role=role,
+                    invited_by=session.get('user_id')
+                )
+
+                # Get home and inviter details for email
+                home = self.multi_db.get_home(home_id, session.get('user_id'))
+                user_data = self.multi_db.get_user_data(session.get('user_id'))
+
+                # Send invitation email
+                base_url = request.url_root.rstrip('/')
+                self.mail_manager.send_invitation_email(
+                    email=email,
+                    invitation_code=invitation_code,
+                    home_name=home.get('name', 'Unknown'),
+                    inviter_name=user_data.get('name', 'Unknown'),
+                    role=role,
+                    base_url=base_url
+                )
+
+                # Log the action
+                if hasattr(self.management_logger, 'log_event'):
+                    self.management_logger.log_event(
+                        level='info',
+                        message=f'Wysłano zaproszenie do {email} (rola: {role})',
+                        event_type='invitation_sent',
+                        user=user_data.get('name', 'Unknown'),
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        details={'email': email, 'role': role, 'code': invitation_code},
+                        home_id=home_id
+                    )
+
+                return jsonify({
+                    "success": True,
+                    "invitation_code": invitation_code,
+                    "message": "Zaproszenie zostało wysłane"
+                })
+
+            except PermissionError as e:
+                return jsonify({"success": False, "error": str(e)}), 403
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            except Exception as e:
+                self.app.logger.error(f"Error sending invitation: {e}")
+                return jsonify({"success": False, "error": "Internal server error"}), 500
+
+        @app.route('/api/home/<home_id>/invitations', methods=['GET'])
+        @login_required
+        def get_home_invitations(home_id):
+            """Get pending invitations for a home"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if not DATABASE_MODE or not self.multi_db:
+                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
+
+            try:
+                invitations = self.multi_db.get_pending_invitations(
+                    home_id=home_id,
+                    admin_user_id=session.get('user_id')
+                )
+
+                return jsonify({
+                    "success": True,
+                    "invitations": invitations
+                })
+
+            except PermissionError as e:
+                return jsonify({"success": False, "error": str(e)}), 403
+            except Exception as e:
+                self.app.logger.error(f"Error getting invitations: {e}")
+                return jsonify({"success": False, "error": "Internal server error"}), 500
+
+        @app.route('/api/home/<home_id>/invitations/<invitation_id>/cancel', methods=['POST'])
+        @login_required
+        def cancel_home_invitation(home_id, invitation_id):
+            """Cancel a pending invitation"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if not DATABASE_MODE or not self.multi_db:
+                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
+
+            try:
+                self.multi_db.cancel_invitation(
+                    invitation_id=invitation_id,
+                    admin_user_id=session.get('user_id')
+                )
+
+                # Log the action
+                if hasattr(self.management_logger, 'log_event'):
+                    user_data = self.multi_db.get_user_data(session.get('user_id'))
+                    self.management_logger.log_event(
+                        level='info',
+                        message=f'Anulowano zaproszenie',
+                        event_type='invitation_cancelled',
+                        user=user_data.get('name', 'Unknown'),
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        details={'invitation_id': invitation_id},
+                        home_id=home_id
+                    )
+
+                return jsonify({"success": True, "message": "Zaproszenie anulowane"})
+
+            except PermissionError as e:
+                return jsonify({"success": False, "error": str(e)}), 403
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            except Exception as e:
+                self.app.logger.error(f"Error cancelling invitation: {e}")
+                return jsonify({"success": False, "error": "Internal server error"}), 500
+
+        @app.route('/invite/accept', methods=['GET'])
+        def invitation_accept_page():
+            """Page for accepting invitations"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if not DATABASE_MODE or not self.multi_db:
+                return "Multi-home mode not enabled", 400
+
+            code = request.args.get('code', '').strip().upper()
+            invitation = None
+
+            if code and session.get('user_id'):
+                # User is logged in and has a code - show invitation details
+                invitation = self.multi_db.get_invitation(code)
+                if invitation and invitation['status'] != 'pending':
+                    flash(f'Zaproszenie jest {invitation["status"]}', 'error')
+                    invitation = None
+                elif invitation and datetime.now() > invitation['expires_at']:
+                    flash('Zaproszenie wygasło', 'error')
+                    invitation = None
+
+            return render_template('invite_accept.html', invitation=invitation, code=code)
+
+        @app.route('/api/invite/accept', methods=['POST'])
+        @login_required
+        def accept_invitation():
+            """Accept a home invitation"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            if not DATABASE_MODE or not self.multi_db:
+                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
+
+            try:
+                data = request.json
+                invitation_code = data.get('invitation_code', '').strip().upper()
+
+                if not invitation_code:
+                    return jsonify({"success": False, "error": "Invitation code is required"}), 400
+
+                # Accept invitation
+                self.multi_db.accept_invitation(
+                    invitation_code=invitation_code,
+                    user_id=session.get('user_id')
+                )
+
+                # Log the action
+                if hasattr(self.management_logger, 'log_event'):
+                    user_data = self.multi_db.get_user_data(session.get('user_id'))
+                    invitation = self.multi_db.get_invitation(invitation_code)
+                    self.management_logger.log_event(
+                        level='info',
+                        message=f'{user_data.get("name")} zaakceptował zaproszenie do domu',
+                        event_type='invitation_accepted',
+                        user=user_data.get('name', 'Unknown'),
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        details={'code': invitation_code},
+                        home_id=invitation.get('home_id') if invitation else None
+                    )
+
+                return jsonify({
+                    "success": True,
+                    "message": "Zaproszenie zaakceptowane"
+                })
+
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            except Exception as e:
+                self.app.logger.error(f"Error accepting invitation: {e}")
+                return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 class SocketManager:

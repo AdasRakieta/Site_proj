@@ -7,6 +7,9 @@
     
     <div class="login-container">
         <form class="login-form" method="POST" action="{{ url_for('login') }}">
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
             <div class="form-group">
                 <label for="username">Nazwa użytkownika</label>
                 <input type="text" id="username" name="username" required>
@@ -81,7 +84,9 @@
         const registerBtn = document.getElementById('registerBtn');
         if (registerBtn) {
             registerBtn.addEventListener('click', function() {
-                window.location.href = "{{ url_for('register') }}";
+                const next = "{{ next }}";
+                const registerUrl = "{{ url_for('register') }}" + (next ? `?next=${encodeURIComponent(next)}` : '');
+                window.location.href = registerUrl;
             });
         }
         // Wyświetl komunikaty flash jako notyfikacje
