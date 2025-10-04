@@ -19,12 +19,33 @@ multi_db = None
 def init_multi_home_routes(db_manager):
     """Initialize multi-home routes with database manager"""
     global multi_db
+    if db_manager is None:
+        try:
+            db_manager = current_app.config.get('MULTI_DB_MANAGER')
+        except Exception:
+            db_manager = None
     multi_db = db_manager
     logger.info(f"Multi-home routes initialized with db_manager: {db_manager is not None}")
 
 def get_multi_db():
     """Get the multi_db instance"""
-    return multi_db
+    global multi_db
+    if multi_db is not None:
+        return multi_db
+    try:
+        app = current_app
+    except Exception:
+        return None
+    db_manager = app.config.get('MULTI_DB_MANAGER')
+    if db_manager is not None:
+        multi_db = db_manager
+    return db_manager
+
+
+@multi_home_bp.before_app_request
+def _ensure_multi_db_loaded():
+    """Ensure multi-home DB manager is loaded into module scope before handling requests."""
+    get_multi_db()
 
 # Authentication helpers for multi-home routes
 def login_required(f):
@@ -51,7 +72,8 @@ def home_select():
     print("🏠 Home select page accessed")
     logger.info("🏠 Home select page accessed")
     
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         print("❌ Multi-home DB not available")
         logger.error("Multi-home DB not available")
         flash("Multi-home functionality is not available", "error")
@@ -68,7 +90,7 @@ def home_select():
     
     try:
         # Get all homes user has access to
-        homes = multi_db.get_user_homes(user_id)
+        homes = db_manager.get_user_homes(user_id)
         print(f"🏠 Found {len(homes)} homes for user")
         logger.info(f"🏠 Found {len(homes)} homes for user")
         
@@ -77,15 +99,15 @@ def home_select():
             logger.info(f"  - Home: {home['name']} (ID: {home['id']})")
         
         # Get current home ID
-        current_home_id = multi_db.get_user_current_home(user_id)
+        current_home_id = db_manager.get_user_current_home(user_id)
         print(f"🎯 Current home ID: {current_home_id}")
         logger.info(f"🎯 Current home ID: {current_home_id}")
         
         # Add statistics to homes
         for home in homes:
             try:
-                rooms = multi_db.get_home_rooms(home['id'], user_id)
-                devices = multi_db.get_home_devices(home['id'], user_id)
+                rooms = db_manager.get_home_rooms(home['id'], user_id)
+                devices = db_manager.get_home_devices(home['id'], user_id)
                 
                 home['room_count'] = len(rooms)
                 home['device_count'] = len(devices)
@@ -111,7 +133,8 @@ def api_home_select():
     """API endpoint to select/switch current home."""
     logger.info("🏠 API home select endpoint called")
     
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         logger.error("Multi-home DB not available")
         return jsonify({"success": False, "error": "Multi-home functionality not available"})
     
@@ -133,7 +156,7 @@ def api_home_select():
         logger.info(f"👤 User ID: {user_id}, switching to home: {home_id}")
         
         # Verify user has access to this home
-        has_access = multi_db.user_has_home_access(user_id, home_id)
+        has_access = db_manager.user_has_home_access(user_id, home_id)
         logger.info(f"🔑 User has access to home {home_id}: {has_access}")
         
         if not has_access:
@@ -142,7 +165,7 @@ def api_home_select():
         # Set current home in session and database
         session_token = session.get('session_token')
         logger.info(f"💾 Setting current home in DB, session_token: {session_token}")
-        success = multi_db.set_user_current_home(user_id, home_id, session_token)
+        success = db_manager.set_user_current_home(user_id, home_id, session_token)
         
         if success:
             # Also store in Flask session for immediate use
@@ -169,7 +192,8 @@ def home_create():
 @login_required
 def api_home_create():
     """API endpoint to create a new home."""
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         return jsonify({"success": False, "error": "Multi-home functionality not available"})
     
     try:
@@ -190,11 +214,11 @@ def api_home_create():
         user_id = user['id']
         
         # Create the home
-        home_id = multi_db.create_home(name, user_id, description)
+        home_id = db_manager.create_home(name, user_id, description)
         
         # Set as current home
         session_token = session.get('session_token')
-        multi_db.set_user_current_home(user_id, str(home_id), session_token)
+        db_manager.set_user_current_home(user_id, str(home_id), session_token)
         session['current_home_id'] = home_id
         
         if request.is_json:
@@ -221,7 +245,8 @@ def home_join():
 @login_required
 def api_home_join():
     """API endpoint to join a home via invitation code."""
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         return jsonify({"success": False, "error": "Multi-home functionality not available"})
     
     try:
@@ -253,7 +278,8 @@ def api_home_join():
 @login_required
 def api_current_home():
     """Get current home information."""
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         return jsonify({"success": False, "error": "Multi-home functionality not available"})
     
     try:
@@ -261,12 +287,12 @@ def api_current_home():
         if not user:
             return jsonify({"success": False, "error": "Authentication required"})
         user_id = user['id']
-        current_home_id = session.get('current_home_id') or multi_db.get_user_current_home(user_id)
+        current_home_id = session.get('current_home_id') or db_manager.get_user_current_home(user_id)
         
         if not current_home_id:
             return jsonify({"success": False, "error": "No current home set"})
         
-        home_details = multi_db.get_home_details(str(current_home_id), user_id)
+        home_details = db_manager.get_home_details(str(current_home_id), user_id)
         
         if not home_details:
             return jsonify({"success": False, "error": "Current home not accessible"})
@@ -282,7 +308,8 @@ def api_current_home():
 
 def get_current_home_id():
     """Helper function to get current home ID for authenticated user."""
-    if not multi_db:
+    db_manager = get_multi_db()
+    if not db_manager:
         return None
         
     try:
@@ -294,11 +321,11 @@ def get_current_home_id():
         home_id = session.get('current_home_id')
         if home_id:
             # Verify user still has access
-            if multi_db.user_has_home_access(user['id'], home_id):
+            if db_manager.user_has_home_access(user['id'], home_id):
                 return home_id
         
         # Fall back to database
-        home_id = multi_db.get_user_current_home(user['id'])
+        home_id = db_manager.get_user_current_home(user['id'])
         if home_id:
             session['current_home_id'] = home_id
             return home_id
@@ -314,7 +341,8 @@ def require_home_access(permission='view_devices'):
     """Decorator to require home access and specific permission."""
     def decorator(f):
         def wrapper(*args, **kwargs):
-            if not multi_db:
+            db_manager = get_multi_db()
+            if not db_manager:
                 flash("Multi-home functionality is not available", "error")
                 return redirect(url_for('home'))
             
@@ -326,7 +354,7 @@ def require_home_access(permission='view_devices'):
             if not user:
                 return redirect(url_for('login'))
             user_id = user['id']
-            if not multi_db.user_has_home_permission(user_id, str(home_id), permission):
+            if not db_manager.user_has_home_permission(user_id, str(home_id), permission):
                 flash("You don't have permission to perform this action", "error")
                 return redirect(url_for('multi_home.home_select'))
             

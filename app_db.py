@@ -226,13 +226,16 @@ class SmartHomeApp:
                         password=db_password,
                         database=db_name
                     )
+                    self.app.config['MULTI_DB_MANAGER'] = self.multi_db
                     print(f"✓ Multi-home database manager initialized: {self.multi_db is not None}")
                 except Exception as e:
                     print(f"⚠ Failed to initialize multi-home database manager: {e}")
                     import traceback
                     traceback.print_exc()
+                    self.app.config.pop('MULTI_DB_MANAGER', None)
             else:
                 print("ℹ Database mode disabled, skipping multi-home database manager")
+                self.app.config.pop('MULTI_DB_MANAGER', None)
             
             # Initialize management logger
             # Use database logger when in database mode, JSON logger otherwise
