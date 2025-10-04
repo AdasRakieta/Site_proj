@@ -1177,10 +1177,10 @@ class APIManager:
                         old_name = r
                         break
                 for button in self.smart_home.buttons:
-                    if button['room'].lower() == old_name.lower():
+                    if button.get('room') and button['room'].lower() == old_name.lower():
                         button['room'] = new_name
                 for control in self.smart_home.temperature_controls:
-                    if control['room'].lower() == old_name.lower():
+                    if control.get('room') and control['room'].lower() == old_name.lower():
                         control['room'] = new_name
                 self.smart_home.save_config()
 
@@ -1781,12 +1781,86 @@ class APIManager:
                 print(f"Error in set_temperature_control_value: {e}")
                 return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
+        @self.app.route('/api/temperature_controls/<id>/enabled', methods=['POST'])
+        @self.auth_manager.login_required
+        def toggle_temperature_control_enabled(id):
+            """Toggle temperature control enabled/disabled state via REST API"""
+            try:
+                # Find temperature control by ID
+                control = None
+                control_idx = None
+                for i, c in enumerate(self.smart_home.temperature_controls):
+                    if str(c.get('id')) == str(id):
+                        control = c
+                        control_idx = i
+                        break
+                
+                if not control:
+                    return jsonify({'status': 'error', 'message': 'Temperature control not found'}), 404
+                
+                # Get enabled state from request
+                data = request.get_json() or {}
+                enabled = data.get('enabled')
+                
+                if enabled is None:
+                    return jsonify({'status': 'error', 'message': 'Enabled value is required'}), 400
+                
+                # Convert to boolean
+                enabled = bool(enabled)
+                
+                # Update temperature control enabled state
+                if hasattr(self.smart_home, 'toggle_temperature_control_enabled'):
+                    # Use database method if available
+                    success = self.smart_home.toggle_temperature_control_enabled(control['room'], control['name'], enabled)
+                    if not success:
+                        return jsonify({'status': 'error', 'message': 'Failed to update enabled state in database'}), 500
+                else:
+                    # Fallback to JSON mode
+                    self.smart_home.temperature_controls[control_idx]['enabled'] = enabled
+                    if not self.smart_home.save_config():
+                        return jsonify({'status': 'error', 'message': 'Failed to save enabled state'}), 500
+                
+                # Emit socket updates
+                if self.socketio:
+                    self.socketio.emit('update_temperature_control_enabled', {
+                        'room': control['room'],
+                        'name': control['name'],
+                        'enabled': enabled
+                    })
+                
+                # Log the action
+                if hasattr(self.management_logger, 'log_device_action'):
+                    user_id = session.get('user_id')
+                    user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    self.management_logger.log_device_action(
+                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                        device_name=control['name'],
+                        room=control['room'],
+                        action='toggle_temperature_enabled',
+                        new_state=enabled,
+                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                    )
+                
+                return jsonify({
+                    'status': 'success',
+                    'control': {
+                        'id': control['id'],
+                        'name': control['name'],
+                        'room': control['room'],
+                        'enabled': enabled
+                    }
+                })
+                
+            except Exception as e:
+                print(f"Error in toggle_temperature_control_enabled: {e}")
+                return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
         @self.app.route('/<room>')
         @self.auth_manager.login_required
         def dynamic_room(room):
             if room.lower() in [r.lower() for r in self.smart_home.rooms]:
-                room_buttons = [button for button in self.smart_home.buttons if button['room'].lower() == room.lower()]
-                room_temperature_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() == room.lower()]
+                room_buttons = [button for button in self.smart_home.buttons if button.get('room') and button['room'].lower() == room.lower()]
+                room_temperature_controls = [control for control in self.smart_home.temperature_controls if control.get('room') and control['room'].lower() == room.lower()]
                 user_data = self.smart_home.get_user_data(session.get('user_id')) if session.get('user_id') else None
                 return render_template('room.html', 
                                       room=room.capitalize(), 
@@ -2317,7 +2391,7 @@ class SocketManager:
         @self.socketio.on('get_room_temperature_controls')
         def handle_get_room_temperature_controls(room):
             if 'username' in session:
-                room_controls = [control for control in self.smart_home.temperature_controls if control['room'].lower() == room.lower()]
+                room_controls = [control for control in self.smart_home.temperature_controls if control.get('room') and control['room'].lower() == room.lower()]
                 self.socketio.emit('update_room_temperature_controls', room_controls)
 
         @self.socketio.on('save_config')
