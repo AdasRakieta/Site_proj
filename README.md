@@ -67,37 +67,57 @@ pip install -r requirements.txt
 
 ### 3. Konfiguracja środowiska
 
-Utwórz plik `.env` w katalogu głównym projektu i uzupełnij zmienne:
+Skopiuj plik `.env.example` do `.env` i uzupełnij swoimi danymi:
+
+```powershell
+cp .env.example .env
+```
+
+Następnie edytuj plik `.env`:
 
 ```env
-# Konfiguracja serwera aplikacji
+# ============================================================================
+# SmartHome Multi-Home Database Configuration
+# ============================================================================
+# PostgreSQL database for multi-home system
+DB_HOST=your_database_host
+DB_PORT=5432
+DB_NAME=smarthome_multihouse
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+
+# ============================================================================
+# Server Configuration
+# ============================================================================
 SERVER_HOST=0.0.0.0
 SERVER_PORT=5000
 
-# Konfiguracja bazy danych (PostgreSQL)
-DB_HOST=host bazy danych
-DB_PORT=5432
-DB_NAME=postgres
-DB_USER=admin
-DB_PASSWORD=twoje_haslo
-DB_POOL_MIN=2
-DB_POOL_MAX=10
+# ============================================================================
+# Email Configuration
+# ============================================================================
+# SMTP server settings for sending emails (invitations, alerts, etc.)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+ADMIN_EMAIL=admin@example.com
 
-# Cache (opcjonalne Redis)
-REDIS_URL=redis://localhost:6379/0
-# Alternatywnie:
+# ============================================================================
+# Optional: Redis Configuration (recommended for production)
+# ============================================================================
+# REDIS_URL=redis://localhost:6379/0
+# or
 # REDIS_HOST=localhost
 # REDIS_PORT=6379
 
-# Email (MailManager)
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=twoj_email
-SMTP_PASSWORD=haslo_aplikacyjne
-ADMIN_EMAIL=admin@example.com
+# ============================================================================
+# Optional: Environment
+# ============================================================================
+# Set to 'production' to enable production mode (secure cookies, etc.)
+# FLASK_ENV=development
 ```
 
-> Jeśli wartości `DB_*` są nieprawidłowe, aplikacja zaloguje błąd i automatycznie przełączy się na tryb plikowy JSON, dzięki czemu można przetestować interfejs bez działającej bazy.
+> **⚠️ UWAGA BEZPIECZEŃSTWA:** Plik `.env` zawiera wrażliwe dane (hasła, tokeny). **NIGDY** nie commituj go do repozytorium! Jest on już w `.gitignore`.
 
 ### 4. Przygotowanie bazy danych
 

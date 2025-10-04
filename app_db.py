@@ -207,11 +207,32 @@ class SmartHomeApp:
             self.multi_db = None
             if DATABASE_MODE:
                 try:
-                    from app.multi_home_routes import multi_db
-                    self.multi_db = multi_db
-                    print("✓ Multi-home database manager initialized")
+                    print("🔧 Initializing Multi-home database manager...")
+                    from utils.multi_home_db_manager import MultiHomeDBManager
+                    
+                    # Get database credentials from environment variables
+                    db_host = os.getenv('DB_HOST', '100.103.184.90')
+                    db_port = int(os.getenv('DB_PORT', 5432))
+                    db_user = os.getenv('DB_USER', 'admin')
+                    db_password = os.getenv('DB_PASSWORD', 'Qwuizzy123.')
+                    db_name = os.getenv('DB_NAME', 'smarthome_multihouse')
+                    
+                    print(f"📊 Connecting to database: {db_user}@{db_host}:{db_port}/{db_name}")
+                    
+                    self.multi_db = MultiHomeDBManager(
+                        host=db_host,
+                        port=db_port,
+                        user=db_user,
+                        password=db_password,
+                        database=db_name
+                    )
+                    print(f"✓ Multi-home database manager initialized: {self.multi_db is not None}")
                 except Exception as e:
                     print(f"⚠ Failed to initialize multi-home database manager: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("ℹ Database mode disabled, skipping multi-home database manager")
             
             # Initialize management logger
             # Use database logger when in database mode, JSON logger otherwise
@@ -237,7 +258,6 @@ class SmartHomeApp:
             
             # Initialize cache with Redis if available, fallback to SimpleCache
             from flask_caching import Cache
-            import os
             
             # Try Redis first for better performance and persistence
             redis_url = os.getenv('REDIS_URL', None)
@@ -346,19 +366,29 @@ class SmartHomeApp:
             
             # Register multi-home blueprint first
             try:
-                from app.multi_home_routes import multi_home_bp
+                from app.multi_home_routes import multi_home_bp, init_multi_home_routes
+                # Initialize routes with multi_db instance
+                print(f"🔗 Passing multi_db to multi_home_routes: {self.multi_db is not None}")
+                init_multi_home_routes(self.multi_db)
                 self.app.register_blueprint(multi_home_bp)
                 print("✓ Multi-home routes registered successfully")
             except Exception as e:
                 print(f"⚠ Failed to register multi-home routes: {e}")
+                import traceback
+                traceback.print_exc()
             
             # Register home settings blueprint after multi-home (needs multi_db)
             try:
-                from app.home_settings_routes import home_settings_bp
+                from app.home_settings_routes import home_settings_bp, init_home_settings_routes
+                # Initialize routes with multi_db instance
+                print(f"🔗 Passing multi_db to home_settings_routes: {self.multi_db is not None}")
+                init_home_settings_routes(self.multi_db)
                 self.app.register_blueprint(home_settings_bp)
                 print("✓ Home settings routes registered successfully")
             except Exception as e:
                 print(f"⚠ Failed to register home settings routes: {e}")
+                import traceback
+                traceback.print_exc()
                 import traceback
                 traceback.print_exc()
             

@@ -3,7 +3,7 @@ Multi-home routes for the SmartHome application.
 Handles home selection, creation, and management.
 """
 
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash, current_app
 from functools import wraps
 from utils.multi_home_db_manager import MultiHomeDBManager
 import logging
@@ -12,6 +12,19 @@ logger = logging.getLogger(__name__)
 
 # Create blueprint
 multi_home_bp = Blueprint('multi_home', __name__)
+
+# This will be set by the main application
+multi_db = None
+
+def init_multi_home_routes(db_manager):
+    """Initialize multi-home routes with database manager"""
+    global multi_db
+    multi_db = db_manager
+    logger.info(f"Multi-home routes initialized with db_manager: {db_manager is not None}")
+
+def get_multi_db():
+    """Get the multi_db instance"""
+    return multi_db
 
 # Authentication helpers for multi-home routes
 def login_required(f):
@@ -31,19 +44,6 @@ def get_current_user():
         return {'id': user_id}
     return None
 
-# Initialize multi-home database manager
-try:
-    multi_db = MultiHomeDBManager(
-        host="100.103.184.90",
-        port=5432,
-        user="admin", 
-        password="Qwuizzy123.",
-        database="smarthome_multihouse"
-    )
-except Exception as e:
-    logger.error(f"Failed to initialize MultiHomeDBManager: {e}")
-    multi_db = None
-
 @multi_home_bp.route('/home/select')
 @login_required
 def home_select():
@@ -55,7 +55,7 @@ def home_select():
         print("❌ Multi-home DB not available")
         logger.error("Multi-home DB not available")
         flash("Multi-home functionality is not available", "error")
-        return redirect(url_for('main.index'))
+        return redirect(url_for('home'))
     
     user = get_current_user()
     if not user:
@@ -103,7 +103,7 @@ def home_select():
     except Exception as e:
         logger.error(f"Error loading home selection: {e}")
         flash("Error loading homes", "error")
-        return redirect(url_for('main.index'))
+        return redirect(url_for('home'))
 
 @multi_home_bp.route('/api/home/select', methods=['POST'])
 @login_required
@@ -316,7 +316,7 @@ def require_home_access(permission='view_devices'):
         def wrapper(*args, **kwargs):
             if not multi_db:
                 flash("Multi-home functionality is not available", "error")
-                return redirect(url_for('main.index'))
+                return redirect(url_for('home'))
             
             home_id = get_current_home_id()
             if not home_id:
