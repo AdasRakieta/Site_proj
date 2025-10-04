@@ -514,6 +514,7 @@ class MultiHomeDBManager:
         Returns:
             True if log was added successfully
         """
+        import json
         with self.get_cursor() as cursor:
             cursor.execute("""
                 INSERT INTO management_logs 
@@ -522,7 +523,7 @@ class MultiHomeDBManager:
             """, (
                 home_id, level, message, event_type,
                 user_id, username, ip_address, 
-                details or {}
+                json.dumps(details or {})
             ))
             return True
 
