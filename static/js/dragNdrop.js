@@ -3,10 +3,13 @@ console.log('dragula available?', typeof dragula !== 'undefined');
 
 // Edit mode state and changes tracking
 window.editMode = false;
+// Save operation state to prevent race conditions
+let isSaving = false;
 let pendingChanges = {
     // Używamy obiektu zamiast tablicy aby przechowywać tylko ostatnią zmianę dla każdego ID
     deviceMoves: {},
-    columnMoves: null
+    columnMoves: null,
+    columnMovesRaw: null
 };
 
 // Dynamic Kanban Dragula initialization for room columns
@@ -75,8 +78,13 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
             
             const deviceId = el.getAttribute('data-id');
             const deviceType = el.getAttribute('data-type');
-            const newRoom = target.parentElement.querySelector('h3')?.textContent;
+            const columnElement = target.closest ? target.closest('.kanban-column') : target.parentElement;
+            const newRoom = columnElement?.querySelector('h3')?.textContent;
             const actualRoom = newRoom === 'Nieprzypisane' ? null : newRoom;
+            const newRoomIdAttr = columnElement ? columnElement.getAttribute('data-room-id') : null;
+            const newRoomId = newRoomIdAttr && newRoomIdAttr !== 'null' && newRoomIdAttr !== 'undefined'
+                ? newRoomIdAttr
+                : null;
             
             // Store only the latest change for each device
             if (deviceId && deviceType) {
@@ -84,6 +92,7 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
                     id: deviceId,
                     type: deviceType,
                     newRoom: actualRoom,
+                    newRoomId,
                     target: target
                 };
             }
@@ -109,6 +118,12 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
 
 // Funkcja do włączania/wyłączania trybu edycji
 window.toggleEditMode = function(enabled) {
+    // Prevent edit mode changes during save operations
+    if (enabled && isSaving) {
+        console.log('Cannot enter edit mode while save operation is in progress');
+        return;
+    }
+    
     window.editMode = enabled;
     const controlPanel = document.querySelector('.control-panel');
     const editButton = document.getElementById('editModeButton');
@@ -124,7 +139,8 @@ window.toggleEditMode = function(enabled) {
             // Reset pending changes
             pendingChanges = {
                 deviceMoves: {},
-                columnMoves: null
+                columnMoves: null,
+                columnMovesRaw: null
             };
         } else {
             controlPanel.classList.remove('active');
@@ -138,18 +154,57 @@ window.toggleEditMode = function(enabled) {
 
 // Save changes function
 window.saveChanges = async function() {
+    // Prevent concurrent save operations
+    if (isSaving) {
+        console.log('Save already in progress, ignoring duplicate call');
+        return;
+    }
+    
+    isSaving = true;
     console.log('Saving changes:', pendingChanges);
     
+    // Disable buttons during save
+    const editButton = document.getElementById('editModeButton');
+    const saveButton = document.querySelector('[onclick="saveChanges()"]');
+    const cancelButton = document.querySelector('[onclick="cancelChanges()"]');
+    
+    if (editButton) editButton.disabled = true;
+    if (saveButton) {
+        saveButton.disabled = true;
+        const originalText = saveButton.textContent;
+        saveButton.textContent = 'Zapisywanie...';
+    }
+    if (cancelButton) cancelButton.disabled = true;
+    
     // Save column order if changed
-    if (pendingChanges.columnMoves) {
+    if (Array.isArray(pendingChanges.columnMoves) && pendingChanges.columnMoves.length) {
         try {
+            const payload = {
+                room_ids: pendingChanges.columnMoves
+            };
+            if (Array.isArray(pendingChanges.columnMovesRaw) && pendingChanges.columnMovesRaw.length) {
+                payload.rooms = pendingChanges.columnMovesRaw
+                    .map(entry => {
+                        if (!entry) return null;
+                        const id = entry.id != null && entry.id !== '' ? String(entry.id) : null;
+                        const name = entry.name != null && entry.name !== '' ? String(entry.name) : null;
+                        if (!id && !name) {
+                            return null;
+                        }
+                        return { id, name };
+                    })
+                    .filter(Boolean);
+                if (!payload.rooms.length) {
+                    delete payload.rooms;
+                }
+            }
             const response = await fetch('/api/rooms/order', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ rooms: pendingChanges.columnMoves })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
             console.log('Room order updated:', data);
@@ -158,40 +213,120 @@ window.saveChanges = async function() {
         }
     }
 
-    // Save device moves - now only the last change for each device
+    // Save device moves using batch API for optimal performance
     const deviceMoves = Object.values(pendingChanges.deviceMoves);
-    for (const move of deviceMoves) {
+    if (deviceMoves.length > 0) {
         try {
-            const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
-            await fetch(endpoint, {
-                method: 'PUT',
+            console.log('Preparing batch update for', deviceMoves.length, 'devices');
+            
+            // Prepare devices array with display_order based on current DOM position
+            // Calculate display_order separately for each device type
+            const devicesWithOrder = deviceMoves.map(move => {
+                let displayOrder = 0;
+                if (move.target && move.target.children) {
+                    const children = Array.from(move.target.children);
+                    const deviceElement = children.find(child => child.getAttribute('data-id') === move.id);
+                    if (deviceElement) {
+                        // Get device type to calculate proper order
+                        const deviceType = deviceElement.getAttribute('data-type');
+                        
+                        // Filter children to only include devices of the same type
+                        const sameTypeDevices = children.filter(child => 
+                            child.getAttribute('data-type') === deviceType
+                        );
+                        
+                        // Find position within devices of the same type
+                        displayOrder = sameTypeDevices.indexOf(deviceElement);
+                        
+                        console.log(`Device ${move.id} (${deviceType}): position ${displayOrder} among ${sameTypeDevices.length} devices of same type`);
+                    }
+                }
+                
+                return {
+                    id: move.id,
+                    room_id: move.newRoomId || null,
+                    display_order: displayOrder
+                };
+            });
+            
+            console.log('Batch update payload:', devicesWithOrder);
+            
+            const response = await fetch('/api/devices/batch-update', {
+                method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ room: move.newRoom })
+                body: JSON.stringify({ devices: devicesWithOrder })
             });
-            if (window.updateDeviceOrders) {
-                window.updateDeviceOrders(move.target, move.newRoom);
+            
+            const result = await response.json();
+            console.log('Batch update result:', result);
+            
+            if (result.status === 'success' || result.status === 'partial_success') {
+                console.log('Batch update successful:', result);
+            } else {
+                console.error('Batch update failed:', result);
+                // Fallback to individual updates if batch fails
+                console.log('Falling back to individual updates...');
+                for (const move of deviceMoves) {
+                    try {
+                        const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
+                        await fetch(endpoint, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': window.getCSRFToken()
+                            },
+                            body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                        });
+                    } catch (error) {
+                        console.error('Error in fallback device update:', error);
+                    }
+                }
             }
         } catch (error) {
-            console.error('Error saving device move:', error);
+            console.error('Error in batch device update:', error);
+            // Fallback to individual updates
+            for (const move of deviceMoves) {
+                try {
+                    const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
+                    await fetch(endpoint, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.getCSRFToken()
+                        },
+                        body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                    });
+                } catch (fallbackError) {
+                    console.error('Error in fallback device update:', fallbackError);
+                }
+            }
         }
     }
 
     // Clear pending changes
     pendingChanges = {
         deviceMoves: {},
-        columnMoves: null
+        columnMoves: null,
+        columnMovesRaw: null
     };
 
     // Exit edit mode
     window.toggleEditMode(false);
     
-    // Reload kanban to show updated state
-    if (window.loadKanban) {
-        window.loadKanban();
+    // Re-enable buttons after successful save
+    isSaving = false;
+    if (editButton) editButton.disabled = false;
+    if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Zapisz';
     }
+    if (cancelButton) cancelButton.disabled = false;
+    
+    console.log('Save operation completed successfully');
+    // Socket updates should handle UI refresh - no need for loadKanban() to prevent race conditions
 };
 
 // Cancel changes function
@@ -199,7 +334,8 @@ window.cancelChanges = function() {
     // Clear pending changes
     pendingChanges = {
         deviceMoves: {},
-        columnMoves: null
+        columnMoves: null,
+        columnMovesRaw: null
     };
     
     // Exit edit mode and reload data from server to restore original state
@@ -213,8 +349,11 @@ window.cancelChanges = function() {
     ]).then(([rooms, buttons, controls]) => {
         if (window.loadKanban) {
             // Add types to devices for proper rendering
-            buttons.forEach(button => button.type = 'light');
-            controls.forEach(control => control.type = 'thermostat');
+            const normalizedButtons = Array.isArray(buttons?.data) ? buttons.data : (Array.isArray(buttons) ? buttons : []);
+            const normalizedControls = Array.isArray(controls?.data) ? controls.data : (Array.isArray(controls) ? controls : []);
+
+            normalizedButtons.forEach(button => button.type = 'light');
+            normalizedControls.forEach(control => control.type = 'thermostat');
             
             // Update room select and render kanban
             if (window.updateRoomSelect) {
@@ -229,7 +368,34 @@ window.cancelChanges = function() {
 
 // Store column moves
 window.storeColumnMove = function(roomOrder) {
-    pendingChanges.columnMoves = roomOrder;
+    if (!Array.isArray(roomOrder)) {
+        pendingChanges.columnMoves = null;
+        pendingChanges.columnMovesRaw = null;
+        return;
+    }
+
+    const rawItems = roomOrder
+        .map(item => {
+            if (!item) return null;
+            if (typeof item === 'object') {
+                const id = item.id != null && item.id !== '' ? String(item.id) : null;
+                const name = item.name != null && item.name !== '' ? String(item.name) : null;
+                if (!id && !name) {
+                    return null;
+                }
+                return { id, name };
+            }
+            const value = String(item);
+            if (!value) return null;
+            return { id: null, name: value };
+        })
+        .filter(Boolean);
+
+    pendingChanges.columnMovesRaw = rawItems.length ? rawItems : null;
+    const ids = rawItems
+        .map(entry => entry.id || entry.name)
+        .filter(Boolean);
+    pendingChanges.columnMoves = ids.length ? ids : null;
 };
 
 // Room management functions
@@ -310,16 +476,17 @@ function updateColumnHeader(columnElement, roomName) {
                 e.stopPropagation();
                 const newName = roomNameInputEdit.value.trim();
                 if (newName && newName !== roomNameH3.textContent) {
-                    // Use current visible room name as path param to match backend route
+                    const roomId = columnElement.getAttribute('data-room-id');
                     const currentName = roomNameH3.textContent;
                     try {
-                        const response = await fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
+                        const endpointId = roomId ? roomId : encodeURIComponent(currentName);
+                        const response = await fetch(`/api/rooms/${endpointId}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRFToken': window.getCSRFToken()
                             },
-                            body: JSON.stringify({ new_name: newName })
+                            body: JSON.stringify({ name: newName })
                         });
                         const data = await response.json().catch(() => ({}));
                         if (!response.ok || data.status === 'error') {
@@ -452,13 +619,15 @@ function startRenameRoom(columnElement) {
         const newName = nameInput.value.trim();
         if (newName && newName !== nameSpan.textContent) {
             const currentName = nameSpan.textContent;
-            fetch(`/api/rooms/${encodeURIComponent(currentName)}`, {
+            const roomId = columnElement.getAttribute('data-room-id');
+            const endpointId = roomId ? roomId : encodeURIComponent(currentName);
+            fetch(`/api/rooms/${endpointId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ new_name: newName })
+                body: JSON.stringify({ name: newName })
             })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));

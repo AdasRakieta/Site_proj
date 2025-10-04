@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Utwórz Nowy Dom - SmartHome{% endblock %}
+
+
+
+{% block content %}
+<div class="home-form-container home-create">
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Utwórz Nowy Dom</h1>
+            <p>Skonfiguruj nowe środowisko inteligentnego domu</p>
+        </div>
+
+        <form id="createHomeForm" method="POST" action="/api/home/create">
+            <div class="form-group">
+                <label for="name">Nazwa Domu *</label>
+                <input type="text" 
+                       id="name" 
+                       name="name" 
+                       required 
+                       maxlength="100"
+                       placeholder="np. Główny Dom, Domek Letniskowy, Biuro"
+                       class="form-control">
+                <small class="form-text">Wybierz nazwę, która pomoże Ci identyfikować ten dom</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Opis (Opcjonalny)</label>
+                <textarea id="description" 
+                          name="description" 
+                          rows="3"
+                          maxlength="500"
+                          placeholder="Krótki opis lokalizacji tego domu..."
+                          class="form-control"></textarea>
+                <small class="form-text">Opcjonalny opis pomocny w odroznieniu tego domu</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="icon">🏠</i>
+                    Utwórz Dom
+                </button>
+                <a href="/home/select" class="btn btn-secondary">
+                    <i class="icon">←</i>
+                    Powrót do Wyboru Domu
+                </a>
+            </div>
+        </form>
+
+        <div class="info-section">
+            <h3>Co dzieje się dalej?</h3>
+            <ul>
+                <li>Twój nowy dom zostanie utworzony, a Ty zostaniesz ustawiony jako właściciel</li>
+                <li>Możesz zaprosić innych użytkowników do swojego domu</li>
+                <li>Zacznij dodawać pokoje i urządzenia do swojego inteligentnego domu</li>
+                <li>Skonfiguruj automatyzacje i ustawienia dla tego domu</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+document.getElementById('createHomeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    // Show loading state
+    form.classList.add('loading-state');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="icon">⏳</i> Tworzenie...';
+    submitBtn.disabled = true;
+    
+    // Remove any existing error/success messages
+    const existingMessages = form.querySelectorAll('.error-message, .success-message');
+    existingMessages.forEach(msg => msg.remove());
+    
+    fetch('/api/home/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Show success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = 'Dom został pomyślnie utworzony! Przekierowywanie...';
+            form.insertBefore(successDiv, form.firstChild);
+            
+            // Redirect after a short delay
+            setTimeout(() => {
+                window.location.href = '/home/select';
+            }, 1500);
+        } else {
+            // Show error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = result.error || 'Nie udało się utworzyć domu. Spróbuj ponownie.';
+            form.insertBefore(errorDiv, form.firstChild);
+            
+            // Restore form state
+            form.classList.remove('loading-state');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error creating home:', error);
+        
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = 'Błąd sieci. Sprawdź połączenie i spróbuj ponownie.';
+        form.insertBefore(errorDiv, form.firstChild);
+        
+        // Restore form state
+        form.classList.remove('loading-state');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Character counter for name field
+const nameInput = document.getElementById('name');
+const nameGroup = nameInput.closest('.form-group');
+
+nameInput.addEventListener('input', function() {
+    let counter = nameGroup.querySelector('.char-counter');
+    if (!counter) {
+        counter = document.createElement('small');
+        counter.className = 'form-text char-counter';
+        nameGroup.appendChild(counter);
+    }
+    
+    const remaining = 100 - this.value.length;
+    counter.textContent = `Pozostało ${remaining} znaków`;
+    counter.style.color = remaining < 20 ? '#c33' : 'var(--text-muted)';
+});
+
+// Character counter for description field
+const descInput = document.getElementById('description');
+const descGroup = descInput.closest('.form-group');
+
+descInput.addEventListener('input', function() {
+    let counter = descGroup.querySelector('.char-counter');
+    if (!counter) {
+        counter = document.createElement('small');
+        counter.className = 'form-text char-counter';
+        descGroup.appendChild(counter);
+    }
+    
+    const remaining = 500 - this.value.length;
+    counter.textContent = `Pozostało ${remaining} znaków`;
+    counter.style.color = remaining < 50 ? '#c33' : 'var(--text-muted)';
+});
+</script>
+{% endblock %}

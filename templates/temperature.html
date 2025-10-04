@@ -65,6 +65,7 @@
                         const switchInput = document.createElement('input');
                         switchInput.type = 'checkbox';
                         switchInput.id = `${control.name.replace(/\s+/g, '_')}EnabledSwitch`;
+                        switchInput.dataset.controlId = control.id;
                         switchInput.checked = control.enabled !== false;
                         
                         const slider = document.createElement('span');
@@ -104,6 +105,7 @@
                                 if (app.socket && app.socket.connected) {
                                     // Primary method: Use WebSocket
                                     app.socket.emit('set_temperature', { 
+                                        id: control.id,
                                         name: control.name, 
                                         temperature: tempValue,
                                         room: control.room
@@ -134,13 +136,14 @@
                             
                             if (app.socket && app.socket.connected) {
                                 app.socket.emit('toggle_temperature_control_enabled', { 
+                                    id: control.id,
                                     room: control.room, 
                                     name: control.name, 
                                     enabled: enabled 
                                 });
                             } else {
                                 console.log('WebSocket not available, using REST API fallback');
-                                toggleTemperatureEnabledViaAPI(control.name, enabled);
+                                toggleTemperatureEnabledViaAPI(control, enabled);
                             }
                         });
 
@@ -165,7 +168,7 @@
 
             // Nasłuchuj na aktualizacje stanu enabled termostatów
             app.socket.on('update_temperature_control_enabled', function(data) {
-                const switchElement = document.getElementById(`${data.name.replace(/\s+/g, '_')}EnabledSwitch`);
+                const switchElement = document.querySelector(`input[data-control-id="${data.id}"]`) || document.getElementById(`${data.name.replace(/\s+/g, '_')}EnabledSwitch`);
                 if (switchElement) {
                     switchElement.checked = data.enabled;
                     
@@ -226,19 +229,8 @@
             }
 
             // Fallback function to toggle temperature enabled via REST API
-            async function toggleTemperatureEnabledViaAPI(controlName, enabled) {
+            async function toggleTemperatureEnabledViaAPI(control, enabled) {
                 try {
-                    const controls = await app.fetchData('/api/temperature_controls');
-                    const control = controls.find(c => c.name === controlName);
-                    
-                    if (!control) {
-                        console.error('Temperature control not found:', controlName);
-                        if (window.showNotification) {
-                            window.showNotification('Nie znaleziono termostatu', 'error');
-                        }
-                        return;
-                    }
-                    
                     const response = await fetch(`/api/temperature_controls/${control.id}/enabled`, {
                         method: 'POST',
                         headers: {
@@ -252,7 +244,7 @@
                     
                     if (result.status === 'success') {
                         if (window.showNotification) {
-                            window.showNotification(`Termostat ${controlName} ${enabled ? 'włączony' : 'wyłączony'}`, 'success');
+                            window.showNotification(`Termostat ${control.name} ${enabled ? 'włączony' : 'wyłączony'}`, 'success');
                         }
                     } else {
                         console.error('Failed to toggle temperature control enabled:', result.message);

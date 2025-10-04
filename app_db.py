@@ -69,6 +69,9 @@ class SmartHomeApp:
         # Initialize core components
         self.initialize_components()
         
+        # Setup system administrator if in database mode
+        self.setup_sys_admin()
+        
         # Setup routes and socket events
         self.setup_routes()
         self.setup_socket_events()
@@ -118,6 +121,25 @@ class SmartHomeApp:
             print(f"⚠ Cache warming failed: {e}")
             # Don't fail initialization if cache warming fails
     
+    @staticmethod
+    def _normalize_device_id(raw_id):
+        """Coerce device identifiers to int when numeric, otherwise return trimmed string."""
+        if raw_id is None:
+            return None
+        if isinstance(raw_id, int):
+            return raw_id
+        if isinstance(raw_id, str):
+            value = raw_id.strip()
+            if not value:
+                return None
+            if value.isdigit():
+                try:
+                    return int(value)
+                except ValueError:
+                    return value
+            return value
+        return raw_id
+
     def _configure_logging(self):
         """Reduce noise from lower-level websocket/werkzeug loggers"""
         noisy_loggers = [
@@ -137,6 +159,14 @@ class SmartHomeApp:
             import secrets
             return dict(csrf_token=lambda: secrets.token_hex(16))
         
+        # Add multi-home context processor
+        try:
+            from app.multi_home_context import multi_home_context_processor
+            self.app.context_processor(multi_home_context_processor)
+            print("✓ Multi-home context processor registered")
+        except Exception as e:
+            print(f"⚠ Failed to register multi-home context processor: {e}")
+        
         @self.app.template_global()
         def modify_query(**new_values):
             """Modify query parameters for pagination"""
@@ -148,6 +178,11 @@ class SmartHomeApp:
             # Convert MultiDict to regular dict for urlencode
             args_dict = {k: v for k, v in args.items()}
             return f'{request.path}?{urlencode(args_dict)}'
+    
+    def setup_sys_admin(self):
+        """Setup system administrator if in database mode"""
+        # Sys-admin setup will happen in setup_routes after multi_db is initialized
+        pass
     
     def initialize_components(self):
         """Initialize all application components"""
@@ -168,11 +203,21 @@ class SmartHomeApp:
                 self.smart_home = SmartHomeSystem()
                 print("✓ SmartHome system initialized with JSON backend")
             
+            # Initialize multi_db for database mode
+            self.multi_db = None
+            if DATABASE_MODE:
+                try:
+                    from app.multi_home_routes import multi_db
+                    self.multi_db = multi_db
+                    print("✓ Multi-home database manager initialized")
+                except Exception as e:
+                    print(f"⚠ Failed to initialize multi-home database manager: {e}")
+            
             # Initialize management logger
             # Use database logger when in database mode, JSON logger otherwise
             if DATABASE_MODE:
                 try:
-                    self.management_logger = DatabaseManagementLogger()
+                    self.management_logger = DatabaseManagementLogger(multi_db=self.multi_db)
                     print("✓ Management logger initialized with database backend")
                 except Exception as e:
                     print(f"⚠ Failed to initialize database logger: {e}")
@@ -186,9 +231,9 @@ class SmartHomeApp:
             self.mail_manager = MailManager()
             self.async_mail_manager = AsyncMailManager(self.mail_manager)
             
-            # Initialize simple auth manager for database mode
+            # Initialize simple auth manager for database mode with multihouse support
             from app.simple_auth import SimpleAuthManager
-            self.auth_manager = SimpleAuthManager(self.smart_home)
+            self.auth_manager = SimpleAuthManager(self.smart_home, multi_db=self.multi_db)
             
             # Initialize cache with Redis if available, fallback to SimpleCache
             from flask_caching import Cache
@@ -257,6 +302,18 @@ class SmartHomeApp:
         """Setup Flask routes and API endpoints"""
         try:
             from app.routes import APIManager
+            
+            # Setup system administrator after multi_db is available
+            if self.multi_db and hasattr(self.multi_db, 'setup_initial_sys_admin'):
+                try:
+                    success = self.multi_db.setup_initial_sys_admin('admin')
+                    if success:
+                        print("✓ System administrator (admin) initialized")
+                    else:
+                        print("⚠ Failed to setup system administrator")
+                except Exception as e:
+                    print(f"⚠ Error setting up system administrator: {e}")
+
             self.route_manager = RoutesManager(
                 app=self.app,
                 smart_home=self.smart_home,
@@ -265,7 +322,8 @@ class SmartHomeApp:
                 async_mail_manager=self.async_mail_manager,
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger,
-                socketio=self.socketio  # Add socketio parameter
+                socketio=self.socketio,  # Add socketio parameter
+                multi_db=self.multi_db  # Add multi_db parameter
             )
             # Register API endpoints (including /api/automations etc.)
             # Be resilient to different APIManager signatures across deployments
@@ -279,11 +337,31 @@ class SmartHomeApp:
                 'auth_manager': self.auth_manager,
                 'management_logger': self.management_logger,
                 'cache': self.cache,
+                'multi_db': self.multi_db,
             }
             filtered_kwargs = {k: v for k, v in possible_kwargs.items() if k in accepted_params}
             # Helpful debug
             print(f"[DEBUG] Creating APIManager with kwargs: {sorted(filtered_kwargs.keys())}")
             self.api_manager = APIManager(**filtered_kwargs)
+            
+            # Register multi-home blueprint first
+            try:
+                from app.multi_home_routes import multi_home_bp
+                self.app.register_blueprint(multi_home_bp)
+                print("✓ Multi-home routes registered successfully")
+            except Exception as e:
+                print(f"⚠ Failed to register multi-home routes: {e}")
+            
+            # Register home settings blueprint after multi-home (needs multi_db)
+            try:
+                from app.home_settings_routes import home_settings_bp
+                self.app.register_blueprint(home_settings_bp)
+                print("✓ Home settings routes registered successfully")
+            except Exception as e:
+                print(f"⚠ Failed to register home settings routes: {e}")
+                import traceback
+                traceback.print_exc()
+            
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
@@ -299,7 +377,11 @@ class SmartHomeApp:
                     disconnect()
                     return False
                 
-                user_id = session.get('user_id')
+                user_id_value = session.get('user_id')
+                if not user_id_value:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+                user_id = str(user_id_value)
                 if not user_id:
                     disconnect()
                     return False
@@ -346,6 +428,99 @@ class SmartHomeApp:
                 name = data.get('name')
                 new_state = data.get('state')
                 
+                if room is None or name is None or not isinstance(new_state, bool):
+                    emit('error', {'message': 'Invalid toggle payload'})
+                    return
+
+                user_id = session.get('user_id')
+                if not user_id:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+
+                def _normalize(value):
+                    return (value or '').strip().lower()
+
+                # Multi-home aware toggle handling
+                if getattr(self, 'multi_db', None):
+                    current_home_id = session.get('current_home_id')
+                    if not current_home_id:
+                        current_home_id = self.multi_db.get_user_current_home(user_id)
+                        if current_home_id:
+                            session['current_home_id'] = current_home_id
+
+                    if not current_home_id:
+                        emit('error', {'message': 'No home selected'})
+                        return
+
+                    # Find target button in current home (case-insensitive match)
+                    buttons = self.multi_db.get_buttons(str(current_home_id), user_id) or []
+                    name_norm = _normalize(name)
+                    room_norm = _normalize(room)
+                    target_button = None
+                    name_only_match = None
+                    for button in buttons:
+                        btn_name = _normalize(button.get('name'))
+                        btn_room = _normalize(button.get('room_name'))
+                        if btn_name == name_norm and btn_room == room_norm:
+                            target_button = button
+                            break
+                        if name_only_match is None and btn_name == name_norm:
+                            name_only_match = button
+                    if target_button is None:
+                        target_button = name_only_match
+
+                    if not target_button:
+                        emit('error', {'message': 'Button not found'})
+                        return
+
+                    success = self.multi_db.update_device(target_button['id'], user_id, state=bool(new_state))
+                    if not success:
+                        emit('error', {'message': 'Failed to toggle button'})
+                        return
+
+                    updated_button = self.multi_db.get_device(target_button['id'], user_id) or target_button
+                    payload_room = updated_button.get('room_name') or room
+                    payload_name = updated_button.get('name') or name
+                    payload_state = updated_button.get('state') if updated_button.get('state') is not None else new_state
+
+                    # Broadcast update to all connected clients
+                    self.socketio.emit('update_button', {
+                        'room': payload_room,
+                        'name': payload_name,
+                        'state': payload_state
+                    })
+                    self.socketio.emit('sync_button_states', {
+                        f"{payload_room}_{payload_name}": payload_state
+                    })
+
+                    # Invalidate relevant caches to reflect immediate state change
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('buttons_list')
+                            self.cache.delete(f'buttons_room_{payload_room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate button caches: {cache_err}")
+
+                    # Log the action using management logger if available
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=payload_name,
+                            room=payload_room,
+                            action='toggle',
+                            new_state=payload_state,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
+
+                    emit('button_toggled', {
+                        'success': True,
+                        'room': payload_room,
+                        'name': payload_name,
+                        'state': payload_state
+                    })
+                    return
+
                 # Update device state
                 if DATABASE_MODE:
                     success = self.smart_home.update_button_state(room, name, new_state)
@@ -402,63 +577,141 @@ class SmartHomeApp:
             """Handle temperature setting via WebSocket"""
             try:
                 print(f"[DEBUG] set_temperature called with data: {data}")
-                
+
                 if 'user_id' not in session:
                     emit('error', {'message': 'Not authenticated'})
                     return
-                
+
+                user_id = session.get('user_id')
                 room = data.get('room')
                 name = data.get('name')
-                temperature = float(data.get('temperature', 22))
-                
-                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', temperature={temperature}")
-                
-                # Validate temperature range
+                control_id = data.get('id')
+
+                try:
+                    temperature = float(data.get('temperature', 22))
+                except (TypeError, ValueError):
+                    emit('error', {'message': 'Invalid temperature value'})
+                    return
+
+                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', id='{control_id}', temperature={temperature}")
+
                 if not (16 <= temperature <= 30):
                     emit('error', {'message': 'Temperature must be between 16°C and 30°C'})
                     return
-                
-                # Update temperature control
+
+                if getattr(self, 'multi_db', None):
+                    device = None
+                    device_identifier = self._normalize_device_id(control_id) if control_id is not None else None
+                    if device_identifier is not None:
+                        try:
+                            device = self.multi_db.get_device(device_identifier, str(user_id))
+                        except Exception as get_err:
+                            print(f"[DEBUG] Error fetching temperature control {control_id}: {get_err}")
+
+                    if not device:
+                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(str(user_id))
+                        if current_home_id:
+                            controls = self.multi_db.get_temperature_controls(str(current_home_id), str(user_id))
+                            for ctrl in controls:
+                                if control_id and str(ctrl.get('id')) == str(control_id):
+                                    device = ctrl
+                                    break
+                                if not control_id and (ctrl.get('name') == name) and (not room or (ctrl.get('room_name') or '').lower() == (room or '').lower()):
+                                    device = ctrl
+                                    break
+
+                    if not device:
+                        emit('error', {'message': 'Temperature control not found'})
+                        return
+
+                    update_payload = {'temperature': temperature}
+                    target_device_id = self._normalize_device_id(device.get('id', device_identifier))
+                    if target_device_id is None:
+                        fallback_id = device_identifier if device_identifier is not None else device.get('id')
+                        target_device_id = self._normalize_device_id(fallback_id)
+                    if target_device_id is None:
+                        emit('error', {'message': 'Invalid device identifier'})
+                        return
+                    if not self.multi_db.update_device(target_device_id, str(user_id), **update_payload):
+                        emit('error', {'message': 'Failed to set temperature'})
+                        return
+
+                    updated_device = self.multi_db.get_device(target_device_id, str(user_id)) or device
+                    payload_room = updated_device.get('room_name') or room or ''
+                    payload_name = updated_device.get('name') or name or ''
+                    payload_temperature = updated_device.get('temperature') if updated_device.get('temperature') is not None else temperature
+
+                    self.socketio.emit('update_temperature', {
+                        'room': payload_room,
+                        'name': payload_name,
+                        'temperature': payload_temperature
+                    })
+                    self.socketio.emit('sync_temperature', {
+                        'name': payload_name,
+                        'temperature': payload_temperature
+                    })
+
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('temperature_controls')
+                            self.cache.delete(f'temp_controls_room_{payload_room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
+
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=payload_name,
+                            room=payload_room,
+                            action='set_temperature',
+                            new_state=payload_temperature,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
+
+                    emit('temperature_set', {
+                        'success': True,
+                        'room': payload_room,
+                        'name': payload_name,
+                        'temperature': payload_temperature
+                    })
+                    return
+
+                # Fallback to legacy behaviour
+                success = False
                 if DATABASE_MODE:
-                    print(f"[DEBUG] Using database mode")
+                    print(f"[DEBUG] Using database mode (legacy fallback)")
                     success = self.smart_home.update_temperature_control_value(room, name, temperature)
                     print(f"[DEBUG] Database update success: {success}")
                 else:
-                    print(f"[DEBUG] Using JSON mode")
-                    # Find and update temperature control in JSON mode
-                    success = False
+                    print(f"[DEBUG] Using JSON mode (legacy fallback)")
                     for control in self.smart_home.temperature_controls:
                         if control['room'] == room and control['name'] == name:
                             control['temperature'] = temperature
                             self.smart_home.save_config()
                             success = True
                             break
-                
+
                 if success:
-                    # Update room temperature state
                     if DATABASE_MODE:
                         self.smart_home.set_room_temperature(room, temperature)
                     else:
                         self.smart_home.temperature_states[room] = temperature
                         self.smart_home.save_config()
-                    
-                    # Broadcast update to all connected clients
+
                     self.socketio.emit('update_temperature', {
                         'room': room,
                         'name': name,
                         'temperature': temperature
                     })
 
-                    # Invalidate temperature related caches
                     try:
                         if hasattr(self, 'cache_manager') and self.cache_manager:
                             self.cache.delete('temperature_controls')
                             self.cache.delete(f'temp_controls_room_{room}')
                     except Exception as cache_err:
                         print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
-                    
-                    # Log the action
-                    user_id = session.get('user_id')
+
                     if user_id:
                         user_data = self.smart_home.get_user_data(user_id)
                         self.management_logger.log_device_action(
@@ -469,18 +722,16 @@ class SmartHomeApp:
                             new_state=temperature,
                             ip_address=request.environ.get('REMOTE_ADDR') or ''
                         )
-                    
+
                     emit('temperature_set', {
-                        'success': True, 
-                        'room': room, 
-                        'name': name, 
+                        'success': True,
+                        'room': room,
+                        'name': name,
                         'temperature': temperature
                     })
                 else:
                     emit('error', {'message': 'Failed to set temperature'})
-                    
-            except ValueError:
-                emit('error', {'message': 'Invalid temperature value'})
+
             except Exception as e:
                 print(f"Error in set_temperature handler: {e}")
                 emit('error', {'message': 'Internal server error'})
@@ -494,47 +745,128 @@ class SmartHomeApp:
                 if 'user_id' not in session:
                     emit('error', {'message': 'Not authenticated'})
                     return
-                
+
+                user_id_value = session.get('user_id')
+                if not user_id_value:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+                user_id = str(user_id_value)
+
                 room = data.get('room')
                 name = data.get('name')
-                enabled = bool(data.get('enabled', True))
-                
-                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', enabled={enabled}")
-                
-                # Update temperature control enabled state
+                control_id = data.get('id')
+                enabled_raw = data.get('enabled', True)
+
+                if isinstance(enabled_raw, str):
+                    enabled = enabled_raw.strip().lower() in ('true', '1', 'yes', 'on')
+                else:
+                    enabled = bool(enabled_raw)
+
+                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', id='{control_id}', enabled={enabled}")
+
+                if getattr(self, 'multi_db', None):
+                    device = None
+                    device_identifier = self._normalize_device_id(control_id) if control_id is not None else None
+                    if device_identifier is not None:
+                        try:
+                            device = self.multi_db.get_device(device_identifier, str(user_id))
+                        except Exception as get_err:
+                            print(f"[DEBUG] Error fetching temperature control {control_id}: {get_err}")
+
+                    if not device:
+                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(str(user_id))
+                        if current_home_id:
+                            controls = self.multi_db.get_temperature_controls(str(current_home_id), str(user_id))
+                            for ctrl in controls:
+                                if control_id and str(ctrl.get('id')) == str(control_id):
+                                    device = ctrl
+                                    break
+                                if not control_id and (ctrl.get('name') == name) and (not room or (ctrl.get('room_name') or '').lower() == (room or '').lower()):
+                                    device = ctrl
+                                    break
+
+                    if not device:
+                        emit('error', {'message': 'Temperature control not found'})
+                        return
+
+                    target_device_id = self._normalize_device_id(device.get('id', device_identifier))
+                    if target_device_id is None:
+                        fallback_id = device_identifier if device_identifier is not None else device.get('id')
+                        target_device_id = self._normalize_device_id(fallback_id)
+                    if target_device_id is None:
+                        emit('error', {'message': 'Invalid device identifier'})
+                        return
+                    if not self.multi_db.update_device(target_device_id, str(user_id), enabled=enabled):
+                        emit('error', {'message': 'Failed to toggle temperature control enabled state'})
+                        return
+
+                    updated_device = self.multi_db.get_device(target_device_id, str(user_id)) or device
+                    payload_room = updated_device.get('room_name') or room or ''
+                    payload_name = updated_device.get('name') or name or ''
+                    payload_enabled = bool(updated_device.get('enabled', enabled))
+
+                    self.socketio.emit('update_temperature_control_enabled', {
+                        'id': updated_device.get('id'),
+                        'room': payload_room,
+                        'name': payload_name,
+                        'enabled': payload_enabled
+                    })
+
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('temperature_controls')
+                            self.cache.delete(f'temp_controls_room_{payload_room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
+
+                    if hasattr(self.management_logger, 'log_device_action'):
+                        user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
+                            device_name=payload_name,
+                            room=payload_room,
+                            action='toggle_temperature_enabled',
+                            new_state=payload_enabled,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
+
+                    emit('temperature_control_enabled_toggled', {
+                        'success': True,
+                        'room': payload_room,
+                        'name': payload_name,
+                        'enabled': payload_enabled
+                    })
+                    return
+
+                print(f"[DEBUG] Falling back to legacy toggle flow")
+                success = False
                 if DATABASE_MODE:
                     print(f"[DEBUG] Using database mode for enabled toggle")
                     success = self.smart_home.toggle_temperature_control_enabled(room, name, enabled)
                     print(f"[DEBUG] Database enabled update success: {success}")
                 else:
                     print(f"[DEBUG] Using JSON mode for enabled toggle")
-                    # Find and update temperature control in JSON mode
-                    success = False
                     for control in self.smart_home.temperature_controls:
                         if control['room'] == room and control['name'] == name:
                             control['enabled'] = enabled
                             self.smart_home.save_config()
                             success = True
                             break
-                
+
                 if success:
-                    # Broadcast update to all connected clients
                     self.socketio.emit('update_temperature_control_enabled', {
                         'room': room,
                         'name': name,
                         'enabled': enabled
                     })
 
-                    # Invalidate temperature related caches
                     try:
                         if hasattr(self, 'cache_manager') and self.cache_manager:
                             self.cache.delete('temperature_controls')
                             self.cache.delete(f'temp_controls_room_{room}')
                     except Exception as cache_err:
                         print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
-                    
-                    # Log the action
-                    user_id = session.get('user_id')
+
                     if user_id:
                         user_data = self.smart_home.get_user_data(user_id)
                         self.management_logger.log_device_action(
@@ -545,16 +877,16 @@ class SmartHomeApp:
                             new_state=enabled,
                             ip_address=request.environ.get('REMOTE_ADDR') or ''
                         )
-                    
+
                     emit('temperature_control_enabled_toggled', {
-                        'success': True, 
-                        'room': room, 
-                        'name': name, 
+                        'success': True,
+                        'room': room,
+                        'name': name,
                         'enabled': enabled
                     })
                 else:
                     emit('error', {'message': 'Failed to toggle temperature control enabled state'})
-                    
+
             except Exception as e:
                 print(f"Error in toggle_temperature_control_enabled handler: {e}")
                 emit('error', {'message': 'Internal server error'})
@@ -580,27 +912,54 @@ class SmartHomeApp:
                     return
                 
                 print(f"[DEBUG] Setting security state to: {new_state}")
-                
-                # Update security state
-                self.smart_home.security_state = new_state
-                
-                # Save configuration
-                if DATABASE_MODE:
-                    # Database mode - state is automatically saved via setter
-                    success = True
-                    print("[DEBUG] Database mode - state saved automatically")
+                user_id = str(session.get('user_id'))
+                home_id = data.get('home_id')
+                success = False
+
+                if getattr(self, 'multi_db', None):
+                    try:
+                        if not home_id:
+                            home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                        if not home_id:
+                            emit('error', {'message': 'Brak wybranego domu'})
+                            return
+
+                        success = self.multi_db.set_security_state(str(home_id), user_id, new_state, {
+                            'source': 'socket',
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
+
+                        if not success:
+                            emit('error', {'message': 'Brak uprawnień do zmiany stanu zabezpieczeń'})
+                            return
+
+                        payload = {'state': new_state, 'home_id': str(home_id)}
+                        print(f"[DEBUG] Multi-home mode - security state persisted for home {home_id}")
+                    except PermissionError:
+                        emit('error', {'message': 'Brak dostępu do wybranego domu'})
+                        return
+                    except Exception as err:
+                        print(f"[DEBUG] Failed to set security state in multi-home mode: {err}")
+                        emit('error', {'message': 'Nie udało się zapisać stanu zabezpieczeń'})
+                        return
                 else:
-                    # JSON mode - explicitly save config
-                    success = self.smart_home.save_config()
-                    print(f"[DEBUG] JSON mode - save_config result: {success}")
-                
+                    # Update security state in legacy single-home mode
+                    self.smart_home.security_state = new_state
+                    if DATABASE_MODE:
+                        success = True
+                        print("[DEBUG] Database mode - state saved automatically")
+                    else:
+                        success = self.smart_home.save_config()
+                        print(f"[DEBUG] JSON mode - save_config result: {success}")
+                    payload = {'state': new_state, 'home_id': None}
+                    home_id = None
+
                 if success:
                     # Broadcast update to all connected clients
-                    self.socketio.emit('update_security_state', {'state': new_state})
-                    print(f"[DEBUG] Broadcasted security state update: {new_state}")
+                    self.socketio.emit('update_security_state', payload)
+                    print(f"[DEBUG] Broadcasted security state update: {payload}")
                     
                     # Log the action
-                    user_id = session.get('user_id')
                     if user_id:
                         user_data = self.smart_home.get_user_data(user_id)
                         self.management_logger.log_device_action(
@@ -608,7 +967,7 @@ class SmartHomeApp:
                             device_name='Security System',
                             room='System',
                             action='set_security_state',
-                            new_state=new_state,
+                            new_state={'state': new_state, 'home_id': str(home_id) if home_id else None},
                             ip_address=request.environ.get('REMOTE_ADDR') or ''
                         )
                         print(f"[DEBUG] Logged action for user: {user_data.get('name', 'Unknown')}")
@@ -625,7 +984,7 @@ class SmartHomeApp:
                 emit('error', {'message': 'Internal server error'})
         
         @self.socketio.on('get_security_state')
-        def handle_get_security_state():
+        def handle_get_security_state(data=None):
             """Handle security state request via WebSocket"""
             try:
                 print(f"[DEBUG] get_security_state called")
@@ -637,13 +996,26 @@ class SmartHomeApp:
                     return
                 
                 print(f"[DEBUG] Authenticated user_id: {session.get('user_id')}")
-                
-                # Get current security state
+                user_id = str(session.get('user_id'))
+                requested_home_id = None
+                if isinstance(data, dict):
+                    requested_home_id = data.get('home_id')
+                home_id = requested_home_id or (session.get('current_home_id') if getattr(self, 'multi_db', None) else None)
                 current_state = self.smart_home.security_state
-                print(f"[DEBUG] Current security state from smart_home: {current_state}")
+
+                if getattr(self, 'multi_db', None):
+                    try:
+                        if not home_id:
+                            home_id = self.multi_db.get_user_current_home(user_id)
+                        if home_id:
+                            current_state = self.multi_db.get_security_state(str(home_id), user_id)
+                    except Exception as err:
+                        print(f"[DEBUG] Failed to fetch multi-home security state: {err}")
+
+                print(f"[DEBUG] Current security state from backend: {current_state} (home: {home_id})")
                 
                 # Send current state to client
-                emit('update_security_state', {'state': current_state})
+                emit('update_security_state', {'state': current_state, 'home_id': str(home_id) if home_id else None})
                 print(f"Sent security state to client: {current_state}")
                 
             except Exception as e:

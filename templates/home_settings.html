@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block title %}Ustawienia Domu - {{ home.name }} - SmartHome{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home_settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="home-settings-container">
+    <div class="settings-header">
+        <div class="header-left">
+            <h1>⚙️ Ustawienia Domu</h1>
+            <h2>{{ home.name }}</h2>
+            {% if home.description %}
+            <p class="home-description">{{ home.description }}</p>
+            {% endif %}
+        </div>
+        <div class="header-stats">
+            <div class="stat-card">
+                <span class="stat-number">{{ home.room_count or 0 }}</span>
+                <span class="stat-label">Pokoje</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ home.device_count or 0 }}</span>
+                <span class="stat-label">Urządzenia</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ home.user_count or 1 }}</span>
+                <span class="stat-label">Użytkownicy</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-sections">
+        <!-- Sekcja podstawowych informacji o domu -->
+        <section class="settings-section">
+            <div class="section-header">
+                <h3>🏠 Informacje o domu</h3>
+                <p class="section-description">Zarządzaj podstawowymi informacjami o twoim domu</p>
+            </div>
+            <div class="section-content">
+                <form id="homeInfoForm" class="settings-form">
+                    <div class="form-group">
+                        <label for="homeName">Nazwa domu</label>
+                        <input type="text" id="homeName" name="name" value="{{ home.name }}" 
+                               class="form-control" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="homeDescription">Opis domu</label>
+                        <textarea style="border-color: var(--accent);" id="homeDescription" name="description" 
+                                  class="form-control" rows="3" maxlength="500"
+                                  placeholder="Opcjonalny opis domu...">{{ home.description or '' }}</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="icon">💾</i>
+                            Zapisz zmiany
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Sekcja zarządzania użytkownikami -->
+        <section class="settings-section">
+            <div class="section-header">
+                <h3>👥 Zarządzanie użytkownikami</h3>
+                <p class="section-description">Zapraszaj nowych użytkowników i zarządzaj dostępem</p>
+            </div>
+            <div class="section-content">
+                <div class="user-management">
+                    <div class="invitation-section">
+                        <h4>📨 Zaproś nowych użytkowników</h4>
+                        <form id="inviteUserForm" class="invite-form">
+                            <div class="form-group">
+                                <label for="inviteEmail">Adres email</label>
+                                <input type="email" id="inviteEmail" name="email" 
+                                       class="form-control" placeholder="user@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="inviteRole">Rola użytkownika</label>
+                                <select id="inviteRole" name="role" class="form-control">
+                                    <option value="user">Użytkownik</option>
+                                    <option value="admin">Administrator</option>
+                                </select>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="icon">📧</i>
+                                    Wyślij zaproszenie
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="current-users-section">
+                        <h4>👥 Aktualni użytkownicy</h4>
+                        <div class="users-list">
+                            <div class="user-item owner">
+                                <div class="user-info">
+                                    <span class="user-name">Ty (Właściciel)</span>
+                                    <span class="user-role">Owner</span>
+                                </div>
+                                <div class="user-actions">
+                                    <span class="owner-badge">👑 Właściciel</span>
+                                </div>
+                            </div>
+                            <!-- TODO: Add other users when implemented -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sekcja pokoi -->
+        <section class="settings-section">
+            <div class="section-header">
+                <h3>🏠 Pokoje</h3>
+                <p class="section-description">Zarządzaj pokojami w twoim domu</p>
+            </div>
+            <div class="section-content">
+                <div class="rooms-grid">
+                    {% for room in rooms %}
+                    <div class="room-card">
+                        <div class="room-header">
+                            <h4>{{ room.name }}</h4>
+                            <span class="room-type">{{ room.room_type or 'Inne' }}</span>
+                        </div>
+                        <div class="room-stats">
+                            <span class="device-count">
+                                {{ room.devices|length if room.devices else 0 }} urządzeń
+                            </span>
+                        </div>
+                        <div class="room-actions">
+                            <button class="btn-icon" onclick="editRoom('{{ room.id }}')">
+                                <i>✏️</i>
+                            </button>
+                            <button class="btn-icon danger" onclick="deleteRoom('{{ room.id }}')">
+                                <i>🗑️</i>
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="empty-icon">🏠</i>
+                        <p>Brak pokoi w tym domu</p>
+                        <p class="empty-description">Pokoje będą wyświetlane tutaj gdy zostaną utworzone</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Sekcja zaawansowanych ustawień -->
+        <section class="settings-section danger-zone">
+            <div class="section-header">
+                <h3>⚠️ Strefa niebezpieczna</h3>
+                <p class="section-description">Nieodwracalne akcje dotyczące domu</p>
+            </div>
+            <div class="section-content">
+                <div class="danger-actions">
+                    <div class="danger-action">
+                        <div class="action-info">
+                            <h4>Usuń dom</h4>
+                            <p>Trwale usuń ten dom i wszystkie związane z nim dane. Ta akcja jest nieodwracalna.</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="confirmDeleteHome()">
+                            <i class="icon">🗑️</i>
+                            Usuń dom
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Navigation back -->
+    <div class="settings-footer">
+        <a href="/home/select" class="btn btn-secondary">
+            <i class="icon">←</i>
+            Powrót do wyboru domu
+        </a>
+    </div>
+</div>
+
+<!-- Modal for room editing -->
+<div id="roomEditModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edytuj pokój</h3>
+            <button class="modal-close" onclick="closeModal('roomEditModal')">&times;</button>
+        </div>
+        <form id="editRoomForm" class="modal-form">
+            <div class="form-group">
+                <label for="editRoomName">Nazwa pokoju</label>
+                <input type="text" id="editRoomName" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="editRoomType">Typ pokoju</label>
+                <select id="editRoomType" name="room_type" class="form-control">
+                    <option value="living_room">Salon</option>
+                    <option value="bedroom">Sypialnia</option>
+                    <option value="kitchen">Kuchnia</option>
+                    <option value="bathroom">Łazienka</option>
+                    <option value="office">Biuro</option>
+                    <option value="garage">Garaż</option>
+                    <option value="garden">Ogród</option>
+                    <option value="other">Inne</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('roomEditModal')">
+                    Anuluj
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="icon">💾</i>
+                    Zapisz
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Home settings JavaScript functionality
+const homeId = '{{ home.id }}';
+
+// Home info form handler
+document.getElementById('homeInfoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        name: formData.get('name'),
+        description: formData.get('description')
+    };
+    
+    // API call to update home info using new endpoint
+    fetch(`/api/home/${homeId}/info/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification('Informacje o domu zostały zaktualizowane', 'success');
+        } else {
+            showNotification(result.error || 'Wystąpił błąd podczas aktualizacji', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Wystąpił błąd podczas aktualizacji', 'error');
+    });
+});
+
+// Invite user form handler
+document.getElementById('inviteUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        email: formData.get('email'),
+        role: formData.get('role')
+    };
+    
+    // API call to invite user using new endpoint
+    fetch(`/api/home/${homeId}/users/invite`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification('Zaproszenie zostało wysłane', 'success');
+            this.reset();
+        } else {
+            showNotification(result.error || 'Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+    });
+});
+
+// Room management functions
+function editRoom(roomId) {
+    // Load room data and show edit modal
+    console.log('Editing room:', roomId);
+    
+    // Find room data
+    const roomsData = {{ (rooms or [])|tojson|safe }};
+    const room = roomsData.find(r => r.id === roomId);
+    
+    if (room) {
+        document.getElementById('editRoomName').value = room.name;
+        document.getElementById('editRoomType').value = room.room_type || 'other';
+        document.getElementById('editRoomForm').dataset.roomId = roomId;
+        document.getElementById('roomEditModal').style.display = 'block';
+    }
+}
+
+function deleteRoom(roomId) {
+    if (confirm('Czy na pewno chcesz usunąć ten pokój? Ta akcja jest nieodwracalna.')) {
+        fetch(`/api/home/${homeId}/rooms/${roomId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showNotification('Pokój został usunięty', 'success');
+                // Reload page to update room list
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showNotification(result.error || 'Wystąpił błąd podczas usuwania pokoju', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Wystąpił błąd podczas usuwania pokoju', 'error');
+        });
+    }
+}
+
+function confirmDeleteHome() {
+    const homeName = '{{ home.name }}';
+    
+    // First get deletion info
+    fetch(`/api/home/${homeId}/deletion-info`)
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            const info = result.data;
+            const confirmMsg = `Czy na pewno chcesz usunąć dom "${homeName}"?\n\nZostanie usunięte:\n- ${info.room_count} pokoi\n- ${info.device_count} urządzeń\n- ${info.user_count} użytkowników\n- ${info.automation_count} automatyzacji\n\nTa akcja jest nieodwracalna!`;
+            
+            const confirmed = confirm(confirmMsg);
+            
+            if (confirmed) {
+                const doubleConfirmed = confirm('To jest ostateczne ostrzeżenie. Czy jesteś absolutnie pewien?');
+                if (doubleConfirmed) {
+                    // Call delete API
+                    fetch(`/api/home/${homeId}/delete`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            showNotification('Dom został usunięty', 'success');
+                            // Redirect to home selection after deletion
+                            setTimeout(() => {
+                                window.location.href = '/home/select';
+                            }, 2000);
+                        } else {
+                            showNotification(result.error || 'Wystąpił błąd podczas usuwania domu', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Wystąpił błąd podczas usuwania domu', 'error');
+                    });
+                }
+            }
+        } else {
+            showNotification('Nie można pobrać informacji o domu', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Wystąpił błąd podczas pobierania informacji o domu', 'error');
+    });
+}
+
+// Modal functions
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        max-width: 300px;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
+// Edit room form handler
+document.getElementById('editRoomForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const roomId = this.dataset.roomId;
+    const formData = new FormData(this);
+    const data = {
+        name: formData.get('name'),
+        room_type: formData.get('room_type')
+    };
+    
+    fetch(`/api/home/${homeId}/rooms/${roomId}/update`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification('Pokój został zaktualizowany', 'success');
+            closeModal('roomEditModal');
+            // Reload page to update room list
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotification(result.error || 'Wystąpił błąd podczas aktualizacji pokoju', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Wystąpił błąd podczas aktualizacji pokoju', 'error');
+    });
+});
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modals = document.getElementsByClassName('modal');
+    for (let modal of modals) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+}
+</script>
+{% endblock %}
