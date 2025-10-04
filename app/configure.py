@@ -398,6 +398,15 @@ class SmartHomeSystem:
                 return True
         return False
     
+    def toggle_temperature_control_enabled(self, room: str, name: str, enabled: bool) -> bool:
+        """Toggle temperature control enabled/disabled state by room and name"""
+        for control in self.temperature_controls:
+            if control.get('room') == room and control.get('name') == name:
+                control['enabled'] = enabled
+                self.save_config()
+                return True
+        return False
+    
     def set_room_temperature(self, room_name: str, temperature: float) -> bool:
         """Set room temperature"""
         self.temperature_states[room_name] = temperature

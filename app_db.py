@@ -485,6 +485,80 @@ class SmartHomeApp:
                 print(f"Error in set_temperature handler: {e}")
                 emit('error', {'message': 'Internal server error'})
         
+        @self.socketio.on('toggle_temperature_control_enabled')
+        def handle_toggle_temperature_control_enabled(data):
+            """Handle temperature control enable/disable toggle via WebSocket"""
+            try:
+                print(f"[DEBUG] toggle_temperature_control_enabled called with data: {data}")
+                
+                if 'user_id' not in session:
+                    emit('error', {'message': 'Not authenticated'})
+                    return
+                
+                room = data.get('room')
+                name = data.get('name')
+                enabled = bool(data.get('enabled', True))
+                
+                print(f"[DEBUG] Parsed values: room='{room}', name='{name}', enabled={enabled}")
+                
+                # Update temperature control enabled state
+                if DATABASE_MODE:
+                    print(f"[DEBUG] Using database mode for enabled toggle")
+                    success = self.smart_home.toggle_temperature_control_enabled(room, name, enabled)
+                    print(f"[DEBUG] Database enabled update success: {success}")
+                else:
+                    print(f"[DEBUG] Using JSON mode for enabled toggle")
+                    # Find and update temperature control in JSON mode
+                    success = False
+                    for control in self.smart_home.temperature_controls:
+                        if control['room'] == room and control['name'] == name:
+                            control['enabled'] = enabled
+                            self.smart_home.save_config()
+                            success = True
+                            break
+                
+                if success:
+                    # Broadcast update to all connected clients
+                    self.socketio.emit('update_temperature_control_enabled', {
+                        'room': room,
+                        'name': name,
+                        'enabled': enabled
+                    })
+
+                    # Invalidate temperature related caches
+                    try:
+                        if hasattr(self, 'cache_manager') and self.cache_manager:
+                            self.cache.delete('temperature_controls')
+                            self.cache.delete(f'temp_controls_room_{room}')
+                    except Exception as cache_err:
+                        print(f"[DEBUG] Failed to invalidate temperature caches: {cache_err}")
+                    
+                    # Log the action
+                    user_id = session.get('user_id')
+                    if user_id:
+                        user_data = self.smart_home.get_user_data(user_id)
+                        self.management_logger.log_device_action(
+                            user=user_data.get('name', 'Unknown'),
+                            device_name=name,
+                            room=room,
+                            action='toggle_temperature_enabled',
+                            new_state=enabled,
+                            ip_address=request.environ.get('REMOTE_ADDR') or ''
+                        )
+                    
+                    emit('temperature_control_enabled_toggled', {
+                        'success': True, 
+                        'room': room, 
+                        'name': name, 
+                        'enabled': enabled
+                    })
+                else:
+                    emit('error', {'message': 'Failed to toggle temperature control enabled state'})
+                    
+            except Exception as e:
+                print(f"Error in toggle_temperature_control_enabled handler: {e}")
+                emit('error', {'message': 'Internal server error'})
+        
         @self.socketio.on('set_security_state')
         def handle_set_security_state(data):
             """Handle security state setting via WebSocket"""
