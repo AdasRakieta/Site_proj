@@ -228,6 +228,13 @@ class MultiHomeDBManager:
                 for row in column_rows
             }
 
+            # Drop invitation_token column if it exists (legacy)
+            if 'invitation_token' in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE home_invitations DROP COLUMN IF EXISTS invitation_token
+                """)
+                logger.info("Dropped legacy invitation_token column")
+
             # Handle legacy schema upgrades
             if 'status' not in existing_columns:
                 cursor.execute("""
@@ -2223,6 +2230,23 @@ class MultiHomeDBManager:
                 }
             return None
 
+    def get_user_data(self, user_id: str) -> Optional[Dict]:
+        """
+        Get user data by ID (alias for compatibility).
+        Returns format compatible with SmartHomeSystem.
+        
+        Args:
+            user_id: User's ID
+            
+        Returns:
+            User dict with user_id field or None if not found
+        """
+        user = self.get_user_by_id(user_id)
+        if user:
+            # Add user_id alias for compatibility
+            user['user_id'] = user['id']
+        return user
+
     def check_user_exists(self, username: Optional[str] = None, email: Optional[str] = None) -> bool:
         """
         Check if user exists by username or email.
@@ -2290,13 +2314,33 @@ class MultiHomeDBManager:
             if cursor.fetchone():
                 raise ValueError("An invitation for this email already exists for this home")
             
+            # Check if user with this email already exists in the system
+            cursor.execute("""
+                SELECT id, name FROM users WHERE LOWER(email) = LOWER(%s)
+            """, (email,))
+            existing_user = cursor.fetchone()
+            
+            existing_user_id = None
+            if existing_user:
+                existing_user_id = str(existing_user[0])
+                existing_username = existing_user[1]
+                
+                # Check if user is already in this home
+                cursor.execute("""
+                    SELECT 1 FROM user_homes WHERE user_id = %s AND home_id = %s
+                """, (existing_user_id, home_id))
+                if cursor.fetchone():
+                    raise ValueError(f"Użytkownik {existing_username} już należy do tego domu")
+                
+                logger.info(f"Invitation for existing user {existing_username} ({email})")
+            
             # Create invitation
             invitation_id = str(uuid.uuid4())
             cursor.execute("""
                 INSERT INTO home_invitations 
-                (id, home_id, email, role, invitation_code, invited_by, expires_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (invitation_id, home_id, email.lower(), role, invitation_code, invited_by, expires_at))
+                (id, home_id, email, role, invitation_code, invited_by, expires_at, accepted_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (invitation_id, home_id, email.lower(), role, invitation_code, invited_by, expires_at, existing_user_id))
             
             logger.info(f"Created invitation {invitation_code} for {email} to home {home_id}")
             return invitation_code
@@ -2315,10 +2359,12 @@ class MultiHomeDBManager:
             cursor.execute("""
                 SELECT i.id, i.home_id, i.email, i.role, i.invitation_code, 
                        i.invited_by, i.created_at, i.expires_at, i.status,
-                       h.name as home_name, u.name as inviter_name
+                       h.name as home_name, inviter.name as inviter_name,
+                       i.accepted_by, existing_user.name as existing_username
                 FROM home_invitations i
                 JOIN homes h ON i.home_id = h.id
-                JOIN users u ON i.invited_by = u.id
+                JOIN users inviter ON i.invited_by = inviter.id
+                LEFT JOIN users existing_user ON i.accepted_by = existing_user.id
                 WHERE i.invitation_code = %s
             """, (invitation_code,))
             
@@ -2335,34 +2381,39 @@ class MultiHomeDBManager:
                     'expires_at': row[7],
                     'status': row[8],
                     'home_name': row[9],
-                    'inviter_name': row[10]
+                    'inviter_name': row[10],
+                    'existing_user_id': str(row[11]) if row[11] else None,
+                    'existing_username': row[12] if row[12] else None
                 }
             return None
 
-    def accept_invitation(self, invitation_code: str, user_id: str) -> bool:
+    def accept_invitation(self, invitation_code: str, user_id: str, username: Optional[str] = None) -> bool:
         """
         Accept a home invitation and add user to home.
         
         Args:
             invitation_code: The invitation code
-            user_id: ID of the user accepting the invitation
+            user_id: ID of the user accepting the invitation  
+            username: Optional username for new users (ignored if user exists)
             
         Returns:
             True if successful
         """
         with self.get_cursor() as cursor:
-            # Get invitation
+            # Get invitation with user check
             cursor.execute("""
-                SELECT id, home_id, email, role, status, expires_at 
-                FROM home_invitations 
-                WHERE invitation_code = %s
+                SELECT i.id, i.home_id, i.email, i.role, i.status, i.expires_at, i.accepted_by,
+                       u.name as existing_username
+                FROM home_invitations i
+                LEFT JOIN users u ON i.accepted_by = u.id
+                WHERE i.invitation_code = %s
             """, (invitation_code,))
             
             invitation = cursor.fetchone()
             if not invitation:
                 raise ValueError("Invalid invitation code")
             
-            inv_id, home_id, email, role, status, expires_at = invitation
+            inv_id, home_id, email, role, status, expires_at, existing_user_id, existing_username = invitation
             
             # Check status
             if status != 'pending':

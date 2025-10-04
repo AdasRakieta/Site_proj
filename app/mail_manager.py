@@ -479,18 +479,31 @@ class MailManager:
 
             message.attach(MIMEText(html, 'html'))
 
+            print(f"[INVITATION] Próba wysłania zaproszenia na {email}")
+            print(f"[INVITATION] SMTP Server: {smtp['server']}:{smtp['port']}")
+            print(f"[INVITATION] SMTP User: {smtp['username']}")
+            
             with smtplib.SMTP(smtp['server'], smtp['port']) as server:
                 server.ehlo()
+                print("[INVITATION] EHLO successful")
                 server.starttls()
+                print("[INVITATION] STARTTLS successful")
                 server.ehlo()
                 server.login(smtp['username'], smtp['password'])
+                print("[INVITATION] Login successful")
                 server.sendmail(self.config['sender_email'] or "", email, message.as_string())
+                print(f"[INVITATION] ✓ Wysłano zaproszenie na {email} (kod: {invitation_code})")
 
-            print(f"[INVITATION] Wysłano zaproszenie na {email} (kod: {invitation_code})")
             return True
-        except smtplib.SMTPAuthenticationError:
-            print("[INVITATION] Błąd autentykacji SMTP - sprawdź login i hasło SMTP w email_conf.env")
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"[INVITATION] ✗ Błąd autentykacji SMTP: {str(e)}")
+            print("[INVITATION] Sprawdź SMTP_USERNAME i SMTP_PASSWORD w pliku .env")
+            return False
+        except smtplib.SMTPException as e:
+            print(f"[INVITATION] ✗ Błąd SMTP: {str(e)}")
             return False
         except Exception as e:
-            print(f"[INVITATION] Błąd wysyłania zaproszenia na {email}: {str(e)}")
+            print(f"[INVITATION] ✗ Błąd wysyłania zaproszenia na {email}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
