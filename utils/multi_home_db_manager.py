@@ -201,6 +201,20 @@ class MultiHomeDBManager:
             CREATE INDEX IF NOT EXISTS idx_home_invitations_home_email 
             ON home_invitations (home_id, email, status)
         """
+        ensure_unique_invitation_code_sql = """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE tablename = 'home_invitations'
+                      AND indexname = 'home_invitations_invitation_code_key'
+                ) THEN
+                    EXECUTE 'CREATE UNIQUE INDEX home_invitations_invitation_code_key
+                             ON home_invitations (invitation_code)';
+                END IF;
+            END
+            $$;
+        """
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
             cursor.execute(column_check_sql)
@@ -240,6 +254,33 @@ class MultiHomeDBManager:
                 ALTER COLUMN status SET NOT NULL
             """)
 
+            if 'invitation_code' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ADD COLUMN invitation_code VARCHAR(20)
+                """)
+
+            cursor.execute("""
+                UPDATE home_invitations
+                SET invitation_code = substr(md5((random())::text || id::text), 1, 20)
+                WHERE invitation_code IS NULL OR length(trim(invitation_code)) = 0
+            """)
+
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN invitation_code TYPE VARCHAR(20)
+            """)
+
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN invitation_code SET DEFAULT substr(md5(random()::text), 1, 20)
+            """)
+
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN invitation_code SET NOT NULL
+            """)
+
             cursor.execute(constraint_check_sql)
             status_constraints = [row[0] for row in cursor.fetchall()]
             for constraint_name in status_constraints:
@@ -254,6 +295,7 @@ class MultiHomeDBManager:
                 CHECK (status IN ('pending', 'accepted', 'expired', 'rejected'))
             """)
 
+            cursor.execute(ensure_unique_invitation_code_sql)
             if 'accepted_at' not in existing_columns:
                 cursor.execute("""
                     ALTER TABLE home_invitations
