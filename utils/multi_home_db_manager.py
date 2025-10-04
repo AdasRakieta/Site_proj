@@ -484,19 +484,27 @@ class MultiHomeDBManager:
             
         Returns:
             True if user has admin access, False otherwise
+            
+        Role hierarchy:
+        - sys-admin: Full access to all homes and all functions (highest)
+        - owner: Full access to their own home
+        - admin: Admin access to specific home (can manage users, settings)
+        - member: Regular user access (can view/control devices)
+        - guest: Limited read-only access
         """
-        # 1. Check if user is sys-admin (global access)
+        # 1. Check if user is sys-admin (global access to everything)
         if self.is_sys_admin(user_id):
             return True
             
         # 2. If home_id provided, check home-specific access
         if home_id:
             home_role = self.get_user_role_in_home(user_id, home_id)
-            return home_role in ['owner', 'admin']
+            # owner and admin have admin access, sys-admin checked above
+            return home_role in ['owner', 'admin', 'sys-admin']
             
         # 3. If no home specified, check if user has admin/owner access in any home
         user_homes = self.get_user_homes(user_id)
-        return any(home.get('role') in ['admin', 'owner'] for home in user_homes)
+        return any(home.get('role') in ['admin', 'owner', 'sys-admin'] for home in user_homes)
 
     # ============================================================================
     # HOME ADMIN FUNCTIONS
