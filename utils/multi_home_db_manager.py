@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Tuple
 from contextlib import contextmanager
 import logging
-from psycopg2 import errors
+from psycopg2 import errors, sql
 
 logger = logging.getLogger(__name__)
 
@@ -178,9 +178,20 @@ class MultiHomeDBManager:
             )
         """
         column_check_sql = """
-            SELECT column_name
+            SELECT column_name, is_nullable, column_default, data_type
             FROM information_schema.columns
             WHERE table_name = 'home_invitations' AND table_schema = current_schema()
+        """
+        constraint_check_sql = """
+            SELECT tc.constraint_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.constraint_column_usage ccu
+              ON tc.constraint_name = ccu.constraint_name
+             AND tc.constraint_schema = ccu.constraint_schema
+            WHERE tc.table_name = 'home_invitations'
+              AND tc.table_schema = current_schema()
+              AND tc.constraint_type = 'CHECK'
+              AND ccu.column_name = 'status'
         """
         index_sql_1 = """
             CREATE INDEX IF NOT EXISTS idx_home_invitations_code 
@@ -193,7 +204,15 @@ class MultiHomeDBManager:
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
             cursor.execute(column_check_sql)
-            existing_columns = {row[0] for row in cursor.fetchall()}
+            column_rows = cursor.fetchall()
+            existing_columns = {
+                row[0]: {
+                    'is_nullable': row[1],
+                    'default': row[2],
+                    'data_type': row[3]
+                }
+                for row in column_rows
+            }
 
             # Handle legacy schema upgrades
             if 'status' not in existing_columns:
@@ -202,18 +221,39 @@ class MultiHomeDBManager:
                     ADD COLUMN status VARCHAR(20)
                     DEFAULT 'pending'
                 """)
-                cursor.execute("""
-                    UPDATE home_invitations SET status = 'pending' WHERE status IS NULL
-                """)
-                cursor.execute("""
-                    ALTER TABLE home_invitations
-                    ALTER COLUMN status SET NOT NULL
-                """)
-                cursor.execute("""
-                    ALTER TABLE home_invitations
-                    ADD CONSTRAINT home_invitations_status_check
-                    CHECK (status IN ('pending', 'accepted', 'expired', 'rejected'))
-                """)
+
+            cursor.execute("""
+                UPDATE home_invitations
+                SET status = 'pending'
+                WHERE status IS NULL OR status NOT IN ('pending', 'accepted', 'expired', 'rejected')
+            """)
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN status TYPE VARCHAR(20)
+            """)
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN status SET DEFAULT 'pending'
+            """)
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ALTER COLUMN status SET NOT NULL
+            """)
+
+            cursor.execute(constraint_check_sql)
+            status_constraints = [row[0] for row in cursor.fetchall()]
+            for constraint_name in status_constraints:
+                cursor.execute(
+                    sql.SQL("ALTER TABLE home_invitations DROP CONSTRAINT {}").format(
+                        sql.Identifier(constraint_name)
+                    )
+                )
+            cursor.execute("""
+                ALTER TABLE home_invitations
+                ADD CONSTRAINT home_invitations_status_check
+                CHECK (status IN ('pending', 'accepted', 'expired', 'rejected'))
+            """)
+
             if 'accepted_at' not in existing_columns:
                 cursor.execute("""
                     ALTER TABLE home_invitations
