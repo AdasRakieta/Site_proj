@@ -4,13 +4,14 @@ Adds current home information to all templates.
 """
 
 from flask import session, g
-from app.multi_home_routes import multi_db, get_current_home_id
+from app.multi_home_routes import get_multi_db, get_current_home_id
 import logging
 
 logger = logging.getLogger(__name__)
 
 def multi_home_context_processor():
     """Add multi-home context to all templates"""
+    multi_db = get_multi_db()
     if not multi_db:
         return {}
     
