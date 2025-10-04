@@ -53,51 +53,12 @@
                                   placeholder="Opcjonalny opis domu...">{{ home.description or '' }}</textarea>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn-primary">
                             <i class="icon">💾</i>
                             Zapisz zmiany
                         </button>
                     </div>
                 </form>
-            </div>
-        </section>
-
-        <!-- Sekcja pokoi -->
-        <section class="settings-section">
-            <div class="section-header">
-                <h3>🏠 Pokoje</h3>
-                <p class="section-description">Zarządzaj pokojami w twoim domu</p>
-            </div>
-            <div class="section-content">
-                <div class="rooms-grid">
-                    {% for room in rooms %}
-                    <div class="room-card">
-                        <div class="room-header">
-                            <h4>{{ room.name }}</h4>
-                            <span class="room-type">{{ room.room_type or 'Inne' }}</span>
-                        </div>
-                        <div class="room-stats">
-                            <span class="device-count">
-                                {{ room.devices|length if room.devices else 0 }} urządzeń
-                            </span>
-                        </div>
-                        <div class="room-actions">
-                            <button class="btn-icon" onclick="editRoom('{{ room.id }}')">
-                                <i>✏️</i>
-                            </button>
-                            <button class="btn-icon danger" onclick="deleteRoom('{{ room.id }}')">
-                                <i>🗑️</i>
-                            </button>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="empty-icon">🏠</i>
-                        <p>Brak pokoi w tym domu</p>
-                        <p class="empty-description">Pokoje będą wyświetlane tutaj gdy zostaną utworzone</p>
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
         </section>
 
@@ -126,48 +87,10 @@
 
     <!-- Navigation back -->
     <div class="settings-footer">
-        <a href="/home/select" class="btn btn-secondary">
+        <button onclick="window.location.href='/home/select'" class="btn-primary">
             <i class="icon">←</i>
             Powrót do wyboru domu
-        </a>
-    </div>
-</div>
-
-<!-- Modal for room editing -->
-<div id="roomEditModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Edytuj pokój</h3>
-            <button class="modal-close" onclick="closeModal('roomEditModal')">&times;</button>
-        </div>
-        <form id="editRoomForm" class="modal-form">
-            <div class="form-group">
-                <label for="editRoomName">Nazwa pokoju</label>
-                <input type="text" id="editRoomName" name="name" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="editRoomType">Typ pokoju</label>
-                <select id="editRoomType" name="room_type" class="form-control">
-                    <option value="living_room">Salon</option>
-                    <option value="bedroom">Sypialnia</option>
-                    <option value="kitchen">Kuchnia</option>
-                    <option value="bathroom">Łazienka</option>
-                    <option value="office">Biuro</option>
-                    <option value="garage">Garaż</option>
-                    <option value="garden">Ogród</option>
-                    <option value="other">Inne</option>
-                </select>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('roomEditModal')">
-                    Anuluj
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="icon">💾</i>
-                    Zapisz
-                </button>
-            </div>
-        </form>
+        </button>
     </div>
 </div>
 
@@ -240,50 +163,6 @@ document.getElementById('inviteUserForm').addEventListener('submit', function(e)
     });
 });
 
-// Room management functions
-function editRoom(roomId) {
-    // Load room data and show edit modal
-    console.log('Editing room:', roomId);
-    
-    // Find room data
-    const roomsData = {{ (rooms or [])|tojson|safe }};
-    const room = roomsData.find(r => r.id === roomId);
-    
-    if (room) {
-        document.getElementById('editRoomName').value = room.name;
-        document.getElementById('editRoomType').value = room.room_type || 'other';
-        document.getElementById('editRoomForm').dataset.roomId = roomId;
-        document.getElementById('roomEditModal').style.display = 'block';
-    }
-}
-
-function deleteRoom(roomId) {
-    if (confirm('Czy na pewno chcesz usunąć ten pokój? Ta akcja jest nieodwracalna.')) {
-        fetch(`/api/home/${homeId}/rooms/${roomId}/delete`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                showNotification('Pokój został usunięty', 'success');
-                // Reload page to update room list
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification(result.error || 'Wystąpił błąd podczas usuwania pokoju', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Wystąpił błąd podczas usuwania pokoju', 'error');
-        });
-    }
-}
-
 function confirmDeleteHome() {
     const homeName = '{{ home.name }}';
     
@@ -335,11 +214,6 @@ function confirmDeleteHome() {
     });
 }
 
-// Modal functions
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
 // Notification function
 function showNotification(message, type = 'info') {
     // Create notification element
@@ -377,53 +251,6 @@ function showNotification(message, type = 'info') {
             }
         }, 300);
     }, 4000);
-}
-
-// Edit room form handler
-document.getElementById('editRoomForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const roomId = this.dataset.roomId;
-    const formData = new FormData(this);
-    const data = {
-        name: formData.get('name'),
-        room_type: formData.get('room_type')
-    };
-    
-    fetch(`/api/home/${homeId}/rooms/${roomId}/update`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showNotification('Pokój został zaktualizowany', 'success');
-            closeModal('roomEditModal');
-            // Reload page to update room list
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            showNotification(result.error || 'Wystąpił błąd podczas aktualizacji pokoju', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Wystąpił błąd podczas aktualizacji pokoju', 'error');
-    });
-});
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modals = document.getElementsByClassName('modal');
-    for (let modal of modals) {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    }
 }
 </script>
 {% endblock %}
