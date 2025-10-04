@@ -386,3 +386,111 @@ class MailManager:
             }
             return self.send_security_alert('failed_login', str(details))
         return False
+
+    def send_invitation_email(self, email: str, invitation_code: str, home_name: str, 
+                             inviter_name: str, role: str, base_url: str = "http://localhost:5000"):
+        """Wysyła email z zaproszeniem do domu"""
+        email = email or ""
+        try:
+            # Sprawdź czy mamy pełną konfigurację SMTP
+            smtp = self.smtp_config
+            if not (smtp.get('server') and smtp.get('port') and smtp.get('username') and smtp.get('password')):
+                print(f"[INVITATION] TEST MODE: Kod zaproszenia dla {email}: {invitation_code}")
+                print(f"[INVITATION] Link: {base_url}/invite/accept?code={invitation_code}")
+                print("[INVITATION] Brak pełnej konfiguracji SMTP. Uzupełnij SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD w pliku email_conf.env")
+                return False
+
+            message = MIMEMultipart()
+            message['From'] = self.config['sender_email'] or ""
+            message['To'] = email
+            message['Subject'] = f'🏠 SmartHome - Zaproszenie do domu "{home_name}"'
+
+            role_names = {
+                'admin': 'Administrator',
+                'member': 'Członek',
+                'guest': 'Gość'
+            }
+            role_display = role_names.get(role, role)
+
+            accept_link = f"{base_url}/invite/accept?code={invitation_code}"
+
+            html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h2 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">🏠 Zaproszenie do SmartHome</h2>
+                    
+                    <p style="font-size: 16px; color: #333;">Witaj!</p>
+                    
+                    <p style="font-size: 16px; color: #333;">
+                        <strong>{inviter_name}</strong> zaprasza Cię do dołączenia do domu 
+                        <strong>"{home_name}"</strong> w systemie SmartHome.
+                    </p>
+                    
+                    <div style="background-color: #e8f4f8; padding: 15px; border-left: 4px solid #3498db; margin: 20px 0;">
+                        <p style="margin: 0; color: #2c3e50;">
+                            <strong>Rola:</strong> {role_display}
+                        </p>
+                    </div>
+
+                    <h3 style="color: #2c3e50; margin-top: 30px;">Jak zaakceptować zaproszenie?</h3>
+                    
+                    <div style="margin: 20px 0;">
+                        <p style="color: #555;"><strong>Opcja 1:</strong> Kliknij w poniższy przycisk</p>
+                        <div style="text-align: center; margin: 20px 0;">
+                            <a href="{accept_link}" 
+                               style="display: inline-block; padding: 15px 30px; background-color: #3498db; color: white; 
+                                      text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+                                Zaakceptuj zaproszenie
+                            </a>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <p style="color: #555;"><strong>Opcja 2:</strong> Użyj kodu zaproszenia</p>
+                        <div style="background-color: #ecf0f1; padding: 20px; text-align: center; border-radius: 5px;">
+                            <p style="margin: 0 0 10px 0; color: #7f8c8d; font-size: 14px;">Kod zaproszenia:</p>
+                            <h1 style="color: #2c3e50; font-size: 32px; margin: 0; letter-spacing: 4px; font-family: 'Courier New', monospace;">
+                                {invitation_code}
+                            </h1>
+                        </div>
+                        <p style="color: #777; font-size: 14px; margin-top: 10px;">
+                            Wpisz ten kod na stronie: <a href="{base_url}/invite/accept" style="color: #3498db;">{base_url}/invite/accept</a>
+                        </p>
+                    </div>
+
+                    <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 30px 0;">
+                        <p style="margin: 0; color: #856404; font-size: 14px;">
+                            <strong>⚠️ Ważne informacje:</strong>
+                        </p>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #856404; font-size: 14px;">
+                            <li>Zaproszenie jest ważne przez 7 dni</li>
+                            <li>Musisz zalogować się lub zarejestrować tym samym adresem email</li>
+                            <li>Jeśli nie prosiłeś o to zaproszenie, zignoruj tę wiadomość</li>
+                        </ul>
+                    </div>
+
+                    <p style="color: #7f8c8d; font-size: 12px; margin-top: 40px; text-align: center;">
+                        Wiadomość wysłana automatycznie z systemu SmartHome<br>
+                        Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                    </p>
+                </div>
+            </div>
+            """
+
+            message.attach(MIMEText(html, 'html'))
+
+            with smtplib.SMTP(smtp['server'], smtp['port']) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp['username'], smtp['password'])
+                server.sendmail(self.config['sender_email'] or "", email, message.as_string())
+
+            print(f"[INVITATION] Wysłano zaproszenie na {email} (kod: {invitation_code})")
+            return True
+        except smtplib.SMTPAuthenticationError:
+            print("[INVITATION] Błąd autentykacji SMTP - sprawdź login i hasło SMTP w email_conf.env")
+            return False
+        except Exception as e:
+            print(f"[INVITATION] Błąd wysyłania zaproszenia na {email}: {str(e)}")
+            return False

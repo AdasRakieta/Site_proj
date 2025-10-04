@@ -31,6 +31,7 @@ class MultiHomeDBManager:
         self._ensure_connection()
         self._ensure_security_state_table()
         self._ensure_automation_table()
+        self._ensure_invitations_table()
 
     @contextmanager
     def get_cursor(self):
@@ -158,6 +159,36 @@ class MultiHomeDBManager:
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
             cursor.execute(index_sql)
+
+    def _ensure_invitations_table(self):
+        """Ensure the home invitations table exists."""
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS home_invitations (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                home_id UUID NOT NULL REFERENCES homes(id) ON DELETE CASCADE,
+                email VARCHAR(255) NOT NULL,
+                role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'member', 'guest')),
+                invitation_code VARCHAR(20) UNIQUE NOT NULL,
+                invited_by UUID NOT NULL REFERENCES users(id),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMPTZ NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired', 'rejected')),
+                accepted_at TIMESTAMPTZ,
+                accepted_by UUID REFERENCES users(id)
+            )
+        """
+        index_sql_1 = """
+            CREATE INDEX IF NOT EXISTS idx_home_invitations_code 
+            ON home_invitations (invitation_code) WHERE status = 'pending'
+        """
+        index_sql_2 = """
+            CREATE INDEX IF NOT EXISTS idx_home_invitations_home_email 
+            ON home_invitations (home_id, email, status)
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(create_sql)
+            cursor.execute(index_sql_1)
+            cursor.execute(index_sql_2)
 
     # ============================================================================
     # HOME MANAGEMENT
@@ -2087,4 +2118,250 @@ class MultiHomeDBManager:
                     return True
                     
             return False
+
+    # ============================================================================
+    # HOME INVITATIONS MANAGEMENT
+    # ============================================================================
+
+    def create_invitation(self, home_id: str, email: str, role: str, invited_by: str) -> str:
+        """
+        Create a new home invitation.
+        
+        Args:
+            home_id: ID of the home
+            email: Email address to invite
+            role: Role to assign (admin, member, guest)
+            invited_by: User ID of the inviter
+            
+        Returns:
+            Invitation code
+        """
+        import secrets
+        
+        # Validate role
+        if role not in ['admin', 'member', 'guest']:
+            raise ValueError(f"Invalid role: {role}")
+        
+        # Check admin access
+        if not self.has_admin_access(invited_by, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        # Generate unique invitation code (8 characters, alphanumeric)
+        invitation_code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
+        
+        # Set expiration (7 days from now)
+        expires_at = datetime.now() + timedelta(days=7)
+        
+        with self.get_cursor() as cursor:
+            # Check if there's already a pending invitation for this email in this home
+            cursor.execute("""
+                SELECT id FROM home_invitations 
+                WHERE home_id = %s AND email = %s AND status = 'pending'
+            """, (home_id, email))
+            
+            if cursor.fetchone():
+                raise ValueError("An invitation for this email already exists for this home")
+            
+            # Create invitation
+            invitation_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO home_invitations 
+                (id, home_id, email, role, invitation_code, invited_by, expires_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (invitation_id, home_id, email.lower(), role, invitation_code, invited_by, expires_at))
+            
+            logger.info(f"Created invitation {invitation_code} for {email} to home {home_id}")
+            return invitation_code
+
+    def get_invitation(self, invitation_code: str) -> Optional[Dict]:
+        """
+        Get invitation details by code.
+        
+        Args:
+            invitation_code: The invitation code
+            
+        Returns:
+            Dictionary with invitation details or None if not found
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT i.id, i.home_id, i.email, i.role, i.invitation_code, 
+                       i.invited_by, i.created_at, i.expires_at, i.status,
+                       h.name as home_name, u.name as inviter_name
+                FROM home_invitations i
+                JOIN homes h ON i.home_id = h.id
+                JOIN users u ON i.invited_by = u.id
+                WHERE i.invitation_code = %s
+            """, (invitation_code,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': str(row[0]),
+                    'home_id': str(row[1]),
+                    'email': row[2],
+                    'role': row[3],
+                    'invitation_code': row[4],
+                    'invited_by': str(row[5]),
+                    'created_at': row[6],
+                    'expires_at': row[7],
+                    'status': row[8],
+                    'home_name': row[9],
+                    'inviter_name': row[10]
+                }
+            return None
+
+    def accept_invitation(self, invitation_code: str, user_id: str) -> bool:
+        """
+        Accept a home invitation and add user to home.
+        
+        Args:
+            invitation_code: The invitation code
+            user_id: ID of the user accepting the invitation
+            
+        Returns:
+            True if successful
+        """
+        with self.get_cursor() as cursor:
+            # Get invitation
+            cursor.execute("""
+                SELECT id, home_id, email, role, status, expires_at 
+                FROM home_invitations 
+                WHERE invitation_code = %s
+            """, (invitation_code,))
+            
+            invitation = cursor.fetchone()
+            if not invitation:
+                raise ValueError("Invalid invitation code")
+            
+            inv_id, home_id, email, role, status, expires_at = invitation
+            
+            # Check status
+            if status != 'pending':
+                raise ValueError(f"Invitation is {status}")
+            
+            # Check expiration
+            if datetime.now() > expires_at:
+                cursor.execute("""
+                    UPDATE home_invitations 
+                    SET status = 'expired' 
+                    WHERE id = %s
+                """, (str(inv_id),))
+                raise ValueError("Invitation has expired")
+            
+            # Verify email matches user
+            cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
+            user_row = cursor.fetchone()
+            if not user_row or user_row[0].lower() != email.lower():
+                raise ValueError("This invitation is for a different email address")
+            
+            # Check if user is already in this home
+            cursor.execute("""
+                SELECT 1 FROM user_homes 
+                WHERE user_id = %s AND home_id = %s
+            """, (user_id, home_id))
+            
+            if cursor.fetchone():
+                # Mark as accepted even though already a member
+                cursor.execute("""
+                    UPDATE home_invitations 
+                    SET status = 'accepted', accepted_at = %s, accepted_by = %s 
+                    WHERE id = %s
+                """, (datetime.now(), user_id, str(inv_id)))
+                raise ValueError("You are already a member of this home")
+            
+            # Add user to home
+            cursor.execute("""
+                INSERT INTO user_homes (user_id, home_id, role, joined_at)
+                VALUES (%s, %s, %s, %s)
+            """, (user_id, home_id, role, datetime.now()))
+            
+            # Mark invitation as accepted
+            cursor.execute("""
+                UPDATE home_invitations 
+                SET status = 'accepted', accepted_at = %s, accepted_by = %s 
+                WHERE id = %s
+            """, (datetime.now(), user_id, str(inv_id)))
+            
+            logger.info(f"User {user_id} accepted invitation {invitation_code} to home {home_id}")
+            return True
+
+    def get_pending_invitations(self, home_id: str, admin_user_id: str) -> List[Dict]:
+        """
+        Get all pending invitations for a home.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin requesting the list
+            
+        Returns:
+            List of pending invitations
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT i.id, i.email, i.role, i.invitation_code, 
+                       i.created_at, i.expires_at, u.name as inviter_name
+                FROM home_invitations i
+                JOIN users u ON i.invited_by = u.id
+                WHERE i.home_id = %s AND i.status = 'pending'
+                ORDER BY i.created_at DESC
+            """, (home_id,))
+            
+            invitations = []
+            for row in cursor.fetchall():
+                invitations.append({
+                    'id': str(row[0]),
+                    'email': row[1],
+                    'role': row[2],
+                    'invitation_code': row[3],
+                    'created_at': row[4],
+                    'expires_at': row[5],
+                    'inviter_name': row[6]
+                })
+            
+            return invitations
+
+    def cancel_invitation(self, invitation_id: str, admin_user_id: str) -> bool:
+        """
+        Cancel a pending invitation.
+        
+        Args:
+            invitation_id: ID of the invitation
+            admin_user_id: ID of the admin canceling
+            
+        Returns:
+            True if successful
+        """
+        with self.get_cursor() as cursor:
+            # Get invitation and check permissions
+            cursor.execute("""
+                SELECT home_id, status FROM home_invitations WHERE id = %s
+            """, (invitation_id,))
+            
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError("Invitation not found")
+            
+            home_id, status = row
+            
+            if not self.has_admin_access(admin_user_id, str(home_id)):
+                raise PermissionError("User doesn't have admin access to this home")
+            
+            if status != 'pending':
+                raise ValueError(f"Cannot cancel {status} invitation")
+            
+            # Cancel invitation
+            cursor.execute("""
+                UPDATE home_invitations 
+                SET status = 'rejected' 
+                WHERE id = %s
+            """, (invitation_id,))
+            
+            logger.info(f"Admin {admin_user_id} cancelled invitation {invitation_id}")
+            return True
     
+

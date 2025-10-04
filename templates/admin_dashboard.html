@@ -106,6 +106,32 @@
     color: #721c24;
 }
 
+.alert-msg {
+    padding: 12px;
+    margin: 15px 0;
+    border-radius: 6px;
+    font-size: 14px;
+    display: none;
+}
+
+.alert-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
 .refresh-btn {
     background: var(--accent-color);
     color: white;
@@ -281,20 +307,27 @@
         <h3>Zarządzanie użytkownikami</h3>
         <div class="user-management">
             <div class="user-form">
-                <form method="POST" action="{{ url_for('admin_dashboard') }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                    <h4>Dodaj nowego użytkownika</h4>
+                <h4>Wyślij zaproszenie</h4>
+                <form id="inviteUserForm">
                     <div class="new-user-form">
-                        <input class="input-settings-add-user" type="text" name="username" placeholder="Nazwa" minlength="3" required>
-                        <input class="input-settings-add-user" type="email" name="email" placeholder="Email" required>
-                        <input class="input-settings-add-user" type="password" name="password" placeholder="Hasło" minlength="6" required>
-                        <select class="select-settings-add-user" name="role">
-                            <option value="user">Użytkownik</option>
+                        <input class="input-settings-add-user" type="email" id="inviteEmail" name="email" placeholder="Email" required>
+                        <select class="select-settings-add-user" id="inviteRole" name="role">
+                            <option value="member">Członek</option>
                             <option value="admin">Administrator</option>
+                            <option value="guest">Gość</option>
                         </select>
-                        <button class="rooms-button" type="submit">Dodaj użytkownika</button>
+                        <button class="rooms-button" type="submit">Wyślij zaproszenie</button>
                     </div>
                 </form>
+                <div id="inviteMessage" class="alert-msg" style="display: none;"></div>
+                
+                <!-- Lista oczekujących zaproszeń -->
+                <div style="margin-top: 20px;">
+                    <h5 style="margin-bottom: 10px;">Oczekujące zaproszenia</h5>
+                    <div id="pendingInvitationsContainer" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Będzie wypełnione dynamicznie -->
+                    </div>
+                </div>
             </div>
             <div class="user-form">
                 <h4>Lista użytkowników</h4>
@@ -741,6 +774,139 @@ document.addEventListener('DOMContentLoaded', function() {
         refreshDeviceStates(true);
         refreshLogs(true);
     }, 30000);
+
+    // Load pending invitations
+    loadPendingInvitations();
 });
+
+// ============================================================================
+// INVITATION MANAGEMENT
+// ============================================================================
+
+// Handle invite form submission
+document.getElementById('inviteUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('inviteEmail').value.trim();
+    const role = document.getElementById('inviteRole').value;
+    const homeId = '{{ session.current_home_id }}';
+    
+    if (!homeId) {
+        showInviteMessage('Najpierw wybierz dom', 'error');
+        return;
+    }
+    
+    const btn = this.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Wysyłanie...';
+    
+    fetch(`/api/home/${homeId}/invite`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, role })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showInviteMessage('Zaproszenie zostało wysłane!', 'success');
+            document.getElementById('inviteEmail').value = '';
+            loadPendingInvitations(); // Reload invitations list
+        } else {
+            showInviteMessage(result.error || 'Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showInviteMessage('Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    });
+});
+
+function loadPendingInvitations() {
+    const homeId = '{{ session.current_home_id }}';
+    if (!homeId) return;
+    
+    fetch(`/api/home/${homeId}/invitations`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                displayPendingInvitations(result.invitations);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading invitations:', error);
+        });
+}
+
+function displayPendingInvitations(invitations) {
+    const container = document.getElementById('pendingInvitationsContainer');
+    
+    if (!invitations || invitations.length === 0) {
+        container.innerHTML = '<p style="color: #999; font-style: italic; padding: 10px;">Brak oczekujących zaproszeń</p>';
+        return;
+    }
+    
+    container.innerHTML = invitations.map(inv => `
+        <div style="padding: 10px; margin: 5px 0; background: var(--bg-secondary); border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>${inv.email}</strong>
+                <span style="color: #999; font-size: 12px; margin-left: 10px;">
+                    ${inv.role === 'admin' ? 'Administrator' : inv.role === 'member' ? 'Członek' : 'Gość'}
+                </span>
+                <br>
+                <span style="font-size: 11px; color: #777;">
+                    Kod: ${inv.invitation_code} | Wygasa: ${new Date(inv.expires_at).toLocaleDateString()}
+                </span>
+            </div>
+            <button onclick="cancelInvitation('${inv.id}')" 
+                    style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Anuluj
+            </button>
+        </div>
+    `).join('');
+}
+
+function cancelInvitation(invitationId) {
+    if (!confirm('Czy na pewno chcesz anulować to zaproszenie?')) return;
+    
+    const homeId = '{{ session.current_home_id }}';
+    
+    fetch(`/api/home/${homeId}/invitations/${invitationId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showInviteMessage('Zaproszenie anulowane', 'success');
+            loadPendingInvitations();
+        } else {
+            showInviteMessage(result.error || 'Błąd podczas anulowania', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showInviteMessage('Błąd podczas anulowania zaproszenia', 'error');
+    });
+}
+
+function showInviteMessage(message, type) {
+    const msgDiv = document.getElementById('inviteMessage');
+    msgDiv.textContent = message;
+    msgDiv.className = `alert-msg alert-${type}`;
+    msgDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        msgDiv.style.display = 'none';
+    }, 5000);
+}
 </script>
 {% endblock %}
