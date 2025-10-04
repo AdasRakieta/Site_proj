@@ -1,1 +1,142 @@
-.user-profile-container{max-width:800px;margin:2rem auto;padding:2rem;background-color:var(--background);border-radius:8px;box-shadow:0 2px 4px var(--box_shd)}.profile-section{display:flex;flex-direction:column;gap:2rem;margin-top:1rem;align-items:center}.profile-picture-section{display:flex;flex-direction:column;align-items:center;gap:2rem}.user-profile-container .profile-section .profile-picture-section .profile-picture-container{width:128px!important;height:128px!important;border-radius:50%!important;overflow:hidden!important;border:2px solid var(--accent-color);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}.user-profile-container .profile-section .profile-picture-section .profile-picture-container img{width:100%!important;height:100%!important;object-fit:cover!important;position:absolute!important;top:0!important;left:0!important;max-width:100%!important;max-height:100%!important}.profile-picture-container img{width:100%;height:100%;object-fit:cover}.upload-btn{background-color:var(--button);color:var(--btn_text);padding:.5rem 1rem;border:none;border-radius:8px;cursor:pointer;transition:all .3s ease;margin-top:1rem;box-shadow:var(--box_shd);text-decoration:none}.upload-btn:hover{background-color:var(--btn-primary-hover);transform:scale(1.05)}.profile-form{display:flex;flex-direction:column;gap:1.5rem;max-width:500px;min-width:400px}.form-group-user{display:flex;flex-direction:column;gap:.5rem;min-width:400px;margin-bottom:15px}.form-group-user label{font-weight:bold;color:var(--text-color)}.form-group-user input{padding:.75rem;border:1px solid var(--primary);box-shadow:var(--box_shd);border-radius:4px;background-color:var(--background);color:var(--text-color);transition:all .3s}.form-group-user input:focus,.form-group-user input:hover{outline:none;border-color:var(--accent-color)}.save-button{padding:.8rem 1.5rem;font-size:1rem;background-color:var(--confirm-btn);color:var(--btn_text);border:none;border-radius:8px;cursor:pointer;transition:all .3s ease;margin-top:1rem;box-shadow:var(--box_shd);text-decoration:none;width:300px;align-self:center}.save-button:hover{background-color:var(--confirm-btn-hover);transform:scale(1.05)}.error-message{color:var(--error-color);font-size:.9rem;margin-top:.25rem}.success-message{color:var(--success-color);font-size:.9rem;margin-top:.25rem}
+.user-profile-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: var(--background);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--box_shd);
+}
+
+.profile-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 1rem;
+    align-items: center;
+}
+
+.profile-picture-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+.user-profile-container .profile-section .profile-picture-section .profile-picture-container {
+    width: 128px !important;
+    height: 128px !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    border: 2px solid var(--accent-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.user-profile-container .profile-section .profile-picture-section .profile-picture-container img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+.profile-picture-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.upload-btn {
+    background-color: var(--button);
+    color: var(--btn_text);
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    box-shadow: var(--box_shd);
+    text-decoration: none;
+}
+
+.upload-btn:hover {
+    background-color: var(--btn-primary-hover);
+    transform: scale(1.05);
+}
+
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 500px;
+    min-width: 400px;
+}
+
+.form-group-user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 400px;
+    margin-bottom: 15px;
+}
+
+.form-group-user label {
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.form-group-user input {
+    padding: 0.75rem;
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s;
+}
+
+.form-group-user input:focus, .form-group-user input:hover {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.save-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--confirm-btn);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    box-shadow: var(--box_shd);
+    text-decoration: none;
+    width: 300px;
+    align-self: center;
+    
+}
+
+.save-button:hover {
+    background-color: var(--confirm-btn-hover);
+    transform: scale(1.05);
+    
+}
+
+.error-message {
+    color: var(--error-color);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.success-message {
+    color: var(--success-color);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
