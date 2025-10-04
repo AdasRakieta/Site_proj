@@ -10,6 +10,7 @@
 2. ** Rejestracja, restart hasła:**
 
    1. [X] poprawa styluprzy restarcie oraz przy rejestracji dla kodu weryfikacyjnego i przycisków
+   2. [X] poprawa stylu dla przycisku powrót na rejestracji (zmieniono na btn-secondary)
 
    ---
 3. ** Strona Edycji
@@ -34,7 +35,7 @@
    2. [X] światła - ok
    3. [X] temperatura - ok
    4. [ ] admin dashboard
-   5. [ ] ustawienia
+   5. [X] ustawienia - usunięto zarządzanie użytkownikami (przeniesione do admin dashboard)
    6. [ ] ustawienia użytkownika**s**
    7. [X] zabezpieczenia -ok
    8. [X] strona głowna - ok
