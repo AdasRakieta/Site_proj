@@ -177,6 +177,11 @@ class MultiHomeDBManager:
                 accepted_by UUID REFERENCES users(id)
             )
         """
+        column_check_sql = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'home_invitations' AND table_schema = current_schema()
+        """
         index_sql_1 = """
             CREATE INDEX IF NOT EXISTS idx_home_invitations_code 
             ON home_invitations (invitation_code) WHERE status = 'pending'
@@ -187,6 +192,39 @@ class MultiHomeDBManager:
         """
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
+            cursor.execute(column_check_sql)
+            existing_columns = {row[0] for row in cursor.fetchall()}
+
+            # Handle legacy schema upgrades
+            if 'status' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ADD COLUMN status VARCHAR(20)
+                    DEFAULT 'pending'
+                """)
+                cursor.execute("""
+                    UPDATE home_invitations SET status = 'pending' WHERE status IS NULL
+                """)
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ALTER COLUMN status SET NOT NULL
+                """)
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ADD CONSTRAINT home_invitations_status_check
+                    CHECK (status IN ('pending', 'accepted', 'expired', 'rejected'))
+                """)
+            if 'accepted_at' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ADD COLUMN accepted_at TIMESTAMPTZ
+                """)
+            if 'accepted_by' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE home_invitations
+                    ADD COLUMN accepted_by UUID REFERENCES users(id)
+                """)
+
             cursor.execute(index_sql_1)
             cursor.execute(index_sql_2)
 

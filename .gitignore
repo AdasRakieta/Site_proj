@@ -4,8 +4,11 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-# .env
-# *.env
+
+# Environment files - NEVER commit these (contain passwords!)
+.env
+*.env
+!.env.example
 
 # Management logs - ignore in all locations
 management_logs.json

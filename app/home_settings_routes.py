@@ -14,6 +14,20 @@ logger = logging.getLogger(__name__)
 # Create blueprint for home settings
 home_settings_bp = Blueprint('home_settings', __name__)
 
+# These will be set by the main application
+multi_db = None
+home_settings_manager = None
+
+def init_home_settings_routes(db_manager):
+    """Initialize home settings routes with database manager"""
+    global multi_db, home_settings_manager
+    multi_db = db_manager
+    if multi_db:
+        home_settings_manager = HomeSettingsManager(multi_db)
+        logger.info("Home settings routes initialized with db_manager")
+    else:
+        logger.warning("Home settings routes initialized without db_manager")
+
 # Authentication decorator
 def login_required(f):
     """Decorator for requiring login"""
@@ -30,18 +44,6 @@ def get_current_user():
     if user_id:
         return {'id': user_id}
     return None
-
-# Import shared multi_db instance from multi_home_routes
-try:
-    from app.multi_home_routes import multi_db
-    if multi_db:
-        home_settings_manager = HomeSettingsManager(multi_db)
-    else:
-        home_settings_manager = None
-except Exception as e:
-    logger.error(f"Failed to initialize home settings managers: {e}")
-    multi_db = None
-    home_settings_manager = None
 
 # Test route to check if blueprint works
 @home_settings_bp.route('/test-home-settings')

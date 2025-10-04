@@ -5002,10 +5002,13 @@ class APIManager(MultiHomeHelpersMixin):
         # HOME INVITATIONS API
         # ============================================================================
 
-        @app.route('/api/home/<home_id>/invite', methods=['POST'])
-        @login_required
+        @self.app.route('/api/home/<home_id>/invite', methods=['POST'])
         def send_home_invitation(home_id):
             """Send invitation to join a home"""
+            # Check if user is logged in
+            if 'user_id' not in session:
+                return jsonify({"success": False, "error": "Unauthorized"}), 401
+            
             try:
                 from app_db import DATABASE_MODE
             except ImportError:
@@ -5077,10 +5080,13 @@ class APIManager(MultiHomeHelpersMixin):
                 self.app.logger.error(f"Error sending invitation: {e}")
                 return jsonify({"success": False, "error": "Internal server error"}), 500
 
-        @app.route('/api/home/<home_id>/invitations', methods=['GET'])
-        @login_required
+        @self.app.route('/api/home/<home_id>/invitations', methods=['GET'])
         def get_home_invitations(home_id):
             """Get pending invitations for a home"""
+            # Check if user is logged in
+            if 'user_id' not in session:
+                return jsonify({"success": False, "error": "Unauthorized"}), 401
+            
             try:
                 from app_db import DATABASE_MODE
             except ImportError:
@@ -5106,10 +5112,13 @@ class APIManager(MultiHomeHelpersMixin):
                 self.app.logger.error(f"Error getting invitations: {e}")
                 return jsonify({"success": False, "error": "Internal server error"}), 500
 
-        @app.route('/api/home/<home_id>/invitations/<invitation_id>/cancel', methods=['POST'])
-        @login_required
+        @self.app.route('/api/home/<home_id>/invitations/<invitation_id>/cancel', methods=['POST'])
         def cancel_home_invitation(home_id, invitation_id):
             """Cancel a pending invitation"""
+            # Check if user is logged in
+            if 'user_id' not in session:
+                return jsonify({"success": False, "error": "Unauthorized"}), 401
+            
             try:
                 from app_db import DATABASE_MODE
             except ImportError:
@@ -5147,7 +5156,7 @@ class APIManager(MultiHomeHelpersMixin):
                 self.app.logger.error(f"Error cancelling invitation: {e}")
                 return jsonify({"success": False, "error": "Internal server error"}), 500
 
-        @app.route('/invite/accept', methods=['GET'])
+        @self.app.route('/invite/accept', methods=['GET'])
         def invitation_accept_page():
             """Page for accepting invitations"""
             try:
@@ -5173,10 +5182,13 @@ class APIManager(MultiHomeHelpersMixin):
 
             return render_template('invite_accept.html', invitation=invitation, code=code)
 
-        @app.route('/api/invite/accept', methods=['POST'])
-        @login_required
+        @self.app.route('/api/invite/accept', methods=['POST'])
         def accept_invitation():
             """Accept a home invitation"""
+            # Check if user is logged in
+            if 'user_id' not in session:
+                return jsonify({"success": False, "error": "Unauthorized"}), 401
+            
             try:
                 from app_db import DATABASE_MODE
             except ImportError:
