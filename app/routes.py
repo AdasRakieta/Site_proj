@@ -4066,8 +4066,11 @@ class APIManager(MultiHomeHelpersMixin):
                             'temperature': control_payload['temperature']
                         })
 
+                    print(f"[DEBUG] About to log temperature action - hasattr check: {hasattr(self.management_logger, 'log_device_action')}")
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        current_home_id = session.get('current_home_id')
+                        print(f"[DEBUG] Logging temperature set - current_home_id from session: {current_home_id}, user_data: {user_data is not None}")
                         self.management_logger.log_device_action(
                             user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
@@ -4075,8 +4078,11 @@ class APIManager(MultiHomeHelpersMixin):
                             action='set_temperature',
                             new_state=control_payload['temperature'],
                             ip_address=request.environ.get('REMOTE_ADDR', ''),
-                            home_id=session.get('current_home_id')
+                            home_id=current_home_id
                         )
+                        print(f"[DEBUG] Temperature action logged successfully")
+                    else:
+                        print(f"[DEBUG] management_logger does not have log_device_action method!")
 
                     return jsonify({'status': 'success', 'control': control_payload})
 
@@ -4118,8 +4124,11 @@ class APIManager(MultiHomeHelpersMixin):
                         'temperature': temperature
                     })
 
+                print(f"[DEBUG] About to log temperature action (legacy) - hasattr check: {hasattr(self.management_logger, 'log_device_action')}")
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    current_home_id = session.get('current_home_id')
+                    print(f"[DEBUG] Logging temperature set (legacy) - current_home_id from session: {current_home_id}, user_data: {user_data is not None}")
                     self.management_logger.log_device_action(
                         user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
@@ -4127,8 +4136,11 @@ class APIManager(MultiHomeHelpersMixin):
                         action='set_temperature',
                         new_state=temperature,
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
-                        home_id=session.get('current_home_id')
+                        home_id=current_home_id
                     )
+                    print(f"[DEBUG] Temperature action (legacy) logged successfully")
+                else:
+                    print(f"[DEBUG] management_logger (legacy) does not have log_device_action method!")
 
                 return jsonify({
                     'status': 'success',
@@ -4329,6 +4341,8 @@ class APIManager(MultiHomeHelpersMixin):
 
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        current_home_id = session.get('current_home_id')
+                        print(f"[DEBUG] Logging temperature toggle - current_home_id from session: {current_home_id}")
                         self.management_logger.log_device_action(
                             user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
@@ -4336,7 +4350,7 @@ class APIManager(MultiHomeHelpersMixin):
                             action='toggle_temperature_enabled',
                             new_state=control_payload['enabled'],
                             ip_address=request.environ.get('REMOTE_ADDR', ''),
-                            home_id=session.get('current_home_id')
+                            home_id=current_home_id
                         )
 
                     return jsonify({'status': 'success', 'control': control_payload})
@@ -4372,6 +4386,8 @@ class APIManager(MultiHomeHelpersMixin):
 
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                    current_home_id = session.get('current_home_id')
+                    print(f"[DEBUG] Logging temperature toggle (legacy) - current_home_id from session: {current_home_id}")
                     self.management_logger.log_device_action(
                         user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
@@ -4379,7 +4395,7 @@ class APIManager(MultiHomeHelpersMixin):
                         action='toggle_temperature_enabled',
                         new_state=enabled,
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
-                        home_id=session.get('current_home_id')
+                        home_id=current_home_id
                     )
 
                 return jsonify({
@@ -4943,14 +4959,16 @@ class APIManager(MultiHomeHelpersMixin):
                         user_id = session.get('user_id')
                         if user_id:
                             user_data = self.smart_home.get_user_data(user_id)
+                            current_home_id = session.get('current_home_id')
+                            print(f"[DEBUG] Logging security state change - current_home_id from session: {current_home_id}")
                             self.management_logger.log_device_action(
                                 user=user_data.get('name', 'Unknown'),
                                 device_name='Security System',
                                 room='System',
                                 action='set_security_state',
-                                new_state={'state': new_state, 'home_id': str(home_id) if home_id else None},
+                                new_state=new_state,
                                 ip_address=request.environ.get('REMOTE_ADDR', ''),
-                                home_id=session.get('current_home_id')
+                                home_id=current_home_id
                             )
                         
                         return jsonify({
@@ -5030,6 +5048,21 @@ class SocketManager:
                                 return
                             payload = {'state': new_state, 'home_id': str(home_id)}
                             current_state = new_state
+                            
+                            # Log the security state change
+                            if hasattr(self.management_logger, 'log_device_action'):
+                                username = session.get('username', 'Unknown')
+                                current_home_id = session.get('current_home_id') or home_id
+                                print(f"[DEBUG] Logging security state change (WebSocket) - current_home_id: {current_home_id}")
+                                self.management_logger.log_device_action(
+                                    user=username,
+                                    device_name='Security System',
+                                    room='System',
+                                    action='set_security_state',
+                                    new_state=new_state,
+                                    ip_address=request.environ.get('REMOTE_ADDR', ''),
+                                    home_id=current_home_id
+                                )
                         except PermissionError:
                             emit('error', {'message': 'Brak dostępu do wybranego domu'})
                             return
@@ -5040,6 +5073,21 @@ class SocketManager:
                         payload = {'state': current_state, 'home_id': None}
                         
                         print(f"[DEBUG] State after setting: {current_state}")
+                        
+                        # Log the security state change (legacy)
+                        if hasattr(self.management_logger, 'log_device_action'):
+                            username = session.get('username', 'Unknown')
+                            current_home_id = session.get('current_home_id')
+                            print(f"[DEBUG] Logging security state change (WebSocket legacy) - current_home_id: {current_home_id}")
+                            self.management_logger.log_device_action(
+                                user=username,
+                                device_name='Security System',
+                                room='System',
+                                action='set_security_state',
+                                new_state=new_state,
+                                ip_address=request.environ.get('REMOTE_ADDR', ''),
+                                home_id=current_home_id
+                            )
                         
                         print(f"[DEBUG] Emitting update_security_state with: {current_state}")
                         self.socketio.emit('update_security_state', payload)
