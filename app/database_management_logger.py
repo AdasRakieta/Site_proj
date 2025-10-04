@@ -65,18 +65,43 @@ class DatabaseManagementLogger:
                         if user_data and len(user_data) >= 2 and user_data[0] and user_data[1]:
                             user_id = user_data[0]
                 
-                # Use multi-home logging if home_id is provided and multi_db is available
-                if home_id and self.multi_db:
-                    self.multi_db.add_home_management_log(
-                        home_id=home_id,
-                        level=level,
-                        message=message,
-                        event_type=event_type,
-                        user_id=user_id,
-                        username=user or "",
-                        ip_address=ip_address or "",
-                        details=details or {}
-                    )
+                # Use multi-home logging if multi_db is available
+                if self.multi_db:
+                    # If home_id is None, try to get it from user's current home
+                    effective_home_id = home_id
+                    if not effective_home_id and user_id:
+                        # Try to get user's current home
+                        try:
+                            effective_home_id = self.multi_db.get_user_current_home(user_id)
+                        except:
+                            pass
+                    
+                    # If still None, use default (this shouldn't happen in normal operation)
+                    if not effective_home_id:
+                        print(f"[WARNING] No home_id provided for log event. Event: {event_type}, User: {user}")
+                        # Get user's first home as fallback
+                        if user_id:
+                            try:
+                                homes = self.multi_db.get_user_homes(user_id)
+                                if homes:
+                                    effective_home_id = homes[0]['home_id']
+                                    print(f"[INFO] Using fallback home_id: {effective_home_id}")
+                            except:
+                                pass
+                    
+                    if effective_home_id:
+                        self.multi_db.add_home_management_log(
+                            home_id=effective_home_id,
+                            level=level,
+                            message=message,
+                            event_type=event_type,
+                            user_id=user_id,
+                            username=user or "",
+                            ip_address=ip_address or "",
+                            details=details or {}
+                        )
+                    else:
+                        print(f"[ERROR] Cannot log to multi-home system: no home_id available for user {user}")
                 else:
                     # Fallback to single-home logging
                     self.db.add_management_log(

@@ -3474,15 +3474,16 @@ class APIManager(MultiHomeHelpersMixin):
                     # Log the action
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
+                        current_home_id = session.get('current_home_id')
+                        print(f"[DEBUG] Logging device action - current_home_id from session: {current_home_id}")
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown',
-                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                             device_name=device['name'],
                             room=device.get('room_name', ''),
                             action='toggle',
                             new_state=new_state,
                             ip_address=request.environ.get('REMOTE_ADDR', ''),
-                            home_id=session.get('current_home_id')
+                            home_id=current_home_id
                         )
                     
                     return jsonify({
@@ -4068,13 +4069,13 @@ class APIManager(MultiHomeHelpersMixin):
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown',
-                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
                             room=room_name,
                             action='set_temperature',
                             new_state=control_payload['temperature'],
-                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                            ip_address=request.environ.get('REMOTE_ADDR', ''),
+                            home_id=session.get('current_home_id')
                         )
 
                     return jsonify({'status': 'success', 'control': control_payload})
@@ -4120,13 +4121,13 @@ class APIManager(MultiHomeHelpersMixin):
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown',
-                        home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
+                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
                         room=control['room'],
                         action='set_temperature',
                         new_state=temperature,
-                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        home_id=session.get('current_home_id')
                     )
 
                 return jsonify({
@@ -4329,13 +4330,13 @@ class APIManager(MultiHomeHelpersMixin):
                     if hasattr(self.management_logger, 'log_device_action'):
                         user_data = self.smart_home.get_user_data(user_id) if user_id else None
                         self.management_logger.log_device_action(
-                            user=user_data.get('name', 'Unknown',
-                            home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
+                            user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                             device_name=control_payload['name'],
                             room=room_name,
                             action='toggle_temperature_enabled',
                             new_state=control_payload['enabled'],
-                            ip_address=request.environ.get('REMOTE_ADDR', '')
+                            ip_address=request.environ.get('REMOTE_ADDR', ''),
+                            home_id=session.get('current_home_id')
                         )
 
                     return jsonify({'status': 'success', 'control': control_payload})
@@ -4372,13 +4373,13 @@ class APIManager(MultiHomeHelpersMixin):
                 if hasattr(self.management_logger, 'log_device_action'):
                     user_data = self.smart_home.get_user_data(user_id) if user_id else None
                     self.management_logger.log_device_action(
-                        user=user_data.get('name', 'Unknown',
-                        home_id=session.get('current_home_id')) if user_data else session.get('username', 'Unknown'),
+                        user=user_data.get('name', 'Unknown') if user_data else session.get('username', 'Unknown'),
                         device_name=control['name'],
                         room=control['room'],
                         action='toggle_temperature_enabled',
                         new_state=enabled,
-                        ip_address=request.environ.get('REMOTE_ADDR', '')
+                        ip_address=request.environ.get('REMOTE_ADDR', ''),
+                        home_id=session.get('current_home_id')
                     )
 
                 return jsonify({
@@ -4943,13 +4944,13 @@ class APIManager(MultiHomeHelpersMixin):
                         if user_id:
                             user_data = self.smart_home.get_user_data(user_id)
                             self.management_logger.log_device_action(
-                                user=user_data.get('name', 'Unknown',
-                                home_id=session.get('current_home_id')),
+                                user=user_data.get('name', 'Unknown'),
                                 device_name='Security System',
                                 room='System',
                                 action='set_security_state',
                                 new_state={'state': new_state, 'home_id': str(home_id) if home_id else None},
-                                ip_address=request.environ.get('REMOTE_ADDR', '')
+                                ip_address=request.environ.get('REMOTE_ADDR', ''),
+                                home_id=session.get('current_home_id')
                             )
                         
                         return jsonify({
