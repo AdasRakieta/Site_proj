@@ -2028,6 +2028,10 @@ footer {
     max-width: 300px;
 }
 
+.notification.show {
+    opacity: 1;
+}
+
 .notification.success {
     background-color: #4CAF50;
 }

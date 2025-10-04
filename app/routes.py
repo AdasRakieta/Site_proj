@@ -5039,8 +5039,13 @@ class APIManager(MultiHomeHelpersMixin):
                     invited_by=session.get('user_id')
                 )
 
+                # Get invitation details to check if user exists
+                invitation_details = self.multi_db.get_invitation(invitation_code)
+                user_exists = invitation_details.get('existing_user_id') is not None
+                existing_username = invitation_details.get('existing_username')
+
                 # Get home and inviter details for email
-                home = self.multi_db.get_home(home_id, session.get('user_id'))
+                home = self.multi_db.get_home_details(home_id, session.get('user_id'))
                 user_data = self.multi_db.get_user_data(session.get('user_id'))
 
                 # Send invitation email
@@ -5056,20 +5061,32 @@ class APIManager(MultiHomeHelpersMixin):
 
                 # Log the action
                 if hasattr(self.management_logger, 'log_event'):
+                    log_message = f'Wysłano zaproszenie do {email} (rola: {role})'
+                    if user_exists:
+                        log_message += f' - użytkownik {existing_username} już istnieje w systemie'
+                    
                     self.management_logger.log_event(
                         level='info',
-                        message=f'Wysłano zaproszenie do {email} (rola: {role})',
+                        message=log_message,
                         event_type='invitation_sent',
                         user=user_data.get('name', 'Unknown'),
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
-                        details={'email': email, 'role': role, 'code': invitation_code},
+                        details={'email': email, 'role': role, 'code': invitation_code, 'user_exists': user_exists},
                         home_id=home_id
                     )
+
+                response_message = "Zaproszenie zostało wysłane"
+                if user_exists:
+                    response_message += f". Użytkownik {existing_username} otrzyma zaproszenie do dołączenia do domu."
+                else:
+                    response_message += ". Użytkownik będzie mógł wybrać nazwę podczas rejestracji."
 
                 return jsonify({
                     "success": True,
                     "invitation_code": invitation_code,
-                    "message": "Zaproszenie zostało wysłane"
+                    "user_exists": user_exists,
+                    "existing_username": existing_username if user_exists else None,
+                    "message": response_message
                 })
 
             except PermissionError as e:
