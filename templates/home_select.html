@@ -2,6 +2,69 @@
 
 {% block title %}Wybierz Dom - SmartHome{% endblock %}
 
+{% block additional_styles %}
+<style>
+.home-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.home-footer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.leave-home-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.leave-home-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.leave-home-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.leave-home-btn.confirm-state {
+    background: #f39c12;
+    animation: pulse 0.8s ease-in-out infinite;
+}
+
+.leave-home-btn.confirm-state:hover {
+    background: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.settings-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
 
 
 {% block content %}
@@ -56,9 +119,17 @@
             
             <div class="home-footer">
                 <small>Dołączono: {{ home.joined_at.strftime('%B %Y') if home.joined_at else 'Nieznane' }}</small>
-                {% if home.is_owner %}
-                    <a href="/home/{{ home.id }}/settings" class="settings-link">⚙️ Ustawienia</a>
-                {% endif %}
+                <div class="home-footer-actions">
+                    {% if home.is_owner %}
+                        <button onclick="window.location.href='/home/{{ home.id }}/settings'" class="btn-primary settings-btn" title="Zarządzaj ustawieniami domu">
+                            ⚙️ Ustawienia
+                        </button>
+                    {% elif user_global_role != 'sys-admin' %}
+                        <button onclick="leaveHome('{{ home.id }}', '{{ home.name }}', event)" class="leave-home-btn" title="Opuść dom">
+                            🚪 Opuść
+                        </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -73,12 +144,12 @@
     {% endif %}
 
     <div class="home-actions">
-        <a href="/home/create" class="btn btn-secondary">
-            <i class="icon">🏠</i> Utwórz Nowy Dom
-        </a>
-        <a href="/home/join" class="btn btn-secondary">
-            <i class="icon">👥</i> Dołącz do Domu
-        </a>
+        <button href="/home/create" class="btn-primary">
+            🏠 Utwórz Nowy Dom
+        </button>
+        <button href="/home/join" class="btn-primary">
+            👥 Dołącz do Domu
+        </button>
     </div>
 </div>
 
@@ -126,6 +197,81 @@ function selectHome(homeId) {
         console.error('Error switching home:', error);
         alert('Nie udało się przełączyć domu. Spróbuj ponownie.');
     });
+}
+
+function leaveHome(homeId, homeName, event) {
+    // Prevent card click event from firing
+    event.stopPropagation();
+    
+    const btn = event.target;
+    
+    // Check if already in confirm state
+    if (btn.classList.contains('confirm-state')) {
+        // User clicked confirm - proceed with leaving
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Opuszczanie...';
+        btn.classList.remove('confirm-state');
+        
+        // Send request to leave home
+        fetch(`/api/home/${homeId}/leave`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success notification
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message || 'Pomyślnie opuszczono dom', 'success');
+                } else {
+                    alert(data.message || 'Pomyślnie opuszczono dom');
+                }
+                
+                // Reload page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                // Restore button and show error
+                btn.disabled = false;
+                btn.innerHTML = '🚪 Opuść';
+                
+                if (typeof showNotification === 'function') {
+                    showNotification(data.error || 'Nie udało się opuścić domu', 'error');
+                } else {
+                    alert(data.error || 'Nie udało się opuścić domu');
+                }
+            }
+        })
+        .catch(error => {
+            // Restore button and show error
+            btn.disabled = false;
+            btn.innerHTML = '🚪 Opuść';
+            console.error('Error leaving home:', error);
+            
+            if (typeof showNotification === 'function') {
+                showNotification('Błąd podczas opuszczania domu. Spróbuj ponownie.', 'error');
+            } else {
+                alert('Błąd podczas opuszczania domu. Spróbuj ponownie.');
+            }
+        });
+    } else {
+        // First click - change to confirm state
+        btn.classList.add('confirm-state');
+        btn.innerHTML = '✓ Potwierdź';
+        btn.title = `Kliknij ponownie aby potwierdzić opuszczenie "${homeName}"`;
+        
+        // Reset to normal state after 3 seconds if not clicked
+        setTimeout(() => {
+            if (btn.classList.contains('confirm-state')) {
+                btn.classList.remove('confirm-state');
+                btn.innerHTML = '🚪 Opuść';
+                btn.title = 'Opuść dom';
+            }
+        }, 3000);
+    }
 }
 
 // Add loading spinner styles

@@ -12,7 +12,7 @@ import json
 import logging
 from decimal import Decimal
 from utils.allowed_file import allowed_file
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -5080,8 +5080,6 @@ class APIManager(MultiHomeHelpersMixin):
                 response_message = "Zaproszenie zostało wysłane"
                 if user_exists:
                     response_message += f". Użytkownik {existing_username} otrzyma zaproszenie do dołączenia do domu."
-                else:
-                    response_message += ". Użytkownik będzie mógł wybrać nazwę podczas rejestracji."
 
                 return jsonify({
                     "success": True,
@@ -5195,7 +5193,7 @@ class APIManager(MultiHomeHelpersMixin):
                 if invitation and invitation['status'] != 'pending':
                     flash(f'Zaproszenie jest {invitation["status"]}', 'error')
                     invitation = None
-                elif invitation and datetime.now() > invitation['expires_at']:
+                elif invitation and datetime.now(timezone.utc) > invitation['expires_at']:
                     flash('Zaproszenie wygasło', 'error')
                     invitation = None
 
