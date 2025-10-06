@@ -2157,13 +2157,15 @@ class RoutesManager(MultiHomeHelpersMixin):
 
 class APIManager(MultiHomeHelpersMixin):
     """Klasa zarządzająca endpointami API"""
-    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None, multi_db=None):
+    def __init__(self, app, socketio, smart_home, auth_manager, management_logger=None, cache=None, cached_data_access=None, multi_db=None, mail_manager=None, async_mail_manager=None):
         self.app = app
         self.socketio = socketio
         self.smart_home = smart_home
         self.auth_manager = auth_manager
         self.management_logger = management_logger or ManagementLogger()
         self.multi_db = multi_db
+        self.mail_manager = mail_manager
+        self.async_mail_manager = async_mail_manager
         # Use the same caching approach as RoutesManager to share cache keys
         try:
             self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)

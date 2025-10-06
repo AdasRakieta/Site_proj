@@ -361,6 +361,8 @@ class SmartHomeApp:
                 'management_logger': self.management_logger,
                 'cache': self.cache,
                 'multi_db': self.multi_db,
+                'mail_manager': self.mail_manager,
+                'async_mail_manager': self.async_mail_manager,
             }
             filtered_kwargs = {k: v for k, v in possible_kwargs.items() if k in accepted_params}
             # Helpful debug
