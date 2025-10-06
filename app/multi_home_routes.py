@@ -118,9 +118,13 @@ def home_select():
                 home['device_count'] = 0
                 home['user_count'] = 1
         
+        # Get user's global role for UI protection
+        user_global_role = user.get('role', 'user')
+        
         return render_template('home_select.html', 
                              homes=homes, 
-                             current_home_id=current_home_id)
+                             current_home_id=current_home_id,
+                             user_global_role=user_global_role)
     
     except Exception as e:
         logger.error(f"Error loading home selection: {e}")
@@ -252,7 +256,7 @@ def api_home_join():
     try:
         data = request.get_json() if request.is_json else request.form
         
-        invitation_code = data.get('invitation_code', '').strip()
+        invitation_code = data.get('invitation_code', '').strip().upper()
         
         if not invitation_code:
             return jsonify({"success": False, "error": "Invitation code is required"})
@@ -262,10 +266,32 @@ def api_home_join():
             return jsonify({"success": False, "error": "Authentication required"})
         user_id = user['id']
         
-        # TODO: Implement invitation system
-        # For now, return not implemented
-        return jsonify({"success": False, "error": "Invitation system not yet implemented"})
+        # Accept invitation using multi_db
+        db_manager.accept_invitation(
+            invitation_code=invitation_code,
+            user_id=user_id
+        )
+        
+        # Log the action
+        logger.info(f"User {user_id} accepted invitation {invitation_code}")
+        
+        if request.is_json:
+            return jsonify({
+                "success": True,
+                "message": "Pomyślnie dołączono do domu",
+                "redirect": url_for('multi_home.home_select')
+            })
+        else:
+            flash("Pomyślnie dołączono do domu", "success")
+            return redirect(url_for('multi_home.home_select'))
     
+    except ValueError as e:
+        logger.warning(f"Invalid invitation: {e}")
+        if request.is_json:
+            return jsonify({"success": False, "error": str(e)})
+        else:
+            flash(str(e), "error")
+            return redirect(url_for('multi_home.home_join'))
     except Exception as e:
         logger.error(f"Error joining home: {e}")
         if request.is_json:
@@ -273,6 +299,48 @@ def api_home_join():
         else:
             flash("Error joining home", "error")
             return redirect(url_for('multi_home.home_join'))
+
+@multi_home_bp.route('/api/home/<home_id>/leave', methods=['POST'])
+@login_required
+def api_leave_home(home_id):
+    """API endpoint for leaving a home."""
+    db_manager = get_multi_db()
+    if not db_manager:
+        return jsonify({"success": False, "error": "Multi-home functionality not available"}), 400
+    
+    user = get_current_user()
+    if not user:
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    user_id = user['id']
+    
+    try:
+        # Leave the home (can leave any home, not just current one)
+        db_manager.leave_home(user_id, home_id)
+        
+        # Clear session if the home being left is the current one
+        if session.get('current_home_id') == home_id:
+            session.pop('current_home_id', None)
+            session.pop('current_home_name', None)
+            session.pop('home_role', None)
+            logger.info(f"Cleared current home from session after user {user_id} left home {home_id}")
+        
+        logger.info(f"User {user_id} left home {home_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Pomyślnie opuszczono dom",
+            "redirect": url_for('multi_home.home_select')
+        })
+    
+    except PermissionError as e:
+        logger.warning(f"Permission denied for user {user_id} leaving home {home_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 403
+    except ValueError as e:
+        logger.warning(f"Invalid leave request from user {user_id} for home {home_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error leaving home {home_id} for user {user_id}: {e}")
+        return jsonify({"success": False, "error": "Failed to leave home"}), 500
 
 @multi_home_bp.route('/api/current-home')
 @login_required

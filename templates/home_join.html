@@ -79,12 +79,12 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
             // Show success message
             const successDiv = document.createElement('div');
             successDiv.className = 'success-message';
-            successDiv.textContent = 'Pomyślnie dołączono do domu! Przekierowanie...';
+            successDiv.textContent = result.message || 'Pomyślnie dołączono do domu! Przekierowanie...';
             form.insertBefore(successDiv, form.firstChild);
             
             // Redirect after a short delay
             setTimeout(() => {
-                window.location.href = '/home/select';
+                window.location.href = result.redirect || '/home/select';
             }, 1500);
         } else {
             // Show error message

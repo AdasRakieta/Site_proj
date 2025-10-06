@@ -2,7 +2,7 @@ import psycopg2
 import json
 import uuid
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any, Tuple
 from contextlib import contextmanager
 import logging
@@ -2302,7 +2302,7 @@ class MultiHomeDBManager:
         invitation_code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
         
         # Set expiration (7 days from now)
-        expires_at = datetime.now() + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         
         with self.get_cursor() as cursor:
             # Check if there's already a pending invitation for this email in this home
@@ -2420,7 +2420,7 @@ class MultiHomeDBManager:
                 raise ValueError(f"Invitation is {status}")
             
             # Check expiration
-            if datetime.now() > expires_at:
+            if datetime.now(timezone.utc) > expires_at:
                 cursor.execute("""
                     UPDATE home_invitations 
                     SET status = 'expired' 
@@ -2446,21 +2446,21 @@ class MultiHomeDBManager:
                     UPDATE home_invitations 
                     SET status = 'accepted', accepted_at = %s, accepted_by = %s 
                     WHERE id = %s
-                """, (datetime.now(), user_id, str(inv_id)))
+                """, (datetime.now(timezone.utc), user_id, str(inv_id)))
                 raise ValueError("You are already a member of this home")
             
             # Add user to home
             cursor.execute("""
                 INSERT INTO user_homes (user_id, home_id, role, joined_at)
                 VALUES (%s, %s, %s, %s)
-            """, (user_id, home_id, role, datetime.now()))
+            """, (user_id, home_id, role, datetime.now(timezone.utc)))
             
             # Mark invitation as accepted
             cursor.execute("""
                 UPDATE home_invitations 
                 SET status = 'accepted', accepted_at = %s, accepted_by = %s 
                 WHERE id = %s
-            """, (datetime.now(), user_id, str(inv_id)))
+            """, (datetime.now(timezone.utc), user_id, str(inv_id)))
             
             logger.info(f"User {user_id} accepted invitation {invitation_code} to home {home_id}")
             return True
@@ -2543,4 +2543,65 @@ class MultiHomeDBManager:
             logger.info(f"Admin {admin_user_id} cancelled invitation {invitation_id}")
             return True
     
+    def leave_home(self, user_id: str, home_id: str) -> bool:
+        """
+        Allow a user to leave a home they are a member of.
+        Owner cannot leave their own home.
+        
+        Args:
+            user_id: ID of the user leaving
+            home_id: ID of the home to leave
+            
+        Returns:
+            True if successful
+            
+        Raises:
+            PermissionError: If user is the owner or sys-admin
+            ValueError: If user is not a member or other validation error
+        """
+        with self.get_cursor() as cursor:
+            # Check if user is a member of this home
+            cursor.execute("""
+                SELECT role FROM user_homes 
+                WHERE user_id = %s AND home_id = %s
+            """, (user_id, home_id))
+            
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError("You are not a member of this home")
+            
+            user_role = row[0]
+            
+            # Check if user is the owner
+            cursor.execute("""
+                SELECT owner_id FROM homes WHERE id = %s
+            """, (home_id,))
+            
+            owner_row = cursor.fetchone()
+            if owner_row and str(owner_row[0]) == user_id:
+                raise PermissionError("Owner cannot leave their own home. Transfer ownership or delete the home instead.")
+            
+            # Get user's global role
+            cursor.execute("""
+                SELECT role FROM users WHERE id = %s
+            """, (user_id,))
+            
+            global_role_row = cursor.fetchone()
+            if global_role_row and global_role_row[0] == 'sys-admin':
+                raise PermissionError("System administrators cannot leave homes. Contact another admin.")
+            
+            # Remove user from home
+            cursor.execute("""
+                DELETE FROM user_homes 
+                WHERE user_id = %s AND home_id = %s
+            """, (user_id, home_id))
+            
+            # Note: current_home_id is managed in session, not in database
+            # The API endpoint will clear it from session if needed
+            
+            logger.info(f"User {user_id} left home {home_id}")
+            return True
+    
+
+
 
