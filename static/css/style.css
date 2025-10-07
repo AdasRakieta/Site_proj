@@ -2311,3 +2311,49 @@ footer {
         transform: scale(0.9);
     }
 }
+
+/* ============================== */
+/*  Uniwersalne przyciski usuwania z potwierdzeniem */
+/* ============================== */
+
+/* Klasa bazowa dla wszystkich przycisków usuwania z dwuetapowym potwierdzeniem */
+.confirm-delete-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.confirm-delete-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.confirm-delete-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
+}
+
+/* Stan potwierdzenia - pomarańczowy z animacją */
+.confirm-delete-btn.confirm-state {
+    background: #f39c12;
+    animation: confirm-pulse 0.8s ease-in-out infinite;
+}
+
+.confirm-delete-btn.confirm-state:hover {
+    background: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
+}
+
+@keyframes confirm-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}

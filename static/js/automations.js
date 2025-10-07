@@ -113,7 +113,7 @@ class AutomationsManager {
             list.appendChild(automationElement);
         });
 
-        this.setupGlobalClickListener();
+        // setupGlobalClickListener już nie jest potrzebny
     }
 
     createAutomationCard(automation, index) {
@@ -130,20 +130,17 @@ class AutomationsManager {
 
         // Przycisk Usuń
         const deleteBtn = this.app.createElement('button', {
-            class: 'delete-automation btn-secondary',
+            class: 'confirm-delete-btn',
+            'data-automation-index': index
+        });
+        const deleteBtnText = this.app.createElement('span', {
             textContent: 'Usuń'
         });
-
-        // Przycisk Potwierdź (początkowo ukryty)
-        const confirmBtn = this.app.createElement('button', {
-            class: 'confirm-delete-btn btn-danger hidden',
-            textContent: 'Potwierdź'
-        });
+        deleteBtn.appendChild(deleteBtnText);
 
         // Dodaj przyciski do kontenera
         actionsContainer.appendChild(editBtn);
         actionsContainer.appendChild(deleteBtn);
-        actionsContainer.appendChild(confirmBtn);
 
         // Karta automatyzacji
         const automationElement = this.app.createElement('div', {
@@ -166,39 +163,43 @@ class AutomationsManager {
             this.showAutomationForm(automation, index);
         });
 
-        // Obsługa przycisku Usuń
-        deleteBtn.addEventListener('click', (e) => {
+        // Obsługa przycisku Usuń z wzorcem confirm-state
+        deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            deleteBtn.classList.add('hidden');
-            confirmBtn.classList.remove('hidden');
             
-            setTimeout(() => {
-                if (!confirmBtn.classList.contains('hidden')) {
-                    confirmBtn.classList.add('hidden');
-                    deleteBtn.classList.remove('hidden');
-                }
-            }, 5000);
-        });
-
-        // Obsługa przycisku Potwierdź
-        confirmBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await this.deleteAutomation(index);
+            // Jeśli przycisk już jest w stanie potwierdzenia
+            if (deleteBtn.classList.contains('confirm-state')) {
+                // Wyłącz przycisk i pokaż status
+                deleteBtn.disabled = true;
+                deleteBtnText.textContent = 'Usuwanie...';
+                
+                await this.deleteAutomation(index);
+                
+                // Reset przycisku (jeśli usuwanie się nie powiodło)
+                deleteBtn.disabled = false;
+                deleteBtnText.textContent = 'Usuń';
+                deleteBtn.classList.remove('confirm-state');
+            } else {
+                // Pierwszy klik - zmień na stan potwierdzenia
+                deleteBtn.classList.add('confirm-state');
+                deleteBtnText.textContent = '✓ Potwierdź usunięcie';
+                
+                // Resetuj po 5 sekundach
+                setTimeout(() => {
+                    if (deleteBtn.classList.contains('confirm-state')) {
+                        deleteBtn.classList.remove('confirm-state');
+                        deleteBtnText.textContent = 'Usuń';
+                    }
+                }, 5000);
+            }
         });
 
         return automationElement;
     }
 
     setupGlobalClickListener() {
-        this.globalClickListener = (e) => {
-            if (!e.target.closest('.delete-btn-container')) {
-                document.querySelectorAll('.delete-btn-container').forEach(container => {
-                    container.querySelector('.delete-automation').classList.remove('hidden');
-                    container.querySelector('.confirm-delete-btn').classList.add('hidden');
-                });
-            }
-        };
-        document.addEventListener('click', this.globalClickListener);
+        // Funkcja już nie jest potrzebna przy wzorcu confirm-state
+        // Przyciski auto-resetują się po 5 sekundach
     }
 
     formatTrigger(trigger) {

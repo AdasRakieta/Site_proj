@@ -67,7 +67,6 @@
                     <table class="users-table">
                         <thead>
                             <tr>
-                                <th>Avatar</th>
                                 <th>Nazwa</th>
                                 <th>Email</th>
                                 <th>Rola</th>
@@ -79,15 +78,6 @@
                         <tbody>
                             {% for user in all_users %}
                             <tr>
-                                <td>
-                                    {% if user.profile_picture %}
-                                        <img src="{{ url_for('static', filename='profile_pictures/' + user.profile_picture) }}" 
-                                             alt="{{ user.name }}" 
-                                             class="user-avatar-small">
-                                    {% else %}
-                                        <div class="user-avatar-placeholder">{{ user.name[0].upper() }}</div>
-                                    {% endif %}
-                                </td>
                                 <td class="user-name">{{ user.name }}</td>
                                 <td class="user-email">{{ user.email }}</td>
                                 <td>

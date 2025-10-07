@@ -134,12 +134,13 @@
 }
 
 .delete-user-btn.confirm-state {
-    background: #c0392b;
-    animation: pulse-delete 0.5s ease-in-out infinite;
+    background: #f39c12;
+    animation: pulse-delete 0.8s ease-in-out infinite;
 }
 
 .delete-user-btn.confirm-state:hover {
-    background: #a93226;
+    background: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
 }
 
 .delete-user-btn:disabled {

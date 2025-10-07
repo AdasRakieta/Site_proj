@@ -95,9 +95,9 @@
                 <label>Usuń logi starsze niż:</label>
                 <input type="number" id="delete-days" placeholder="liczba dni" min="1" class="input-settings" style="width: 100px;">
                 <span>dni</span>
-                <button id="delete-days-btn" onclick="showDeleteDaysConfirmation()" class="rooms-button" style="background: #dc3545; color: white;">Usuń</button>
-                <button id="delete-days-confirm-btn" onclick="deleteLogsByDays()" class="rooms-button" style="background: #dc3545; color: white; display: none;">Potwierdź</button>
-                <button id="delete-days-cancel-btn" onclick="cancelDeleteDays()" class="rooms-button" style="background: #6c757d; color: white; display: none;">Anuluj</button>
+                <button id="delete-days-btn" onclick="confirmDeleteByDays(event)" class="confirm-delete-btn">
+                    <span id="delete-days-text">Usuń</span>
+                </button>
             </div>
             <div style="margin-bottom: 10px;">
                 <label>Usuń logi z okresu:</label><br>
@@ -105,15 +105,15 @@
                     <input type="date" id="delete-start-date" class="input-settings">
                     <span>do</span>
                     <input type="date" id="delete-end-date" class="input-settings">
-                    <button id="delete-range-btn" onclick="showDeleteRangeConfirmation()" class="rooms-button" style="background: #dc3545; color: white;">Usuń</button>
-                    <button id="delete-range-confirm-btn" onclick="deleteLogsByRange()" class="rooms-button" style="background: #dc3545; color: white; display: none;">Potwierdź</button>
-                    <button id="delete-range-cancel-btn" onclick="cancelDeleteRange()" class="rooms-button" style="background: #6c757d; color: white; display: none;">Anuluj</button>
+                    <button id="delete-range-btn" onclick="confirmDeleteByRange(event)" class="confirm-delete-btn">
+                        <span id="delete-range-text">Usuń</span>
+                    </button>
                 </div>
             </div>
             <div>
-                <button id="clear-all-btn" onclick="showClearAllConfirmation()" class="rooms-button" style="background: #dc3545; color: white;">Wyczyść wszystkie logi</button>
-                <button id="clear-all-confirm-btn" onclick="clearAllLogs()" class="rooms-button" style="background: #dc3545; color: white; display: none;">Potwierdź</button>
-                <button id="clear-all-cancel-btn" onclick="cancelClearAll()" class="rooms-button" style="background: #6c757d; color: white; display: none;">Anuluj</button>
+                <button id="clear-all-btn" onclick="confirmClearAll(event)" class="confirm-delete-btn">
+                    <span id="clear-all-text">Wyczyść wszystkie logi</span>
+                </button>
                 <button onclick="hideLogManagement()" class="rooms-button" style="background: #6c757d; color: white; margin-left: 10px;">Zamknij</button>
             </div>
         </div>
@@ -246,6 +246,194 @@ if (typeof window.preloadedManagementLogs === 'undefined') {
 if (typeof window.preloadedUsers === 'undefined') {
     window.preloadedUsers = __getEmbeddedJSON('preloadedUsers');
 }
+
+// ============================================
+// LOG MANAGEMENT FUNCTIONS
+// ============================================
+function showLogManagement() {
+    const panel = document.getElementById('log-management-panel');
+    if (panel) {
+        panel.style.display = 'block';
+    }
+}
+
+function hideLogManagement() {
+    document.getElementById('log-management-panel').style.display = 'none';
+    // Reset all confirmation states
+    const confirmButtons = document.querySelectorAll('.confirm-delete-btn.confirm-state');
+    confirmButtons.forEach(btn => {
+        btn.classList.remove('confirm-state');
+        const textSpan = btn.querySelector('span');
+        if (btn.id === 'delete-days-btn') {
+            textSpan.textContent = 'Usuń';
+        } else if (btn.id === 'delete-range-btn') {
+            textSpan.textContent = 'Usuń';
+        } else if (btn.id === 'clear-all-btn') {
+            textSpan.textContent = 'Wyczyść wszystkie logi';
+        }
+    });
+}
+
+function confirmDeleteByDays(event) {
+    const button = event.currentTarget;
+    const buttonText = document.getElementById('delete-days-text');
+    const days = document.getElementById('delete-days').value;
+    
+    if (!days || days < 1) {
+        showNotification('Podaj poprawną liczbę dni', 'error');
+        return;
+    }
+    
+    if (button.classList.contains('confirm-state')) {
+        button.disabled = true;
+        buttonText.textContent = 'Usuwanie...';
+        
+        fetch('/api/admin/logs/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            },
+            body: JSON.stringify({ days: parseInt(days) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showNotification(data.message, 'success');
+                refreshLogs(true);
+                hideLogManagement();
+            } else {
+                showNotification('Błąd: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting logs:', error);
+            showNotification('Błąd podczas usuwania logów', 'error');
+        })
+        .finally(() => {
+            button.disabled = false;
+            buttonText.textContent = 'Usuń';
+            button.classList.remove('confirm-state');
+        });
+    } else {
+        button.classList.add('confirm-state');
+        buttonText.textContent = '✓ Potwierdź usunięcie';
+        setTimeout(() => {
+            if (button.classList.contains('confirm-state')) {
+                button.classList.remove('confirm-state');
+                buttonText.textContent = 'Usuń';
+            }
+        }, 5000);
+    }
+}
+
+function confirmDeleteByRange(event) {
+    const button = event.currentTarget;
+    const buttonText = document.getElementById('delete-range-text');
+    const startDate = document.getElementById('delete-start-date').value;
+    const endDate = document.getElementById('delete-end-date').value;
+    
+    if (!startDate && !endDate) {
+        showNotification('Podaj co najmniej jedną datę', 'error');
+        return;
+    }
+    
+    if (button.classList.contains('confirm-state')) {
+        button.disabled = true;
+        buttonText.textContent = 'Usuwanie...';
+        
+        const requestData = {};
+        if (startDate) requestData.start_date = startDate;
+        if (endDate) requestData.end_date = endDate;
+        
+        fetch('/api/admin/logs/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showNotification(data.message, 'success');
+                refreshLogs(true);
+                hideLogManagement();
+            } else {
+                showNotification('Błąd: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting logs:', error);
+            showNotification('Błąd podczas usuwania logów', 'error');
+        })
+        .finally(() => {
+            button.disabled = false;
+            buttonText.textContent = 'Usuń';
+            button.classList.remove('confirm-state');
+        });
+    } else {
+        button.classList.add('confirm-state');
+        buttonText.textContent = '✓ Potwierdź usunięcie';
+        setTimeout(() => {
+            if (button.classList.contains('confirm-state')) {
+                button.classList.remove('confirm-state');
+                buttonText.textContent = 'Usuń';
+            }
+        }, 5000);
+    }
+}
+
+function confirmClearAll(event) {
+    const button = event.currentTarget;
+    const buttonText = document.getElementById('clear-all-text');
+    
+    if (button.classList.contains('confirm-state')) {
+        button.disabled = true;
+        buttonText.textContent = 'Usuwanie...';
+        
+        fetch('/api/admin/logs/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showNotification(data.message, 'success');
+                refreshLogs(true);
+                hideLogManagement();
+            } else {
+                showNotification('Błąd: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing logs:', error);
+            showNotification('Błąd podczas czyszczenia logów', 'error');
+        })
+        .finally(() => {
+            button.disabled = false;
+            buttonText.textContent = 'Wyczyść wszystkie logi';
+            button.classList.remove('confirm-state');
+        });
+    } else {
+        button.classList.add('confirm-state');
+        buttonText.textContent = '✓ Potwierdź wyczyszczenie';
+        setTimeout(() => {
+            if (button.classList.contains('confirm-state')) {
+                button.classList.remove('confirm-state');
+                buttonText.textContent = 'Wyczyść wszystkie logi';
+            }
+        }, 5000);
+    }
+}
+
+// ============================================
+// DATA REFRESH FUNCTIONS
+// ============================================
 // Funkcje do odświeżania danych
 function refreshDeviceStates(forceRefresh = false) {
     // Use pre-loaded data on initial load, fetch from API only on manual refresh
@@ -309,165 +497,6 @@ function updateLogsDisplay(data) {
             <span class="log-message">${log.message}</span>
         `;
         container.appendChild(logEntry);
-    });
-}
-
-// Log management functions
-function showLogManagement() {
-    document.getElementById('log-management-panel').style.display = 'block';
-}
-
-function hideLogManagement() {
-    document.getElementById('log-management-panel').style.display = 'none';
-    // Reset all confirmation states when closing
-    resetAllConfirmationStates();
-}
-
-// Confirmation state management functions
-function showDeleteDaysConfirmation() {
-    const days = document.getElementById('delete-days').value;
-    if (!days || days < 1) {
-        showNotification('Podaj poprawną liczbę dni', 'error');
-        return;
-    }
-    
-    document.getElementById('delete-days-btn').style.display = 'none';
-    document.getElementById('delete-days-confirm-btn').style.display = 'inline-block';
-    document.getElementById('delete-days-cancel-btn').style.display = 'inline-block';
-}
-
-function cancelDeleteDays() {
-    document.getElementById('delete-days-btn').style.display = 'inline-block';
-    document.getElementById('delete-days-confirm-btn').style.display = 'none';
-    document.getElementById('delete-days-cancel-btn').style.display = 'none';
-}
-
-function showDeleteRangeConfirmation() {
-    const startDate = document.getElementById('delete-start-date').value;
-    const endDate = document.getElementById('delete-end-date').value;
-    
-    if (!startDate && !endDate) {
-        showNotification('Podaj co najmniej jedną datę', 'error');
-        return;
-    }
-    
-    document.getElementById('delete-range-btn').style.display = 'none';
-    document.getElementById('delete-range-confirm-btn').style.display = 'inline-block';
-    document.getElementById('delete-range-cancel-btn').style.display = 'inline-block';
-}
-
-function cancelDeleteRange() {
-    document.getElementById('delete-range-btn').style.display = 'inline-block';
-    document.getElementById('delete-range-confirm-btn').style.display = 'none';
-    document.getElementById('delete-range-cancel-btn').style.display = 'none';
-}
-
-function showClearAllConfirmation() {
-    document.getElementById('clear-all-btn').style.display = 'none';
-    document.getElementById('clear-all-confirm-btn').style.display = 'inline-block';
-    document.getElementById('clear-all-cancel-btn').style.display = 'inline-block';
-}
-
-function cancelClearAll() {
-    document.getElementById('clear-all-btn').style.display = 'inline-block';
-    document.getElementById('clear-all-confirm-btn').style.display = 'none';
-    document.getElementById('clear-all-cancel-btn').style.display = 'none';
-}
-
-function resetAllConfirmationStates() {
-    cancelDeleteDays();
-    cancelDeleteRange();
-    cancelClearAll();
-}
-
-function deleteLogsByDays() {
-    const days = document.getElementById('delete-days').value;
-    
-    fetch('/api/admin/logs/delete', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        },
-        body: JSON.stringify({ days: parseInt(days) })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showNotification(data.message, 'success');
-            refreshLogs(true);
-            hideLogManagement();
-        } else {
-            showNotification('Błąd: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting logs:', error);
-        showNotification('Błąd podczas usuwania logów', 'error');
-    })
-    .finally(() => {
-        cancelDeleteDays();
-    });
-}
-
-function deleteLogsByRange() {
-    const startDate = document.getElementById('delete-start-date').value;
-    const endDate = document.getElementById('delete-end-date').value;
-    
-    const requestData = {};
-    if (startDate) requestData.start_date = startDate;
-    if (endDate) requestData.end_date = endDate;
-    
-    fetch('/api/admin/logs/delete', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        },
-        body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showNotification(data.message, 'success');
-            refreshLogs(true);
-            hideLogManagement();
-        } else {
-            showNotification('Błąd: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting logs:', error);
-        showNotification('Błąd podczas usuwania logów', 'error');
-    })
-    .finally(() => {
-        cancelDeleteRange();
-    });
-}
-
-function clearAllLogs() {
-    fetch('/api/admin/logs/clear', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showNotification(data.message, 'success');
-            refreshLogs(true);
-            hideLogManagement();
-        } else {
-            showNotification('Błąd: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error clearing logs:', error);
-        showNotification('Błąd podczas czyszczenia logów', 'error');
-    })
-    .finally(() => {
-        cancelClearAll();
     });
 }
 
