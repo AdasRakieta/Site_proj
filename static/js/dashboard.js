@@ -117,17 +117,21 @@ function updateUsersTable(users) {
         emailCell.innerHTML = `<span class="display-value">${user.email || ''}</span>`;
         row.appendChild(emailCell);
 
-        // Role
+        // Role - display proper role names
         const roleCell = document.createElement('td');
         roleCell.className = 'role-cell';
-        roleCell.innerHTML = `<span class="display-value">${user.role === 'admin' ? 'Administrator' : 'Użytkownik'}</span>`;
+        let roleName = 'Użytkownik';
+        if (user.role === 'owner') {
+            roleName = 'Właściciel';
+        } else if (user.role === 'admin') {
+            roleName = 'Administrator';
+        } else if (user.role === 'member') {
+            roleName = 'Członek';
+        } else if (user.role === 'guest') {
+            roleName = 'Gość';
+        }
+        roleCell.innerHTML = `<span class="display-value">${roleName}</span>`;
         row.appendChild(roleCell);
-
-        // Password
-        const passwordCell = document.createElement('td');
-        passwordCell.className = 'password-cell';
-        passwordCell.innerHTML = `<span class="display-value">${user.password || '••••••••'}</span>`;
-        row.appendChild(passwordCell);
 
         // Actions
         const actionsCell = document.createElement('td');
@@ -135,22 +139,21 @@ function updateUsersTable(users) {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'action-buttons';
         
-        // Edit button with pencil icon
-        const editBtn = document.createElement('button');
-        editBtn.className = 'icon-button edit-button';
-        editBtn.innerHTML = '✏️';
-        editBtn.title = 'Edytuj';
-        editBtn.addEventListener('click', () => toggleEditMode(row));
-        actionsDiv.appendChild(editBtn);
-        
-        // Delete button with X icon (if not admin)
-        if (user.role !== 'admin') {
+        // Delete button with X icon (cannot delete owner)
+        if (user.role !== 'owner') {
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'icon-button delete-button';
+            deleteBtn.className = 'icon-button delete-button confirm-delete-btn';
             deleteBtn.innerHTML = '✕';
-            deleteBtn.title = 'Usuń';
+            deleteBtn.title = user.role === 'admin' ? 'Usuń administratora' : 'Usuń użytkownika';
             deleteBtn.addEventListener('click', (e) => deleteUser(user.user_id, user.username, e));
             actionsDiv.appendChild(deleteBtn);
+        } else {
+            // Show info that owner cannot be deleted
+            const ownerInfo = document.createElement('span');
+            ownerInfo.style.fontSize = '11px';
+            ownerInfo.style.color = '#999';
+            ownerInfo.textContent = '(nie można usunąć)';
+            actionsDiv.appendChild(ownerInfo);
         }
 
         actionsCell.appendChild(actionsDiv);
@@ -160,166 +163,40 @@ function updateUsersTable(users) {
 }
 
 // Create confirmation button for delete actions
-function createConfirmButton(user_id, username, deleteBtn) {
-    const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'confirm-delete-btn';
-    confirmBtn.textContent = 'Potwierdź';
-    confirmBtn.dataset.userId = user_id;
-    confirmBtn.dataset.username = username;
-    deleteBtn.classList.add('hidden');
-    confirmBtn.addEventListener('click', () => {
-        performUserDeletion(user_id, username);
-        confirmBtn.remove();
-        deleteBtn.classList.remove('hidden');
-    });
-    const timeoutId = setTimeout(() => {
-        if (confirmBtn.parentNode) {
-            confirmBtn.remove();
-            deleteBtn.classList.remove('hidden');
-        }
-    }, 5000);
-    confirmBtn.addEventListener('click', () => clearTimeout(timeoutId));
-    return confirmBtn;
-}
-
-// Toggle edit mode for a row
-function toggleEditMode(row) {
-    const isEditing = row.dataset.editing === 'true';
-    const userId = row.dataset.userId;
-    
-    if (isEditing) {
-        // Exit edit mode
-        exitEditMode(row);
-    } else {
-        // Enter edit mode
-        enterEditMode(row);
-    }
-}
-
-// Enter edit mode for a row
-function enterEditMode(row) {
-    row.dataset.editing = 'true';
-    
-    // Get current values
-    const usernameSpan = row.querySelector('.username-cell .display-value');
-    const emailSpan = row.querySelector('.email-cell .display-value');
-    const roleSpan = row.querySelector('.role-cell .display-value');
-    
-    const currentUsername = usernameSpan.textContent;
-    const currentEmail = emailSpan.textContent;
-    const currentRole = roleSpan.textContent === 'Administrator' ? 'admin' : 'user';
-    
-    // Replace with input fields
-    usernameSpan.innerHTML = `<input type="text" class="edit-input" data-field="username" value="${currentUsername}" />`;
-    emailSpan.innerHTML = `<input type="email" class="edit-input" data-field="email" value="${currentEmail}" />`;
-    roleSpan.innerHTML = `<select class="edit-input" data-field="role">
-        <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Użytkownik</option>
-        <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrator</option>
-    </select>`;
-    
-    // Update existing buttons instead of replacing them
-    const editBtn = row.querySelector('.edit-button');
-    const deleteBtn = row.querySelector('.delete-button');
-    
-    if (editBtn) {
-        // Change edit button to confirm button
-        editBtn.innerHTML = '✓';
-        editBtn.title = 'Potwierdź';
-        editBtn.className = 'icon-button confirm-button';
-        // Remove old event listeners by cloning the element
-        const newEditBtn = editBtn.cloneNode(true);
-        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
-        newEditBtn.addEventListener('click', () => saveEditedUser(row));
-    }
-    
-    if (deleteBtn) {
-        // Change delete button to cancel button
-        deleteBtn.innerHTML = '✕';
-        deleteBtn.title = 'Anuluj';
-        deleteBtn.className = 'icon-button cancel-button';
-        // Remove old event listeners by cloning the element
-        const newDeleteBtn = deleteBtn.cloneNode(true);
-        deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
-        newDeleteBtn.addEventListener('click', () => exitEditMode(row));
-    }
-}
-
-// Exit edit mode for a row
-function exitEditMode(row) {
-    row.dataset.editing = 'false';
-    
-    // Get user data to restore the row
-    const userId = row.dataset.userId;
-    
-    // Find the user in the current users list to restore the original state
-    const usernameSpan = row.querySelector('.username-cell .display-value');
-    const emailSpan = row.querySelector('.email-cell .display-value');
-    const roleSpan = row.querySelector('.role-cell .display-value');
-    
-    // Get the original values from the inputs
-    const usernameInput = row.querySelector('.username-cell .edit-input');
-    const emailInput = row.querySelector('.email-cell .edit-input');
-    const roleSelect = row.querySelector('.role-cell .edit-input');
-    
-    // Restore original display values (get from current display or reload from server)
-    // For simplicity, we'll just reload the users table
-    loadUsers();
-}
-
-// Save edited user
-async function saveEditedUser(row) {
-    const userId = row.dataset.userId;
-    const inputs = row.querySelectorAll('.edit-input');
-    
-    const updates = {};
-    inputs.forEach(input => {
-        const field = input.dataset.field;
-        const value = input.value.trim();
-        
-        if (field === 'username') {
-            if (value.length < 3) {
-                showNotification('Nazwa użytkownika musi mieć co najmniej 3 znaki', 'error');
-                return;
-            }
-            updates.username = value;
-        } else if (field === 'email') {
-            if (value && !value.includes('@')) {
-                showNotification('Podaj poprawny adres email', 'error');
-                return;
-            }
-            updates.email = value;
-        } else if (field === 'role') {
-            updates.role = value;
-        }
-    });
-    
-    try {
-        const response = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'X-CSRFToken': getCSRFToken() 
-            },
-            body: JSON.stringify(updates)
-        });
-        
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-        
-        showNotification('Dane użytkownika zostały zaktualizowane', 'success');
-        loadUsers();
-    } catch (error) {
-        showNotification(`Nie udało się zaktualizować użytkownika: ${error.message}`, 'error');
-    }
-}
-
-// Delete user flow
+// Delete user flow with confirmation state
 function deleteUser(user_id, username, event) {
     if (!user_id || !username) return;
-    const deleteBtn = event.target;
-    const actionsDiv = deleteBtn.parentNode;
-    const confirmBtn = createConfirmButton(user_id, username, deleteBtn);
-    actionsDiv.appendChild(confirmBtn);
+    const button = event.target;
+    
+    // If already in confirm state, proceed with deletion
+    if (button.classList.contains('confirm-state')) {
+        button.textContent = 'Usuwanie...';
+        button.disabled = true;
+        performUserDeletion(user_id, username).finally(() => {
+            button.classList.remove('confirm-state');
+            button.textContent = '✕';
+            button.title = 'Usuń użytkownika';
+            button.disabled = false;
+        });
+        return;
+    }
+    
+    // First click: show confirmation
+    button.classList.add('confirm-state');
+    button.textContent = '✓';
+    button.title = 'Potwierdź usunięcie';
+    
+    // Auto-reset after 5 seconds
+    const timeoutId = setTimeout(() => {
+        if (button.classList.contains('confirm-state')) {
+            button.classList.remove('confirm-state');
+            button.textContent = '✕';
+            button.title = 'Usuń użytkownika';
+        }
+    }, 5000);
+    
+    // Store timeout ID to clear it if confirmed before timeout
+    button.dataset.timeoutId = timeoutId;
 }
 
 // Perform user deletion
@@ -343,54 +220,6 @@ async function performUserDeletion(user_id, username) {
         console.error('Błąd usuwania użytkownika:', error);
         showMessage('userActionMessage', `Nie udało się usunąć użytkownika: ${error.message}`, true);
         showNotification(`Nie udało się usunąć użytkownika: ${error.message}`, 'error');
-    }
-}
-
-// Add new user function
-async function addUser() {
-    const form = document.querySelector('.user-form form');
-    if (!form) return;
-    
-    const formData = new FormData(form);
-    const username = formData.get('username')?.trim();
-    const email = formData.get('email')?.trim();
-    const password = formData.get('password');
-    const role = formData.get('role');
-    
-    // Basic validation
-    if (!username || username.length < 3) {
-        showNotification('Nazwa użytkownika musi mieć co najmniej 3 znaki', 'error');
-        return;
-    }
-    
-    if (!email || !email.includes('@')) {
-        showNotification('Podaj poprawny adres email', 'error');
-        return;
-    }
-    
-    if (!password || password.length < 6) {
-        showNotification('Hasło musi mieć co najmniej 6 znaków', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'X-CSRFToken': getCSRFToken() 
-            },
-            body: JSON.stringify({ username, email, password, role })
-        });
-        
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Nieznany błąd');
-        
-        showNotification('Użytkownik został dodany pomyślnie', 'success');
-        form.reset();
-        loadUsers();
-    } catch (error) {
-        showNotification(`Nie udało się dodać użytkownika: ${error.message}`, 'error');
     }
 }
 
@@ -659,12 +488,12 @@ function refreshLogs() {
 
 // Initialize dashboard page
 function initDashboardPage() {
-    // Initialize for admin users
-    if (window.sessionRole === 'admin') {
-        loadUsers();
-        initNotificationSettings();
-        fillNotificationUserSelect();
-    }
+    // Initialize admin dashboard
+    // Note: Access to /admin_dashboard is already protected by @admin_required decorator
+    // so if this code runs, user definitely has admin access in current home
+    loadUsers();
+    initNotificationSettings();
+    fillNotificationUserSelect();
 }
 
 // Add notification recipient

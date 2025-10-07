@@ -160,18 +160,6 @@
     background-color: var(--hover-bg, var(--hover));
 }
 
-.user-row[data-editing="true"] {
-    background-color: var(--accent-color, var(--accent));
-    color: white;
-}
-
-.user-row[data-editing="true"] input,
-.user-row[data-editing="true"] select {
-    background-color: white;
-    color: var(--text);
-    border: 1px solid var(--border-color);
-}
-
 /* Action buttons */
 .action-buttons {
     display: flex;

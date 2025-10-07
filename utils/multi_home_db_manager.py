@@ -347,28 +347,18 @@ class MultiHomeDBManager:
             return home_id
 
     def get_user_homes(self, user_id: str) -> List[Dict]:
-        """Get all homes a user has access to. Sys-admin sees all homes."""
+        """Get all homes a user has access to. Users (including sys-admins) only see homes they are explicitly members of."""
         with self.get_cursor() as cursor:
-            # Check if user is sys-admin - if so, return all homes with sys-admin role
-            if self.is_sys_admin(user_id):
-                cursor.execute("""
-                    SELECT h.id, h.name, h.description, h.owner_id, 
-                           'sys-admin' as role, '[]' as permissions, NOW() as joined_at,
-                           (h.owner_id = %s) as is_owner
-                    FROM homes h
-                    ORDER BY h.name
-                """, (user_id,))
-            else:
-                # Regular users - only homes they're members of
-                cursor.execute("""
-                    SELECT h.id, h.name, h.description, h.owner_id, 
-                           uh.role, uh.permissions, uh.joined_at,
-                           (h.owner_id = %s) as is_owner
-                    FROM homes h
-                    JOIN user_homes uh ON h.id = uh.home_id
-                    WHERE uh.user_id = %s
-                    ORDER BY h.name
-                """, (user_id, user_id))
+            # All users - only homes they're explicitly members of via user_homes
+            cursor.execute("""
+                SELECT h.id, h.name, h.description, h.owner_id, 
+                       uh.role, uh.permissions, uh.joined_at,
+                       (h.owner_id = %s) as is_owner
+                FROM homes h
+                JOIN user_homes uh ON h.id = uh.home_id
+                WHERE uh.user_id = %s
+                ORDER BY h.name
+            """, (user_id, user_id))
             
             homes = []
             for row in cursor.fetchall():
@@ -427,11 +417,7 @@ class MultiHomeDBManager:
             }
 
     def user_has_home_access(self, user_id: str, home_id: str) -> bool:
-        """Check if user has access to a specific home."""
-        # First check if user is sys-admin (has global access)
-        if self.is_sys_admin(user_id):
-            return True
-            
+        """Check if user has access to a specific home. Only users explicitly added to home have access."""
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT 1 FROM user_homes 
@@ -483,35 +469,32 @@ class MultiHomeDBManager:
             
     def has_admin_access(self, user_id: str, home_id: Optional[str] = None) -> bool:
         """
-        Check if user has admin access (sys-admin globally or admin/owner in specific home).
+        Check if user has admin access in specific home.
         
         Args:
             user_id: ID of the user
-            home_id: ID of the home to check (if None, checks global access only)
+            home_id: ID of the home to check (if None, checks if user has admin access in any home)
             
         Returns:
             True if user has admin access, False otherwise
             
-        Role hierarchy:
-        - sys-admin: Full access to all homes and all functions (highest)
-        - owner: Full access to their own home
-        - admin: Admin access to specific home (can manage users, settings)
+        Role hierarchy within a home:
+        - owner: Full access to their home (cannot be removed)
+        - admin: Admin access to home (can manage users, settings, can be removed)
         - member: Regular user access (can view/control devices)
         - guest: Limited read-only access
+        
+        Note: sys-admin (global role) has access only to homes they are explicitly members of
         """
-        # 1. Check if user is sys-admin (global access to everything)
-        if self.is_sys_admin(user_id):
-            return True
-            
-        # 2. If home_id provided, check home-specific access
+        # If home_id provided, check home-specific access
         if home_id:
             home_role = self.get_user_role_in_home(user_id, home_id)
-            # owner and admin have admin access, sys-admin checked above
-            return home_role in ['owner', 'admin', 'sys-admin']
+            # owner and admin have admin access in the home
+            return home_role in ['owner', 'admin']
             
-        # 3. If no home specified, check if user has admin/owner access in any home
+        # If no home specified, check if user has admin/owner access in any home
         user_homes = self.get_user_homes(user_id)
-        return any(home.get('role') in ['admin', 'owner', 'sys-admin'] for home in user_homes)
+        return any(home.get('role') in ['admin', 'owner'] for home in user_homes)
 
     # ============================================================================
     # HOME ADMIN FUNCTIONS
@@ -692,6 +675,90 @@ class MultiHomeDBManager:
                 json.dumps(details or {})
             ))
             return True
+
+    def clear_home_management_logs(self, home_id: str, admin_user_id: str) -> int:
+        """
+        Clear all management logs for a specific home.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin performing the action
+            
+        Returns:
+            Number of logs deleted
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+            
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM management_logs 
+                WHERE home_id = %s
+            """, (home_id,))
+            return cursor.rowcount
+
+    def delete_home_logs_by_date_range(self, home_id: str, admin_user_id: str,
+                                       start_date: Optional[str] = None, 
+                                       end_date: Optional[str] = None) -> int:
+        """
+        Delete management logs for a specific home within a date range.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin performing the action
+            start_date: Start date in 'YYYY-MM-DD' format (inclusive), optional
+            end_date: End date in 'YYYY-MM-DD' format (inclusive), optional
+            
+        Returns:
+            Number of logs deleted
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        # Build query based on provided dates
+        query_parts = ["DELETE FROM management_logs WHERE home_id = %s"]
+        params = [home_id]
+        
+        if start_date:
+            query_parts.append("AND timestamp >= %s::date")
+            params.append(start_date)
+        
+        if end_date:
+            # Include the entire end date (up to 23:59:59)
+            query_parts.append("AND timestamp < (%s::date + interval '1 day')")
+            params.append(end_date)
+        
+        query = " ".join(query_parts)
+        
+        with self.get_cursor() as cursor:
+            cursor.execute(query, tuple(params))
+            return cursor.rowcount
+
+    def delete_home_logs_older_than(self, home_id: str, admin_user_id: str, days: int) -> int:
+        """
+        Delete management logs for a specific home older than specified number of days.
+        
+        Args:
+            home_id: ID of the home
+            admin_user_id: ID of the admin performing the action
+            days: Number of days to keep (delete older logs)
+            
+        Returns:
+            Number of logs deleted
+        """
+        # Check admin access
+        if not self.has_admin_access(admin_user_id, home_id):
+            raise PermissionError("User doesn't have admin access to this home")
+        
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM management_logs 
+                WHERE home_id = %s 
+                AND timestamp < (NOW() - make_interval(days => %s))
+            """, (home_id, days))
+            return cursor.rowcount
 
     def get_home_stats(self, home_id: str, admin_user_id: str) -> Dict:
         """

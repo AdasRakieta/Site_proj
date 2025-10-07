@@ -172,9 +172,15 @@ def api_home_select():
         success = db_manager.set_user_current_home(user_id, home_id, session_token)
         
         if success:
-            # Also store in Flask session for immediate use
+            # Get user's role in this home
+            user_role_in_home = db_manager.get_user_role_in_home(user_id, home_id)
+            
+            # Update session with home-specific data
             session['current_home_id'] = home_id
-            logger.info(f"✅ Successfully switched to home {home_id}")
+            if user_role_in_home:
+                session['role'] = user_role_in_home  # Update role to home-specific role
+            
+            logger.info(f"✅ Successfully switched to home {home_id} with role {user_role_in_home}")
             return jsonify({"success": True})
         else:
             logger.error(f"❌ Failed to set current home in database")
@@ -224,6 +230,9 @@ def api_home_create():
         session_token = session.get('session_token')
         db_manager.set_user_current_home(user_id, str(home_id), session_token)
         session['current_home_id'] = home_id
+        
+        # Creator is the owner of the home
+        session['role'] = 'owner'
         
         if request.is_json:
             return jsonify({"success": True, "home_id": home_id})

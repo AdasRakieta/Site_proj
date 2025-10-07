@@ -140,14 +140,12 @@
                     <div class="new-user-form">
                         <input class="input-settings-add-user" type="email" id="inviteEmail" name="email" placeholder="Email" required>
                         <select class="select-settings-add-user" id="inviteRole" name="role">
-                            <option value="member">Członek</option>
+                            <option value="member">User</option>
                             <option value="admin">Administrator</option>
-                            <option value="guest">Gość</option>
                         </select>
                         <button class="rooms-button" type="submit">Wyślij zaproszenie</button>
                     </div>
                 </form>
-                <div id="inviteMessage" class="alert-msg" style="display: none;"></div>
                 
                 <!-- Lista oczekujących zaproszeń -->
                 <div style="margin-top: 20px;">
@@ -167,8 +165,12 @@
                                 <th>Nazwa</th>
                                 <th>E-mail</th>
                                 <th>Rola</th>
-                                <th>Hasło</th>
                                 <th>Akcje</th>
+                            </tr>
+                            <tr style="font-size: 11px; color: #999;">
+                                <th colspan="4" style="text-align: left; padding: 5px 10px;">
+                                    <em>Właściciel nie może być usunięty z domu</em>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
@@ -634,6 +636,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load pending invitations
     loadPendingInvitations();
+    
+    // Setup Socket.IO connection for real-time updates
+    const socket = io();
+    
+    // Listen for user_joined event to refresh user list
+    socket.on('user_joined', function(data) {
+        console.log('User joined event received:', data);
+        const currentHomeId = '{{ session.current_home_id }}';
+        
+        // Only refresh if the event is for the current home
+        if (data.home_id === currentHomeId) {
+            console.log('Refreshing user list after user joined');
+            // Refresh user list
+            if (typeof loadUsers === 'function') {
+                loadUsers();
+            }
+            // Also refresh pending invitations (the accepted one should disappear)
+            loadPendingInvitations();
+        }
+    });
 });
 
 // ============================================================================
@@ -649,7 +671,7 @@ document.getElementById('inviteUserForm').addEventListener('submit', function(e)
     const homeId = '{{ session.current_home_id }}';
     
     if (!homeId) {
-        showInviteMessage('Najpierw wybierz dom', 'error');
+        showNotification('Najpierw wybierz dom', 'error');
         return;
     }
     
@@ -668,16 +690,16 @@ document.getElementById('inviteUserForm').addEventListener('submit', function(e)
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            showInviteMessage('Zaproszenie zostało wysłane!', 'success');
+            showNotification('Zaproszenie zostało wysłane!', 'success');
             document.getElementById('inviteEmail').value = '';
             loadPendingInvitations(); // Reload invitations list
         } else {
-            showInviteMessage(result.error || 'Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+            showNotification(result.error || 'Wystąpił błąd podczas wysyłania zaproszenia', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showInviteMessage('Wystąpił błąd podczas wysyłania zaproszenia', 'error');
+        showNotification('Wystąpił błąd podczas wysyłania zaproszenia', 'error');
     })
     .finally(() => {
         btn.disabled = false;
@@ -721,49 +743,60 @@ function displayPendingInvitations(invitations) {
                     Kod: ${inv.invitation_code} | Wygasa: ${new Date(inv.expires_at).toLocaleDateString()}
                 </span>
             </div>
-            <button onclick="cancelInvitation('${inv.id}')" 
-                    style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Anuluj
+            <button onclick="cancelInvitation(event, '${inv.id}')" 
+                    class="confirm-delete-btn" 
+                    style="padding: 5px 10px;">
+                <span class="cancel-text-${inv.id}">Anuluj</span>
             </button>
         </div>
     `).join('');
 }
 
-function cancelInvitation(invitationId) {
-    if (!confirm('Czy na pewno chcesz anulować to zaproszenie?')) return;
+function cancelInvitation(event, invitationId) {
+    const button = event.currentTarget;
+    const buttonText = button.querySelector(`.cancel-text-${invitationId}`);
     
-    const homeId = '{{ session.current_home_id }}';
-    
-    fetch(`/api/home/${homeId}/invitations/${invitationId}/cancel`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showInviteMessage('Zaproszenie anulowane', 'success');
-            loadPendingInvitations();
-        } else {
-            showInviteMessage(result.error || 'Błąd podczas anulowania', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showInviteMessage('Błąd podczas anulowania zaproszenia', 'error');
-    });
-}
-
-function showInviteMessage(message, type) {
-    const msgDiv = document.getElementById('inviteMessage');
-    msgDiv.textContent = message;
-    msgDiv.className = `alert-msg alert-${type}`;
-    msgDiv.style.display = 'block';
-    
-    setTimeout(() => {
-        msgDiv.style.display = 'none';
-    }, 5000);
+    if (button.classList.contains('confirm-state')) {
+        button.disabled = true;
+        buttonText.textContent = 'Anulowanie...';
+        
+        const homeId = '{{ session.current_home_id }}';
+        
+        fetch(`/api/home/${homeId}/invitations/${invitationId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showNotification('Zaproszenie anulowane', 'success');
+                loadPendingInvitations();
+            } else {
+                showNotification(result.error || 'Błąd podczas anulowania', 'error');
+                button.disabled = false;
+                buttonText.textContent = 'Anuluj';
+                button.classList.remove('confirm-state');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Błąd podczas anulowania zaproszenia', 'error');
+            button.disabled = false;
+            buttonText.textContent = 'Anuluj';
+            button.classList.remove('confirm-state');
+        });
+    } else {
+        button.classList.add('confirm-state');
+        buttonText.textContent = '✓ Potwierdź anulowanie';
+        setTimeout(() => {
+            if (button.classList.contains('confirm-state')) {
+                button.classList.remove('confirm-state');
+                buttonText.textContent = 'Anuluj';
+            }
+        }, 5000);
+    }
 }
 </script>
 {% endblock %}
