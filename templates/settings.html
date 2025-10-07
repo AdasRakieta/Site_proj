@@ -3,6 +3,163 @@
 {% block title %}SmartHome - Ustawienia{% endblock %}
 {% block header %}Ustawienia{% endblock %}
 
+{% block head %}
+<style>
+    .users-table-wrapper {
+        overflow-x: auto;
+        margin: 20px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    .users-table thead {
+        background: var(--accent-color, #3498db);
+        color: white;
+    }
+    
+    .users-table th,
+    .users-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .users-table th {
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .users-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .users-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .user-avatar-small {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .user-avatar-placeholder {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--accent-color, #3498db);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 18px;
+    }
+    
+    .user-name {
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    
+    .user-email {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    
+    .user-date {
+        color: #95a5a6;
+        font-size: 13px;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+    
+    .role-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    
+    .role-sys-admin {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .role-admin {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .role-user {
+        background: #3498db;
+        color: white;
+    }
+    
+    .users-stats {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        text-align: center;
+    }
+    
+    .users-stats strong {
+        color: var(--accent-color, #3498db);
+    }
+    
+    .delete-user-btn {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .delete-user-btn:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+    }
+    
+    .delete-user-btn.confirm-state {
+        background: #c0392b;
+        animation: pulse 0.5s ease-in-out infinite;
+    }
+    
+    .delete-user-btn.confirm-state:hover {
+        background: #a93226;
+    }
+    
+    .delete-user-btn:disabled {
+        background: #95a5a6;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    @keyframes pulse-delete {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
     <div class="settings-container">
         <!-- Sekcja zarządzania domami -->
@@ -26,13 +183,11 @@
             <h2>🎨 Motyw aplikacji</h2>
             <p class="section-description">Dostosuj wygląd aplikacji do swoich preferencji</p>
             <div class="theme-form">
-                <div class="theme-selector">
-                    <label for="theme-select">Wybierz motyw:</label>
-                    <select id="theme-select" class="select-settings" onchange="app.changeTheme(this.value)">
-                        <option value="light">Jasny</option>
-                        <option value="dark">Ciemny</option>
-                    </select>
-                </div>
+                <label for="theme-select">Wybierz motyw:</label>
+                <select id="theme-select" class="select-settings" onchange="app.changeTheme(this.value)">
+                    <option value="light">Jasny</option>
+                    <option value="dark">Ciemny</option>
+                </select>
             </div>
         </section>
 
@@ -55,12 +210,220 @@
                 </div>
             </div>
         </section>
+
+        <!-- Sekcja zarządzania użytkownikami (tylko sys-admin) -->
+        {% if all_users %}
+        <section class="settings-section">
+            <h2>👥 Wszyscy użytkownicy systemu</h2>
+            <p class="section-description">Lista wszystkich zarejestrowanych użytkowników</p>
+            <div class="users-list">
+                <div class="users-table-wrapper">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Avatar</th>
+                                <th>Nazwa</th>
+                                <th>Email</th>
+                                <th>Rola</th>
+                                <th>Liczba domów</th>
+                                <th>Data utworzenia</th>
+                                <th>Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in all_users %}
+                            <tr>
+                                <td>
+                                    {% if user.profile_picture %}
+                                        <img src="{{ url_for('static', filename='profile_pictures/' + user.profile_picture) }}" 
+                                             alt="{{ user.name }}" 
+                                             class="user-avatar-small">
+                                    {% else %}
+                                        <div class="user-avatar-placeholder">{{ user.name[0].upper() }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="user-name">{{ user.name }}</td>
+                                <td class="user-email">{{ user.email }}</td>
+                                <td>
+                                    {% if user.role == 'sys-admin' %}
+                                        <span class="role-badge role-sys-admin">System Admin</span>
+                                    {% elif user.role == 'admin' %}
+                                        <span class="role-badge role-admin">Admin</span>
+                                    {% else %}
+                                        <span class="role-badge role-user">Użytkownik</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ user.home_count }}</td>
+                                <td class="user-date">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else 'Nieznane' }}</td>
+                                <td class="text-center">
+                                    {% if user.role != 'sys-admin' %}
+                                        <button onclick="deleteUser('{{ user.id }}', '{{ user.name }}', event)" 
+                                                class="delete-user-btn" 
+                                                title="Usuń użytkownika">
+                                            🗑️ Usuń
+                                        </button>
+                                    {% else %}
+                                        <span style="color: #95a5a6; font-size: 12px;">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="users-stats">
+                    <p><strong>Łącznie użytkowników:</strong> {{ all_users|length }}</p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
     </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
   window.sessionRole = "{{ session.role }}";
+  
+  // Funkcja usuwania użytkownika z dwuetapowym potwierdzeniem
+  function deleteUser(userId, userName, event) {
+      const button = event.currentTarget;
+      
+      // Jeśli przycisk już jest w stanie potwierdzenia
+      if (button.classList.contains('confirm-state')) {
+          // Wyślij żądanie usunięcia
+          button.disabled = true;
+          button.textContent = '⏳ Usuwanie...';
+          
+          fetch(`/api/users/${userId}`, {
+              method: 'DELETE',
+              headers: {
+                  'Content-Type': 'application/json'
+              }
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // Usuń wiersz z tabeli
+                  const row = button.closest('tr');
+                  row.style.opacity = '0';
+                  row.style.transition = 'opacity 0.3s ease';
+                  setTimeout(() => {
+                      row.remove();
+                      // Aktualizuj licznik
+                      updateUserCount();
+                  }, 300);
+                  
+                  // Pokaż komunikat sukcesu
+                  showNotification('Użytkownik został usunięty', 'success');
+              } else {
+                  button.disabled = false;
+                  button.textContent = '🗑️ Usuń';
+                  button.classList.remove('confirm-state');
+                  showNotification(data.error || 'Błąd podczas usuwania użytkownika', 'error');
+              }
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              button.disabled = false;
+              button.textContent = '🗑️ Usuń';
+              button.classList.remove('confirm-state');
+              showNotification('Błąd połączenia z serwerem', 'error');
+          });
+      } else {
+          // Pierwszy klik - zmień na stan potwierdzenia
+          button.classList.add('confirm-state');
+          button.textContent = '✓ Potwierdź';
+          
+          // Resetuj po 3 sekundach
+          setTimeout(() => {
+              if (button.classList.contains('confirm-state')) {
+                  button.classList.remove('confirm-state');
+                  button.textContent = '🗑️ Usuń';
+              }
+          }, 3000);
+      }
+  }
+  
+  // Funkcja aktualizacji licznika użytkowników
+  function updateUserCount() {
+      const tbody = document.querySelector('.users-table tbody');
+      const count = tbody ? tbody.querySelectorAll('tr').length : 0;
+      const statsElement = document.querySelector('.users-stats p');
+      if (statsElement) {
+          statsElement.innerHTML = `<strong>Łącznie użytkowników:</strong> ${count}`;
+      }
+  }
+  
+  // Funkcja wyświetlania powiadomień
+  function showNotification(message, type = 'info') {
+      // Usuń poprzednie powiadomienie jeśli istnieje
+      const existing = document.querySelector('.notification-toast');
+      if (existing) {
+          existing.remove();
+      }
+      
+      // Utwórz nowe powiadomienie
+      const notification = document.createElement('div');
+      notification.className = `notification-toast notification-${type}`;
+      notification.textContent = message;
+      
+      // Dodaj style
+      notification.style.position = 'fixed';
+      notification.style.top = '20px';
+      notification.style.right = '20px';
+      notification.style.padding = '15px 20px';
+      notification.style.borderRadius = '8px';
+      notification.style.zIndex = '10000';
+      notification.style.fontWeight = '500';
+      notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+      notification.style.animation = 'slideIn 0.3s ease';
+      
+      if (type === 'success') {
+          notification.style.background = '#27ae60';
+          notification.style.color = 'white';
+      } else if (type === 'error') {
+          notification.style.background = '#e74c3c';
+          notification.style.color = 'white';
+      } else {
+          notification.style.background = '#3498db';
+          notification.style.color = 'white';
+      }
+      
+      document.body.appendChild(notification);
+      
+      // Usuń po 3 sekundach
+      setTimeout(() => {
+          notification.style.animation = 'slideOut 0.3s ease';
+          setTimeout(() => notification.remove(), 300);
+      }, 3000);
+  }
+  
+  // Dodaj animacje CSS
+  const style = document.createElement('style');
+  style.textContent = `
+      @keyframes slideIn {
+          from {
+              transform: translateX(400px);
+              opacity: 0;
+          }
+          to {
+              transform: translateX(0);
+              opacity: 1;
+          }
+      }
+      
+      @keyframes slideOut {
+          from {
+              transform: translateX(0);
+              opacity: 1;
+          }
+          to {
+              transform: translateX(400px);
+              opacity: 0;
+          }
+      }
+  `;
+  document.head.appendChild(style);
 </script>
 <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}
