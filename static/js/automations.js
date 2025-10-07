@@ -74,9 +74,24 @@ class AutomationsManager {
 
     onAutomationsUpdate(data) {
         console.log('Aktualizacja automatyzacji:', data);
-        if (Array.isArray(data)) {
-            this.automations = data;
-            this.renderAutomations(data);
+        
+        // Handle both legacy array format and new {home_id, automations} format
+        let automations = data;
+        
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            // New format: {home_id: ..., automations: [...]}
+            if (data.automations && Array.isArray(data.automations)) {
+                automations = data.automations;
+                console.log('Otrzymano aktualizację dla domu:', data.home_id);
+            }
+        }
+        
+        if (Array.isArray(automations)) {
+            this.automations = automations;
+            this.renderAutomations(automations);
+            console.log(`Zaktualizowano ${automations.length} automatyzacji`);
+        } else {
+            console.warn('Nieprawidłowy format danych automatyzacji:', data);
         }
     }
 
