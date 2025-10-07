@@ -94,12 +94,16 @@
     </div>
 </div>
 
-<script>
-// Home settings JavaScript functionality
-const homeId = '{{ home.id }}';
+<!-- Home data for JavaScript -->
+<div id="home-data" 
+     data-home-id="{{ home.id }}" 
+     data-home-name="{{ home.name }}"
+     style="display: none;"></div>
+{% endblock %}
 
-// Home info form handler
-document.getElementById('homeInfoForm').addEventListener('submit', function(e) {
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home_settings.js') }}"></script>
+{% endblock %}
     e.preventDefault();
     
     const formData = new FormData(this);
