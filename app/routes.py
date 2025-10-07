@@ -555,9 +555,12 @@ class RoutesManager(MultiHomeHelpersMixin):
             return self.smart_home.get_user_data(user_id) if self.smart_home else None
 
     def emit_update(self, event_name, data):
-        """Safely emit socketio updates only if socketio is available"""
+        """Safely emit socketio updates to all connected clients"""
         if self.socketio:
+            # Flask-SocketIO: emit without 'broadcast' param, just emit to all
+            # Use 'namespace' if needed, or emit to specific room for home isolation
             self.socketio.emit(event_name, data)
+            print(f"[Socket.IO] Emitting '{event_name}' to all clients: {data}")
 
     def register_routes(self):
         print("[DEBUG] register_routes called - registering Flask routes!")
@@ -2211,9 +2214,12 @@ class APIManager(MultiHomeHelpersMixin):
         self.register_routes()
 
     def emit_update(self, event_name, data):
-        """Safely emit socketio updates only if socketio is available"""
+        """Safely emit socketio updates to all connected clients"""
         if self.socketio:
+            # Flask-SocketIO: emit without 'broadcast' param, just emit to all
+            # Use 'namespace' if needed, or emit to specific room for home isolation
             self.socketio.emit(event_name, data)
+            print(f"[Socket.IO] Emitting '{event_name}' to all clients: {data}")
 
     def _resolve_home_id(self, user_id, preferred_home_id=None):
         """Resolve the active home identifier for the given user."""

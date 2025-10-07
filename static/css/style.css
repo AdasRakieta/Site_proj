@@ -1730,7 +1730,6 @@ footer {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
     background-color: var(--button);
-    color: var(--btn_text);
     border: none;
     border-radius: 5px;
     cursor: pointer;
