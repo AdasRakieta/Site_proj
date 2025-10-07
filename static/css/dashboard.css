@@ -234,28 +234,6 @@
     transform: scale(1.1);
 }
 
-/* Confirm delete button */
-.confirm-delete-btn {
-    background-color: var(--confirm-btn, rgba(0, 255, 0, 0.253));
-    color: var(--text-delete, #fff);
-    border-radius: 5px;
-    font-size: 1rem;
-    padding: 0.5rem;
-    margin: 0.5rem 0.5rem 0.5rem 0;
-    min-width: 85px;
-    text-align: center;
-    box-shadow: var(--box_shd);
-    transition: all 0.3s ease;
-    border: none;
-    cursor: pointer;
-}
-
-.confirm-delete-btn:hover {
-    background-color: var(--confirm-btn-hover, rgba(0, 255, 0, 0.466));
-    box-shadow: var(--box_shd);
-    transform: scale(1.08);
-}
-
 /* Edit inputs for inline editing */
 .edit-input {
     width: 100%;

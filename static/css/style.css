@@ -355,7 +355,7 @@ input{
 
 
 /* Przyciski główne i specjalne dziedziczą po .btn */
-.rooms-button, .control-button, .map-button, .menu-btn, .action-btn, .delete-button, .cancel-button, .small-button, .logout-btn, .change-button, .confirm-delete-btn, .btn-primary, .btn-secondary {
+.rooms-button, .control-button, .map-button, .menu-btn, .action-btn, .delete-button, .cancel-button, .small-button, .logout-btn, .change-button, .btn-primary, .btn-secondary {
     /* dziedziczą po .btn */
     padding: inherit;
     font-size: inherit;
@@ -379,24 +379,6 @@ input{
 }
 
 
-
-.confirm-delete-btn {
-    background-color: var(--confirm-btn);
-    color: var(--text-delete);
-    border-radius: 5px;
-    font-size: 1rem;
-    padding: 0.5rem;
-    margin: 0.5rem 0.5rem 0.5rem 0;
-    min-width: 85px;
-    text-align: center;
-    box-shadow: var(--box_shd);
-    transition: all 0.3s ease;
-}
-.confirm-delete-btn:hover {
-    background-color: var(--confirm-btn-hover);
-    box-shadow: var(--box_shd);
-    transform: scale(1.08);
-}
 
 .btn-primary {
     background-color: var(--btn-primary);
@@ -2318,7 +2300,7 @@ footer {
 
 /* Klasa bazowa dla wszystkich przycisków usuwania z dwuetapowym potwierdzeniem */
 .confirm-delete-btn {
-    background: #e74c3c;
+    background: #e74c3c !important;
     color: white;
     border: none;
     padding: 6px 12px;
@@ -2327,11 +2309,12 @@ footer {
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: 500;
+    box-shadow: var(--box_shd);
 }
 
 .confirm-delete-btn:hover {
     background: #c0392b;
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
 
