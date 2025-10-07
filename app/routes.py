@@ -641,7 +641,16 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         def settings():
             user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
-            return render_template('settings.html', user_data=user_data)
+            
+            # Pobierz wszystkich użytkowników jeśli sys-admin
+            all_users = None
+            if session.get('role') == 'sys-admin' and self.multi_db:
+                try:
+                    all_users = self.multi_db.get_all_users()
+                except Exception as e:
+                    self.app.logger.error(f"Error fetching all users for sys-admin: {e}")
+            
+            return render_template('settings.html', user_data=user_data, all_users=all_users)
 
         @self.app.route('/suprise')
         @self.auth_manager.login_required
@@ -4562,9 +4571,24 @@ class APIManager(MultiHomeHelpersMixin):
 
         @self.app.route('/api/users/<user_id>', methods=['DELETE'])
         @self.auth_manager.login_required
-        @self.auth_manager.admin_required
         def delete_user_api(user_id):
             try:
+                # Tylko sys-admin może usuwać użytkowników
+                if session.get('role') != 'sys-admin':
+                    return jsonify({'success': False, 'error': 'Brak uprawnień. Tylko sys-admin może usuwać użytkowników'}), 403
+                
+                # Sprawdź czy użytkownik nie próbuje usunąć sys-admina
+                if self.multi_db:
+                    try:
+                        with self.multi_db.get_cursor() as cursor:
+                            cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+                            result = cursor.fetchone()
+                            if result and result[0] == 'sys-admin':
+                                return jsonify({'success': False, 'error': 'Nie można usunąć użytkownika sys-admin'}), 403
+                    except Exception as e:
+                        self.app.logger.error(f"Error checking user role: {e}")
+                        return jsonify({'success': False, 'error': 'Błąd sprawdzania roli użytkownika'}), 500
+                
                 # Try DB mode first
                 if hasattr(self.smart_home, 'delete_user'):
                     result = self.smart_home.delete_user(user_id)
@@ -4578,31 +4602,33 @@ class APIManager(MultiHomeHelpersMixin):
                     else:
                         success, message = False, str(result)
                     if not success:
-                        print(f"[ERROR] delete_user zwróciło błąd: {message}")
-                        return jsonify({'status': 'error', 'message': message or 'Błąd usuwania użytkownika'}), 400
+                        self.app.logger.error(f"delete_user zwróciło błąd: {message}")
+                        return jsonify({'success': False, 'error': message or 'Błąd usuwania użytkownika'}), 400
                 else:
                     # Legacy file mode
                     if user_id not in self.smart_home.users:
-                        return jsonify({'status': 'error', 'message': 'Użytkownik nie istnieje'}), 404
+                        return jsonify({'success': False, 'error': 'Użytkownik nie istnieje'}), 404
                     del self.smart_home.users[user_id]
                     self.smart_home.save_config()
+                
                 # Optionally log the deletion
                 try:
                     self.management_logger.log_user_change(
-                        username=session.get('username', 'unknown',
-                        home_id=session.get('current_home_id')),
+                        username=session.get('username', 'unknown'),
+                        home_id=session.get('current_home_id'),
                         action='delete',
                         target_user=user_id,
                         ip_address=request.remote_addr or "",
                         details={}
                     )
                 except Exception as log_exc:
-                    print(f"[WARN] Błąd logowania usunięcia użytkownika: {log_exc}")
-                return jsonify({'status': 'success', 'message': 'Użytkownik został usunięty'})
+                    self.app.logger.warning(f"Błąd logowania usunięcia użytkownika: {log_exc}")
+                
+                return jsonify({'success': True, 'message': 'Użytkownik został usunięty'})
             except Exception as e:
                 import traceback
-                print(f"[ERROR] Błąd podczas usuwania użytkownika: {e}\n{traceback.format_exc()}")
-                return jsonify({'status': 'error', 'message': f'Błąd podczas usuwania użytkownika: {e}'}), 500
+                self.app.logger.error(f"Błąd podczas usuwania użytkownika: {e}\n{traceback.format_exc()}")
+                return jsonify({'success': False, 'error': f'Błąd podczas usuwania użytkownika: {str(e)}'}), 500
 
         @self.app.route('/api/users/<user_id>', methods=['POST'])
         @self.auth_manager.login_required

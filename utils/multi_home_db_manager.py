@@ -1682,6 +1682,37 @@ class MultiHomeDBManager:
                 })
             return users
 
+    def get_all_users(self) -> List[Dict]:
+        """Get all users in the system. For sys-admin use only."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    u.id, 
+                    u.name, 
+                    u.email, 
+                    u.role, 
+                    u.created_at,
+                    u.profile_picture,
+                    COUNT(DISTINCT uh.home_id) as home_count
+                FROM users u
+                LEFT JOIN user_homes uh ON u.id = uh.user_id
+                GROUP BY u.id, u.name, u.email, u.role, u.created_at, u.profile_picture
+                ORDER BY u.created_at DESC
+            """)
+            
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': str(row[0]),
+                    'name': row[1],
+                    'email': row[2],
+                    'role': row[3],
+                    'created_at': row[4],
+                    'profile_picture': row[5],
+                    'home_count': row[6] or 0
+                })
+            return users
+
     # ============================================================================
     # SECURITY MANAGEMENT
     # ============================================================================
