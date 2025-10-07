@@ -21,39 +21,5 @@
 
 {% block scripts %}
 <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-<script>
-    async function initPage() {
-        console.log('Inicjalizacja strony automatyzacji');
-        
-        // Pokazujemy loader
-        const loader = document.getElementById('loading-indicator');
-        
-        try {
-            if (window.app && window.app.automations) {
-                // Inicjalizujemy stronę automatyzacji
-                await window.app.automations.initPage();
-                
-                // Ukrywamy loader po załadowaniu
-                if (loader) loader.style.display = 'none';
-                
-                // Nasłuchujemy na aktualizacje przez WebSocket
-                window.app.socket.on('update_automations', (data) => {
-                    window.app.automations.onAutomationsUpdate(data);
-                });
-            } else {
-                console.error('Aplikacja nie została poprawnie zainicjalizowana');
-                if (loader) loader.textContent = 'Błąd inicjalizacji aplikacji';
-            }
-        } catch (error) {
-            console.error('Błąd inicjalizacji strony:', error);
-            if (loader) {
-                loader.textContent = 'Błąd ładowania automatyzacji';
-                loader.style.color = 'red';
-            }
-        }
-    }
-
-    // Startujemy inicjalizację gdy DOM jest gotowy
-    document.addEventListener('DOMContentLoaded', initPage);
-</script>
+<script src="{{ url_for('static', filename='js/automations.js') }}"></script>
 {% endblock %}

@@ -659,3 +659,49 @@ class AutomationsManager {
         }
     }
 }
+
+/* ============================== */
+/*      Page Initialization       */
+/* ============================== */
+
+/**
+ * Initialize automations page
+ */
+async function initAutomationsPage() {
+    console.log('Inicjalizacja strony automatyzacji');
+    
+    // Show loader
+    const loader = document.getElementById('loading-indicator');
+    
+    try {
+        if (window.app && window.app.automations) {
+            // Initialize automations page
+            await window.app.automations.initPage();
+            
+            // Hide loader after loading
+            if (loader) loader.style.display = 'none';
+            
+            // Listen for WebSocket updates
+            window.app.socket.on('update_automations', (data) => {
+                window.app.automations.onAutomationsUpdate(data);
+            });
+        } else {
+            console.error('Aplikacja nie została poprawnie zainicjalizowana');
+            if (loader) loader.textContent = 'Błąd inicjalizacji aplikacji';
+        }
+    } catch (error) {
+        console.error('Błąd inicjalizacji strony:', error);
+        if (loader) {
+            loader.textContent = 'Błąd ładowania automatyzacji';
+            loader.style.color = 'red';
+        }
+    }
+}
+
+// Auto-initialize on DOM ready if on automations page
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the automations page
+    if (document.getElementById('automations-list')) {
+        initAutomationsPage();
+    }
+});
