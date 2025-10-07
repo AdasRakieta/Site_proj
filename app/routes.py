@@ -644,7 +644,7 @@ class RoutesManager(MultiHomeHelpersMixin):
             
             # Pobierz wszystkich użytkowników jeśli sys-admin
             all_users = None
-            if session.get('role') == 'sys-admin' and self.multi_db:
+            if session.get('global_role') == 'sys-admin' and self.multi_db:
                 try:
                     all_users = self.multi_db.get_all_users()
                 except Exception as e:
@@ -1168,9 +1168,16 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def api_admin_clear_logs():
-            """Clear all logs"""
+            """Clear all logs for current home"""
             try:
-                self.management_logger.clear_logs()
+                home_id = session.get('current_home_id')
+                user_id = session.get('user_id')
+                
+                if not home_id or not user_id:
+                    return jsonify({'status': 'error', 'message': 'Brak informacji o aktualnym domu'}), 400
+                
+                # Clear logs for this home only
+                deleted_count = self.management_logger.clear_logs(home_id=home_id, user_id=user_id)
                 
                 # Log the clearing action
                 self.management_logger.log_event(
@@ -1179,7 +1186,7 @@ class RoutesManager(MultiHomeHelpersMixin):
                     'admin_action',
                     session.get('username', 'unknown'),
                     request.remote_addr,
-                    home_id=session.get('current_home_id')
+                    home_id=home_id
                 )
                 
                 return jsonify({'status': 'success', 'message': 'Wszystkie logi zostały usunięte'})
@@ -1190,29 +1197,44 @@ class RoutesManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def api_admin_delete_logs():
-            """Delete logs by date range or number of days"""
+            """Delete logs by date range or number of days for current home"""
             try:
                 data = request.get_json()
                 if not data:
                     return jsonify({'status': 'error', 'message': 'Brak danych w żądaniu'}), 400
                 
+                home_id = session.get('current_home_id')
+                user_id = session.get('user_id')
+                
+                if not home_id or not user_id:
+                    return jsonify({'status': 'error', 'message': 'Brak informacji o aktualnym domu'}), 400
+                
                 deleted_count = 0
                 
                 if 'days' in data:
-                    # Delete logs older than specified days
+                    # Delete logs older than specified days for this home
                     days = int(data['days'])
                     if days < 0:
                         return jsonify({'status': 'error', 'message': 'Liczba dni musi być dodatnia'}), 400
                     
-                    deleted_count = self.management_logger.delete_logs_older_than(days)
+                    deleted_count = self.management_logger.delete_logs_older_than(
+                        days, 
+                        home_id=home_id, 
+                        user_id=user_id
+                    )
                     action_msg = f'Usunięto {deleted_count} logów starszych niż {days} dni'
                     
                 elif 'start_date' in data or 'end_date' in data:
-                    # Delete logs by date range
+                    # Delete logs by date range for this home
                     start_date = data.get('start_date')
                     end_date = data.get('end_date')
                     
-                    deleted_count = self.management_logger.delete_logs_by_date_range(start_date, end_date)
+                    deleted_count = self.management_logger.delete_logs_by_date_range(
+                        start_date, 
+                        end_date,
+                        home_id=home_id,
+                        user_id=user_id
+                    )
                     
                     if start_date and end_date:
                         action_msg = f'Usunięto {deleted_count} logów z okresu {start_date} - {end_date}'
@@ -1233,7 +1255,7 @@ class RoutesManager(MultiHomeHelpersMixin):
                     session.get('username', 'unknown'),
                     request.remote_addr,
                     {'deleted_count': deleted_count, 'action': 'delete_logs'},
-                    home_id=session.get('current_home_id')
+                    home_id=home_id
                 )
                 
                 return jsonify({
@@ -1541,7 +1563,7 @@ class RoutesManager(MultiHomeHelpersMixin):
                     if user and password_verified:
                         session['user_id'] = user_id
                         session['username'] = user['name']
-                        session['role'] = user.get('role', 'user')
+                        session['global_role'] = user.get('role', 'user')  # Store global role separately
                         session.permanent = True
                         
                         # For multihouse system, set current home and load user homes
@@ -1567,16 +1589,21 @@ class RoutesManager(MultiHomeHelpersMixin):
                                 if current_home:
                                     session['current_home_id'] = current_home['id']
                                     session['current_home_name'] = current_home['name']
-                                    session['home_role'] = current_home['role']
+                                    session['role'] = current_home['role']  # Set home-specific role as main role
                                     
                                     # Set user's current home in database
                                     self.multi_db.set_user_current_home(user_id, current_home['id'])
                                     
                                     print(f"[DEBUG] Set current home: {current_home['name']} (ID: {current_home['id']}) with role: {current_home['role']}")
                                 else:
+                                    session['role'] = 'user'  # Default role if no home
                                     print(f"[DEBUG] User {user['name']} has no homes")
                             else:
+                                session['role'] = 'user'  # Default role if no homes
                                 print(f"[DEBUG] User {user['name']} has no homes in multihouse system")
+                        else:
+                            # Legacy mode: use global role
+                            session['role'] = user.get('role', 'user')
                         
                         print(f"[DEBUG] Login successful for user: {user['name']}")
                         
@@ -4457,6 +4484,45 @@ class APIManager(MultiHomeHelpersMixin):
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
         def get_users():
+            """Get users list - supports both DB and JSON mode"""
+            try:
+                from app_db import DATABASE_MODE
+            except ImportError:
+                DATABASE_MODE = False
+
+            # Multi-home DB mode
+            if DATABASE_MODE and self.multi_db:
+                current_home_id = session.get('current_home_id')
+                if not current_home_id:
+                    return jsonify({'status': 'error', 'message': 'No home selected'}), 400
+                
+                # Get current user ID for permission check
+                admin_user_id = session.get('user_id')
+                if not admin_user_id:
+                    return jsonify({'status': 'error', 'message': 'User not authenticated'}), 401
+                
+                try:
+                    # Get users for current home from database (requires admin check)
+                    home_users = self.multi_db.get_home_users(current_home_id, admin_user_id)
+                    users_list = []
+                    
+                    for user in home_users:
+                        users_list.append({
+                            'user_id': user.get('user_id'),
+                            'username': user.get('username'),
+                            'email': user.get('email', ''),
+                            'role': user.get('home_role', 'member'),
+                            'password': '••••••••'  # Always show dots for password
+                        })
+                    
+                    return jsonify(users_list)
+                except PermissionError as e:
+                    return jsonify({'status': 'error', 'message': 'Permission denied'}), 403
+                except Exception as e:
+                    self.app.logger.error(f"Error getting home users: {e}")
+                    return jsonify({'status': 'error', 'message': str(e)}), 500
+            
+            # Legacy JSON mode
             users_list = [
                 {
                     'user_id': user_id,
@@ -4536,99 +4602,89 @@ class APIManager(MultiHomeHelpersMixin):
             except Exception as e:
                 return jsonify({'status': 'error', 'message': f'Błąd podczas dodawania użytkownika: {e}'}), 500
 
-        @self.app.route('/api/users/<user_id>', methods=['PUT'])
-        @self.auth_manager.login_required
-        @self.auth_manager.admin_required
-        def update_user(user_id):
-            data = request.get_json()
-            if not data:
-                return jsonify({"status": "error", "message": "Brak danych"}), 400
-            
-            user = self.smart_home.users.get(user_id)
-            if not user:
-                return jsonify({"status": "error", "message": "Użytkownik nie istnieje"}), 404
-            
-            updates = {}
-            if 'username' in data:
-                # Sprawdź czy nowa nazwa użytkownika nie jest już zajęta
-                for uid, u in self.smart_home.users.items():
-                    if uid != user_id and u.get('name') == data['username']:
-                        return jsonify({"status": "error", "message": "Nazwa użytkownika jest już zajęta"}), 400
-                updates['name'] = data['username']
-            
-            if 'email' in data:
-                updates['email'] = data['email']
-            
-            if 'role' in data and data['role'] in ['user', 'admin']:
-                updates['role'] = data['role']
-            
-            # Aktualizuj dane użytkownika
-            for key, value in updates.items():
-                user[key] = value
-            
-            self.smart_home.save_config()
-            return jsonify({"status": "success", "message": "Użytkownik zaktualizowany"})
-
         @self.app.route('/api/users/<user_id>', methods=['DELETE'])
         @self.auth_manager.login_required
         def delete_user_api(user_id):
             try:
-                # Tylko sys-admin może usuwać użytkowników
-                if session.get('role') != 'sys-admin':
-                    return jsonify({'success': False, 'error': 'Brak uprawnień. Tylko sys-admin może usuwać użytkowników'}), 403
+                current_home_id = session.get('current_home_id')
+                current_user_id = session.get('user_id')
+                home_role = session.get('role')  # home-specific role (owner, admin, member, guest)
                 
-                # Sprawdź czy użytkownik nie próbuje usunąć sys-admina
-                if self.multi_db:
+                # Debug logging
+                self.app.logger.info(f"DELETE user {user_id}: current_user={current_user_id}, home_id={current_home_id}, home_role={home_role}")
+                
+                # W trybie multi-home: owner i admin mogą usuwać członków z domu
+                if self.multi_db and current_home_id:
+                    # Tylko owner lub admin może usuwać użytkowników z domu
+                    if home_role not in ['owner', 'admin']:
+                        self.app.logger.warning(f"DELETE user {user_id} REJECTED: home_role={home_role} not in ['owner', 'admin']")
+                        return jsonify({'status': 'error', 'message': f'Brak uprawnień. Tylko właściciel lub administrator domu może usuwać użytkowników. Twoja rola: {home_role}'}), 403
+                    
+                    # Sprawdź czy nie próbuje usunąć właściciela domu
                     try:
                         with self.multi_db.get_cursor() as cursor:
-                            cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+                            cursor.execute("""
+                                SELECT uh.role, h.owner_id
+                                FROM user_homes uh
+                                JOIN homes h ON uh.home_id = h.id
+                                WHERE uh.user_id = %s AND uh.home_id = %s
+                            """, (user_id, current_home_id))
                             result = cursor.fetchone()
-                            if result and result[0] == 'sys-admin':
-                                return jsonify({'success': False, 'error': 'Nie można usunąć użytkownika sys-admin'}), 403
+                            if result:
+                                target_role, owner_id = result
+                                if target_role == 'owner' or user_id == owner_id:
+                                    return jsonify({'status': 'error', 'message': 'Nie można usunąć właściciela domu'}), 403
+                            else:
+                                return jsonify({'status': 'error', 'message': 'Użytkownik nie należy do tego domu'}), 404
                     except Exception as e:
-                        self.app.logger.error(f"Error checking user role: {e}")
-                        return jsonify({'success': False, 'error': 'Błąd sprawdzania roli użytkownika'}), 500
+                        self.app.logger.error(f"Error checking user role in home: {e}")
+                        return jsonify({'status': 'error', 'message': 'Błąd sprawdzania roli użytkownika'}), 500
+                    
+                    # Usuń użytkownika z domu (nie z całego systemu)
+                    try:
+                        with self.multi_db.get_cursor() as cursor:
+                            cursor.execute("""
+                                DELETE FROM user_homes
+                                WHERE user_id = %s AND home_id = %s
+                            """, (user_id, current_home_id))
+                            # Commit is automatic in get_cursor context manager
+                    except Exception as e:
+                        # Rollback is automatic in get_cursor context manager
+                        self.app.logger.error(f"Error removing user from home: {e}")
+                        return jsonify({'status': 'error', 'message': 'Błąd usuwania użytkownika z domu'}), 500
+                    
+                    # Log the deletion
+                    try:
+                        self.management_logger.log_user_change(
+                            username=session.get('username', 'unknown'),
+                            home_id=current_home_id,
+                            action='remove_from_home',
+                            target_user=user_id,
+                            ip_address=request.remote_addr or "",
+                            details={'home_role': home_role}
+                        )
+                    except Exception as log_exc:
+                        self.app.logger.warning(f"Błąd logowania usunięcia użytkownika: {log_exc}")
+                    
+                    return jsonify({'status': 'success', 'message': 'Użytkownik został usunięty z domu'})
                 
-                # Try DB mode first
-                if hasattr(self.smart_home, 'delete_user'):
-                    result = self.smart_home.delete_user(user_id)
-                    # Obsłuż różne typy zwracane przez delete_user
-                    if isinstance(result, tuple):
-                        success, message = result
-                    elif isinstance(result, bool):
-                        success, message = result, ''
-                    elif result is None:
-                        success, message = True, ''
-                    else:
-                        success, message = False, str(result)
-                    if not success:
-                        self.app.logger.error(f"delete_user zwróciło błąd: {message}")
-                        return jsonify({'success': False, 'error': message or 'Błąd usuwania użytkownika'}), 400
+                # Legacy file mode (fallback)
                 else:
-                    # Legacy file mode
+                    if session.get('global_role') != 'sys-admin':
+                        return jsonify({'status': 'error', 'message': 'Brak uprawnień'}), 403
+                    
                     if user_id not in self.smart_home.users:
-                        return jsonify({'success': False, 'error': 'Użytkownik nie istnieje'}), 404
+                        return jsonify({'status': 'error', 'message': 'Użytkownik nie istnieje'}), 404
+                    
                     del self.smart_home.users[user_id]
                     self.smart_home.save_config()
-                
-                # Optionally log the deletion
-                try:
-                    self.management_logger.log_user_change(
-                        username=session.get('username', 'unknown'),
-                        home_id=session.get('current_home_id'),
-                        action='delete',
-                        target_user=user_id,
-                        ip_address=request.remote_addr or "",
-                        details={}
-                    )
-                except Exception as log_exc:
-                    self.app.logger.warning(f"Błąd logowania usunięcia użytkownika: {log_exc}")
-                
-                return jsonify({'success': True, 'message': 'Użytkownik został usunięty'})
+                    
+                    return jsonify({'status': 'success', 'message': 'Użytkownik został usunięty'})
+                    
             except Exception as e:
                 import traceback
                 self.app.logger.error(f"Błąd podczas usuwania użytkownika: {e}\n{traceback.format_exc()}")
-                return jsonify({'success': False, 'error': f'Błąd podczas usuwania użytkownika: {str(e)}'}), 500
+                return jsonify({'status': 'error', 'message': f'Błąd podczas usuwania użytkownika: {str(e)}'}), 500
 
         @self.app.route('/api/users/<user_id>', methods=['POST'])
         @self.auth_manager.login_required
@@ -5253,10 +5309,13 @@ class APIManager(MultiHomeHelpersMixin):
                     user_id=session.get('user_id')
                 )
 
+                # Get invitation details for broadcasting
+                invitation = self.multi_db.get_invitation(invitation_code)
+                home_id = invitation.get('home_id') if invitation else None
+
                 # Log the action
                 if hasattr(self.management_logger, 'log_event'):
                     user_data = self.multi_db.get_user_data(session.get('user_id'))
-                    invitation = self.multi_db.get_invitation(invitation_code)
                     self.management_logger.log_event(
                         level='info',
                         message=f'{user_data.get("name")} zaakceptował zaproszenie do domu',
@@ -5264,8 +5323,15 @@ class APIManager(MultiHomeHelpersMixin):
                         user=user_data.get('name', 'Unknown'),
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
                         details={'code': invitation_code},
-                        home_id=invitation.get('home_id') if invitation else None
+                        home_id=home_id
                     )
+
+                # Broadcast user joined event via Socket.IO
+                if home_id and self.socketio:
+                    self.socketio.emit('user_joined', {
+                        'home_id': home_id,
+                        'user_id': session.get('user_id')
+                    }, room=home_id)
 
                 return jsonify({
                     "success": True,

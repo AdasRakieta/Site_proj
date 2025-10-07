@@ -583,11 +583,6 @@ input{
 }
 
 /* User table row styling */
-.user-row[data-editing="true"] {
-    background-color: var(--bg-secondary);
-    border-left: 3px solid var(--accent);
-}
-
 .user-row .display-value {
     display: inline-block;
     width: 100%;
@@ -2313,7 +2308,7 @@ footer {
 }
 
 .confirm-delete-btn:hover {
-    background: #c0392b;
+    background: #c0392b !important;
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
@@ -2327,12 +2322,12 @@ footer {
 
 /* Stan potwierdzenia - pomarańczowy z animacją */
 .confirm-delete-btn.confirm-state {
-    background: #f39c12;
+    background: #f39c12 !important;
     animation: confirm-pulse 0.8s ease-in-out infinite;
 }
 
 .confirm-delete-btn.confirm-state:hover {
-    background: #e67e22;
+    background: #e67e22 !important;
     box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
 }
 

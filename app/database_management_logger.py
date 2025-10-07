@@ -183,81 +183,108 @@ class DatabaseManagementLogger:
                 print(f"Failed to get logs: {e}")
                 return []
     
-    def clear_logs(self):
-        """Clear all logs"""
-        with self._lock:
-            try:
-                self.db.clear_management_logs()
-            except Exception as e:
-                print(f"Failed to clear logs: {e}")
-    
-    def delete_logs_by_date_range(self, start_date: str = "", end_date: str = "") -> int:
+    def clear_logs(self, home_id: Optional[str] = None, user_id: Optional[str] = None):
         """
-        Delete logs within a specific date range
+        Clear all logs for a specific home (multi-home mode) or all logs (legacy mode)
         
         Args:
-            start_date: Start date in 'YYYY-MM-DD' format (inclusive)
-            end_date: End date in 'YYYY-MM-DD' format (inclusive)
+            home_id: Home ID to clear logs for (required in multi-home mode)
+            user_id: User ID performing the action (for permission check)
+        """
+        with self._lock:
+            try:
+                if self.multi_db and home_id and user_id:
+                    # Multi-home mode: clear only logs for this home
+                    return self.multi_db.clear_home_management_logs(home_id, user_id)
+                else:
+                    # Legacy mode: clear all logs
+                    self.db.clear_management_logs()
+                    return 0  # Legacy method doesn't return count
+            except Exception as e:
+                print(f"Failed to clear logs: {e}")
+                raise
+    
+    def delete_logs_by_date_range(self, start_date: str = "", end_date: str = "", 
+                                   home_id: Optional[str] = None, user_id: Optional[str] = None) -> int:
+        """
+        Delete logs within a specific date range for a specific home (multi-home mode) 
+        or all logs (legacy mode)
+        
+        Args:
+            start_date: Start date in 'YYYY-MM-DD' format (inclusive), optional
+            end_date: End date in 'YYYY-MM-DD' format (inclusive), optional
+            home_id: Home ID to delete logs for (required in multi-home mode)
+            user_id: User ID performing the action (for permission check)
             
         Returns:
             Number of logs deleted
         """
         with self._lock:
             try:
-                # For now, we'll implement a simple approach
-                # Get current logs count
-                current_logs = self.db.get_management_logs(limit=10000)
-                original_count = len(current_logs)
-                
-                # Parse date parameters
-                start_dt = None
-                end_dt = None
-                
+                # Validate date formats
                 if start_date:
                     try:
-                        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                        datetime.strptime(start_date, '%Y-%m-%d')
                     except ValueError:
                         raise ValueError("start_date must be in YYYY-MM-DD format")
                 
                 if end_date:
                     try:
-                        end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)  # Include end date
+                        datetime.strptime(end_date, '%Y-%m-%d')
                     except ValueError:
                         raise ValueError("end_date must be in YYYY-MM-DD format")
                 
-                # This is a simplified implementation
-                # In a production system, you would want to implement direct SQL DELETE with date conditions
-                # For now, return 0 to indicate the operation was received but not fully implemented
-                print(f"Date range deletion requested: {start_date} to {end_date}")
-                return 0
+                if self.multi_db and home_id and user_id:
+                    # Multi-home mode: delete logs for this specific home within date range
+                    return self.multi_db.delete_home_logs_by_date_range(
+                        home_id=home_id,
+                        admin_user_id=user_id,
+                        start_date=start_date if start_date else None,
+                        end_date=end_date if end_date else None
+                    )
+                else:
+                    # Legacy mode: not implemented, return 0
+                    print(f"[WARNING] Date range deletion in legacy mode not implemented")
+                    return 0
                 
             except Exception as e:
                 print(f"Failed to delete logs by date range: {e}")
-                return 0
+                raise
     
-    def delete_logs_older_than(self, days: int) -> int:
+    def delete_logs_older_than(self, days: int, home_id: Optional[str] = None, 
+                                user_id: Optional[str] = None) -> int:
         """
-        Delete logs older than specified number of days
+        Delete logs older than specified number of days for a specific home (multi-home mode)
+        or all logs (legacy mode)
         
         Args:
             days: Number of days to keep (delete older logs)
+            home_id: Home ID to delete logs for (required in multi-home mode)
+            user_id: User ID performing the action (for permission check)
             
         Returns:
             Number of logs deleted
         """
         with self._lock:
             try:
-                # Get current logs count
-                current_logs = self.db.get_management_logs(limit=10000)
-                original_count = len(current_logs)
+                if days < 0:
+                    raise ValueError("Days must be a positive number")
                 
-                # This is a simplified implementation
-                # In a production system, you would want to implement direct SQL DELETE
-                # For now, return 0 to indicate the operation was received but not fully implemented
-                print(f"Delete logs older than {days} days requested")
-                return 0
+                if self.multi_db and home_id and user_id:
+                    # Multi-home mode: delete logs for this specific home
+                    return self.multi_db.delete_home_logs_older_than(
+                        home_id=home_id,
+                        admin_user_id=user_id,
+                        days=days
+                    )
+                else:
+                    # Legacy mode: not implemented, return 0
+                    print(f"[WARNING] Delete logs older than {days} days in legacy mode not implemented")
+                    return 0
                 
             except Exception as e:
+                print(f"Failed to delete logs older than {days} days: {e}")
+                raise
                 print(f"Failed to delete old logs: {e}")
                 return 0
     
