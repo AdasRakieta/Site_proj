@@ -354,15 +354,29 @@
 }
 
 .btn-danger {
-    background: var(--error);
+    background: #e74c3c;
     color: white;
-    border: 2px solid var(--error);
+    border: 2px solid #e74c3c;
+    transition: all 0.3s ease;
 }
 
 .btn-danger:hover {
-    background: #c82333;
-    border-color: #c82333;
-    transform: translateY(-1px);
+    background: #c0392b;
+    border-color: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.btn-danger.confirm-state {
+    background: #f39c12;
+    border-color: #f39c12;
+    animation: confirm-pulse 0.8s ease-in-out infinite;
+}
+
+.btn-danger.confirm-state:hover {
+    background: #e67e22;
+    border-color: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
 }
 
 /* Footer */

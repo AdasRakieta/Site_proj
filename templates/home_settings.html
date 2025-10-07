@@ -75,9 +75,9 @@
                             <h4>Usuń dom</h4>
                             <p>Trwale usuń ten dom i wszystkie związane z nim dane. Ta akcja jest nieodwracalna.</p>
                         </div>
-                        <button class="btn btn-danger" onclick="confirmDeleteHome()">
+                        <button class="btn btn-danger" id="deleteHomeBtn" onclick="confirmDeleteHome(event)">
                             <i class="icon">🗑️</i>
-                            Usuń dom
+                            <span id="deleteHomeBtnText">Usuń dom</span>
                         </button>
                     </div>
                 </div>
@@ -163,51 +163,80 @@ document.getElementById('inviteUserForm').addEventListener('submit', function(e)
     });
 });
 
-function confirmDeleteHome() {
+function confirmDeleteHome(event) {
+    const button = event.currentTarget;
+    const buttonText = document.getElementById('deleteHomeBtnText');
     const homeName = '{{ home.name }}';
     
-    // First get deletion info
-    fetch(`/api/home/${homeId}/deletion-info`)
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            const info = result.data;
-            const confirmMsg = `Czy na pewno chcesz usunąć dom "${homeName}"?\n\nZostanie usunięte:\n- ${info.room_count} pokoi\n- ${info.device_count} urządzeń\n- ${info.user_count} użytkowników\n- ${info.automation_count} automatyzacji\n\nTa akcja jest nieodwracalna!`;
-            
-            const confirmed = confirm(confirmMsg);
-            
-            if (confirmed) {
-                const doubleConfirmed = confirm('To jest ostateczne ostrzeżenie. Czy jesteś absolutnie pewien?');
-                if (doubleConfirmed) {
-                    // Call delete API
-                    fetch(`/api/home/${homeId}/delete`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.success) {
-                            showNotification('Dom został usunięty', 'success');
-                            // Redirect to home selection after deletion
-                            setTimeout(() => {
-                                window.location.href = '/home/select';
-                            }, 2000);
-                        } else {
-                            showNotification(result.error || 'Wystąpił błąd podczas usuwania domu', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showNotification('Wystąpił błąd podczas usuwania domu', 'error');
-                    });
-                }
+    // Jeśli przycisk już jest w stanie potwierdzenia
+    if (button.classList.contains('confirm-state')) {
+        // Wyłącz przycisk i pokaż status
+        button.disabled = true;
+        buttonText.textContent = 'Usuwanie...';
+        
+        // Call delete API
+        fetch(`/api/home/${homeId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
             }
-        } else {
-            showNotification('Nie można pobrać informacji o domu', 'error');
-        }
-    })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showNotification('Dom został usunięty', 'success');
+                // Redirect to home selection after deletion
+                setTimeout(() => {
+                    window.location.href = '/home/select';
+                }, 2000);
+            } else {
+                showNotification(result.error || 'Wystąpił błąd podczas usuwania domu', 'error');
+                button.disabled = false;
+                buttonText.textContent = 'Usuń dom';
+                button.classList.remove('confirm-state');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Wystąpił błąd podczas usuwania domu', 'error');
+            button.disabled = false;
+            buttonText.textContent = 'Usuń dom';
+            button.classList.remove('confirm-state');
+        });
+    } else {
+        // Pierwszy klik - pobierz informacje i zmień na stan potwierdzenia
+        fetch(`/api/home/${homeId}/deletion-info`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const info = result.data;
+                // Pokaż informację o tym co zostanie usunięte
+                showNotification(
+                    `Usuniecie "${homeName}" usunie: ${info.room_count} pokoi, ${info.device_count} urządzeń, ${info.user_count} użytkowników, ${info.automation_count} automatyzacji. Kliknij ponownie aby potwierdzić.`,
+                    'warning'
+                );
+                
+                // Zmień przycisk na stan potwierdzenia
+                button.classList.add('confirm-state');
+                buttonText.textContent = '✓ Potwierdź usunięcie';
+                
+                // Resetuj po 5 sekundach
+                setTimeout(() => {
+                    if (button.classList.contains('confirm-state')) {
+                        button.classList.remove('confirm-state');
+                        buttonText.textContent = 'Usuń dom';
+                    }
+                }, 5000);
+            } else {
+                showNotification('Nie można pobrać informacji o domu', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Wystąpił błąd podczas pobierania informacji', 'error');
+        });
+    }
+}
     .catch(error => {
         console.error('Error:', error);
         showNotification('Wystąpił błąd podczas pobierania informacji o domu', 'error');
