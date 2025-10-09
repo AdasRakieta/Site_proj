@@ -1,7 +1,6 @@
     # No property stubs: subclasses must provide app, multi_db, smart_home, socketio attributes directly.
 from flask import render_template, jsonify, request, redirect, url_for, session, flash
 from flask_socketio import emit
-from werkzeug.utils import secure_filename
 from utils.cache_manager import CachedDataAccess
 from app.management_logger import ManagementLogger
 from utils.image_optimizer import optimize_profile_picture, delete_old_profile_picture
