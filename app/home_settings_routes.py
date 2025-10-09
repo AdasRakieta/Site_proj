@@ -67,15 +67,26 @@ def home_settings_page(home_id):
     
     user = get_current_user()
     if not user:
+        print("❌ No current user")
+        logger.error("No current user")
         return redirect('/login')
     user_id = user['id']
+    
+    print(f"👤 User ID: {user_id}, accessing home: {home_id}")
+    logger.info(f"👤 User ID: {user_id}, accessing home: {home_id}")
     
     try:
         # Get all home settings data using the manager
         result = home_settings_manager.get_home_settings_data(home_id, user_id)
         
+        print(f"📊 Result: {result}")
+        logger.info(f"📊 Result: {result}")
+        
         if not result["success"]:
-            flash(result["error"], "error")
+            error_msg = result.get('error', 'Unknown error')
+            print(f"❌ Failed to get home settings data: {error_msg}")
+            logger.error(f"Failed to get home settings data: {error_msg}")
+            flash(error_msg, "error")
             return redirect('/home/select')
         
         data = result["data"]
@@ -83,8 +94,13 @@ def home_settings_page(home_id):
         rooms = data["rooms"]
         users = data["users"]
         
+        print(f"🏠 Home: {home.get('name')}, is_owner: {home.get('is_owner')}")
+        logger.info(f"🏠 Home: {home.get('name')}, is_owner: {home.get('is_owner')}")
+        
         # Check if user is owner (required for settings page)
         if not home.get('is_owner', False):
+            print(f"❌ User {user_id} is not owner of home {home_id}")
+            logger.error(f"User {user_id} is not owner of home {home_id}")
             flash("Only home owners can access settings", "error")
             return redirect('/home/select')
         
