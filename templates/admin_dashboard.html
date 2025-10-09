@@ -78,10 +78,8 @@
                 <span class="stat-value" id="automation-errors">{{ stats.automation_errors }}</span>
             </div>
         </div>
-    </div>
-
-    <!-- Logi zarządzania -->
-    <div class="dashboard-card">
+        <!-- Logi zarządzania -->
+    <div class="dashboard-card" style="grid-area: 2 / 2 / 3 / 4;">
         <h3>Logi Zarządzania</h3>
         <div style="margin-bottom: 15px;">
             <button class="refresh-btn" onclick="refreshLogs(true)">Odśwież logi</button>
@@ -128,6 +126,10 @@
             {% endfor %}
         </div>
     </div>
+
+    </div>
+
+    
 
     <!-- User Management Section -->
     <div class="dashboard-card">
