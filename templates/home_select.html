@@ -61,9 +61,9 @@
                 <small>Dołączono: {{ home.joined_at.strftime('%B %Y') if home.joined_at else 'Nieznane' }}</small>
                 <div class="home-footer-actions">
                     {% if home.is_owner %}
-                        <button onclick="event.stopPropagation(); window.location.href='/home/{{ home.id }}/settings'" class="btn-primary settings-btn" title="Zarządzaj ustawieniami domu">
+                        <a href="/home/{{ home.id }}/settings" onclick="event.stopPropagation()" class="btn-primary settings-btn" title="Zarządzaj ustawieniami domu">
                             ⚙️ Ustawienia
-                        </button>
+                        </a>
                     {% elif user_global_role != 'sys-admin' %}
                         <button onclick="leaveHome('{{ home.id }}', '{{ home.name }}', event)" class="leave-home-btn" title="Opuść dom">
                             🚪 Opuść
