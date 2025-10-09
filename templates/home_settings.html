@@ -103,7 +103,13 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/home_settings.js') }}"></script>
-{% endblock %}
+<script>
+// Get home ID from data attribute
+const homeElement = document.getElementById('home-data');
+const homeId = homeElement.dataset.homeId;
+
+// Home info form handler
+document.getElementById('homeInfoForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
@@ -241,11 +247,6 @@ function confirmDeleteHome(event) {
         });
     }
 }
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Wystąpił błąd podczas pobierania informacji o domu', 'error');
-    });
-}
 
 // Notification function
 function showNotification(message, type = 'info') {
@@ -256,8 +257,8 @@ function showNotification(message, type = 'info') {
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
-        color: white;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+        color: ${type === 'warning' ? '#000' : 'white'};
         padding: 12px 20px;
         border-radius: 8px;
         z-index: 9999;
