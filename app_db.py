@@ -14,6 +14,9 @@ import sys
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Load environment variables FIRST, before any other imports that need them
+load_dotenv()
+
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -210,12 +213,24 @@ class SmartHomeApp:
                     print("🔧 Initializing Multi-home database manager...")
                     from utils.multi_home_db_manager import MultiHomeDBManager
                     
-                    # Get database credentials from environment variables
-                    db_host = os.getenv('DB_HOST', '100.103.184.90')
-                    db_port = int(os.getenv('DB_PORT', 5432))
-                    db_user = os.getenv('DB_USER', 'admin')
-                    db_password = os.getenv('DB_PASSWORD', 'Qwuizzy123.')
-                    db_name = os.getenv('DB_NAME', 'smarthome_multihouse')
+                    # Get database credentials from environment variables (no defaults)
+                    db_host = os.getenv('DB_HOST')
+                    db_port = int(os.getenv('DB_PORT', '5432'))
+                    db_user = os.getenv('DB_USER')
+                    db_password = os.getenv('DB_PASSWORD')
+                    db_name = os.getenv('DB_NAME')
+                    
+                    # Validate required environment variables
+                    if not all([db_host, db_user, db_password, db_name]):
+                        missing = []
+                        if not db_host: missing.append('DB_HOST')
+                        if not db_user: missing.append('DB_USER')
+                        if not db_password: missing.append('DB_PASSWORD')
+                        if not db_name: missing.append('DB_NAME')
+                        raise ValueError(
+                            f"Missing required environment variables: {', '.join(missing)}. "
+                            f"Please create a .env file based on .env.example"
+                        )
                     
                     print(f"📊 Connecting to database: {db_user}@{db_host}:{db_port}/{db_name}")
                     

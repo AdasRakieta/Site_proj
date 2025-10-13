@@ -41,13 +41,21 @@ class SmartHomeDatabaseManager:
             db_config (dict): Database connection configuration
         """
         self.db_config = db_config or {
-            'host': os.getenv('DB_HOST', '100.103.184.90'),
+            'host': os.getenv('DB_HOST'),
             'port': os.getenv('DB_PORT', '5432'),
-            'dbname': os.getenv('DB_NAME', 'admin'),  # ensure 'dbname' not 'database'
-            'user': os.getenv('DB_USER', 'admin'),
-            'password': os.getenv('DB_PASSWORD', 'Qwuizzy123.')
-            
+            'dbname': os.getenv('DB_NAME'),  # ensure 'dbname' not 'database'
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASSWORD')
         }
+        
+        # Validate required database configuration
+        required_keys = ['host', 'dbname', 'user', 'password']
+        missing_keys = [k for k in required_keys if not self.db_config.get(k)]
+        if missing_keys:
+            raise ValueError(
+                f"Missing required database configuration: {', '.join(missing_keys)}. "
+                f"Please set these environment variables: {', '.join('DB_' + k.upper() for k in missing_keys)}"
+            )
         
         self.home_id = os.getenv('HOME_ID', str(uuid.uuid4()))
         self._connection_pool = None

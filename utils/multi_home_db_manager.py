@@ -21,12 +21,23 @@ class MultiHomeDBManager:
                  database: Optional[str] = None, 
                  connection_timeout: int = 10):
         # Use environment variables if parameters not provided
-        self.host = host or os.getenv('DB_HOST', '100.103.184.90')
+        self.host = host or os.getenv('DB_HOST')
         self.port = port or int(os.getenv('DB_PORT', '5432'))
-        self.user = user or os.getenv('DB_USER', 'admin')
-        self.password = password or os.getenv('DB_PASSWORD', 'Qwuizzy123.')
-        self.database = database or os.getenv('DB_NAME', 'smarthome_multihouse')
+        self.user = user or os.getenv('DB_USER')
+        self.password = password or os.getenv('DB_PASSWORD')
+        self.database = database or os.getenv('DB_NAME')
         self.connection_timeout = connection_timeout
+        
+        # Validate required database configuration
+        if not self.host:
+            raise ValueError("Missing DB_HOST environment variable")
+        if not self.user:
+            raise ValueError("Missing DB_USER environment variable")
+        if not self.password:
+            raise ValueError("Missing DB_PASSWORD environment variable")
+        if not self.database:
+            raise ValueError("Missing DB_NAME environment variable")
+        
         self._connection = None
         self._ensure_connection()
         self._ensure_security_state_table()

@@ -127,32 +127,46 @@ class SmartHomeConfig:
         return True
     
     def create_env_file(self):
-        """Create .env file for database configuration"""
+        """Create .env.example file with placeholders (never create .env with real credentials)"""
         env_content = """# SmartHome Database Configuration
-DB_HOST=100.103.184.90
-DB_PORT=5432
-DB_NAME=admin
-DB_USER=admin
-DB_PASSWORD=Qwuizzy123.
+# IMPORTANT: Copy this file to .env and fill in your actual values
+# DO NOT commit .env file to version control!
 
-# Unique Home ID (auto-generated)
+DB_HOST=your_database_host
+DB_PORT=5432
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_secure_password
+
+# Unique Home ID (auto-generated, leave as-is)
 HOME_ID=auto-generated
 
-# Email Configuration (from email_conf.env)
-SMTP_SERVER=smtp.gmail.com
+# Email Configuration
+SMTP_SERVER=your_smtp_server
 SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
+SMTP_USERNAME=your_email@example.com
+SMTP_PASSWORD=your_smtp_password
 ADMIN_EMAIL=admin@example.com
+
+# Redis Configuration (Optional - will fallback to SimpleCache)
+REDIS_URL=redis://localhost:6379/0
+
+# Flask Configuration
+FLASK_ENV=development
+SECRET_KEY=generate_a_long_random_secret_key_here
+SERVER_HOST=0.0.0.0
+SERVER_PORT=5000
 """
         
-        env_file = ".env"
-        if not os.path.exists(env_file):
-            with open(env_file, 'w') as f:
+        env_example_file = ".env.example"
+        if not os.path.exists(env_example_file):
+            with open(env_example_file, 'w') as f:
                 f.write(env_content)
-            print(f"✓ Created {env_file} file")
+            print(f"✓ Created {env_example_file} file")
+            print("⚠ IMPORTANT: Copy .env.example to .env and fill in your actual credentials")
+            print("⚠ Never commit .env file to git!")
         else:
-            print(f"⚠ {env_file} already exists")
+            print(f"⚠ {env_example_file} already exists")
     
     def status(self):
         """Show current status"""
