@@ -2,11 +2,22 @@ import psycopg2
 import psycopg2.extras
 import os
 
-DB_HOST = os.getenv('DB_HOST', '100.103.184.90')
+# Database configuration from environment variables (no defaults for security)
+DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT', '5432')
-DB_NAME = os.getenv('DB_NAME', 'postgres')
-DB_USER = os.getenv('DB_USER', 'admin')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'Qwuizzy123.')
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+
+# Validate required environment variables
+if not DB_HOST:
+    raise ValueError("Missing DB_HOST environment variable. Please set it in .env file.")
+if not DB_NAME:
+    raise ValueError("Missing DB_NAME environment variable. Please set it in .env file.")
+if not DB_USER:
+    raise ValueError("Missing DB_USER environment variable. Please set it in .env file.")
+if not DB_PASSWORD:
+    raise ValueError("Missing DB_PASSWORD environment variable. Please set it in .env file.")
 
 
 def get_db_connection():
