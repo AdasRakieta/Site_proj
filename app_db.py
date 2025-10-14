@@ -340,17 +340,6 @@ class SmartHomeApp:
         """Setup Flask routes and API endpoints"""
         try:
             from app.routes import APIManager
-            
-            # Setup system administrator after multi_db is available
-            if self.multi_db and hasattr(self.multi_db, 'setup_initial_sys_admin'):
-                try:
-                    success = self.multi_db.setup_initial_sys_admin('admin')
-                    if success:
-                        print("✓ System administrator (admin) initialized")
-                    else:
-                        print("⚠ Failed to setup system administrator")
-                except Exception as e:
-                    print(f"⚠ Error setting up system administrator: {e}")
 
             self.route_manager = RoutesManager(
                 app=self.app,
@@ -491,10 +480,11 @@ class SmartHomeApp:
                     return (value or '').strip().lower()
 
                 # Multi-home aware toggle handling
-                if getattr(self, 'multi_db', None):
+                multi_db = getattr(self, 'multi_db', None)
+                if multi_db:
                     current_home_id = session.get('current_home_id')
                     if not current_home_id:
-                        current_home_id = self.multi_db.get_user_current_home(user_id)
+                        current_home_id = multi_db.get_user_current_home(user_id)
                         if current_home_id:
                             session['current_home_id'] = current_home_id
 
@@ -503,7 +493,7 @@ class SmartHomeApp:
                         return
 
                     # Find target button in current home (case-insensitive match)
-                    buttons = self.multi_db.get_buttons(str(current_home_id), user_id) or []
+                    buttons = multi_db.get_buttons(str(current_home_id), user_id) or []
                     name_norm = _normalize(name)
                     room_norm = _normalize(room)
                     target_button = None
@@ -523,12 +513,12 @@ class SmartHomeApp:
                         emit('error', {'message': 'Button not found'})
                         return
 
-                    success = self.multi_db.update_device(target_button['id'], user_id, state=bool(new_state))
+                    success = multi_db.update_device(target_button['id'], user_id, state=bool(new_state))
                     if not success:
                         emit('error', {'message': 'Failed to toggle button'})
                         return
 
-                    updated_button = self.multi_db.get_device(target_button['id'], user_id) or target_button
+                    updated_button = multi_db.get_device(target_button['id'], user_id) or target_button
                     payload_room = updated_button.get('room_name') or room
                     payload_name = updated_button.get('name') or name
                     payload_state = updated_button.get('state') if updated_button.get('state') is not None else new_state
@@ -649,19 +639,20 @@ class SmartHomeApp:
                     emit('error', {'message': 'Temperature must be between 16°C and 30°C'})
                     return
 
-                if getattr(self, 'multi_db', None):
+                multi_db = getattr(self, 'multi_db', None)
+                if multi_db:
                     device = None
                     device_identifier = self._normalize_device_id(control_id) if control_id is not None else None
                     if device_identifier is not None:
                         try:
-                            device = self.multi_db.get_device(device_identifier, str(user_id))
+                            device = multi_db.get_device(device_identifier, str(user_id))
                         except Exception as get_err:
                             print(f"[DEBUG] Error fetching temperature control {control_id}: {get_err}")
 
                     if not device:
-                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(str(user_id))
+                        current_home_id = session.get('current_home_id') or multi_db.get_user_current_home(str(user_id))
                         if current_home_id:
-                            controls = self.multi_db.get_temperature_controls(str(current_home_id), str(user_id))
+                            controls = multi_db.get_temperature_controls(str(current_home_id), str(user_id))
                             for ctrl in controls:
                                 if control_id and str(ctrl.get('id')) == str(control_id):
                                     device = ctrl
@@ -682,11 +673,11 @@ class SmartHomeApp:
                     if target_device_id is None:
                         emit('error', {'message': 'Invalid device identifier'})
                         return
-                    if not self.multi_db.update_device(target_device_id, str(user_id), **update_payload):
+                    if not multi_db.update_device(target_device_id, str(user_id), **update_payload):
                         emit('error', {'message': 'Failed to set temperature'})
                         return
 
-                    updated_device = self.multi_db.get_device(target_device_id, str(user_id)) or device
+                    updated_device = multi_db.get_device(target_device_id, str(user_id)) or device
                     payload_room = updated_device.get('room_name') or room or ''
                     payload_name = updated_device.get('name') or name or ''
                     payload_temperature = updated_device.get('temperature') if updated_device.get('temperature') is not None else temperature
@@ -814,19 +805,20 @@ class SmartHomeApp:
 
                 print(f"[DEBUG] Parsed values: room='{room}', name='{name}', id='{control_id}', enabled={enabled}")
 
-                if getattr(self, 'multi_db', None):
+                multi_db = getattr(self, 'multi_db', None)
+                if multi_db:
                     device = None
                     device_identifier = self._normalize_device_id(control_id) if control_id is not None else None
                     if device_identifier is not None:
                         try:
-                            device = self.multi_db.get_device(device_identifier, str(user_id))
+                            device = multi_db.get_device(device_identifier, str(user_id))
                         except Exception as get_err:
                             print(f"[DEBUG] Error fetching temperature control {control_id}: {get_err}")
 
                     if not device:
-                        current_home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(str(user_id))
+                        current_home_id = session.get('current_home_id') or multi_db.get_user_current_home(str(user_id))
                         if current_home_id:
-                            controls = self.multi_db.get_temperature_controls(str(current_home_id), str(user_id))
+                            controls = multi_db.get_temperature_controls(str(current_home_id), str(user_id))
                             for ctrl in controls:
                                 if control_id and str(ctrl.get('id')) == str(control_id):
                                     device = ctrl
@@ -846,11 +838,11 @@ class SmartHomeApp:
                     if target_device_id is None:
                         emit('error', {'message': 'Invalid device identifier'})
                         return
-                    if not self.multi_db.update_device(target_device_id, str(user_id), enabled=enabled):
+                    if not multi_db.update_device(target_device_id, str(user_id), enabled=enabled):
                         emit('error', {'message': 'Failed to toggle temperature control enabled state'})
                         return
 
-                    updated_device = self.multi_db.get_device(target_device_id, str(user_id)) or device
+                    updated_device = multi_db.get_device(target_device_id, str(user_id)) or device
                     payload_room = updated_device.get('room_name') or room or ''
                     payload_name = updated_device.get('name') or name or ''
                     payload_enabled = bool(updated_device.get('enabled', enabled))
@@ -966,15 +958,16 @@ class SmartHomeApp:
                 home_id = data.get('home_id')
                 success = False
 
-                if getattr(self, 'multi_db', None):
+                multi_db = getattr(self, 'multi_db', None)
+                if multi_db:
                     try:
                         if not home_id:
-                            home_id = session.get('current_home_id') or self.multi_db.get_user_current_home(user_id)
+                            home_id = session.get('current_home_id') or multi_db.get_user_current_home(user_id)
                         if not home_id:
                             emit('error', {'message': 'Brak wybranego domu'})
                             return
 
-                        success = self.multi_db.set_security_state(str(home_id), user_id, new_state, {
+                        success = multi_db.set_security_state(str(home_id), user_id, new_state, {
                             'source': 'socket',
                             'timestamp': datetime.utcnow().isoformat()
                         })
@@ -1053,12 +1046,13 @@ class SmartHomeApp:
                 home_id = requested_home_id or (session.get('current_home_id') if getattr(self, 'multi_db', None) else None)
                 current_state = self.smart_home.security_state
 
-                if getattr(self, 'multi_db', None):
+                multi_db = getattr(self, 'multi_db', None)
+                if multi_db:
                     try:
                         if not home_id:
-                            home_id = self.multi_db.get_user_current_home(user_id)
+                            home_id = multi_db.get_user_current_home(user_id)
                         if home_id:
-                            current_state = self.multi_db.get_security_state(str(home_id), user_id)
+                            current_state = multi_db.get_security_state(str(home_id), user_id)
                     except Exception as err:
                         print(f"[DEBUG] Failed to fetch multi-home security state: {err}")
 

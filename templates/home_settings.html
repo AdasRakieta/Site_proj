@@ -15,19 +15,19 @@
             {% if home.description %}
             <p class="home-description">{{ home.description }}</p>
             {% endif %}
-        </div>
-        <div class="header-stats">
-            <div class="stat-card">
-                <span class="stat-number">{{ home.room_count or 0 }}</span>
-                <span class="stat-label">Pokoje</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-number">{{ home.device_count or 0 }}</span>
-                <span class="stat-label">Urządzenia</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-number">{{ home.user_count or 1 }}</span>
-                <span class="stat-label">Użytkownicy</span>
+            <div class="header-stats">
+                <div class="stat-card">
+                    <span class="stat-number">{{ home.room_count or 0 }}</span>
+                    <span class="stat-label">Pokoje</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ home.device_count or 0 }}</span>
+                    <span class="stat-label">Urządzenia</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ home.user_count or 1 }}</span>
+                    <span class="stat-label">Użytkownicy</span>
+                </div>
             </div>
         </div>
     </div>
@@ -53,7 +53,7 @@
                                   placeholder="Opcjonalny opis domu...">{{ home.description or '' }}</textarea>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">
+                        <button type="submit" class="btn-primary" style="margin: auto;">
                             <i class="icon">💾</i>
                             Zapisz zmiany
                         </button>
@@ -75,11 +75,10 @@
                             <h4>Usuń dom</h4>
                             <p>Trwale usuń ten dom i wszystkie związane z nim dane. Ta akcja jest nieodwracalna.</p>
                         </div>
-                        <button class="btn btn-danger" id="deleteHomeBtn" onclick="confirmDeleteHome(event)">
-                            <i class="icon">🗑️</i>
-                            <span id="deleteHomeBtnText">Usuń dom</span>
-                        </button>
                     </div>
+                    <button class="btn btn-danger" id="deleteHomeBtn" onclick="confirmDeleteHome(event)">
+                        <span id="deleteHomeBtnText">Usuń dom</span>
+                    </button>
                 </div>
             </div>
         </section>
