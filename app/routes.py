@@ -5273,8 +5273,10 @@ class APIManager(MultiHomeHelpersMixin):
 
             code = request.args.get('code', '').strip().upper()
             invitation = None
+            user_data = None
 
             if code and session.get('user_id'):
+                user_id = session.get('user_id')
                 # User is logged in and has a code - show invitation details
                 invitation = self.multi_db.get_invitation(code)
                 if invitation and invitation['status'] != 'pending':
@@ -5283,8 +5285,19 @@ class APIManager(MultiHomeHelpersMixin):
                 elif invitation and datetime.now(timezone.utc) > invitation['expires_at']:
                     flash('Zaproszenie wygasło', 'error')
                     invitation = None
+                
+                # Get full user data including profile picture
+                user_data = self.multi_db.get_user_by_id(user_id)
+                if not user_data:
+                    user_data = {
+                        'id': user_id,
+                        'name': user_id,
+                        'email': '',
+                        'role': 'user',
+                        'profile_picture': ''
+                    }
 
-            return render_template('invite_accept.html', invitation=invitation, code=code)
+            return render_template('invite_accept.html', invitation=invitation, code=code, user_data=user_data)
 
         @self.app.route('/api/invite/accept', methods=['POST'])
         def accept_invitation():

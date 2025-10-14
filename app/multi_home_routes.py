@@ -121,10 +121,22 @@ def home_select():
         # Get user's global role for UI protection
         user_global_role = user.get('role', 'user')
         
+        # Get full user data including profile picture
+        user_data = db_manager.get_user_by_id(user_id)
+        if not user_data:
+            user_data = {
+                'id': user_id,
+                'name': user_id,
+                'email': '',
+                'role': 'user',
+                'profile_picture': ''
+            }
+        
         return render_template('home_select.html', 
                              homes=homes, 
                              current_home_id=current_home_id,
-                             user_global_role=user_global_role)
+                             user_global_role=user_global_role,
+                             user_data=user_data)
     
     except Exception as e:
         logger.error(f"Error loading home selection: {e}")
@@ -196,7 +208,24 @@ def api_home_select():
 @login_required
 def home_create():
     """Display create home form."""
-    return render_template('home_create.html')
+    db_manager = get_multi_db()
+    user = get_current_user()
+    
+    # Get full user data including profile picture
+    user_data = None
+    if db_manager and user:
+        user_data = db_manager.get_user_by_id(user['id'])
+    
+    if not user_data:
+        user_data = {
+            'id': user['id'] if user else '',
+            'name': user['id'] if user else '',
+            'email': '',
+            'role': 'user',
+            'profile_picture': ''
+        }
+    
+    return render_template('home_create.html', user_data=user_data)
 
 @multi_home_bp.route('/api/home/create', methods=['POST'])
 @login_required
@@ -252,7 +281,24 @@ def api_home_create():
 @login_required
 def home_join():
     """Display join home form."""
-    return render_template('home_join.html')
+    db_manager = get_multi_db()
+    user = get_current_user()
+    
+    # Get full user data including profile picture
+    user_data = None
+    if db_manager and user:
+        user_data = db_manager.get_user_by_id(user['id'])
+    
+    if not user_data:
+        user_data = {
+            'id': user['id'] if user else '',
+            'name': user['id'] if user else '',
+            'email': '',
+            'role': 'user',
+            'profile_picture': ''
+        }
+    
+    return render_template('home_join.html', user_data=user_data)
 
 @multi_home_bp.route('/api/home/join', methods=['POST'])
 @login_required

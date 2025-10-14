@@ -378,16 +378,6 @@ input{
     transform: scale(1.05);
 }
 
-
-
-.btn-primary {
-    background-color: var(--btn-primary);
-    border-color: var(--btn-primary);
-}
-.btn-primary:hover {
-    background-color: var(--btn-primary-hover);
-    border-color: var(--btn-primary-hover);
-}
 .btn-secondary {
     background-color: var(--secondary);
     color: var(--btn_text);

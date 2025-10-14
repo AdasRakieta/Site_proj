@@ -118,10 +118,25 @@ def home_settings_page(home_id):
         print(f"🏠 Home settings loaded for: {home['name']}")
         logger.info(f"🏠 Home settings loaded for: {home['name']}")
         
+        # Get full user data including profile picture
+        user_data = None
+        if multi_db:
+            user_data = multi_db.get_user_by_id(user_id)
+        
+        if not user_data:
+            user_data = {
+                'id': user_id,
+                'name': user_id,
+                'email': '',
+                'role': 'user',
+                'profile_picture': ''
+            }
+        
         return render_template('home_settings.html',
                              home=home,
                              rooms=rooms,
-                             users=users)
+                             users=users,
+                             user_data=user_data)
     
     except Exception as e:
         print(f"❌ Error loading home settings: {e}")

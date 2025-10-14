@@ -8,9 +8,6 @@
 
 /* Header Section */
 .settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
     margin-bottom: 32px;
     padding: 24px;
     background: var(--card-bg) !important;
@@ -350,7 +347,6 @@
 .action-info p {
     color: var(--text-secondary);
     margin: 0;
-    max-width: 500px;
 }
 
 .btn-danger {
