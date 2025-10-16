@@ -22,13 +22,16 @@ function showNotification(message, type = 'info') {
         notification.classList.add('show');
     }, 10);
     
-    // Remove after 3 seconds
+    // Set display time based on type (longer for warnings due to more content)
+    const displayTime = type === 'warning' ? 6000 : 3000;
+    
+    // Remove after specified time
     setTimeout(() => {
         notification.classList.remove('show');
         setTimeout(() => {
             document.body.removeChild(notification);
         }, 300);
-    }, 3000);
+    }, displayTime);
 }
 
 /**

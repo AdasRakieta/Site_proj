@@ -393,6 +393,58 @@ class MultiHomeDBManager:
             
             return homes
 
+    def update_home_info(self, home_id: str, name: str, description: Optional[str] = None) -> bool:
+        """Update basic home information (name and description)."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                UPDATE homes 
+                SET name = %s, 
+                    description = %s, 
+                    updated_at = %s
+                WHERE id = %s
+            """, (name, description, datetime.now(), home_id))
+            
+            rows_affected = cursor.rowcount
+            if rows_affected > 0:
+                logger.info(f"Updated home info for home {home_id}: name='{name}'")
+                return True
+            else:
+                logger.warning(f"No home found with ID {home_id} to update")
+                return False
+
+    def delete_home_completely(self, home_id: str) -> bool:
+        """
+        Delete a home and all associated data.
+        
+        Thanks to CASCADE constraints, this will automatically delete:
+        - All rooms in the home
+        - All devices in the home (via rooms CASCADE)
+        - All user associations (user_homes)
+        - All automations in the home
+        - All management logs related to the home
+        - All notification settings/recipients for the home
+        
+        Args:
+            home_id: UUID of the home to delete
+            
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        with self.get_cursor() as cursor:
+            # Delete the home - CASCADE will handle all related data
+            cursor.execute("""
+                DELETE FROM homes 
+                WHERE id = %s
+            """, (home_id,))
+            
+            rows_affected = cursor.rowcount
+            if rows_affected > 0:
+                logger.warning(f"Deleted home {home_id} and all associated data via CASCADE")
+                return True
+            else:
+                logger.warning(f"No home found with ID {home_id} to delete")
+                return False
+
     def get_home_details(self, home_id: str, user_id: str) -> Optional[Dict]:
         """Get detailed information about a home if user has access."""
         with self.get_cursor() as cursor:

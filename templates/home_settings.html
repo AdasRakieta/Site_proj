@@ -101,158 +101,14 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/home_settings.js') }}"></script>
 <script>
-// Get home ID from data attribute
-const homeElement = document.getElementById('home-data');
-const homeId = homeElement.dataset.homeId;
-
-// Home info form handler
-document.getElementById('homeInfoForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const data = {
-        name: formData.get('name'),
-        description: formData.get('description')
-    };
-    
-    // API call to update home info using new endpoint
-    fetch(`/api/home/${homeId}/info/update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showNotification('Informacje o domu zostały zaktualizowane', 'success');
-        } else {
-            showNotification(result.error || 'Wystąpił błąd podczas aktualizacji', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Wystąpił błąd podczas aktualizacji', 'error');
-    });
-});
-
-// Invite user form handler
-document.getElementById('inviteUserForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const data = {
-        email: formData.get('email'),
-        role: formData.get('role')
-    };
-    
-    // API call to invite user using new endpoint
-    fetch(`/api/home/${homeId}/users/invite`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showNotification('Zaproszenie zostało wysłane', 'success');
-            this.reset();
-        } else {
-            showNotification(result.error || 'Wystąpił błąd podczas wysyłania zaproszenia', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Wystąpił błąd podczas wysyłania zaproszenia', 'error');
-    });
-});
-
-function confirmDeleteHome(event) {
-    const button = event.currentTarget;
-    const buttonText = document.getElementById('deleteHomeBtnText');
-    const homeName = '{{ home.name }}';
-    
-    // Jeśli przycisk już jest w stanie potwierdzenia
-    if (button.classList.contains('confirm-state')) {
-        // Wyłącz przycisk i pokaż status
-        button.disabled = true;
-        buttonText.textContent = 'Usuwanie...';
-        
-        // Call delete API
-        fetch(`/api/home/${homeId}/delete`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                showNotification('Dom został usunięty', 'success');
-                // Redirect to home selection after deletion
-                setTimeout(() => {
-                    window.location.href = '/home/select';
-                }, 2000);
-            } else {
-                showNotification(result.error || 'Wystąpił błąd podczas usuwania domu', 'error');
-                button.disabled = false;
-                buttonText.textContent = 'Usuń dom';
-                button.classList.remove('confirm-state');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Wystąpił błąd podczas usuwania domu', 'error');
-            button.disabled = false;
-            buttonText.textContent = 'Usuń dom';
-            button.classList.remove('confirm-state');
-        });
-    } else {
-        // Pierwszy klik - pobierz informacje i zmień na stan potwierdzenia
-        fetch(`/api/home/${homeId}/deletion-info`)
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                const info = result.data;
-                // Pokaż informację o tym co zostanie usunięte
-                showNotification(
-                    `Usuniecie "${homeName}" usunie: ${info.room_count} pokoi, ${info.device_count} urządzeń, ${info.user_count} użytkowników, ${info.automation_count} automatyzacji. Kliknij ponownie aby potwierdzić.`,
-                    'warning'
-                );
-                
-                // Zmień przycisk na stan potwierdzenia
-                button.classList.add('confirm-state');
-                buttonText.textContent = '✓ Potwierdź usunięcie';
-                
-                // Resetuj po 5 sekundach
-                setTimeout(() => {
-                    if (button.classList.contains('confirm-state')) {
-                        button.classList.remove('confirm-state');
-                        buttonText.textContent = 'Usuń dom';
-                    }
-                }, 5000);
-            } else {
-                showNotification('Nie można pobrać informacji o domu', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Wystąpił błąd podczas pobierania informacji', 'error');
-        });
-    }
-}
-
-// Notification function
+// Notification function - override for this page to have custom styling
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        bottom: 20px;
         right: 20px;
         background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
         color: ${type === 'warning' ? '#000' : 'white'};
@@ -262,7 +118,11 @@ function showNotification(message, type = 'info') {
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         transform: translateX(100%);
         transition: transform 0.3s ease;
-        max-width: 300px;
+        max-width: ${type === 'warning' ? '400px' : '300px'};
+        white-space: pre-line;
+        word-wrap: break-word;
+        font-size: ${type === 'warning' ? '14px' : '15px'};
+        line-height: ${type === 'warning' ? '1.4' : '1.5'};
     `;
     notification.textContent = message;
     
@@ -273,7 +133,10 @@ function showNotification(message, type = 'info') {
         notification.style.transform = 'translateX(0)';
     }, 10);
     
-    // Auto remove after 4 seconds
+    // Set display time based on type (longer for warnings due to more content)
+    const displayTime = type === 'warning' ? 6000 : 4000;
+    
+    // Auto remove after specified time
     setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
@@ -281,7 +144,10 @@ function showNotification(message, type = 'info') {
                 document.body.removeChild(notification);
             }
         }, 300);
-    }, 4000);
+    }, displayTime);
 }
+
+// Make confirmDeleteHome available globally for onclick handler
+window.confirmDeleteHome = confirmDeleteHome;
 </script>
 {% endblock %}

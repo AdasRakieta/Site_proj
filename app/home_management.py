@@ -32,8 +32,11 @@ class HomeInfoManager:
             if description and len(description) > 500:
                 return {"success": False, "error": "Description must be 500 characters or less"}
             
-            # TODO: Implement actual database update
-            # self.db.update_home_info(home_id, name.strip(), description.strip() if description else None)
+            # Update database
+            success = self.db.update_home_info(home_id, name.strip(), description.strip() if description else None)
+            
+            if not success:
+                return {"success": False, "error": "Failed to update home information in database"}
             
             logger.info(f"Home info updated for home {home_id} by user {user_id}")
             return {
@@ -329,15 +332,11 @@ class HomeDeletionManager:
             if not home:
                 return {"success": False, "error": "Home not found"}
             
-            # TODO: Implement complete home deletion
-            # This should delete:
-            # - All rooms in the home
-            # - All devices in the home  
-            # - All user associations with the home
-            # - All automations in the home
-            # - The home record itself
+            # Delete home completely from database
+            success = self.db.delete_home_completely(home_id)
             
-            # self.db.delete_home_completely(home_id)
+            if not success:
+                return {"success": False, "error": "Failed to delete home from database"}
             
             logger.warning(f"Home '{home['name']}' ({home_id}) deleted by owner {owner_id}")
             return {

@@ -1992,6 +1992,8 @@ footer {
     transition: opacity 0.3s ease;
     box-shadow: 0 3px 10px var(--box_shd);
     max-width: 300px;
+    word-wrap: break-word;
+    white-space: pre-line;
 }
 
 .notification.show {
@@ -2009,7 +2011,9 @@ footer {
 
 .notification.warning {
     background-color: #ff9800;
-
+    max-width: 400px;
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 .notification.info {
