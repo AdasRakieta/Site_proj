@@ -3,7 +3,7 @@
 {% block title %}Ustawienia Domu - {{ home.name }} - SmartHome{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home_settings.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home_settings.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}

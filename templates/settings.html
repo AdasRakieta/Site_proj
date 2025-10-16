@@ -4,7 +4,7 @@
 {% block header %}Ustawienia{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}

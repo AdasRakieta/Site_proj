@@ -63,6 +63,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta_app.outputs.tags }}
           labels: ${{ steps.meta_app.outputs.labels }}
+          build-args: |
+            ASSET_VERSION=${{ github.sha }}
 
       - name: Build and push nginx image
         uses: docker/build-push-action@v6

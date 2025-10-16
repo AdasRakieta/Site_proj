@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Accept build argument for asset versioning
+ARG ASSET_VERSION=dev
+ENV ASSET_VERSION=${ASSET_VERSION}
+
 # Use /srv as project root to avoid accidental volume overwrite of entrypoint
 WORKDIR /srv
 
