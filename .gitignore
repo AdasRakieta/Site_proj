@@ -7,8 +7,8 @@ __pycache__/
 
 # Environment files - NEVER commit these (contain passwords!)
 .env
-*.env
 !.env.example
+# Note: stack.env is committed as a template - update values before deploying!
 
 # Management logs - ignore in all locations
 management_logs.json
