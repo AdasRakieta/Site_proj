@@ -1,9 +1,9 @@
 """
-Load Polish cities from pl.json into the database
+Load Polish cities from worldcities.csv into the database
 """
 import os
 import sys
-import json
+import csv
 import logging
 from dotenv import load_dotenv
 
@@ -23,16 +23,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def load_polish_cities():
-    """Load Polish cities from pl.json file into database"""
+    """Load Polish cities from worldcities.csv file into database"""
     try:
-        # Read JSON file
-        json_path = os.path.join(os.path.dirname(__file__), 'pl.json')
-        logger.info(f"Reading cities from {json_path}")
+        # Read CSV file
+        csv_path = os.path.join(os.path.dirname(__file__), 'worldcities.csv')
+        logger.info(f"Reading cities from {csv_path}")
         
-        with open(json_path, 'r', encoding='utf-8') as f:
-            cities_data = json.load(f)
+        polish_cities = []
         
-        logger.info(f"Loaded {len(cities_data)} cities from JSON")
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Filter for Poland (iso2 = "PL")
+                if row.get('iso2') == 'PL':
+                    polish_cities.append(row)
+        
+        logger.info(f"Found {len(polish_cities)} Polish cities in CSV")
         
         # Connect to database
         db = MultiHomeDBManager()
@@ -48,9 +54,9 @@ def load_polish_cities():
         skipped_count = 0
         
         with db.get_cursor() as cursor:
-            for city_data in cities_data:
+            for city_data in polish_cities:
                 try:
-                    city_name = city_data.get('city', '').strip()
+                    city_name = city_data.get('city_ascii', city_data.get('city', '')).strip()
                     lat = city_data.get('lat')
                     lng = city_data.get('lng')
                     admin_name = city_data.get('admin_name', '').strip()
@@ -64,7 +70,7 @@ def load_polish_cities():
                     # Convert to proper types
                     latitude = float(lat)
                     longitude = float(lng)
-                    pop = int(population) if population else None
+                    pop = int(population) if population and population.strip() else None
                     
                     cursor.execute("""
                         INSERT INTO polish_cities (city, latitude, longitude, admin_name, population)
@@ -97,7 +103,8 @@ def load_polish_cities():
             
             logger.info("\nTop 10 cities by population:")
             for row in cursor.fetchall():
-                logger.info(f"  {row[0]:<20} {row[1]:<20} Pop: {row[2]:>10} ({row[3]:.4f}, {row[4]:.4f})")
+                pop_str = f"{row[2]:>10}" if row[2] else "       N/A"
+                logger.info(f"  {row[0]:<20} {row[1]:<20} Pop: {pop_str} ({row[3]:.4f}, {row[4]:.4f})")
         
         return True
         
@@ -109,7 +116,7 @@ def load_polish_cities():
 
 if __name__ == "__main__":
     logger.info("=" * 60)
-    logger.info("Polish Cities Database Loader")
+    logger.info("Polish Cities Database Loader (from CSV)")
     logger.info("=" * 60)
     success = load_polish_cities()
     sys.exit(0 if success else 1)
