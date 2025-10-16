@@ -412,19 +412,33 @@ class MultiHomeDBManager:
                 logger.warning(f"No home found with ID {home_id} to update")
                 return False
 
-    def update_home_location(self, home_id: str, address: Optional[str] = None, 
-                            latitude: Optional[float] = None, longitude: Optional[float] = None,
-                            city: Optional[str] = None, country: Optional[str] = None) -> bool:
+    def update_home_location(
+        self, 
+        home_id: str, 
+        address: Optional[str] = None, 
+        latitude: Optional[float] = None, 
+        longitude: Optional[float] = None,
+        city: Optional[str] = None, 
+        country: Optional[str] = None,
+        street: Optional[str] = None,
+        house_number: Optional[str] = None,
+        apartment_number: Optional[str] = None,
+        postal_code: Optional[str] = None
+    ) -> bool:
         """
-        Update home location information.
+        Update home location information with detailed address fields.
         
         Args:
             home_id: UUID of the home
-            address: Full address text
+            address: Full address text (legacy field)
             latitude: Latitude coordinate
             longitude: Longitude coordinate
             city: City name
             country: Country name
+            street: Street name
+            house_number: House number
+            apartment_number: Apartment number
+            postal_code: Postal code
             
         Returns:
             bool: True if update was successful, False otherwise
@@ -437,9 +451,25 @@ class MultiHomeDBManager:
                     longitude = %s,
                     city = %s,
                     country = %s,
+                    street = %s,
+                    house_number = %s,
+                    apartment_number = %s,
+                    postal_code = %s,
                     updated_at = %s
                 WHERE id = %s
-            """, (address, latitude, longitude, city, country, datetime.now(), home_id))
+            """, (
+                address, 
+                latitude, 
+                longitude, 
+                city, 
+                country, 
+                street,
+                house_number,
+                apartment_number,
+                postal_code,
+                datetime.now(), 
+                home_id
+            ))
             
             rows_affected = cursor.rowcount
             if rows_affected > 0:
@@ -489,7 +519,8 @@ class MultiHomeDBManager:
                 SELECT h.id, h.name, h.description, h.owner_id, h.created_at,
                        uh.role, uh.permissions,
                        (h.owner_id = %s) as is_owner,
-                       h.address, h.latitude, h.longitude, h.city, h.country
+                       h.address, h.latitude, h.longitude, h.city, h.country,
+                       h.street, h.house_number, h.apartment_number, h.postal_code
                 FROM homes h
                 JOIN user_homes uh ON h.id = uh.home_id
                 WHERE h.id = %s AND uh.user_id = %s
@@ -519,7 +550,11 @@ class MultiHomeDBManager:
                 'latitude': float(row[9]) if row[9] is not None else None,
                 'longitude': float(row[10]) if row[10] is not None else None,
                 'city': row[11],
-                'country': row[12]
+                'country': row[12],
+                'street': row[13],
+                'house_number': row[14],
+                'apartment_number': row[15],
+                'postal_code': row[16]
             }
 
     def user_has_home_access(self, user_id: str, home_id: str) -> bool:

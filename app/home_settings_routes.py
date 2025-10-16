@@ -183,7 +183,7 @@ def api_update_home_info(home_id):
 @home_settings_bp.route('/api/home/<home_id>/location/update', methods=['POST'])
 @login_required
 def api_update_home_location(home_id):
-    """Update home location information using HomeInfoManager"""
+    """Update home location information with detailed address fields"""
     if not home_settings_manager:
         return jsonify({"success": False, "error": "Home settings manager not available"}), 500
     
@@ -197,28 +197,51 @@ def api_update_home_location(home_id):
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
         
-        address = data.get('address', '').strip() if data.get('address') else None
+        # Extract all address fields
+        city = data.get('city', '').strip() if data.get('city') else None
+        street = data.get('street', '').strip() if data.get('street') else None
+        house_number = data.get('house_number', '').strip() if data.get('house_number') else None
+        apartment_number = data.get('apartment_number', '').strip() if data.get('apartment_number') else None
+        postal_code = data.get('postal_code', '').strip() if data.get('postal_code') else None
+        country = data.get('country', '').strip() if data.get('country') else 'Poland'
+        
+        # Manual coordinates (optional - will use geocoding if not provided)
         latitude = data.get('latitude')
         longitude = data.get('longitude')
-        city = data.get('city', '').strip() if data.get('city') else None
-        country = data.get('country', '').strip() if data.get('country') else None
         
         # Convert latitude/longitude to float if provided
-        if latitude is not None:
+        if latitude is not None and latitude != '':
             try:
                 latitude = float(latitude)
             except (ValueError, TypeError):
                 return jsonify({"success": False, "error": "Invalid latitude format"}), 400
-        
-        if longitude is not None:
+        else:
+            latitude = None
+            
+        if longitude is not None and longitude != '':
             try:
                 longitude = float(longitude)
             except (ValueError, TypeError):
                 return jsonify({"success": False, "error": "Invalid longitude format"}), 400
+        else:
+            longitude = None
         
-        # Use HomeInfoManager to update location
+        # Check if we should use geocoding (default True unless explicitly disabled)
+        use_geocoding = data.get('use_geocoding', True)
+        
+        # Use HomeInfoManager to update location with all fields
         result = home_settings_manager.info_manager.update_home_location(
-            home_id, user_id, address, latitude, longitude, city, country
+            home_id=home_id,
+            user_id=user_id,
+            city=city,
+            street=street,
+            house_number=house_number,
+            apartment_number=apartment_number,
+            postal_code=postal_code,
+            latitude=latitude,
+            longitude=longitude,
+            country=country,
+            use_geocoding=use_geocoding
         )
         
         if result["success"]:
@@ -227,7 +250,7 @@ def api_update_home_location(home_id):
             return jsonify(result), 400
     
     except Exception as e:
-        logger.error(f"Error in API update home location: {e}")
+        logger.error(f"Error in API update home location: {e}", exc_info=True)
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
 @home_settings_bp.route('/api/cities/search', methods=['GET'])
@@ -282,6 +305,91 @@ def api_search_cities():
     
     except Exception as e:
         logger.error(f"Error searching cities: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+@home_settings_bp.route('/api/geocode/address', methods=['POST'])
+@login_required
+def api_geocode_address():
+    """Geocode an address to coordinates using Nominatim"""
+    try:
+        from utils.geocoding_service import GeocodingService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        city = data.get('city')
+        if not city:
+            return jsonify({"success": False, "error": "City is required"}), 400
+        
+        street = data.get('street')
+        house_number = data.get('house_number')
+        postal_code = data.get('postal_code')
+        country = data.get('country', 'Poland')
+        
+        # Call geocoding service
+        result = GeocodingService.geocode_address(
+            city=city,
+            street=street,
+            house_number=house_number,
+            postal_code=postal_code,
+            country=country
+        )
+        
+        if result:
+            return jsonify({
+                "success": True,
+                "data": result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Could not geocode address"
+            }), 404
+    
+    except Exception as e:
+        logger.error(f"Error in address geocoding: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+@home_settings_bp.route('/api/geocode/reverse', methods=['POST'])
+@login_required
+def api_reverse_geocode():
+    """Reverse geocode coordinates to address using Nominatim"""
+    try:
+        from utils.geocoding_service import GeocodingService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        
+        if latitude is None or longitude is None:
+            return jsonify({"success": False, "error": "Latitude and longitude required"}), 400
+        
+        try:
+            lat = float(latitude)
+            lon = float(longitude)
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid coordinate format"}), 400
+        
+        # Call reverse geocoding service
+        result = GeocodingService.reverse_geocode(lat, lon)
+        
+        if result:
+            return jsonify({
+                "success": True,
+                "data": result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Could not reverse geocode coordinates"
+            }), 404
+    
+    except Exception as e:
+        logger.error(f"Error in reverse geocoding: {e}", exc_info=True)
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
 # API Routes for User Management
