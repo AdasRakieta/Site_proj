@@ -3,7 +3,7 @@
 {% block title %}Wybierz Dom - SmartHome{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home_select.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home_select.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 
@@ -84,12 +84,12 @@
     {% endif %}
 
     <div class="home-actions">
-        <button href="/home/create" class="btn-primary">
+        <a href="/home/create" class="btn-primary">
             🏠 Utwórz Nowy Dom
-        </button>
-        <button href="/home/join" class="btn-primary">
+        </a>
+        <a href="/home/join" class="btn-primary">
             👥 Dołącz do Domu
-        </button>
+        </a>
     </div>
 </div>
 

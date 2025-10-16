@@ -2,6 +2,16 @@
 
 ## ✅ Ostatnie zmiany (Październik 2025)
 
+### Cache-busting i deployment fixes
+
+- [X] Naprawiono brak aktualizacji stylów po redeploy w Portainer
+- [X] Dodano `?v={{ asset_version }}` do wszystkich template'ów CSS
+- [X] Zaktualizowano `home_select.html`, `home_settings.html`, `settings.html`, `invite_accept.html`, `error.html`, `edit.html`
+- [X] Naprawiono przyciski w `home_select.html` (zmieniono `<button href>` na `<a href>`)
+- [X] Dodano ASSET_VERSION jako build arg w GitHub Actions workflow
+- [X] Zaktualizowano `Dockerfile.app` aby przyjmował ASSET_VERSION
+- [X] Utworzono `PORTAINER_DEPLOYMENT.md` z pełnym przewodnikiem deployment
+
 ### Unifikacja konfiguracji środowiskowej
 
 - [X] Zunifikowano wszystkie zmienne środowiskowe do pojedynczego `.env`
