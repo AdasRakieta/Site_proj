@@ -14,7 +14,7 @@
     border-radius: 12px;
     border: 1px solid var(--border);
     box-shadow: var(--box_shd);
-    width: 600px;
+    width: 650px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -354,12 +354,13 @@
     color: white;
     border: 2px solid #e74c3c;
     transition: all 0.3s ease;
+    margin: auto;
 }
 
 .btn-danger:hover {
     background: #c0392b;
     border-color: #c0392b;
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
 

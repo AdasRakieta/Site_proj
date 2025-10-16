@@ -3,7 +3,8 @@
 ## ✅ Ostatnie zmiany (Październik 2025)
 
 ### Unifikacja konfiguracji środowiskowej
-- [X] Zunifikowano wszystkie zmienne środowiskowe do pojedynczego `.env` 
+
+- [X] Zunifikowano wszystkie zmienne środowiskowe do pojedynczego `.env`
 - [X] Utworzono `stack.env` dla Docker Stack deployments
 - [X] Zaktualizowano `docker-compose.yml` i `docker-compose.prod.yml` aby używały `env_file`
 - [X] Naprawiono błąd "Missing DB_HOST" podczas importu w kontenerach
@@ -53,7 +54,7 @@
    1. [X] edycja - ok
    2. [X] światła - ok
    3. [X] temperatura - ok
-   4. [ ] admin dashboard
+   4. [X] admin dashboard
    5. [X] ustawienia - usunięto zarządzanie użytkownikami (przeniesione do admin dashboard)
    6. [ ] ustawienia użytkownika**s**
    7. [X] zabezpieczenia -ok
