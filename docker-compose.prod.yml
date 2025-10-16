@@ -3,29 +3,40 @@ services:
   app:
     image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
     container_name: smarthome_app
-    env_file:
-      - stack.env
     environment:
+      # Server Configuration
       - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
       - SERVER_PORT=${SERVER_PORT:-5000}
       - IMAGE_TAG=${IMAGE_TAG:-latest}
+      
+      # Database Configuration (REQUIRED)
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      
+      # Email Configuration (REQUIRED)
       - SMTP_SERVER=${SMTP_SERVER}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
+      
+      # Flask Configuration (REQUIRED)
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
+      
       # Optional Redis configuration
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      # Optionally override ASSET_VERSION to force cache-busting independent of image tag
+      
+      # Asset versioning (auto-set by build, can override)
       - ASSET_VERSION=${ASSET_VERSION:-}
+      
+      # Optional feature flags
+      - ENABLE_REGISTRATION=${ENABLE_REGISTRATION:-true}
+      - ENABLE_MULTI_HOME=${ENABLE_MULTI_HOME:-true}
     volumes:
       - static_uploads:/srv/static/profile_pictures
     ports:
