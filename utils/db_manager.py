@@ -9,15 +9,27 @@ DB_NAME = os.getenv('DB_NAME')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 
-# Validate required environment variables
-if not DB_HOST:
-    raise ValueError("Missing DB_HOST environment variable. Please set it in .env file.")
-if not DB_NAME:
-    raise ValueError("Missing DB_NAME environment variable. Please set it in .env file.")
-if not DB_USER:
-    raise ValueError("Missing DB_USER environment variable. Please set it in .env file.")
-if not DB_PASSWORD:
-    raise ValueError("Missing DB_PASSWORD environment variable. Please set it in .env file.")
+# Validate required environment variables only when actually trying to connect
+# This allows imports without having all env vars set (for non-DB modes)
+def _validate_db_config():
+    """Validate that all required database environment variables are set."""
+    missing = []
+    if not DB_HOST:
+        missing.append('DB_HOST')
+    if not DB_NAME:
+        missing.append('DB_NAME')
+    if not DB_USER:
+        missing.append('DB_USER')
+def get_db_connection():
+    """Get a database connection. Validates configuration before connecting."""
+    _validate_db_config()
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )   )
 
 
 def get_db_connection():

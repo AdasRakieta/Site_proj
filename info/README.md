@@ -67,57 +67,64 @@ pip install -r requirements.txt
 
 ### 3. Konfiguracja środowiska
 
+**📋 Szczegółowe instrukcje deployment znajdują się w [DEPLOYMENT.md](DEPLOYMENT.md)**
+
+#### Automatyczny setup (Zalecane)
+
+**Windows (PowerShell):**
+```powershell
+.\setup_env.ps1
+```
+
+**Linux/macOS (Bash):**
+```bash
+chmod +x setup_env.sh
+./setup_env.sh
+```
+
+Skrypt automatycznie:
+- Skopiuje `.env.example` do `.env`
+- Wygeneruje bezpieczny `SECRET_KEY`
+- Otworzy plik do edycji
+
+#### Manualny setup
+
 Skopiuj plik `.env.example` do `.env` i uzupełnij swoimi danymi:
 
 ```powershell
 cp .env.example .env
 ```
 
-Następnie edytuj plik `.env`:
+Następnie edytuj plik `.env` - wymagane zmienne:
 
 ```env
-# ============================================================================
-# SmartHome Multi-Home Database Configuration
-# ============================================================================
-# PostgreSQL database for multi-home system
-DB_HOST=your_database_host
-DB_PORT=5432
+# Database (Required)
+DB_HOST=localhost
 DB_NAME=smarthome_multihouse
 DB_USER=your_db_user
-DB_PASSWORD=your_db_password
+DB_PASSWORD=your_secure_password
 
-# ============================================================================
-# Server Configuration
-# ============================================================================
-SERVER_HOST=0.0.0.0
-SERVER_PORT=5000
+# Flask (Required)
+SECRET_KEY=random_32_character_secret_key
 
-# ============================================================================
-# Email Configuration
-# ============================================================================
-# SMTP server settings for sending emails (invitations, alerts, etc.)
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
+# Email (Required)
 SMTP_USERNAME=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
 ADMIN_EMAIL=admin@example.com
-
-# ============================================================================
-# Optional: Redis Configuration (recommended for production)
-# ============================================================================
-# REDIS_URL=redis://localhost:6379/0
-# or
-# REDIS_HOST=localhost
-# REDIS_PORT=6379
-
-# ============================================================================
-# Optional: Environment
-# ============================================================================
-# Set to 'production' to enable production mode (secure cookies, etc.)
-# FLASK_ENV=development
 ```
 
-> **⚠️ UWAGA BEZPIECZEŃSTWA:** Plik `.env` zawiera wrażliwe dane (hasła, tokeny). **NIGDY** nie commituj go do repozytorium! Jest on już w `.gitignore`.
+#### Walidacja konfiguracji
+
+Po ustawieniu `.env`, zwaliduj konfigurację:
+
+```powershell
+python validate_env.py
+```
+
+> **⚠️ UWAGA BEZPIECZEŃSTWA:** 
+> - Plik `.env` zawiera wrażliwe dane (hasła, tokeny). **NIGDY** nie commituj go do repozytorium! Jest już w `.gitignore`.
+> - Dla deploymentu produkcyjnego użyj `stack.env` (patrz [DEPLOYMENT.md](DEPLOYMENT.md))
+> - Zmień wszystkie domyślne hasła przed wdrożeniem!
 
 ### 4. Przygotowanie bazy danych
 

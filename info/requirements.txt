@@ -1,3 +1,14 @@
+flask
+flask-socketio
+eventlet
+python-dotenv
+flask-caching
+requests
+werkzeug
+gunicorn
+psycopg2-binary
+Pillow
+
 # PostgreSQL Database
 psycopg2-binary==2.9.10
 
@@ -67,17 +78,3 @@ h11==0.14.0
 wsproto==1.2.0
 zope.event==5.1
 zope.interface==7.2
-
-#######################
-# Android App Requirements
-#######################
-
-# Android Studio: 2023.1.1 lub nowszy
-# Java: JDK 8+ (projekt kompatybilny z Java 8)
-# Gradle: 8.0.2 (downgrade z 8.13 dla Java 8 compatibility)
-# Android Gradle Plugin: 8.0.2 (downgrade z 8.11.1)
-# Target SDK: 34
-# Min SDK: 24
-
-# UWAGA: Gradle wrapper może wymagać regeneracji przez Android Studio
-# Alternatywnie: Ręczne pobranie gradle-wrapper.jar (8.0.2)

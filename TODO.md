@@ -1,3 +1,22 @@
+# TODO List - SmartHome Multi-Home
+
+## ✅ Ostatnie zmiany (Październik 2025)
+
+### Unifikacja konfiguracji środowiskowej
+- [X] Zunifikowano wszystkie zmienne środowiskowe do pojedynczego `.env` 
+- [X] Utworzono `stack.env` dla Docker Stack deployments
+- [X] Zaktualizowano `docker-compose.yml` i `docker-compose.prod.yml` aby używały `env_file`
+- [X] Naprawiono błąd "Missing DB_HOST" podczas importu w kontenerach
+- [X] Zmieniono `utils/db_manager.py` aby walidacja następowała przy połączeniu, nie przy imporcie
+- [X] Utworzono `DEPLOYMENT.md` z pełną dokumentacją deployment
+- [X] Utworzono `MIGRATION_GUIDE.md` dla migracji ze starego setupu
+- [X] Zaktualizowano `.env.example` jako template
+- [X] Zaktualizowano `.dockerignore` i `.gitignore`
+
+---
+
+## 📋 Zadania do wykonania
+
 1. ** Admin_dashboard**
 
    1. [X] Błąd przy usuwaniu użytkownika na admin_dashboard:
