@@ -61,6 +61,56 @@
             </div>
         </section>
 
+        <!-- Sekcja lokalizacji domu -->
+        <section class="settings-section">
+            <div class="section-header">
+                <h3>📍 Lokalizacja domu</h3>
+                <p class="section-description">Ustaw lokalizację domu w Polsce</p>
+            </div>
+            <div class="section-content">
+                <form id="homeLocationForm" class="settings-form">
+                    <div class="form-group autocomplete-wrapper">
+                        <label for="homeCity">Miasto</label>
+                        <input type="text" id="homeCity" name="city" value="{{ home.city or '' }}" 
+                               class="form-control" autocomplete="off" maxlength="255" 
+                               placeholder="Zacznij pisać nazwę miasta...">
+                        <div id="citySuggestions" class="autocomplete-suggestions"></div>
+                        <small class="form-text">Wybierz miasto z listy, aby automatycznie ustawić współrzędne</small>
+                    </div>
+                    <input type="hidden" id="homeCountry" name="country" value="Poland">
+                    <div class="form-group">
+                        <label for="homeAddress">Adres (opcjonalnie)</label>
+                        <input type="text" id="homeAddress" name="address" value="{{ home.address or '' }}" 
+                               class="form-control" maxlength="500" placeholder="np. ul. Marszałkowska 1, 00-001 Warszawa">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="homeLatitude">Szerokość geograficzna</label>
+                            <input type="text" id="homeLatitude" name="latitude" 
+                                   value="{{ '%.6f'|format(home.latitude) if home.latitude else '' }}" 
+                                   class="form-control" readonly>
+                            <small class="form-text">Ustawiane automatycznie po wyborze miasta</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="homeLongitude">Długość geograficzna</label>
+                            <input type="text" id="homeLongitude" name="longitude" 
+                                   value="{{ '%.6f'|format(home.longitude) if home.longitude else '' }}" 
+                                   class="form-control" readonly>
+                            <small class="form-text">Ustawiane automatycznie po wyborze miasta</small>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="useMyLocationBtn" class="btn-secondary">
+                            📍 Użyj mojej lokalizacji
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            Zapisz lokalizację
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
         <!-- Sekcja zaawansowanych ustawień -->
         <section class="settings-section danger-zone">
             <div class="section-header">

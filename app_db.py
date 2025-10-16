@@ -1118,6 +1118,14 @@ def main():
         server_host = os.getenv('SERVER_HOST', '0.0.0.0')
         server_port = int(os.getenv('SERVER_PORT', 5000))
         
+        # Start background scheduler for periodic tasks
+        try:
+            from utils.background_scheduler import scheduler
+            scheduler.start()
+            print("✅ Background scheduler started (City cache updates: Mondays at 22:00)")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to start background scheduler: {e}")
+        
         # Create and run the application
         smart_home_app = SmartHomeApp()
         # Use configuration from .env file
