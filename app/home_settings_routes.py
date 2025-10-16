@@ -284,31 +284,6 @@ def api_search_cities():
         logger.error(f"Error searching cities: {e}")
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
-@home_settings_bp.route('/api/cities/status', methods=['GET'])
-@login_required
-def api_cities_cache_status():
-    """Get status of cities cache"""
-    try:
-        from utils.city_cache_updater import CityCacheUpdater
-        
-        updater = CityCacheUpdater()
-        status = updater.get_cache_status()
-        
-        if status:
-            return jsonify({
-                "success": True,
-                "status": status
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Cache status not available"
-            }), 404
-    
-    except Exception as e:
-        logger.error(f"Error getting cache status: {e}")
-        return jsonify({"success": False, "error": "Internal server error"}), 500
-
 # API Routes for User Management
 @home_settings_bp.route('/api/home/<home_id>/users', methods=['GET'])
 @login_required
