@@ -8,6 +8,7 @@ werkzeug
 gunicorn
 psycopg2-binary
 Pillow
+schedule
 
 # PostgreSQL Database
 psycopg2-binary==2.9.10

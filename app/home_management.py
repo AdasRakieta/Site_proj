@@ -52,6 +52,43 @@ class HomeInfoManager:
             logger.error(f"Error updating home info: {e}")
             return {"success": False, "error": "Failed to update home information"}
     
+    def update_home_location(self, home_id: str, user_id: str, address: Optional[str] = None, 
+                            latitude: Optional[float] = None, longitude: Optional[float] = None, 
+                            city: Optional[str] = None, country: Optional[str] = None) -> Dict[str, Any]:
+        """Update home location information"""
+        try:
+            # Validate user is owner
+            if not self._is_home_owner(home_id, user_id):
+                return {"success": False, "error": "Only home owners can update location"}
+            
+            # Validate Poland boundaries
+            if latitude is not None and longitude is not None:
+                if not (49.0 <= latitude <= 54.9 and 14.1 <= longitude <= 24.2):
+                    return {"success": False, "error": "Lokalizacja musi być w Polsce"}
+            
+            # Update database
+            success = self.db.update_home_location(home_id, address, latitude, longitude, city, country)
+            
+            if not success:
+                return {"success": False, "error": "Failed to update location in database"}
+            
+            logger.info(f"Home location updated for home {home_id} by user {user_id}")
+            return {
+                "success": True,
+                "message": "Lokalizacja domu została zaktualizowana",
+                "data": {
+                    "address": address,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "city": city,
+                    "country": country
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error updating home location: {e}")
+            return {"success": False, "error": "Failed to update home location"}
+    
     def get_home_info(self, home_id: str, user_id: str) -> Dict[str, Any]:
         """Get home information"""
         try:

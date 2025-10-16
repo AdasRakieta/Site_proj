@@ -1,0 +1,115 @@
+"""
+Load Polish cities from pl.json into the database
+"""
+import os
+import sys
+import json
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.multi_home_db_manager import MultiHomeDBManager
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def load_polish_cities():
+    """Load Polish cities from pl.json file into database"""
+    try:
+        # Read JSON file
+        json_path = os.path.join(os.path.dirname(__file__), 'pl.json')
+        logger.info(f"Reading cities from {json_path}")
+        
+        with open(json_path, 'r', encoding='utf-8') as f:
+            cities_data = json.load(f)
+        
+        logger.info(f"Loaded {len(cities_data)} cities from JSON")
+        
+        # Connect to database
+        db = MultiHomeDBManager()
+        logger.info("Connected to database")
+        
+        # Clear existing data
+        with db.get_cursor() as cursor:
+            cursor.execute("DELETE FROM polish_cities")
+            logger.info("Cleared existing city data")
+        
+        # Insert cities
+        inserted_count = 0
+        skipped_count = 0
+        
+        with db.get_cursor() as cursor:
+            for city_data in cities_data:
+                try:
+                    city_name = city_data.get('city', '').strip()
+                    lat = city_data.get('lat')
+                    lng = city_data.get('lng')
+                    admin_name = city_data.get('admin_name', '').strip()
+                    population = city_data.get('population')
+                    
+                    # Skip if missing critical data
+                    if not city_name or not lat or not lng:
+                        skipped_count += 1
+                        continue
+                    
+                    # Convert to proper types
+                    latitude = float(lat)
+                    longitude = float(lng)
+                    pop = int(population) if population else None
+                    
+                    cursor.execute("""
+                        INSERT INTO polish_cities (city, latitude, longitude, admin_name, population)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (city_name, latitude, longitude, admin_name, pop))
+                    
+                    inserted_count += 1
+                    
+                    if inserted_count % 100 == 0:
+                        logger.info(f"Inserted {inserted_count} cities...")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to insert city {city_data.get('city', 'unknown')}: {e}")
+                    skipped_count += 1
+                    continue
+        
+        logger.info("=" * 60)
+        logger.info(f"✓ Successfully inserted {inserted_count} Polish cities")
+        logger.info(f"✗ Skipped {skipped_count} entries")
+        logger.info("=" * 60)
+        
+        # Show sample cities
+        with db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT city, admin_name, population, latitude, longitude
+                FROM polish_cities
+                ORDER BY population DESC NULLS LAST
+                LIMIT 10
+            """)
+            
+            logger.info("\nTop 10 cities by population:")
+            for row in cursor.fetchall():
+                logger.info(f"  {row[0]:<20} {row[1]:<20} Pop: {row[2]:>10} ({row[3]:.4f}, {row[4]:.4f})")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error loading cities: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+if __name__ == "__main__":
+    logger.info("=" * 60)
+    logger.info("Polish Cities Database Loader")
+    logger.info("=" * 60)
+    success = load_polish_cities()
+    sys.exit(0 if success else 1)

@@ -180,8 +180,137 @@ def api_update_home_info(home_id):
         logger.error(f"Error in API update home info: {e}")
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
+@home_settings_bp.route('/api/home/<home_id>/location/update', methods=['POST'])
+@login_required
+def api_update_home_location(home_id):
+    """Update home location information using HomeInfoManager"""
+    if not home_settings_manager:
+        return jsonify({"success": False, "error": "Home settings manager not available"}), 500
+    
+    user = get_current_user()
+    if not user:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    user_id = user['id']
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        address = data.get('address', '').strip() if data.get('address') else None
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        city = data.get('city', '').strip() if data.get('city') else None
+        country = data.get('country', '').strip() if data.get('country') else None
+        
+        # Convert latitude/longitude to float if provided
+        if latitude is not None:
+            try:
+                latitude = float(latitude)
+            except (ValueError, TypeError):
+                return jsonify({"success": False, "error": "Invalid latitude format"}), 400
+        
+        if longitude is not None:
+            try:
+                longitude = float(longitude)
+            except (ValueError, TypeError):
+                return jsonify({"success": False, "error": "Invalid longitude format"}), 400
+        
+        # Use HomeInfoManager to update location
+        result = home_settings_manager.info_manager.update_home_location(
+            home_id, user_id, address, latitude, longitude, city, country
+        )
+        
+        if result["success"]:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    
+    except Exception as e:
+        logger.error(f"Error in API update home location: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+@home_settings_bp.route('/api/cities/search', methods=['GET'])
+@login_required
+def api_search_cities():
+    """Search for Polish cities from database"""
+    if not multi_db:
+        return jsonify({"success": False, "error": "Database not available"}), 500
+    
+    try:
+        search_term = request.args.get('q', '').strip()
+        limit = min(int(request.args.get('limit', 50)), 200)  # Max 200 results
+        
+        cities = []
+        
+        with multi_db.get_cursor() as cursor:
+            if search_term:
+                # Search by city name
+                cursor.execute("""
+                    SELECT city, latitude, longitude, admin_name, population
+                    FROM polish_cities
+                    WHERE LOWER(city) LIKE LOWER(%s)
+                       OR LOWER(admin_name) LIKE LOWER(%s)
+                    ORDER BY population DESC NULLS LAST, city
+                    LIMIT %s
+                """, (f"{search_term}%", f"{search_term}%", limit))
+            else:
+                # Return largest cities if no search term
+                cursor.execute("""
+                    SELECT city, latitude, longitude, admin_name, population
+                    FROM polish_cities
+                    ORDER BY population DESC NULLS LAST
+                    LIMIT %s
+                """, (limit,))
+            
+            for row in cursor.fetchall():
+                cities.append({
+                    'name': row[0],
+                    'latitude': float(row[1]) if row[1] else None,
+                    'longitude': float(row[2]) if row[2] else None,
+                    'admin_name': row[3],
+                    'population': row[4],
+                    'country': 'Poland',
+                    'country_code': 'PL'
+                })
+        
+        return jsonify({
+            "success": True,
+            "cities": cities,
+            "count": len(cities)
+        })
+    
+    except Exception as e:
+        logger.error(f"Error searching cities: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+@home_settings_bp.route('/api/cities/status', methods=['GET'])
+@login_required
+def api_cities_cache_status():
+    """Get status of cities cache"""
+    try:
+        from utils.city_cache_updater import CityCacheUpdater
+        
+        updater = CityCacheUpdater()
+        status = updater.get_cache_status()
+        
+        if status:
+            return jsonify({
+                "success": True,
+                "status": status
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Cache status not available"
+            }), 404
+    
+    except Exception as e:
+        logger.error(f"Error getting cache status: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
 # API Routes for User Management
-@home_settings_bp.route('/api/home/<home_id>/users/invite', methods=['POST'])
+@home_settings_bp.route('/api/home/<home_id>/users', methods=['GET'])
 @login_required
 def api_invite_user_to_home(home_id):
     """Invite user to home using HomeUserManager"""
