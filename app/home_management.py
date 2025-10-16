@@ -5,6 +5,7 @@ Handles different aspects of home management separately from general app setting
 
 from typing import Dict, List, Optional, Any
 from utils.multi_home_db_manager import MultiHomeDBManager
+from utils.geocoding_service import GeocodingService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,49 +53,144 @@ class HomeInfoManager:
             logger.error(f"Error updating home info: {e}")
             return {"success": False, "error": "Failed to update home information"}
     
-    def update_home_location(self, home_id: str, user_id: str, address: Optional[str] = None, 
-                            latitude: Optional[float] = None, longitude: Optional[float] = None, 
-                            city: Optional[str] = None, country: Optional[str] = None) -> Dict[str, Any]:
-        """Update home location information"""
+    def update_home_location(
+        self, 
+        home_id: str, 
+        user_id: str, 
+        city: Optional[str] = None,
+        street: Optional[str] = None,
+        house_number: Optional[str] = None,
+        apartment_number: Optional[str] = None,
+        postal_code: Optional[str] = None,
+        latitude: Optional[float] = None, 
+        longitude: Optional[float] = None,
+        country: Optional[str] = "Poland",
+        use_geocoding: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Update home location information with detailed address fields
+        
+        Args:
+            home_id: Home ID
+            user_id: User ID making the request
+            city: City name (required)
+            street: Street name (optional)
+            house_number: House number (optional)
+            apartment_number: Apartment number (optional)
+            postal_code: Postal code (optional)
+            latitude: Manual latitude (optional, will use geocoding if not provided)
+            longitude: Manual longitude (optional, will use geocoding if not provided)
+            country: Country (default: Poland)
+            use_geocoding: Whether to use geocoding service for coordinates (default: True)
+        
+        Returns:
+            Dictionary with success status and data
+        """
         try:
             # Validate user is owner
             if not self._is_home_owner(home_id, user_id):
                 return {"success": False, "error": "Only home owners can update location"}
             
-            # Validate Poland boundaries
-            if latitude is not None and longitude is not None:
-                if not (49.0 <= latitude <= 54.9 and 14.1 <= longitude <= 24.2):
+            # Validate required field
+            if not city or not city.strip():
+                return {"success": False, "error": "Miasto jest wymagane"}
+            
+            # Validate postal code format if provided
+            if postal_code and not GeocodingService.validate_polish_postal_code(postal_code):
+                return {"success": False, "error": "Nieprawidłowy format kodu pocztowego (wymagany format: XX-XXX)"}
+            
+            # Use geocoding if coordinates not provided and we have address details
+            final_latitude = latitude
+            final_longitude = longitude
+            geocoding_used = False
+            
+            if use_geocoding and (latitude is None or longitude is None):
+                # Try to geocode the address
+                geocoded = GeocodingService.geocode_address(
+                    city=city.strip(),
+                    street=street.strip() if street else None,
+                    house_number=house_number.strip() if house_number else None,
+                    postal_code=postal_code.strip() if postal_code else None,
+                    country=country if country else "Poland"
+                )
+                
+                if geocoded:
+                    final_latitude = geocoded['latitude']
+                    final_longitude = geocoded['longitude']
+                    geocoding_used = True
+                    logger.info(f"Geocoded address for home {home_id}: ({final_latitude}, {final_longitude})")
+                else:
+                    logger.warning(f"Geocoding failed for home {home_id}, keeping existing or no coordinates")
+            
+            # Validate Poland boundaries if we have coordinates
+            if final_latitude is not None and final_longitude is not None:
+                if not (49.0 <= final_latitude <= 54.9 and 14.1 <= final_longitude <= 24.2):
                     return {"success": False, "error": "Lokalizacja musi być w Polsce"}
             
-            # Update database
-            success = self.db.update_home_location(home_id, address, latitude, longitude, city, country)
+            # Build legacy address field from components for backward compatibility
+            address_parts = []
+            if street:
+                if house_number:
+                    if apartment_number:
+                        address_parts.append(f"{street.strip()} {house_number.strip()}/{apartment_number.strip()}")
+                    else:
+                        address_parts.append(f"{street.strip()} {house_number.strip()}")
+                else:
+                    address_parts.append(street.strip())
+            if postal_code and city:
+                address_parts.append(f"{postal_code.strip()} {city.strip()}")
+            elif city:
+                address_parts.append(city.strip())
+            
+            legacy_address = ", ".join(address_parts) if address_parts else None
+            
+            # Update database with all location fields
+            success = self.db.update_home_location(
+                home_id=home_id,
+                address=legacy_address,
+                latitude=final_latitude,
+                longitude=final_longitude,
+                city=city.strip(),
+                country=country,
+                street=street.strip() if street else None,
+                house_number=house_number.strip() if house_number else None,
+                apartment_number=apartment_number.strip() if apartment_number else None,
+                postal_code=postal_code.strip() if postal_code else None
+            )
             
             if not success:
                 return {"success": False, "error": "Failed to update location in database"}
             
             logger.info(f"Home location updated for home {home_id} by user {user_id}")
+            
+            response_data = {
+                "city": city.strip(),
+                "street": street.strip() if street else None,
+                "house_number": house_number.strip() if house_number else None,
+                "apartment_number": apartment_number.strip() if apartment_number else None,
+                "postal_code": postal_code.strip() if postal_code else None,
+                "latitude": final_latitude,
+                "longitude": final_longitude,
+                "country": country,
+                "address": legacy_address,
+                "geocoding_used": geocoding_used
+            }
+            
             return {
                 "success": True,
                 "message": "Lokalizacja domu została zaktualizowana",
-                "data": {
-                    "address": address,
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "city": city,
-                    "country": country
-                }
+                "data": response_data
             }
             
         except Exception as e:
-            logger.error(f"Error updating home location: {e}")
+            logger.error(f"Error updating home location: {e}", exc_info=True)
             return {"success": False, "error": "Failed to update home location"}
     
     def get_home_info(self, home_id: str, user_id: str) -> Dict[str, Any]:
-        """Get home information"""
+        """Get home information with full details including location"""
         try:
-            # Check if user has access to this home
-            user_homes = self.db.get_user_homes(user_id)
-            home = next((h for h in user_homes if h['id'] == home_id), None)
+            # Use get_home_details to get complete info including location fields
+            home = self.db.get_home_details(home_id, user_id)
             
             if not home:
                 return {"success": False, "error": "Home not found or access denied"}
@@ -105,7 +201,7 @@ class HomeInfoManager:
             }
             
         except Exception as e:
-            logger.error(f"Error getting home info: {e}")
+            logger.error(f"Error getting home info: {e}", exc_info=True)
             return {"success": False, "error": "Failed to get home information"}
     
     def _is_home_owner(self, home_id: str, user_id: str) -> bool:
