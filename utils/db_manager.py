@@ -20,19 +20,19 @@ def _validate_db_config():
         missing.append('DB_NAME')
     if not DB_USER:
         missing.append('DB_USER')
+    if not DB_PASSWORD:
+        missing.append('DB_PASSWORD')
+    
+    if missing:
+        raise ValueError(
+            f"Missing required database environment variables: {', '.join(missing)}. "
+            "Please set them in .env file or as environment variables."
+        )
+
+
 def get_db_connection():
     """Get a database connection. Validates configuration before connecting."""
     _validate_db_config()
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )   )
-
-
-def get_db_connection():
     return psycopg2.connect(
         host=DB_HOST,
         port=DB_PORT,
