@@ -33,7 +33,33 @@ function initHomeSettings() {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    showNotification('Informacje o domu zostały zaktualizowane', 'success');
+                    showNotification('Nazwa domu została pomyślnie zaktualizowana', 'success');
+                    
+                    // Update the header name in settings-header
+                    const headerName = document.querySelector('.settings-header h2');
+                    if (headerName && result.data && result.data.name) {
+                        headerName.textContent = result.data.name;
+                    }
+                    
+                    // Update description if it exists
+                    if (result.data && result.data.description !== undefined) {
+                        const descriptionElement = document.querySelector('.settings-header .home-description');
+                        if (result.data.description) {
+                            if (descriptionElement) {
+                                descriptionElement.textContent = result.data.description;
+                            } else {
+                                // Create description element if it doesn't exist
+                                const headerLeft = document.querySelector('.settings-header .header-left');
+                                const newDescription = document.createElement('p');
+                                newDescription.className = 'home-description';
+                                newDescription.textContent = result.data.description;
+                                headerLeft.insertBefore(newDescription, headerLeft.querySelector('.header-stats'));
+                            }
+                        } else if (descriptionElement) {
+                            // Remove description if it's empty
+                            descriptionElement.remove();
+                        }
+                    }
                 } else {
                     showNotification(result.error || 'Wystąpił błąd podczas aktualizacji', 'error');
                 }
@@ -109,7 +135,7 @@ function confirmDeleteHome(event) {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                showNotification('Dom został usunięty', 'success');
+                showNotification('Dom został pomyślnie usunięty! Przekierowywanie...', 'success');
                 // Redirect to home selection after deletion
                 setTimeout(() => {
                     window.location.href = '/home/select';
@@ -137,7 +163,7 @@ function confirmDeleteHome(event) {
                 const info = result.data;
                 // Show what will be deleted
                 showNotification(
-                    `Usunięcie "${homeName}" usunie: ${info.room_count} pokoi, ${info.device_count} urządzeń, ${info.user_count} użytkowników, ${info.automation_count} automatyzacji. Kliknij ponownie aby potwierdzić.`,
+                    `⚠️ Usunięcie "${homeName}" spowoduje trwałe usunięcie:\n• ${info.room_count} pokoi\n• ${info.device_count} urządzeń\n• ${info.user_count} użytkowników\n• ${info.automation_count} automatyzacji\n\nKliknij ponownie, aby potwierdzić.`,
                     'warning'
                 );
                 
