@@ -118,21 +118,50 @@ class SmartHomeApp {
 
     initMap() {
         if (this.mapInitialized || !document.getElementById('map')) return;
-        const homeCoords = [52.4012124, 16.860299];
-        const gymCoords = [52.39700434367431, 16.859041122186433];
-        const studyCoords = [52.408577733383154, 16.89017620899486];
-        const workCoords = [52.407238, 16.7850388];
+        
+        // Fetch current home location from API
+        fetch('/api/current-home-location')
+            .then(response => response.json())
+            .then(data => {
+                if (data.latitude && data.longitude) {
+                    const homeCoords = [data.latitude, data.longitude];
+                    const homeName = data.name || 'Nasz dom';
+                    const homeCity = data.city || '';
+                    const homeAddress = data.address || '';
+                    
+                    // Initialize map centered on home location
+                    this.map = L.map('map').setView(homeCoords, 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(this.map);
 
+                    // Add single marker for the home
+                    const popupContent = `<b>${homeName}</b>${homeCity ? '<br>' + homeCity : ''}${homeAddress ? '<br>' + homeAddress : ''}`;
+                    L.marker(homeCoords).addTo(this.map).bindPopup(popupContent).openPopup();
+                    
+                    this.mapInitialized = true;
+                } else {
+                    console.error('Home location data missing latitude/longitude');
+                    this.initMapFallback();
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load home location:', error);
+                this.initMapFallback();
+            });
+    }
+
+    initMapFallback() {
+        // Fallback to default location if API fails
+        const homeCoords = [52.4012124, 16.860299]; // Poznań
+        
         this.map = L.map('map').setView(homeCoords, 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(this.map);
 
-        L.marker(homeCoords).addTo(this.map).bindPopup("<b>Nasz dom</b>").openPopup();
-        L.marker(gymCoords).addTo(this.map).bindPopup("<b>Nasza siłka</b>");
-        L.marker(studyCoords).addTo(this.map).bindPopup("<b>Miejsce tortur 1.</b>");
-        L.marker(workCoords).addTo(this.map).bindPopup("<b>Miejsce tortur 2.</b>");
-
+        L.marker(homeCoords).addTo(this.map).bindPopup("<b>Domyślna lokalizacja</b>").openPopup();
+        
         this.mapInitialized = true;
     }
 
@@ -150,6 +179,20 @@ class SmartHomeApp {
         } else {
             mapContainer.style.display = 'none';
             toggleBtn.textContent = 'Pokaż mapę';
+        }
+    }
+
+    resetMap() {
+        // Reset map state and reinitialize with new home location
+        if (this.map) {
+            this.map.remove();
+            this.map = null;
+        }
+        this.mapInitialized = false;
+        
+        const mapContainer = document.getElementById('map-container');
+        if (mapContainer && mapContainer.style.display !== 'none') {
+            this.initMap();
         }
     }
 

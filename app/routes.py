@@ -2346,6 +2346,46 @@ class APIManager(MultiHomeHelpersMixin):
                 return jsonify(weather_data)
             return jsonify({"error": "Nie udało się pobrać danych pogodowych"}), 500
 
+        @self.app.route('/api/current-home-location')
+        @self.auth_manager.login_required
+        def current_home_location():
+            """Return location data for the current home"""
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            if not current_home_id:
+                return jsonify({"error": "Nie wybrano domu"}), 404
+            
+            try:
+                from flask import current_app
+                multi_db = current_app.config.get('MULTI_DB_MANAGER')
+                
+                if multi_db:
+                    with multi_db.get_cursor() as cursor:
+                        cursor.execute("""
+                            SELECT id, name, city, country, latitude, longitude, address
+                            FROM homes
+                            WHERE id = %s
+                        """, (current_home_id,))
+                        home = cursor.fetchone()
+                        
+                        if home:
+                            return jsonify({
+                                "id": str(home[0]),
+                                "name": home[1],
+                                "city": home[2],
+                                "country": home[3],
+                                "latitude": float(home[4]) if home[4] else None,
+                                "longitude": float(home[5]) if home[5] else None,
+                                "address": home[6]
+                            })
+                
+                return jsonify({"error": "Nie znaleziono danych domu"}), 404
+                
+            except Exception as e:
+                print(f"[ERROR] Failed to get home location: {e}")
+                return jsonify({"error": "Błąd serwera"}), 500
+
         @self.app.route('/api/admin', methods=['GET'])
         @self.auth_manager.login_required
         @self.auth_manager.admin_required
