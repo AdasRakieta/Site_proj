@@ -11,7 +11,7 @@ Ten dokument opisuje najszybszą ścieżkę uruchomienia aplikacji wraz z bazą 
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
-3. (Opcjonalnie) Zainstaluj i uruchom Redis, jeśli chcesz korzystać z zewnętrznego cache.
+3. **(Opcjonalnie) Redis** – Jeśli masz już uruchomiony kontener Redis (np. `smarthome_redis_standalone`), aplikacja automatycznie go wykryje. Jeśli Redis nie jest dostępny, aplikacja użyje SimpleCache (in-memory). Zobacz [REDIS_SETUP.md](../REDIS_SETUP.md) dla szczegółów konfiguracji.
 
 ## 2. Konfiguracja pliku `.env`
 Utwórz w katalogu głównym plik `.env` – poniższy przykład można dostosować do własnego środowiska.
@@ -29,11 +29,13 @@ DB_PASSWORD=haslo
 DB_POOL_MIN=2
 DB_POOL_MAX=10
 
-# Cache (opcjonalnie Redis)
-REDIS_URL=redis://localhost:6379/0
-# lub alternatywnie
-# REDIS_HOST=localhost
-# REDIS_PORT=6379
+# Cache (opcjonalnie Redis - połączenie do zewnętrznego kontenera)
+# Jeśli masz uruchomiony kontener Redis, ustaw jego nazwę/adres:
+REDIS_HOST=smarthome_redis_standalone
+REDIS_PORT=6379
+# lub alternatywnie użyj REDIS_URL:
+# REDIS_URL=redis://smarthome_redis_standalone:6379/0
+# Jeśli Redis nie jest dostępny, aplikacja automatycznie użyje SimpleCache
 
 # Ustawienia maila (MailManager)
 SMTP_SERVER=smtp.gmail.com
@@ -84,11 +86,11 @@ Po uruchomieniu zaloguj się kontem administratora utworzonym w skrypcie SQL. W 
 Przydatne endpointy diagnostyczne (wymagają zalogowania jako użytkownik):
 - `GET /api/cache/stats` – statystyki pamięci podręcznej (liczba trafień/missów, typ cache).
 - `GET /api/database/stats` – status połączenia z bazą i konfiguracja puli.
-- `GET /api/ping` lub `/api/status` – proste sprawdzenie, czy serwer działa.
-
 ## 7. Rozwiązywanie problemów
 - **Błąd połączenia z bazą:** sprawdź wartości `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`. W logach konsoli pojawią się komunikaty o ewentualnym przełączeniu na tryb JSON.
-- **Brak Redis:** to nie błąd – aplikacja samoczynnie użyje `SimpleCache` i poinformuje o tym w logach startowych.
+- **Brak Redis:** to nie błąd – aplikacja samoczynnie użyje `SimpleCache` (in-memory cache) i poinformuje o tym w logach startowych. Redis jest opcjonalny. Jeśli chcesz go skonfigurować, zobacz [REDIS_SETUP.md](../REDIS_SETUP.md).
+- **Assets bez minifikacji:** aplikacja serwuje oryginalne pliki, jeśli `.min.css`/`.min.js` nie istnieją.
+- **Maile nie wychodzą:** upewnij się, że dane SMTP w `.env` są poprawne; w logach pojawią się informacje o próbie wysyłki.
 - **Assets bez minifikacji:** aplikacja serwuje oryginalne pliki, jeśli `.min.css`/`.min.js` nie istnieją.
 - **Maile nie wychodzą:** upewnij się, że dane SMTP w `.env` są poprawne; w logach pojawią się informacje o próbie wysyłki.
 

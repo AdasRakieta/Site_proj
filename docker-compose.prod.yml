@@ -27,8 +27,9 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
       
-      # Redis configuration (auto-configured for docker-compose)
-      - REDIS_HOST=${REDIS_HOST:-redis}
+      # Redis configuration (connect to external standalone Redis container)
+      # Set REDIS_HOST to 'smarthome_redis_standalone' or your Redis container name
+      - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
       - REDIS_PORT=${REDIS_PORT:-6379}
       
       # Asset versioning (auto-set by build, can override)
@@ -41,25 +42,10 @@ services:
       - static_uploads:/srv/static/profile_pictures
     ports:
       - "5000:5000"
-    depends_on:
-      redis:
-        condition: service_healthy
     restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: smarthome_redis
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
+    # Connect to external Redis container via Docker network
+    external_links:
+      - smarthome_redis_standalone:redis
 
   nginx:
     image: ghcr.io/adasrakieta/site_proj/smarthome_nginx:${IMAGE_TAG:-latest}
@@ -70,9 +56,7 @@ services:
       - "80:80"
     depends_on:
       - app
-      - redis
     restart: unless-stopped
 
 volumes:
   static_uploads:
-  redis_data:
