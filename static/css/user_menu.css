@@ -214,7 +214,7 @@ header .menu-handle {
     opacity: 0; /* DODANE: ukryj elementy podczas zamykania */
     transform: scale(0.8); /* DODANE: skaluj elementy */
     transition: opacity .2s ease, transform .2s ease; /* DODANE: animacja */
-    overflow: hidden; /* DODANE: ukryj overflow */
+    overflow: visible; /* ZMIANA: visible aby dropdown był widoczny */
 }
 .main-menu .menu-item {
     padding: 12px 25px;
@@ -232,6 +232,12 @@ header .menu-handle {
     cursor: pointer; /* DODANE: wskaźnik kursora */
     border-radius: 8px; /* DODANE: zaokrąglone rogi */
     text-decoration: none; /* DODANE: brak podkreślenia */
+    overflow: visible; /* DODANE: pozwól dropdown na wystawanie */
+}
+
+.main-menu .menu-item.home-selector-item {
+    position: static; /* DODANE: zmień pozycjonowanie dla home selector */
+    overflow: visible; /* WAŻNE: pozwól dropdown wystawać */
 }
 
 .main-menu .menu-item:hover {
@@ -245,6 +251,8 @@ header .menu-handle {
     width: 350px;
     height: 50px; /* DODANE: docelowa wysokość */
     border: 2px solid var(--accent);
+    overflow: visible; /* DODANE: visible aby dropdown był widoczny */
+    z-index: 1000; /* DODANE: wyższy z-index */
     transition: transform .3s ease, 
                 top .65s cubic-bezier(.74,.01,.37,1.55), 
                 width .55s cubic-bezier(.74,.01,.37,1.55) .5s,

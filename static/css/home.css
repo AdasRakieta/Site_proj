@@ -9,6 +9,7 @@
 .home-selector-item {
     position: relative;
     width: 100%;
+    overflow: visible; /* DODANE: pozwól dropdown wystawać poza kontener */
 }
 
 .current-home-display {
@@ -40,22 +41,21 @@
 
 .home-selector-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% 7 7px); /* ZMIANA: dodaj odstęp od przycisku */
     left: 0;
-    right: 0;
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: var(--box_shd);
-    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* ZMIANA: lepszy cień */
+    z-index: 10000; /* ZMIANA: wyższy z-index aby był nad wszystkim */
     display: none;
     max-height: 300px;
     overflow-y: auto;
+    min-width: 250px; /* DODANE: minimalna szerokość */
 }
 
 .home-selector-dropdown.show {
     display: block;
-    width: 250px;
 }
 
 .home-option {
