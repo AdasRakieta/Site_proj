@@ -41,12 +41,11 @@
 
 .home-selector-dropdown {
     position: absolute;
-    top: calc(100% 7 7px); /* ZMIANA: dodaj odstęp od przycisku */
-    left: 0;
+    top: calc(100% - 7px);
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* ZMIANA: lepszy cień */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
     z-index: 10000; /* ZMIANA: wyższy z-index aby był nad wszystkim */
     display: none;
     max-height: 300px;
