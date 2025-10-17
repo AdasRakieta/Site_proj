@@ -15,7 +15,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before any other imports that need them
-load_dotenv()
+# Priority: 1) Environment variables (from Portainer/system), 2) .env file (local development)
+# This allows Portainer to override values without needing .env file in container
+load_dotenv(override=False)  # Don't override existing environment variables
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -1111,10 +1113,11 @@ def create_app():
 def main():
     """Main entry point"""
     try:
-        # Load environment variables
-        load_dotenv()
+        # Environment variables are already loaded at the top of the file
+        # Priority: 1) System environment variables (Portainer GUI)
+        #          2) .env file in project root (local development)
         
-        # Get configuration from .env
+        # Get configuration from environment
         server_host = os.getenv('SERVER_HOST', '0.0.0.0')
         server_port = int(os.getenv('SERVER_PORT', 5000))
         
@@ -1128,7 +1131,7 @@ def main():
         
         # Create and run the application
         smart_home_app = SmartHomeApp()
-        # Use configuration from .env file
+        # Use configuration from environment variables
         smart_home_app.run(host=server_host, port=server_port, debug=False)
         
     except Exception as e:

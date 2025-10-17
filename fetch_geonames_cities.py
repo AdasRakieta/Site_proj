@@ -8,8 +8,9 @@ import logging
 from dotenv import load_dotenv
 import time
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from .env file (fallback to system environment)
+# Priority: 1) System environment variables, 2) .env file
+load_dotenv(override=False)
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
