@@ -8,7 +8,8 @@ __pycache__/
 # Environment files - NEVER commit these (contain passwords!)
 .env
 !.env.example
-# Note: stack.env is committed as a template - update values before deploying!
+# Note: Use .env for both local development and as template for production
+#       In Portainer, set environment variables directly through GUI
 
 # Management logs - ignore in all locations
 management_logs.json

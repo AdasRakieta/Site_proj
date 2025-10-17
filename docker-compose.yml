@@ -3,6 +3,8 @@ services:
   app:
     image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
     container_name: smarthome_app
+    # Load .env file for local development
+    # Note: In production (Portainer), set environment variables directly in GUI
     env_file:
       - .env
     environment:

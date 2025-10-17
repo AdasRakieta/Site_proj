@@ -67,7 +67,8 @@ pip install -r requirements.txt
 
 ### 3. Konfiguracja środowiska
 
-**📋 Szczegółowe instrukcje deployment znajdują się w [DEPLOYMENT.md](DEPLOYMENT.md)**
+**📋 Szczegółowe instrukcje deployment znajdują się w [DEPLOYMENT.md](DEPLOYMENT.md)**  
+**🔧 Kompletny przewodnik konfiguracji: [ENV_CONFIGURATION.md](ENV_CONFIGURATION.md)**
 
 #### Automatyczny setup (Zalecane)
 
@@ -113,18 +114,37 @@ SMTP_PASSWORD=your_app_password
 ADMIN_EMAIL=admin@example.com
 ```
 
+#### Priorytet konfiguracji
+
+Aplikacja ładuje zmienne środowiskowe w następującej kolejności:
+
+1. **Zmienne systemowe** (najwyższy priorytet)
+   - Ustawione w Portainer GUI
+   - Ustawione w Docker Compose `environment:`
+   - Zmienne systemowe w środowisku
+
+2. **Plik `.env`** (fallback)
+   - Używany w lokalnym developmencie
+   - NIE jest kopiowany do kontenerów produkcyjnych
+
+**Dlaczego taki priorytet?**
+- Portainer może nadpisać wartości bez modyfikowania `.env`
+- Lokalny development działa od razu z `.env`
+- Bezpieczeństwo - `.env` nigdy nie trafia do Git
+
 #### Walidacja konfiguracji
 
 Po ustawieniu `.env`, zwaliduj konfigurację:
 
 ```powershell
-python validate_env.py
+python utils/validate_env.py
 ```
 
 > **⚠️ UWAGA BEZPIECZEŃSTWA:** 
 > - Plik `.env` zawiera wrażliwe dane (hasła, tokeny). **NIGDY** nie commituj go do repozytorium! Jest już w `.gitignore`.
-> - Dla deploymentu produkcyjnego użyj `stack.env` (patrz [DEPLOYMENT.md](DEPLOYMENT.md))
+> - W deploymencie produkcyjnym ustaw zmienne w Portainer GUI (patrz [DEPLOYMENT.md](DEPLOYMENT.md))
 > - Zmień wszystkie domyślne hasła przed wdrożeniem!
+> - `.env.example` jest bezpieczny do commita - zawiera tylko placeholdery
 
 ### 4. Przygotowanie bazy danych
 
