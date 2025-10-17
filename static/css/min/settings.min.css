@@ -1,1 +1,156 @@
-.users-table-wrapper{overflow-x:auto;margin:20px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}.users-table{width:100%;border-collapse:collapse;background:var(--background-secondary);border-radius:6px}.users-table thead{background:var(--accent);color:white}.users-table th,.users-table td{padding:12px 15px;text-align:left;border-bottom:1px solid #e0e0e0}.users-table th{font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:.5px}.users-table tbody tr:hover{background-color:#f8f9fa}.users-table tbody tr:last-child td{border-bottom:none}.user-avatar-small{width:40px;height:40px;border-radius:50%;object-fit:cover}.user-avatar-placeholder{width:40px;height:40px;border-radius:50%;background:var(--accent-color,#3498db);color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18px}.user-name{font-weight:500;color:var(--text)}.user-email{color:#7f8c8d;font-size:14px}.user-date{color:#95a5a6;font-size:13px}.text-center{text-align:center}.role-badge{padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;text-transform:uppercase;display:inline-block}.role-sys-admin{background:#e74c3c;color:white}.role-admin{background:#f39c12;color:white}.role-user{background:#3498db;color:white}.users-stats{margin-top:15px;padding:15px;background:#f8f9fa;border-radius:6px;text-align:center}.users-stats strong{color:var(--accent-color,#3498db)}.delete-user-btn{background:#e74c3c;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .3s ease;font-weight:500}.delete-user-btn:hover{background:#c0392b;transform:translateY(-2px);box-shadow:0 4px 8px rgba(231,76,60,0.3)}.delete-user-btn.confirm-state{background:#f39c12;animation:pulse-delete .8s ease-in-out infinite}.delete-user-btn.confirm-state:hover{background:#e67e22;box-shadow:0 4px 8px rgba(243,156,18,0.4)}.delete-user-btn:disabled{background:#95a5a6;cursor:not-allowed;opacity:.6}@keyframes pulse-delete{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+/* Settings Page Styles */
+
+.users-table-wrapper {
+    overflow-x: auto;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--background-secondary);
+    border-radius: 6px;
+}
+
+.users-table thead {
+    background: var(--accent);
+    color: white;
+}
+
+.users-table th,
+.users-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.users-table th {
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.users-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.users-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.user-avatar-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-color, #3498db);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.user-name {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.user-email {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.user-date {
+    color: #95a5a6;
+    font-size: 13px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.role-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.role-sys-admin {
+    background: #e74c3c;
+    color: white;
+}
+
+.role-admin {
+    background: #f39c12;
+    color: white;
+}
+
+.role-user {
+    background: #3498db;
+    color: white;
+}
+
+.users-stats {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.users-stats strong {
+    color: var(--accent-color, #3498db);
+}
+
+.delete-user-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.delete-user-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.delete-user-btn.confirm-state {
+    background: #f39c12;
+    animation: pulse-delete 0.8s ease-in-out infinite;
+}
+
+.delete-user-btn.confirm-state:hover {
+    background: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
+}
+
+.delete-user-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+@keyframes pulse-delete {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
