@@ -5,8 +5,6 @@ services:
     container_name: smarthome_app
     # Load .env file for local development
     # Note: In production (Portainer), set environment variables directly in GUI
-    env_file:
-      - .env
     environment:
       - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
       - SERVER_PORT=${SERVER_PORT:-5000}
