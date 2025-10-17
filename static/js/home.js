@@ -77,9 +77,22 @@ function fetchTemperature() {
 
             if (!stationElement || !temperatureElement) return;
 
-            if (data.stacja && data.temperatura) {
-                stationElement.textContent = `${data.stacja}: `;
-                temperatureElement.textContent = `${data.temperatura} °C`;
+            if (data.stacja && data.temperatura !== undefined) {
+                // Check if weather is from a nearby city (not exact location)
+                if (data.nearest_city && data.distance_km) {
+                    stationElement.textContent = `${data.stacja} (${data.distance_km} km): `;
+                    stationElement.title = `Pogoda z najbliższego miasta - ${data.distance_km} km od domu`;
+                } else {
+                    stationElement.textContent = `${data.stacja}: `;
+                    stationElement.title = '';
+                }
+                
+                // Display temperature with weather description if available
+                let tempText = `${data.temperatura} °C`;
+                if (data.opis) {
+                    tempText += ` (${data.opis})`;
+                }
+                temperatureElement.textContent = tempText;
             } else {
                 stationElement.textContent = 'Brak danych';
                 temperatureElement.textContent = '';

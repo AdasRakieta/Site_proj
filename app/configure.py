@@ -6,6 +6,7 @@ import requests
 import uuid
 import threading
 import time
+from utils.weather_service import WeatherService
 
 
 class SmartHomeSystem:
@@ -208,16 +209,12 @@ class SmartHomeSystem:
         if (datetime.now() - self.last_save_time).total_seconds() >= self.save_interval:
             self.save_config()
 
-    def fetch_weather_data(self):
-        """Pobiera dane pogodowe z API IMGW"""
-        url = "https://danepubliczne.imgw.pl/api/data/synop/id/12330"
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                return response.json()
-        except requests.RequestException:
-            pass
-        return None
+    def fetch_weather_data(self, home_id=None):
+        """
+        Pobiera dane pogodowe z API IMGW (fallback dla systemu JSON)
+        W systemie JSON nie ma wsparcia multi-home, więc zawsze używamy IMGW
+        """
+        return WeatherService.get_weather_imgw_fallback()
     
     def add_user(self, username, password, role='user', email=''):
         """Dodaje nowego użytkownika (login w 'name', klucz to UUID)"""

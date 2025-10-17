@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 # Import the new database manager
 from utils.smart_home_db_manager import SmartHomeDatabaseManager, DatabaseError
+from utils.weather_service import WeatherService
 
 class SmartHomeSystemDB:
     def get_user_by_id(self, user_id: str) -> Optional[Dict]:
@@ -348,21 +349,81 @@ class SmartHomeSystemDB:
         """Check and save configuration (compatibility method)"""
         # In database mode, this is automatic
         self.last_save_time = datetime.now()
-    
     # ========================================================================
-    # WEATHER AND EXTERNAL DATA METHODS (unchanged)
+    # WEATHER AND EXTERNAL DATA METHODS
     # ========================================================================
     
-    def fetch_weather_data(self):
-        """Fetch weather data from API IMGW (unchanged from original)"""
-        url = "https://danepubliczne.imgw.pl/api/data/synop/id/12330"
+    def fetch_weather_data(self, home_id: Optional[str] = None):
+        """
+        Fetch weather data for a specific home location
+        
+        Args:
+            home_id: UUID of the home to fetch weather for. If None, uses legacy IMGW fallback.
+            
+        Returns:
+            Dictionary with weather data or None if failed
+        """
+        import logging
+        from flask import current_app
+        logger = logging.getLogger(__name__)
+        
+        # If no home_id provided, use legacy IMGW fallback
+        if not home_id:
+            logger.info("No home_id provided, using IMGW fallback (Kraków)")
+            return WeatherService.get_weather_imgw_fallback()
+        
+        # Get multi_db from Flask app config
+        multi_db = None
         try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                return response.json()
-        except requests.RequestException:
-            pass
-        return None
+            multi_db = current_app.config.get('MULTI_DB_MANAGER')
+        except RuntimeError:
+            # No app context - try to get from self if available
+            logger.warning("No Flask app context, cannot access multi_db")
+        
+        if not multi_db:
+            logger.warning("Multi-home database not available, using IMGW fallback")
+            return WeatherService.get_weather_imgw_fallback()
+        
+        try:
+            with multi_db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        id, name, city, country, country_code,
+                        latitude, longitude, address
+                    FROM homes
+                    WHERE id = %s
+                """, (home_id,))
+                
+                result = cursor.fetchone()
+                
+                if not result:
+                    logger.warning(f"Home {home_id} not found in database, using IMGW fallback")
+                    return WeatherService.get_weather_imgw_fallback()
+                
+                # Build home_data dict from query result
+                home_data = {
+                    'id': result[0],
+                    'name': result[1],
+                    'city': result[2],
+                    'country': result[3],
+                    'country_code': result[4],
+                    'latitude': float(result[5]) if result[5] is not None else None,
+                    'longitude': float(result[6]) if result[6] is not None else None,
+                    'address': result[7]
+                }
+                
+                logger.info(f"Fetching weather for home: {home_data.get('name', 'Unknown')} "
+                           f"in {home_data.get('city', 'Unknown')} "
+                           f"({home_data.get('latitude')}, {home_data.get('longitude')})")
+                
+                # Use the new weather service to get weather for the home
+                return WeatherService.get_weather_for_home(home_data, multi_db)
+                
+        except Exception as e:
+            logger.error(f"Error fetching home data for weather: {e}")
+            import traceback
+            traceback.print_exc()
+            return WeatherService.get_weather_imgw_fallback()
     
     # ========================================================================
     # MIGRATION HELPER METHODS

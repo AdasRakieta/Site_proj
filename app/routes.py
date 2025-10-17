@@ -2336,7 +2336,12 @@ class APIManager(MultiHomeHelpersMixin):
         @self.app.route('/weather')
         @self.auth_manager.login_required
         def weather():
-            weather_data = self.smart_home.fetch_weather_data()
+            user_id = session.get('user_id')
+            current_home_id = session.get('current_home_id')
+            
+            # Get weather data for the current home
+            weather_data = self.smart_home.fetch_weather_data(home_id=current_home_id)
+            
             if weather_data:
                 return jsonify(weather_data)
             return jsonify({"error": "Nie udało się pobrać danych pogodowych"}), 500
