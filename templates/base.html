@@ -41,7 +41,7 @@
             </div>
             <div class="main-menu" id="user-main-menu">
                 <div class="menu-wrap">
-                    <a href="/user" class="menu-item">
+                    <a href="/user" class="menu-item" style="margin-right: -15px;">
                         <img class="user-menu-icon" id="user-menu-user-icon" src="{{ url_for('static', filename='icons/user_icon_light.png') }}" alt="Profil">
                     </a>
                     {% if multi_home_enabled and user_homes %}
@@ -69,7 +69,7 @@
                         </div>
                     </div>
                     {% endif %}
-                    <a href="/settings" class="menu-item">
+                    <a href="/settings" class="menu-item" style="margin-right: 15px;">
                         <img class="user-menu-icon" id="user-menu-settings-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Ustawienia">
                     </a>
                         <a href="/logout" class="menu-item" style="margin-left: -30px;">
