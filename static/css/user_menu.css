@@ -273,7 +273,6 @@ header .menu-handle {
 }
 
 .main-menu.active .menu-item:hover {
-    transform: scale(1.05); /* DODANE: powiększenie przy hover w stanie active */
     background: rgba(255, 255, 255, 0.15); /* DODANE: jaśniejszy hover w stanie active */
 }
 
