@@ -15,6 +15,7 @@
     --btn_text: var(--text);
     --border: #DDE6ED;
     --box_shd: 0 3px 5px hsla(0, 0%, 0%, 0.226);
+    --box_shd-sug: 0 3px 5px hsla(0, 0%, 0%, 0.226);
     --log_txt: #DDE6ED;
     --log_background: #78a6c9;
     --log_usr: #050315;
@@ -71,6 +72,7 @@
     --btn_text: var(--text);
     --border: #222831;
     --box_shd: 0 2px 5px hsla(0, 0%, 75%, 0.26);
+    --box_shd-sug: 0 2px 5px hsla(0, 0%, 75%, 0.26);
     --log_txt: #DDE6ED;
     --log_background: #565b74;
     --log_usr: #050315;
