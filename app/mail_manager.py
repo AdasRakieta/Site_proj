@@ -527,38 +527,47 @@ class MailManager:
                 print("[BUG_REPORT] ADMIN_EMAIL nie jest skonfigurowany w .env")
                 return False
 
+            # HTML-escape all user inputs to prevent XSS
+            import html
+            bug_title_escaped = html.escape(bug_title)
+            bug_description_escaped = html.escape(bug_description)
+            reporter_name_escaped = html.escape(reporter_name)
+            reporter_email_escaped = html.escape(reporter_email)
+            url_escaped = html.escape(url) if url else ''
+            user_agent_escaped = html.escape(user_agent) if user_agent else ''
+
             message = MIMEMultipart()
             message['From'] = self.config['sender_email'] or ""
             message['To'] = admin_email
-            message['Subject'] = f'🐛 SmartHome - Zgłoszenie błędu: {bug_title}'
+            message['Subject'] = f'🐛 SmartHome - Zgłoszenie błędu: {bug_title_escaped}'
             message['Reply-To'] = reporter_email
 
-            html = f"""
+            html_body = f"""
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
                 <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <h2 style="color: #e74c3c; text-align: center; margin-bottom: 30px;">🐛 Nowe zgłoszenie błędu</h2>
                     
                     <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #f39c12; margin-bottom: 20px;">
                         <h3 style="margin: 0 0 10px 0; color: #856404;">Tytuł zgłoszenia</h3>
-                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">{bug_title}</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">{bug_title_escaped}</p>
                     </div>
 
                     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
                         <h3 style="color: #2c3e50; margin-top: 0;">Opis problemu</h3>
-                        <p style="color: #333; line-height: 1.6; white-space: pre-wrap;">{bug_description}</p>
+                        <p style="color: #333; line-height: 1.6; white-space: pre-wrap;">{bug_description_escaped}</p>
                     </div>
 
                     <div style="background-color: #e8f4f8; padding: 15px; border-left: 4px solid #3498db; margin-bottom: 20px;">
                         <h3 style="color: #2c3e50; margin-top: 0;">Informacje o zgłaszającym</h3>
-                        <p style="margin: 5px 0; color: #555;"><strong>Imię:</strong> {reporter_name}</p>
-                        <p style="margin: 5px 0; color: #555;"><strong>Email:</strong> <a href="mailto:{reporter_email}" style="color: #3498db;">{reporter_email}</a></p>
+                        <p style="margin: 5px 0; color: #555;"><strong>Imię:</strong> {reporter_name_escaped}</p>
+                        <p style="margin: 5px 0; color: #555;"><strong>Email:</strong> <a href="mailto:{reporter_email_escaped}" style="color: #3498db;">{reporter_email_escaped}</a></p>
                     </div>
 
                     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
                         <h3 style="color: #2c3e50; margin-top: 0;">Szczegóły techniczne</h3>
                         <p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>Data zgłoszenia:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>URL:</strong> {url}</p>' if url else ''}
-                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>Przeglądarka:</strong> {user_agent}</p>' if user_agent else ''}
+                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>URL:</strong> {url_escaped}</p>' if url else ''}
+                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>Przeglądarka:</strong> {user_agent_escaped}</p>' if user_agent else ''}
                     </div>
 
                     <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
@@ -570,7 +579,7 @@ class MailManager:
             </div>
             """
 
-            message.attach(MIMEText(html, 'html'))
+            message.attach(MIMEText(html_body, 'html'))
 
             with smtplib.SMTP(smtp['server'], smtp['port']) as server:
                 server.ehlo()

@@ -9,6 +9,7 @@ import time
 import uuid
 import json
 import logging
+import requests
 from decimal import Decimal
 from utils.allowed_file import allowed_file
 from datetime import datetime, timezone
@@ -4825,8 +4826,6 @@ class APIManager(MultiHomeHelpersMixin):
                 
                 if github_token:
                     try:
-                        import requests
-                        
                         # Przygotuj treść issue
                         issue_body = f"""**Zgłoszone przez:** {reporter_name}
 **Email:** {reporter_email}
@@ -4848,7 +4847,7 @@ class APIManager(MultiHomeHelpersMixin):
                         # API GitHub do tworzenia issues
                         github_api_url = f"https://api.github.com/repos/{github_repo_owner}/{github_repo_name}/issues"
                         headers = {
-                            'Authorization': f'token {github_token}',
+                            'Authorization': f'Bearer {github_token}',
                             'Accept': 'application/vnd.github.v3+json'
                         }
                         payload = {

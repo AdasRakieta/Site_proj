@@ -362,10 +362,25 @@
                       message += ' Issue utworzone na GitHubie.';
                   }
                   
+                  // Use DOM manipulation instead of innerHTML to prevent XSS
+                  const statusDiv = document.getElementById('bug-report-status');
+                  statusDiv.textContent = message;
+                  
                   if (data.github_issue_url) {
-                      message += ` <a href="${data.github_issue_url}" target="_blank" style="color: #3498db; text-decoration: underline;">Zobacz issue</a>`;
+                      const link = document.createElement('a');
+                      link.href = data.github_issue_url;
+                      link.target = '_blank';
+                      link.rel = 'noopener noreferrer';
+                      link.style.color = '#3498db';
+                      link.style.textDecoration = 'underline';
+                      link.style.marginLeft = '5px';
+                      link.textContent = 'Zobacz issue';
+                      statusDiv.appendChild(document.createTextNode(' '));
+                      statusDiv.appendChild(link);
                   }
                   
+                  statusDiv.className = 'status-message status-success';
+                  statusDiv.style.display = 'block';
                   showBugReportStatus(message, 'success');
                   
                   // Clear form
