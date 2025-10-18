@@ -118,17 +118,16 @@ def home_select():
                 home['device_count'] = 0
                 home['user_count'] = 1
         
-        # Get user's global role for UI protection
-        user_global_role = user.get('role', 'user')
-        
-        # Get full user data including profile picture
+        # Get full user data including global role and profile picture
         user_data = db_manager.get_user_by_id(user_id)
+        # Derive global role reliably from DB
+        user_global_role = (user_data.get('role') if user_data else None) or 'user'
         if not user_data:
             user_data = {
                 'id': user_id,
                 'name': user_id,
                 'email': '',
-                'role': 'user',
+                'role': user_global_role,
                 'profile_picture': ''
             }
         
