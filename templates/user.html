@@ -74,6 +74,16 @@
                 <span class="char-count">0 / 2000</span>
             </div>
             
+            <div class="form-group">
+                <label for="bug-attachment">Załącznik (obraz/gif, max 5 MB)</label>
+                <div id="attachment-dropzone" class="attachment-dropzone">
+                    <input type="file" id="bug-attachment" name="attachment" accept="image/*,.gif" style="display:none;">
+                    <button type="button" id="attachment-btn" class="attachment-btn">Dodaj załącznik</button>
+                    <span class="attachment-info">Możesz przeciągnąć plik lub wkleić obraz/gif z schowka.</span>
+                    <div id="attachment-preview" class="attachment-preview" style="display:none;"></div>
+                </div>
+            </div>
+            
             <div class="form-info">
                 <p>ℹ️ Twoje zgłoszenie zostanie wysłane mailem do administratora systemu oraz utworzone jako issue w projekcie na GitHubie (jeśli skonfigurowano).</p>
             </div>
@@ -112,93 +122,121 @@
       });
   }
 
+  // Załącznik: obsługa przycisku, drag&drop, paste
+  const attachmentInput = document.getElementById('bug-attachment');
+  const attachmentBtn = document.getElementById('attachment-btn');
+  const dropzone = document.getElementById('attachment-dropzone');
+  const preview = document.getElementById('attachment-preview');
+  let attachmentFile = null;
+
+  attachmentBtn.addEventListener('click', () => attachmentInput.click());
+
+  attachmentInput.addEventListener('change', (e) => {
+      handleAttachment(e.target.files[0]);
+  });
+
+  dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+  });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleAttachment(e.dataTransfer.files[0]);
+      }
+  });
+
+  dropzone.addEventListener('paste', (e) => {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file') {
+              const file = items[i].getAsFile();
+              handleAttachment(file);
+              break;
+          }
+      }
+  });
+
+  function handleAttachment(file) {
+      if (!file) return;
+      if (!file.type.match(/^image\/(jpeg|png|gif|bmp|webp)$/) && !file.type.match(/^image\//)) {
+          if (window.showNotification) window.showNotification('Nieobsługiwany format pliku!', 'error');
+          return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+          if (window.showNotification) window.showNotification('Załącznik przekracza 5 MB!', 'error');
+          return;
+      }
+      attachmentFile = file;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+          preview.innerHTML = `<img src="${e.target.result}" alt="Podgląd załącznika" style="max-width:120px;max-height:120px;border-radius:8px;box-shadow:0 2px 8px #aaa;">`;
+          preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+  }
+
   // Form submission
   if (bugReportForm) {
       bugReportForm.addEventListener('submit', function(e) {
           e.preventDefault();
-          
           const title = document.getElementById('bug-title').value.trim();
           const description = document.getElementById('bug-description').value.trim();
-          
           if (!title || !description) {
               showBugReportStatus('Wypełnij wszystkie wymagane pola', 'error');
               return;
           }
-          
-          // Disable button and show loading state
           bugSubmitBtn.disabled = true;
           const btnText = bugSubmitBtn.querySelector('.btn-text');
           const originalText = btnText.textContent;
           btnText.textContent = 'Wysyłanie...';
           bugSubmitBtn.style.opacity = '0.6';
-          
-          // Send request
+          // Przygotuj FormData
+          const formData = new FormData();
+          formData.append('title', title);
+          formData.append('description', description);
+          if (attachmentFile) formData.append('attachment', attachmentFile);
           fetch('/api/bug-report', {
               method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                  title: title,
-                  description: description
-              })
+              body: formData
           })
           .then(response => response.json())
           .then(data => {
               bugSubmitBtn.disabled = false;
               btnText.textContent = originalText;
               bugSubmitBtn.style.opacity = '1';
-              
               if (data.success) {
-                  const statusDiv = document.getElementById('bug-report-status');
                   statusDiv.textContent = '✓ Zgłoszenie wysłane pomyślnie!';
-                  
-                  if (data.email_sent && data.github_issue_created) {
-                      statusDiv.textContent += ' Email wysłany i issue utworzone na GitHubie.';
-                  } else if (data.email_sent) {
-                      statusDiv.textContent += ' Email wysłany do administratora.';
-                  } else if (data.github_issue_created) {
-                      statusDiv.textContent += ' Issue utworzone na GitHubie.';
-                  }
-                  
-                  if (data.github_issue_url) {
-                      const link = document.createElement('a');
-                      link.href = data.github_issue_url;
-                      link.target = '_blank';
-                      link.rel = 'noopener noreferrer';
-                      link.style.color = '#3498db';
-                      link.style.textDecoration = 'underline';
-                      link.style.marginLeft = '5px';
-                      link.textContent = 'Zobacz issue';
-                      statusDiv.appendChild(document.createTextNode(' '));
-                      statusDiv.appendChild(link);
-                  }
-                  
                   statusDiv.className = 'status-message status-success';
                   statusDiv.style.display = 'block';
-                  
-                  // Clear form
                   bugReportForm.reset();
+                  preview.style.display = 'none';
+                  attachmentFile = null;
                   if (charCount) {
                       charCount.textContent = '0 / 2000';
                       charCount.style.color = '#7f8c8d';
                   }
-                  
-                  // Show simple alert notification
-                  alert('✓ Zgłoszenie wysłane pomyślnie!');
+                  if (window.showNotification) {
+                      window.showNotification('✓ Zgłoszenie wysłane pomyślnie!', 'success');
+                  }
               } else {
                   showBugReportStatus(data.error || 'Nie udało się wysłać zgłoszenia', 'error');
-                  alert('✗ Błąd wysyłania zgłoszenia');
+                  if (window.showNotification) {
+                      window.showNotification('✗ Błąd wysyłania zgłoszenia', 'error');
+                  }
               }
           })
           .catch(error => {
               bugSubmitBtn.disabled = false;
               btnText.textContent = originalText;
               bugSubmitBtn.style.opacity = '1';
-              
               console.error('Error:', error);
               showBugReportStatus('Błąd połączenia z serwerem', 'error');
-              alert('✗ Błąd połączenia z serwerem');
+              if (window.showNotification) {
+                  window.showNotification('✗ Błąd połączenia z serwerem', 'error');
+              }
           });
       });
   }

@@ -241,3 +241,50 @@
     text-decoration: underline;
     font-weight: 600;
 }
+
+.attachment-dropzone {
+    border: 2px dashed var(--accent-color, #3498db);
+    border-radius: 8px;
+    padding: 1rem;
+    background: var(--background-secondary, #f8f8f8);
+    text-align: center;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: border-color 0.2s;
+}
+.attachment-dropzone.dragover {
+    border-color: #4CAF50;
+    background: #eafaf1;
+}
+.attachment-btn {
+    background: var(--btn-primary, #9DB2BF);
+    color: var(--btn_text, #fff);
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    box-shadow: var(--box_shd);
+    transition: background 0.2s, transform 0.2s;
+}
+.attachment-btn:hover {
+    background: var(--btn-primary-hover, #b6cedf);
+    transform: scale(1.05);
+}
+.attachment-info {
+    display: block;
+    color: #7f8c8d;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+.attachment-preview {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+.attachment-preview img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px #aaa;
+}

@@ -4784,16 +4784,33 @@ class APIManager(MultiHomeHelpersMixin):
         def submit_bug_report():
             """Endpoint do zgłaszania błędów - wysyła email i opcjonalnie tworzy issue na GitHubie"""
             try:
-                data = request.get_json()
-                if not data:
-                    return jsonify({"success": False, "error": "Brak danych"}), 400
-                
-                title = data.get('title', '').strip()
-                description = data.get('description', '').strip()
-                
+                # Obsługa multipart/form-data lub application/json
+                attachment_url = None
+                if request.content_type and request.content_type.startswith('multipart/form-data'):
+                    title = request.form.get('title', '').strip()
+                    description = request.form.get('description', '').strip()
+                    attachment = request.files.get('attachment')
+                    # Zapisz załącznik do katalogu publicznego jeśli istnieje
+                    if attachment and allowed_file(attachment.filename):
+                        import uuid
+                        ext = attachment.filename.rsplit('.', 1)[-1].lower()
+                        filename = f"bug_{uuid.uuid4().hex}.{ext}"
+                        save_dir = os.path.join('static', 'bug_attachments')
+                        os.makedirs(save_dir, exist_ok=True)
+                        save_path = os.path.join(save_dir, filename)
+                        attachment.save(save_path)
+                        # Generuj publiczny URL
+                        attachment_url = f"/static/bug_attachments/{filename}"
+                elif request.content_type and request.content_type.startswith('application/json'):
+                    data = request.get_json(force=True)
+                    title = data.get('title', '').strip()
+                    description = data.get('description', '').strip()
+                    attachment = None
+                    attachment_url = None
+                else:
+                    return jsonify({"success": False, "error": "Nieobsługiwany typ żądania."}), 415
                 if not title or not description:
                     return jsonify({"success": False, "error": "Tytuł i opis są wymagane"}), 400
-                
                 # Pobierz dane użytkownika
                 user_id = session.get('user_id')
                 user_data = None
@@ -5280,54 +5297,8 @@ class APIManager(MultiHomeHelpersMixin):
                     return jsonify({"success": False, "error": "Email is required"}), 400
 
                 # Validate email format
-                import re
-                email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-                if not re.match(email_pattern, email):
                     return jsonify({"success": False, "error": "Invalid email format"}), 400
 
-                # Create invitation
-                invitation_code = self.multi_db.create_invitation(
-                    home_id=home_id,
-                    email=email,
-                    role=role,
-                    invited_by=session.get('user_id')
-                )
-
-                # Get invitation details to check if user exists
-                invitation_details = self.multi_db.get_invitation(invitation_code)
-                user_exists = invitation_details.get('existing_user_id') is not None
-                existing_username = invitation_details.get('existing_username')
-
-                # Get home and inviter details for email
-                home = self.multi_db.get_home_details(home_id, session.get('user_id'))
-                user_data = self.multi_db.get_user_data(session.get('user_id'))
-
-                # Send invitation email
-                base_url = request.url_root.rstrip('/')
-                self.mail_manager.send_invitation_email(
-                    email=email,
-                    invitation_code=invitation_code,
-                    home_name=home.get('name', 'Unknown'),
-                    inviter_name=user_data.get('name', 'Unknown'),
-                    role=role,
-                    base_url=base_url
-                )
-
-                # Log the action
-                if hasattr(self.management_logger, 'log_event'):
-                    log_message = f'Wysłano zaproszenie do {email} (rola: {role})'
-                    if user_exists:
-                        log_message += f' - użytkownik {existing_username} już istnieje w systemie'
-                    
-                    self.management_logger.log_event(
-                        level='info',
-                        message=log_message,
-                        event_type='invitation_sent',
-                        user=user_data.get('name', 'Unknown'),
-                        ip_address=request.environ.get('REMOTE_ADDR', ''),
-                        details={'email': email, 'role': role, 'code': invitation_code, 'user_exists': user_exists},
-                        home_id=home_id
-                    )
 
                 response_message = "Zaproszenie zostało wysłane"
                 if user_exists:
@@ -5678,9 +5649,6 @@ class SocketManager:
             state = data.get('state')
             if button_name and room and isinstance(state, bool):
                 button = next((b for b in self.smart_home.buttons if b['name'] == button_name and b['room'].lower() == room.lower()), None)
-                if button:
-                    button['state'] = state
-                    self.socketio.emit('update_button', {'room': room, 'name': button_name, 'state': state})
                     self.socketio.emit('sync_button_states', {f"{b['room']}_{b['name']}": b['state'] for b in self.smart_home.buttons})
                     
                     # Log button state change
@@ -5688,14 +5656,12 @@ class SocketManager:
                     log_btn = getattr(self.management_logger, 'log_button_change', None)
                     if callable(log_btn):
                         log_btn(
-                        username=session.get('username', 'unknown'),
                         room=room,
                         button_name=button_name,
                         new_state=state,
-                        ip_address=getattr(request, 'remote_addr', 'unknown')
-                    )
-                    
-                    # Zapisz konfigurację z obsługą błędów
+                    try:
+                        # Przygotuj treść issue
+                        issue_body = f"""**Zgłoszone przez:** {reporter_name}
                     if not self.smart_home.save_config():
                         print(f"[ERROR] Nie udało się zapisać stanu przycisku {room}_{button_name}")
                         # Wyślij powiadomienie o błędzie do klienta
@@ -5703,6 +5669,14 @@ class SocketManager:
                             'message': f'Nie udało się zapisać stanu przycisku {button_name}',
                             'type': 'warning'
                         })
+                        # Dodaj załącznik jeśli istnieje
+                        if attachment_url:
+                            issue_body += f"\n---\n\n**Załącznik:**\n\n![Załącznik]({attachment_url})\n"
+                        issue_body += "\n---\n\n### Szczegóły techniczne\n"
+                        if url:
+                            issue_body += f"- **URL:** {url}\n"
+                        if user_agent:
+                            issue_body += f"- **Przeglądarka:** {user_agent}\n"
                     else:
                         print(f"[AUTOMATION] Wywołanie check_device_triggers dla {room}_{button_name} => {state}")
                         # check_device_triggers function is not available, skipping automation trigger
