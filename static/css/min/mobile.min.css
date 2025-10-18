@@ -214,14 +214,14 @@
     gap: 20px !important;
 }
 
-.kanban-edit-btn {
-    font-size: 1.5em !important;
-    align-self: center !important;
+    .kanban-edit-btn {
+        font-size: 1.5em !important;
+        align-self: center !important;
+    }
 
-}
-.edit-room-button {
-    font-size: 1.5em !important;;
-}
+    .edit-room-button {
+        font-size: 1.5em !important;
+    }
 
     /* ============================== */
     /* Admin Dashboard Mobile Styles */
