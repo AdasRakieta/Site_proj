@@ -14,7 +14,7 @@
     <div class="profile-section">
         <div class="profile-picture-section">
             <div class="profile-picture-container">
-                <img id="profilePicture" src="{{ user_data.profile_picture if user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Zdjęcie profilowe">
+                <img id="profilePicture" src="{{ user_data.profile_picture if user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Zdjęcie profilowe" onerror="this.onerror=null; this.src='{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}'">
             </div>
             <div class="profile-picture-upload">
                 <label for="profilePictureInput" class="upload-btn">Zmień zdjęcie</label>

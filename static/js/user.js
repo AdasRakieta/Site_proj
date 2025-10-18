@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const avatarImg = document.querySelector('#user-avatar-dropdown .user-avatar');
         if (avatarImg && profile_picture) {
             avatarImg.src = profile_picture;
+            avatarImg.onerror = function() {
+                this.onerror = null;
+                this.src = '/static/profile_pictures/podstawowe.jpg';
+            };
         }
         // Zaktualizuj nazwę i rolę w dropdownie
         const menuUsername = document.querySelector('#user-menu .user-menu-username');
@@ -39,7 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('userName').value = data.name;
                 }
                 if (document.getElementById('profilePicture')) {
-                    document.getElementById('profilePicture').src = data.profile_picture;
+                    const profilePic = document.getElementById('profilePicture');
+                    profilePic.src = data.profile_picture;
+                    profilePic.onerror = function() {
+                        this.onerror = null;
+                        this.src = '/static/profile_pictures/podstawowe.jpg';
+                    };
                 }
             }
         } catch (e) { /* ignore */ }

@@ -119,15 +119,19 @@
     position: fixed !important;
     top: 0.75rem !important;
     right: 0.75rem !important;
-    width: 40px !important;
-    height: 40px !important;
+    width: 48px !important;
+    height: 48px !important;
     z-index: 10001 !important; /* Zapewnia, że menu będzie nad dropdown */
     }
     
     .user-avatar {
+    width: 44px !important;
+    height: 44px !important;
     display: block !important;
     object-fit: cover !important;
     border-radius: 50% !important;
+    border: 2px solid #ccc !important;
+    background: #fff !important;
     }
     
     .user-menu-icon {

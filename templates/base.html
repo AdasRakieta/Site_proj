@@ -37,7 +37,7 @@
 
             {% if request.endpoint != 'login' and request.endpoint != 'register' and request.endpoint != 'forgot_password' %}
             <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
-                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar">
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" onerror="this.onerror=null; this.src='{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}'">
             </div>
             <div class="main-menu" id="user-main-menu">
                 <div class="menu-wrap">
