@@ -4824,7 +4824,8 @@ class APIManager(MultiHomeHelpersMixin):
                         bug_title=title,
                         bug_description=description,
                         user_agent=user_agent,
-                        url=url
+                        url=url,
+                        attachment=attachment
                     )
                 
                 # Opcjonalnie utwórz issue na GitHubie

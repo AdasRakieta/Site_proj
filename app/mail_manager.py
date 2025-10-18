@@ -510,7 +510,7 @@ class MailManager:
 
     def send_bug_report_email(self, reporter_email: str, reporter_name: str, 
                              bug_title: str, bug_description: str, 
-                             user_agent: str = "", url: str = ""):
+                             user_agent: str = "", url: str = "", attachment=None):
         """Wysyła email z raportem błędu do administratora systemu"""
         try:
             # Sprawdź czy mamy pełną konfigurację SMTP
@@ -582,6 +582,19 @@ class MailManager:
             """
 
             message.attach(MIMEText(html_body, 'html'))
+            # Dodaj załącznik jeśli jest obecny
+            if attachment:
+                from email.mime.base import MIMEBase
+                from email import encoders
+                filename = getattr(attachment, 'filename', 'zalacznik')
+                file_data = attachment.read()
+                maintype = attachment.mimetype.split('/')[0] if hasattr(attachment, 'mimetype') else 'application'
+                subtype = attachment.mimetype.split('/')[1] if hasattr(attachment, 'mimetype') else 'octet-stream'
+                part = MIMEBase(maintype, subtype)
+                part.set_payload(file_data)
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                message.attach(part)
 
             with smtplib.SMTP(smtp['server'], smtp['port']) as server:
                 server.ehlo()

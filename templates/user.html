@@ -208,9 +208,9 @@
               btnText.textContent = originalText;
               bugSubmitBtn.style.opacity = '1';
               if (data.success) {
-                  statusDiv.textContent = '✓ Zgłoszenie wysłane pomyślnie!';
-                  statusDiv.className = 'status-message status-success';
-                  statusDiv.style.display = 'block';
+                  bugReportStatus.textContent = '✓ Zgłoszenie wysłane pomyślnie!';
+                  bugReportStatus.className = 'status-message status-success';
+                  bugReportStatus.style.display = 'block';
                   bugReportForm.reset();
                   preview.style.display = 'none';
                   attachmentFile = null;
@@ -222,7 +222,9 @@
                       window.showNotification('✓ Zgłoszenie wysłane pomyślnie!', 'success');
                   }
               } else {
-                  showBugReportStatus(data.error || 'Nie udało się wysłać zgłoszenia', 'error');
+                  bugReportStatus.textContent = data.error || 'Nie udało się wysłać zgłoszenia';
+                  bugReportStatus.className = 'status-message status-error';
+                  bugReportStatus.style.display = 'block';
                   if (window.showNotification) {
                       window.showNotification('✗ Błąd wysyłania zgłoszenia', 'error');
                   }
