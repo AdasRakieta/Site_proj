@@ -7,6 +7,9 @@
     padding: 20px;
     max-width: 1200px;
     margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* Dashboard grid layout */
@@ -24,7 +27,9 @@
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-     margin-bottom: 20px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    width: 100%;
 }
 .dashboard-card h3 {
     margin-top: 0;

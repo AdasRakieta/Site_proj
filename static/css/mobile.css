@@ -3,6 +3,22 @@
 /* ============================== */
 
 @media (max-width: 768px) {
+    /* Viewport boxing - prevent horizontal scroll on mobile */
+    html, body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+    
+    * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
     /* Z pliku style.css */
     .side-menu {
         width: 200px !important;
@@ -260,13 +276,25 @@
 }
 
 @media (max-width: 480px) {
+    /* Viewport boxing - ensure content stays within device width */
+    html, body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+    
+    * {
+        max-width: 100% !important;
+    }
+    
     /* Admin Dashboard - Extra small devices */
     .dashboard-container {
         padding: 10px !important;
+        max-width: 100vw !important;
     }
     
     .dashboard-card {
         padding: 15px !important;
+        max-width: 100% !important;
     }
     
     .user-form {
