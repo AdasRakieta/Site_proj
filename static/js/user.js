@@ -1,13 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('userProfileForm');
     const profilePictureInput = document.getElementById('profilePictureInput');
+    
+    // Default profile picture for fallback
+    const DEFAULT_PROFILE_PICTURE = '/static/profile_pictures/podstawowe.jpg';
 
     // Aktualizuj dane w menu użytkownika i avatarze po zmianie profilu lub zdjęcia
     function updateUserMenu({ name, profile_picture, role }) {
-        // Zaktualizuj avatar w menu
-        const avatarImg = document.querySelector('#user-avatar-dropdown .user-avatar');
+        // Zaktualizuj avatar w menu (prawy górny róg)
+        const avatarImg = document.querySelector('#user-menu-handle .user-avatar');
         if (avatarImg && profile_picture) {
             avatarImg.src = profile_picture;
+            // Add error handler for dynamically loaded images
+            avatarImg.onerror = function() {
+                this.onerror = null;
+                this.src = DEFAULT_PROFILE_PICTURE;
+            };
         }
         // Zaktualizuj nazwę i rolę w dropdownie
         const menuUsername = document.querySelector('#user-menu .user-menu-username');
@@ -39,7 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('userName').value = data.name;
                 }
                 if (document.getElementById('profilePicture')) {
-                    document.getElementById('profilePicture').src = data.profile_picture;
+                    const profilePic = document.getElementById('profilePicture');
+                    profilePic.src = data.profile_picture;
+                    // Add error handler for dynamically loaded images
+                    profilePic.onerror = function() {
+                        this.onerror = null;
+                        this.src = DEFAULT_PROFILE_PICTURE;
+                    };
                 }
             }
         } catch (e) { /* ignore */ }
