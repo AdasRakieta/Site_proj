@@ -150,6 +150,8 @@ select {
 select:focus, select:hover {
     outline: none;
     border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+
 }
 
 input {
@@ -161,14 +163,45 @@ input {
     transition: all 0.3s ease;
 }
 
+textarea {
+    border: 1px solid var(--primary);
+    box-shadow: var(--box_shd);
+    border-radius: 4px;
+    background-color: var(--background);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+textarea:hover, textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
 input:focus, input:hover {
     outline: none;
     border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+
 }
 
 button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: var(--button);
+    color: var(--btn_text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
     transition: all 0.3s ease !important;
-    
+    text-decoration: none;
+    margin: 0.5rem 0.5rem 0.5rem 0;
+}
+
+button:hover {
+    background-color: var(--hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.05);
 }
 
 /* ============================== */
@@ -355,6 +388,12 @@ input{
     margin: 0.5rem 0.5rem 0.5rem 0;
 }
 
+.btn:hover {
+    background-color: var(--hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.05);
+}
+
 
 /* Przyciski główne i specjalne dziedziczą po .btn */
 .rooms-button, .control-button, .map-button, .menu-btn, .action-btn, .delete-button, .cancel-button, .small-button, .logout-btn, .change-button, .btn-primary, .btn-secondary {
@@ -379,6 +418,7 @@ input{
     box-shadow: var(--box_shd);
     transform: scale(1.05);
 }
+
 
 .btn-secondary {
     background-color: var(--secondary);

@@ -4796,7 +4796,13 @@ class APIManager(MultiHomeHelpersMixin):
                 
                 # Pobierz dane użytkownika
                 user_id = session.get('user_id')
-                user_data = self.get_cached_user_data(user_id, user_id)
+                user_data = None
+                if self.multi_db:
+                    # W trybie bazy danych - użyj smart_home do pobierania danych
+                    user_data = self.smart_home.get_user_data(user_id) if self.smart_home else None
+                else:
+                    # Fallback do prostego pobierania
+                    user_data = self.smart_home.get_user_data(user_id) if self.smart_home else None
                 
                 reporter_name = user_data.get('name', session.get('username', 'Nieznany użytkownik')) if user_data else session.get('username', 'Nieznany użytkownik')
                 reporter_email = user_data.get('email', '') if user_data else ''
