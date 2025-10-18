@@ -4778,6 +4778,121 @@ class APIManager(MultiHomeHelpersMixin):
                 return jsonify({"status": "success", "message": message})
             return jsonify({"status": "error", "message": message}), 400
 
+        @self.app.route('/api/bug-report', methods=['POST'])
+        @self.auth_manager.login_required
+        def submit_bug_report():
+            """Endpoint do zgłaszania błędów - wysyła email i opcjonalnie tworzy issue na GitHubie"""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({"success": False, "error": "Brak danych"}), 400
+                
+                title = data.get('title', '').strip()
+                description = data.get('description', '').strip()
+                
+                if not title or not description:
+                    return jsonify({"success": False, "error": "Tytuł i opis są wymagane"}), 400
+                
+                # Pobierz dane użytkownika
+                user_id = session.get('user_id')
+                user_data = self.get_cached_user_data(user_id, user_id)
+                
+                reporter_name = user_data.get('name', session.get('username', 'Nieznany użytkownik')) if user_data else session.get('username', 'Nieznany użytkownik')
+                reporter_email = user_data.get('email', '') if user_data else ''
+                
+                # Pobierz dodatkowe dane techniczne
+                user_agent = request.headers.get('User-Agent', '')
+                url = request.referrer or ''
+                
+                # Wyślij email do sys-admin
+                email_sent = False
+                if self.mail_manager:
+                    email_sent = self.mail_manager.send_bug_report_email(
+                        reporter_email=reporter_email,
+                        reporter_name=reporter_name,
+                        bug_title=title,
+                        bug_description=description,
+                        user_agent=user_agent,
+                        url=url
+                    )
+                
+                # Opcjonalnie utwórz issue na GitHubie
+                github_issue_created = False
+                github_issue_url = None
+                github_token = os.getenv('GITHUB_TOKEN', '').strip()
+                github_repo_owner = os.getenv('GITHUB_REPO_OWNER', 'AdasRakieta').strip()
+                github_repo_name = os.getenv('GITHUB_REPO_NAME', 'Site_proj').strip()
+                
+                if github_token:
+                    try:
+                        import requests
+                        
+                        # Przygotuj treść issue
+                        issue_body = f"""**Zgłoszone przez:** {reporter_name}
+**Email:** {reporter_email}
+**Data:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Opis problemu
+
+{description}
+
+---
+
+### Szczegóły techniczne
+"""
+                        if url:
+                            issue_body += f"- **URL:** {url}\n"
+                        if user_agent:
+                            issue_body += f"- **Przeglądarka:** {user_agent}\n"
+                        
+                        # API GitHub do tworzenia issues
+                        github_api_url = f"https://api.github.com/repos/{github_repo_owner}/{github_repo_name}/issues"
+                        headers = {
+                            'Authorization': f'token {github_token}',
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                        payload = {
+                            'title': f"🐛 {title}",
+                            'body': issue_body,
+                            'labels': ['bug', 'user-reported']
+                        }
+                        
+                        response = requests.post(github_api_url, json=payload, headers=headers, timeout=10)
+                        
+                        if response.status_code == 201:
+                            github_issue_created = True
+                            github_issue_url = response.json().get('html_url')
+                            print(f"[BUG_REPORT] ✓ Utworzono issue na GitHubie: {github_issue_url}")
+                        else:
+                            print(f"[BUG_REPORT] ✗ Błąd tworzenia issue na GitHubie: {response.status_code} - {response.text}")
+                    except Exception as e:
+                        print(f"[BUG_REPORT] ✗ Wyjątek podczas tworzenia issue na GitHubie: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                
+                # Przygotuj odpowiedź
+                response_data = {
+                    "success": email_sent or github_issue_created,
+                    "email_sent": email_sent,
+                    "github_issue_created": github_issue_created
+                }
+                
+                if github_issue_url:
+                    response_data["github_issue_url"] = github_issue_url
+                
+                if not email_sent and not github_issue_created:
+                    response_data["error"] = "Nie udało się wysłać zgłoszenia. Skontaktuj się z administratorem."
+                    return jsonify(response_data), 500
+                
+                return jsonify(response_data), 200
+                
+            except Exception as e:
+                self.app.logger.error(f"Error submitting bug report: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({"success": False, "error": "Wystąpił błąd podczas wysyłania zgłoszenia"}), 500
+
+
         @self.app.route('/api/automations', methods=['GET', 'POST'])
         @self.auth_manager.login_required
         def manage_automations():

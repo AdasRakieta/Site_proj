@@ -507,3 +507,85 @@ class MailManager:
             import traceback
             traceback.print_exc()
             return False
+
+    def send_bug_report_email(self, reporter_email: str, reporter_name: str, 
+                             bug_title: str, bug_description: str, 
+                             user_agent: str = "", url: str = ""):
+        """Wysyła email z raportem błędu do administratora systemu"""
+        try:
+            # Sprawdź czy mamy pełną konfigurację SMTP
+            smtp = self.smtp_config
+            if not (smtp.get('server') and smtp.get('port') and smtp.get('username') and smtp.get('password')):
+                print(f"[BUG_REPORT] TEST MODE: Raport błędu od {reporter_email}")
+                print(f"[BUG_REPORT] Tytuł: {bug_title}")
+                print(f"[BUG_REPORT] Opis: {bug_description}")
+                print("[BUG_REPORT] Brak pełnej konfiguracji SMTP. Uzupełnij SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD w pliku .env")
+                return False
+
+            admin_email = self.config.get('admin_email')
+            if not admin_email:
+                print("[BUG_REPORT] ADMIN_EMAIL nie jest skonfigurowany w .env")
+                return False
+
+            message = MIMEMultipart()
+            message['From'] = self.config['sender_email'] or ""
+            message['To'] = admin_email
+            message['Subject'] = f'🐛 SmartHome - Zgłoszenie błędu: {bug_title}'
+            message['Reply-To'] = reporter_email
+
+            html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h2 style="color: #e74c3c; text-align: center; margin-bottom: 30px;">🐛 Nowe zgłoszenie błędu</h2>
+                    
+                    <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #f39c12; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: #856404;">Tytuł zgłoszenia</h3>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">{bug_title}</p>
+                    </div>
+
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Opis problemu</h3>
+                        <p style="color: #333; line-height: 1.6; white-space: pre-wrap;">{bug_description}</p>
+                    </div>
+
+                    <div style="background-color: #e8f4f8; padding: 15px; border-left: 4px solid #3498db; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Informacje o zgłaszającym</h3>
+                        <p style="margin: 5px 0; color: #555;"><strong>Imię:</strong> {reporter_name}</p>
+                        <p style="margin: 5px 0; color: #555;"><strong>Email:</strong> <a href="mailto:{reporter_email}" style="color: #3498db;">{reporter_email}</a></p>
+                    </div>
+
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Szczegóły techniczne</h3>
+                        <p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>Data zgłoszenia:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>URL:</strong> {url}</p>' if url else ''}
+                        {f'<p style="margin: 5px 0; color: #555; font-size: 13px;"><strong>Przeglądarka:</strong> {user_agent}</p>' if user_agent else ''}
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                        <p style="color: #7f8c8d; font-size: 12px; margin: 0;">
+                            Wiadomość wysłana automatycznie z systemu zgłaszania błędów SmartHome
+                        </p>
+                    </div>
+                </div>
+            </div>
+            """
+
+            message.attach(MIMEText(html, 'html'))
+
+            with smtplib.SMTP(smtp['server'], smtp['port']) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp['username'], smtp['password'])
+                server.sendmail(self.config['sender_email'] or "", admin_email, message.as_string())
+
+            print(f"[BUG_REPORT] ✓ Wysłano raport błędu na {admin_email}")
+            return True
+        except smtplib.SMTPAuthenticationError:
+            print("[BUG_REPORT] ✗ Błąd autentykacji SMTP - sprawdź login i hasło SMTP w pliku .env")
+            return False
+        except Exception as e:
+            print(f"[BUG_REPORT] ✗ Błąd wysyłania raportu błędu: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
