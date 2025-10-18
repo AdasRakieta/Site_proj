@@ -1,1 +1,68 @@
-.home-footer{display:flex;justify-content:space-between;align-items:center;margin-top:15px;padding-top:12px;border-top:1px solid var(--border-color)}.home-footer-actions{display:flex;gap:8px}.leave-home-btn{background:#e74c3c;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .3s ease;font-weight:500}.leave-home-btn:hover{background:#c0392b;transform:translateY(-2px);box-shadow:0 4px 8px rgba(231,76,60,0.3)}.leave-home-btn:disabled{background:#95a5a6;cursor:not-allowed;transform:none}.leave-home-btn.confirm-state{background:#f39c12;animation:pulse .8s ease-in-out infinite}.leave-home-btn.confirm-state:hover{background:#e67e22;box-shadow:0 4px 8px rgba(243,156,18,0.4)}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}.settings-btn{display:inline-block;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;text-decoration:none;text-align:center}.settings-btn:hover{text-decoration:none}
+/* Home Select Page Styles */
+
+.home-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.home-footer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.leave-home-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.leave-home-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.leave-home-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.leave-home-btn.confirm-state {
+    background: #f39c12;
+    animation: pulse 0.8s ease-in-out infinite;
+}
+
+.leave-home-btn.confirm-state:hover {
+    background: #e67e22;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.settings-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    text-align: center;
+}
+
+.settings-btn:hover {
+    text-decoration: none;
+}
