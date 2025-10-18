@@ -57,6 +57,39 @@
             </div>
         </section>
 
+        <!-- Sekcja zgłaszania błędów -->
+        <section class="settings-section bug-report-section">
+            <h2>🐛 Zgłoś błąd</h2>
+            <p class="section-description">Pomóż nam ulepszyć aplikację - zgłoś napotkany problem</p>
+            
+            <form id="bug-report-form" class="bug-report-form">
+                <div class="form-group">
+                    <label for="bug-title">Tytuł zgłoszenia *</label>
+                    <input type="text" id="bug-title" name="title" class="form-input" 
+                           placeholder="Krótki opis problemu" required maxlength="200">
+                </div>
+                
+                <div class="form-group">
+                    <label for="bug-description">Opis problemu *</label>
+                    <textarea id="bug-description" name="description" class="form-textarea" 
+                              placeholder="Opisz szczegółowo napotkany problem..." 
+                              required rows="6" maxlength="2000"></textarea>
+                    <span class="char-count">0 / 2000</span>
+                </div>
+                
+                <div class="form-info">
+                    <p>ℹ️ Twoje zgłoszenie zostanie wysłane mailem do administratora systemu oraz utworzone jako issue w projekcie na GitHubie (jeśli skonfigurowano).</p>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="bug-submit-btn">
+                    <span class="btn-icon">📤</span>
+                    <span class="btn-text">Wyślij zgłoszenie</span>
+                </button>
+                
+                <div id="bug-report-status" class="status-message" style="display: none;"></div>
+            </form>
+        </section>
+
         <!-- Sekcja zarządzania użytkownikami (tylko sys-admin) -->
         {% if all_users %}
         <section class="settings-section">
@@ -113,39 +146,6 @@
             </div>
         </section>
         {% endif %}
-
-        <!-- Sekcja zgłaszania błędów -->
-        <section class="settings-section bug-report-section">
-            <h2>🐛 Zgłoś błąd</h2>
-            <p class="section-description">Pomóż nam ulepszyć aplikację - zgłoś napotkany problem</p>
-            
-            <form id="bug-report-form" class="bug-report-form">
-                <div class="form-group">
-                    <label for="bug-title">Tytuł zgłoszenia *</label>
-                    <input type="text" id="bug-title" name="title" class="form-input" 
-                           placeholder="Krótki opis problemu" required maxlength="200">
-                </div>
-                
-                <div class="form-group">
-                    <label for="bug-description">Opis problemu *</label>
-                    <textarea id="bug-description" name="description" class="form-textarea" 
-                              placeholder="Opisz szczegółowo napotkany problem..." 
-                              required rows="6" maxlength="2000"></textarea>
-                    <span class="char-count">0 / 2000</span>
-                </div>
-                
-                <div class="form-info">
-                    <p>ℹ️ Twoje zgłoszenie zostanie wysłane mailem do administratora systemu oraz utworzone jako issue w projekcie na GitHubie (jeśli skonfigurowano).</p>
-                </div>
-                
-                <button type="submit" class="submit-btn" id="bug-submit-btn">
-                    <span class="btn-icon">📤</span>
-                    <span class="btn-text">Wyślij zgłoszenie</span>
-                </button>
-                
-                <div id="bug-report-status" class="status-message" style="display: none;"></div>
-            </form>
-        </section>
     </div>
 {% endblock %}
 

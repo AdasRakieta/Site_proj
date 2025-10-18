@@ -25,8 +25,8 @@
             </a>
             {% if current_home %}
             <div class="home-stats-quick">
-                <span class="stat-item">{Ilość pokoi: { current_home.room_count or 0 }}</span>
-                <span class="stat-item">{Ilość urządzeń: { current_home.device_count or 0 }}</span>
+                <span class="stat-item">📂 Ilość pokoi: {{ current_home.room_count or 0 }}</span>
+                <span class="stat-item">💡 Ilość urządzeń: {{ current_home.device_count or 0 }}</span>
             </div>
             {% endif %}
         </div>
