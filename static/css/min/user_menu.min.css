@@ -281,8 +281,7 @@ header .menu-handle {
 
 @media (max-width: 600px) {
     .main-menu {
-        right: 10px;
-    }
+    right: 50px;    }
     #user-menu{
         transform: scale(1.10);
         top: 60px;

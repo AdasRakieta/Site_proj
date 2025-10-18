@@ -223,5 +223,75 @@
     font-size: 1.5em !important;;
 }
 
+    /* ============================== */
+    /* Admin Dashboard Mobile Styles */
+    /* ============================== */
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .dashboard-card {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    .user-management {
+        flex-direction: column !important;
+    }
+
+    .user-management.two-column {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    .user-table-container {
+        overflow-x: auto !important;
+    }
+    
+    .user-table {
+        min-width: 600px !important;
+    }
+    
+    .input-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Admin Dashboard - Extra small devices */
+    .dashboard-container {
+        padding: 10px !important;
+    }
+    
+    .dashboard-card {
+        padding: 15px !important;
+    }
+    
+    .user-form {
+        padding: 15px !important;
+    }
+    
+    .action-buttons {
+        flex-direction: column !important;
+        gap: 5px !important;
+    }
+    
+    .icon-button {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+    
+    .new-user-form {
+        width: 100% !important;
+    }
+    
+    .input-settings-add-user,
+    .select-settings-add-user {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
 }
 

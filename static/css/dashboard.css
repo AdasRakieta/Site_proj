@@ -336,34 +336,7 @@
 /* ============================== */
 /*       Responsive Design       */
 /* ============================== */
-
-@media (max-width: 768px) {
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .user-management {
-        flex-direction: column;
-    }
-
-    .user-management.two-column {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .user-table-container {
-        overflow-x: auto;
-    }
-    
-    .user-table {
-        min-width: 600px;
-    }
-    
-    .input-group {
-        flex-direction: column;
-        align-items: stretch;
-    }
-}
+/* Moved to mobile.css */
 
 /* Additional Admin Dashboard Inline Styles */
 .chart-container {
@@ -500,23 +473,4 @@
     color: #721c24;
 }
 
-@media (max-width: 480px) {
-    .dashboard-container {
-        padding: 10px;
-    }
-    
-    .user-form {
-        padding: 15px;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-        gap: 5px;
-    }
-    
-    .icon-button {
-        width: 28px;
-        height: 28px;
-        font-size: 12px;
-    }
-}
+/* Mobile styles moved to mobile.css */

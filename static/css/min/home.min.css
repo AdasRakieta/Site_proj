@@ -893,6 +893,8 @@
     
     .home-management-card {
         padding: 16px;
+        width: auto;
+        margin-top: 20px;
     }
 }
 
