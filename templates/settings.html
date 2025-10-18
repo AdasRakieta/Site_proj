@@ -352,19 +352,16 @@
               bugSubmitBtn.style.opacity = '1';
               
               if (data.success) {
-                  let message = '✓ Zgłoszenie wysłane pomyślnie!';
+                  const statusDiv = document.getElementById('bug-report-status');
+                  statusDiv.textContent = '✓ Zgłoszenie wysłane pomyślnie!';
                   
                   if (data.email_sent && data.github_issue_created) {
-                      message += ' Email wysłany i issue utworzone na GitHubie.';
+                      statusDiv.textContent += ' Email wysłany i issue utworzone na GitHubie.';
                   } else if (data.email_sent) {
-                      message += ' Email wysłany do administratora.';
+                      statusDiv.textContent += ' Email wysłany do administratora.';
                   } else if (data.github_issue_created) {
-                      message += ' Issue utworzone na GitHubie.';
+                      statusDiv.textContent += ' Issue utworzone na GitHubie.';
                   }
-                  
-                  // Use DOM manipulation instead of innerHTML to prevent XSS
-                  const statusDiv = document.getElementById('bug-report-status');
-                  statusDiv.textContent = message;
                   
                   if (data.github_issue_url) {
                       const link = document.createElement('a');
@@ -381,7 +378,6 @@
                   
                   statusDiv.className = 'status-message status-success';
                   statusDiv.style.display = 'block';
-                  showBugReportStatus(message, 'success');
                   
                   // Clear form
                   bugReportForm.reset();

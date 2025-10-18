@@ -529,7 +529,6 @@ class MailManager:
 
             # HTML-escape all user inputs to prevent XSS
             import html
-            bug_title_escaped = html.escape(bug_title)
             bug_description_escaped = html.escape(bug_description)
             reporter_name_escaped = html.escape(reporter_name)
             reporter_email_escaped = html.escape(reporter_email)
@@ -539,8 +538,11 @@ class MailManager:
             message = MIMEMultipart()
             message['From'] = self.config['sender_email'] or ""
             message['To'] = admin_email
-            message['Subject'] = f'🐛 SmartHome - Zgłoszenie błędu: {bug_title_escaped}'
+            message['Subject'] = f'🐛 SmartHome - Zgłoszenie błędu: {bug_title}'
             message['Reply-To'] = reporter_email
+
+            # Escape title only for HTML body, not for subject
+            bug_title_escaped = html.escape(bug_title)
 
             html_body = f"""
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
