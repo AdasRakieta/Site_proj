@@ -364,6 +364,62 @@ input{
     scroll-behavior: smooth;
 }
 
+/* Submenu dla pokoi */
+.menu-item-with-submenu {
+    position: relative;
+}
+
+.submenu-arrow {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+.menu-item-with-submenu.active .submenu-arrow {
+    transform: rotate(90deg);
+}
+
+.submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: var(--primary);
+    border-radius: 8px;
+    margin-top: 5px;
+    margin-left: 15px;
+    margin-right: 5px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    box-shadow: var(--box_shd);
+}
+
+.menu-item-with-submenu.active .submenu {
+    max-height: 500px; /* Dostatecznie duża wartość */
+}
+
+.submenu li {
+    margin: 0;
+}
+
+.submenu-link {
+    display: block;
+    text-decoration: none;
+    color: var(--btn_text);
+    background-color: var(--accent);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 5px;
+    border: 1px solid var(--border);
+}
+
+.submenu-link:hover {
+    background-color: var(--hover);
+    color: var(--background);
+    transform: scale(1.02);
+}
+
 /* Przycisk menu głównego */
 .menu-btn {
     background-color: var(--accent);

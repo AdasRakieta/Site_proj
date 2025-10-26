@@ -571,6 +571,15 @@ class RoutesManager(MultiHomeHelpersMixin):
             version = os.environ.get('ASSET_VERSION') or os.environ.get('IMAGE_TAG') or 'dev'
             return {'asset_version': version}
 
+        @self.app.context_processor
+        def inject_rooms():
+            """Provide current home rooms for navigation menu."""
+            if 'user_id' in session:
+                user_id = session.get('user_id')
+                rooms = self.get_current_home_rooms(user_id)
+                return {'nav_rooms': rooms}
+            return {'nav_rooms': []}
+
         @self.app.route('/')
         def home():
             print(f"[DEBUG] Session on /: {dict(session)}")
