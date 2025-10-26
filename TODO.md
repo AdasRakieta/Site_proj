@@ -66,10 +66,11 @@
    3. [X] temperatura - ok
    4. [X] admin dashboard
    5. [X] ustawienia - usunięto zarządzanie użytkownikami (przeniesione do admin dashboard)
-   6. [ ] ustawienia użytkownika**s**
+   6. [X] ustawienia użytkownika**s**
    7. [X] zabezpieczenia -ok
    8. [X] strona głowna - ok
-   9. [ ] strona 404
-   1. [ ] strony home
+   9. [X] strona 404
+   1. [X] strony home
 7. Poprawa wgrywania zdjęć prof i podstawiania danych w profilu użytkownika
 8. Aktualizacja plików dot. inżynierki
+9. KONIECZNE - Naprawa odczytywania urządzeń w stronie automatyzacji

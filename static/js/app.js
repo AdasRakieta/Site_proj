@@ -350,17 +350,63 @@ class SmartHomeApp {
         });
         // --- DODANE: nasłuchiwanie na update_button i aktualizacja switcha na stronie ---
         this.socket.on('update_button', (data) => {
+            console.log('[WebSocket] update_button received:', data);
+            
             // Obsługa dla lights.html, room.html i innych stron z przełącznikami
-            // Zakładamy id w formacie: `${room}_${name}Switch` lub `${name}Switch`
-            let switchId = `${data.room}_${data.name.replace(/\s+/g, '_')}Switch`;
-            let switchElement = document.getElementById(switchId);
-            if (!switchElement) {
-                // Spróbuj bez room (np. w room.html)
-                switchId = `${data.name.replace(/\s+/g, '_')}Switch`;
+            // Próbujemy różne warianty ID - WAŻNE: najpierw room_id (UUID), bo updateRoomsAndButtonsList używa roomId jeśli dostępne
+            const buttonNameSafe = data.name.replace(/\s+/g, '_');
+            const roomNameSafe = data.room ? data.room.replace(/\s+/g, '_') : '';
+            const roomIdSafe = data.room_id ? data.room_id.replace(/\s+/g, '_') : '';
+            
+            let switchElement = null;
+            let switchId = null;
+            
+            // Wariant 1: room_id_buttonNameSwitch (UUID-based - NAJPIERW, bo tak robi updateRoomsAndButtonsList)
+            if (roomIdSafe) {
+                switchId = `${roomIdSafe}_${buttonNameSafe}Switch`;
                 switchElement = document.getElementById(switchId);
+                if (switchElement) {
+                    console.log('[WebSocket] ✓ Found switch with room_id:', switchId);
+                }
             }
+            
+            // Wariant 2: room_name_buttonNameSwitch (nazwa pokoju)
+            if (!switchElement && roomNameSafe) {
+                switchId = `${roomNameSafe}_${buttonNameSafe}Switch`;
+                switchElement = document.getElementById(switchId);
+                if (switchElement) {
+                    console.log('[WebSocket] ✓ Found switch with room_name:', switchId);
+                }
+            }
+            
+            // Wariant 3: tylko buttonNameSwitch (dla widoku single room)
+            if (!switchElement) {
+                switchId = `${buttonNameSafe}Switch`;
+                switchElement = document.getElementById(switchId);
+                if (switchElement) {
+                    console.log('[WebSocket] ✓ Found switch with name only:', switchId);
+                }
+            }
+            
+            // Wariant 4: z device_id jeśli dostępne
+            if (!switchElement && data.device_id) {
+                switchId = `device_${data.device_id}_Switch`;
+                switchElement = document.getElementById(switchId);
+                if (switchElement) {
+                    console.log('[WebSocket] ✓ Found switch with device_id:', switchId);
+                }
+            }
+            
             if (switchElement) {
                 switchElement.checked = data.state;
+                console.log(`[WebSocket] ✓✓✓ Updated switch to state: ${data.state}`);
+            } else {
+                console.warn('[WebSocket] ✗ Switch element not found for button:', data.name, 'room:', data.room, 'tried IDs:', [
+                    roomIdSafe ? `${roomIdSafe}_${buttonNameSafe}Switch` : null,
+                    roomNameSafe ? `${roomNameSafe}_${buttonNameSafe}Switch` : null,
+                    `${buttonNameSafe}Switch`,
+                    data.device_id ? `device_${data.device_id}_Switch` : null
+                ].filter(Boolean));
             }
         });
         // Dodaj obsługę update_rooms do cache

@@ -4,6 +4,7 @@ from flask_socketio import emit
 from utils.cache_manager import CachedDataAccess
 from app.management_logger import ManagementLogger
 from utils.image_optimizer import optimize_profile_picture, delete_old_profile_picture
+from utils.automation_executor import AutomationExecutor
 import os
 import time
 import uuid
@@ -2220,6 +2221,16 @@ class APIManager(MultiHomeHelpersMixin):
         except Exception:
             # Fallback to no caching helper if backend cache isn't available
             self.cached_data = None
+        
+        # Initialize automation executor for multi-home mode
+        self.automation_executor = None
+        if self.multi_db:
+            try:
+                self.automation_executor = AutomationExecutor(self.multi_db, self.socketio)
+                logger.info("[AUTOMATION] AutomationExecutor initialized")
+            except Exception as e:
+                logger.error(f"[AUTOMATION] Failed to initialize AutomationExecutor: {e}")
+        
         self.register_routes()
 
     def emit_update(self, event_name, data):
@@ -2338,10 +2349,83 @@ class APIManager(MultiHomeHelpersMixin):
             # Fallback to main database
             return self.smart_home.buttons
 
+    def get_current_home_devices(self, user_id):
+        """Get all devices (buttons + thermostats + sensors) from current selected home"""
+        if not self.multi_db or not user_id:
+            # Fallback to main database - combine buttons and temperature_controls
+            devices = []
+            for button in self.smart_home.buttons:
+                devices.append({
+                    'id': button.get('id', f"{button['room']}_{button['name']}"),
+                    'name': button['name'],
+                    'room': button['room'],
+                    'state': button['state'],
+                    'type': 'button'
+                })
+            for control in self.smart_home.temperature_controls:
+                devices.append({
+                    'id': control.get('id', f"{control['room']}_{control['name']}"),
+                    'name': control['name'],
+                    'room': control['room'],
+                    'state': True,
+                    'type': 'temperature_control',
+                    'temperature': control.get('temperature', 22)
+                })
+            return devices
+        
+        try:
+            # Get current home ID from session or database
+            from flask import session
+            current_home_id = session.get('current_home_id')
+            if not current_home_id:
+                current_home_id = self.multi_db.get_user_current_home(user_id)
+            
+            if current_home_id:
+                # Get all devices from multi-home system (no device_type filter)
+                devices_data = self.multi_db.get_home_devices(current_home_id, user_id)
+                # Convert to unified format
+                devices = []
+                for device in devices_data:
+                    devices.append({
+                        'id': device['id'],
+                        'name': device['name'],
+                        'room': device['room_name'],
+                        'state': device['state'],
+                        'type': device['type'],
+                        'temperature': device.get('temperature', 22) if device['type'] == 'temperature_control' else None
+                    })
+                return devices
+            else:
+                # No current home set, fallback to main database
+                return self.get_current_home_devices(None)
+                
+        except Exception as e:
+            print(f"[DEBUG] Error getting multi-home devices: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to main database
+            return self.get_current_home_devices(None)
+
     def register_routes(self):
         @self.app.route('/api', methods=['GET'])
         def api_root():
             return jsonify({"status": "ok", "message": "API root"}), 200
+
+        @self.app.route('/api/devices', methods=['GET'])
+        @self.auth_manager.api_login_required
+        def get_devices():
+            """Get all devices (buttons + thermostats + sensors) for current home"""
+            user_id = session.get('user_id')
+            devices = self.get_current_home_devices(user_id)
+            resolved_home_id = self._resolve_home_id(user_id) if user_id else None
+            payload = {
+                "status": "success",
+                "data": devices
+            }
+            if resolved_home_id:
+                payload['meta'] = {'home_id': resolved_home_id}
+            print(f"[DEBUG] GET /api/devices returning {len(devices)} devices")
+            return jsonify(payload)
 
         @self.app.route('/weather')
         @self.auth_manager.login_required
@@ -3565,6 +3649,33 @@ class APIManager(MultiHomeHelpersMixin):
                             return jsonify({'status': 'error', 'message': 'Failed to update device state'}), 500
                         
                         print(f"[DEBUG] Device state updated successfully in multi-home system")
+                        
+                        # Trigger automation execution after successful state change
+                        if self.automation_executor:
+                            try:
+                                home_id = device.get('home_id') or session.get('current_home_id')
+                                logger.info(f"[AUTOMATION] Calling automation executor: device={device['name']}, room={device.get('room_name')}, home_id={home_id}")
+                                results = self.automation_executor.process_device_trigger(
+                                    device_id=str(target_device_id),
+                                    room_name=device.get('room_name', ''),
+                                    device_name=device['name'],
+                                    new_state=new_state,
+                                    home_id=str(home_id),
+                                    user_id=str(user_id)
+                                )
+                                if results:
+                                    logger.info(f"[AUTOMATION] Executed {len(results)} automations for device {device['name']}")
+                                    for result in results:
+                                        logger.info(f"  - {result.get('automation_name')}: {result.get('status')} ({result.get('actions_executed')} actions)")
+                                else:
+                                    logger.info(f"[AUTOMATION] No automations matched for device {device['name']}")
+                            except Exception as auto_error:
+                                logger.error(f"[AUTOMATION] Error processing automations: {auto_error}")
+                                import traceback
+                                traceback.print_exc()
+                                # Don't fail the toggle operation if automation fails
+                        else:
+                            logger.warning(f"[AUTOMATION] automation_executor is None - automations disabled")
                     except Exception as e:
                         print(f"[DEBUG ERROR] Exception in update_device: {e}")
                         return jsonify({'status': 'error', 'message': f'Error updating device: {str(e)}'}), 500
@@ -4150,6 +4261,24 @@ class APIManager(MultiHomeHelpersMixin):
                         return jsonify({'status': 'error', 'message': 'Invalid temperature control identifier'}), 400
                     if not self.multi_db.update_device(target_device_id, user_id_str, **update_payload):
                         return jsonify({'status': 'error', 'message': 'Failed to update temperature state'}), 500
+
+                    # Trigger automation execution after successful temperature change
+                    if self.automation_executor:
+                        try:
+                            home_id = device.get('home_id') or session.get('current_home_id')
+                            results = self.automation_executor.process_device_trigger(
+                                device_id=str(target_device_id),
+                                room_name=device.get('room_name', ''),
+                                device_name=device['name'],
+                                new_state=True,  # Temperature controls are always "on" when temperature changes
+                                home_id=str(home_id),
+                                user_id=str(user_id_str)
+                            )
+                            if results:
+                                logger.info(f"[AUTOMATION] Executed {len(results)} automations for thermostat {device['name']}")
+                        except Exception as auto_error:
+                            logger.error(f"[AUTOMATION] Error processing automations: {auto_error}")
+                            # Don't fail the temperature operation if automation fails
 
                     updated_device = self.multi_db.get_device(target_device_id, user_id_str) or device
                     room_name = updated_device.get('room_name') or device.get('room') or ''

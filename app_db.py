@@ -14,6 +14,9 @@ import sys
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Configure logger
+logger = logging.getLogger(__name__)
+
 # Load environment variables FIRST, before any other imports that need them
 # Priority: 1) Environment variables (from Portainer/system), 2) .env file (local development)
 # This allows Portainer to override values without needing .env file in container
@@ -332,6 +335,30 @@ class SmartHomeApp:
             # Warm up cache with critical data
             self._warm_up_cache()
             
+            # Initialize automation scheduler for time-based automations (database mode only)
+            self.automation_scheduler = None
+            self.socket_automation_executor = None  # Executor for socket handlers
+            if DATABASE_MODE and self.multi_db:
+                try:
+                    from utils.automation_executor import AutomationExecutor
+                    from utils.automation_scheduler import AutomationScheduler
+                    
+                    # Create automation executor for socket handlers (socketio will be set in setup_socket_events)
+                    self.socket_automation_executor = AutomationExecutor(self.multi_db, None)
+                    
+                    # Create automation executor for scheduler (no socketio needed for scheduler)
+                    automation_executor = AutomationExecutor(self.multi_db, None)
+                    
+                    # Create and start scheduler
+                    self.automation_scheduler = AutomationScheduler(self.multi_db, automation_executor)
+                    self.automation_scheduler.start()
+                    
+                    print("✓ Automation scheduler initialized and started")
+                except Exception as e:
+                    print(f"⚠ Failed to initialize automation scheduler: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
             print("✓ All components initialized successfully")
             
         except Exception as e:
@@ -410,6 +437,11 @@ class SmartHomeApp:
     
     def setup_socket_events(self):
         """Setup SocketIO events"""
+        # Set socketio instance for automation executor
+        if self.socket_automation_executor:
+            self.socket_automation_executor.socketio = self.socketio
+            logger.info("[AUTOMATION] SocketIO connected to automation executor")
+        
         @self.socketio.on('connect')
         def handle_connect():
             """Handle client connection"""
@@ -520,16 +552,37 @@ class SmartHomeApp:
                         emit('error', {'message': 'Failed to toggle button'})
                         return
 
+                    # Trigger automation execution after successful state change
+                    if self.socket_automation_executor:
+                        try:
+                            results = self.socket_automation_executor.process_device_trigger(
+                                device_id=str(target_button['id']),
+                                room_name=target_button.get('room_name', ''),
+                                device_name=target_button.get('name', ''),
+                                new_state=bool(new_state),
+                                home_id=str(current_home_id),
+                                user_id=str(user_id)
+                            )
+                            if results:
+                                logger.info(f"[AUTOMATION] Executed {len(results)} automations via SocketIO")
+                        except Exception as auto_error:
+                            logger.error(f"[AUTOMATION] Error in SocketIO automation trigger: {auto_error}")
+                            import traceback
+                            traceback.print_exc()
+
                     updated_button = multi_db.get_device(target_button['id'], user_id) or target_button
                     payload_room = updated_button.get('room_name') or room
                     payload_name = updated_button.get('name') or name
                     payload_state = updated_button.get('state') if updated_button.get('state') is not None else new_state
+                    payload_room_id = updated_button.get('room_id', '')  # Add room_id for consistent switch matching
 
                     # Broadcast update to all connected clients
                     self.socketio.emit('update_button', {
                         'room': payload_room,
+                        'room_id': str(payload_room_id) if payload_room_id else '',  # Include room_id for UUID-based switch IDs
                         'name': payload_name,
-                        'state': payload_state
+                        'state': payload_state,
+                        'device_id': str(target_button['id'])  # Include device_id for fallback matching
                     })
                     self.socketio.emit('sync_button_states', {
                         f"{payload_room}_{payload_name}": payload_state

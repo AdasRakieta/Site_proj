@@ -41,14 +41,19 @@ class AutomationsManager {
 
     async fetchInitialData() {
         try {
-            const buttonsData = await this.app.fetchData('/api/buttons');
-            if (buttonsData && Array.isArray(buttonsData)) {
-                this.buttons = buttonsData;
-                return true;
+            const response = await this.app.fetchData('/api/devices');
+            // Odpowiedź z API to {status, data, meta}
+            let devices = [];
+            if (response && Array.isArray(response.data)) {
+                devices = response.data;
+            } else if (Array.isArray(response)) {
+                devices = response;
             }
-            return false;
+            this.buttons = devices;
+            console.log(`[AUTOMATIONS] Loaded ${devices.length} devices for automations`);
+            return devices.length > 0;
         } catch (error) {
-            console.error('Błąd ładowania przycisków:', error);
+            console.error('Błąd ładowania urządzeń:', error);
             return false;
         }
     }
@@ -386,7 +391,7 @@ class AutomationsManager {
                         ${this.buttons.map(btn => 
                             `<option value="${btn.room}_${btn.name}" 
                                     ${existingTrigger?.device === `${btn.room}_${btn.name}` ? 'selected' : ''}>
-                                ${btn.room} - ${btn.name}
+                                ${btn.room} - ${btn.name} (${btn.type === 'temperature_control' ? 'Termostat' : 'Światło'})
                             </option>`
                         ).join('')}
                     </select>
@@ -443,6 +448,7 @@ class AutomationsManager {
             name: `actions[${actionIndex}][type]`
         }, [
             this.app.createElement('option', { value: 'device', textContent: 'Urządzenie' }),
+            this.app.createElement('option', { value: 'set_temperature', textContent: 'Ustaw temperaturę' }),
             this.app.createElement('option', { value: 'notification', textContent: 'Powiadomienie' })
         ]);
 
@@ -502,21 +508,24 @@ class AutomationsManager {
                     paramsContainer.textContent = 'Brak dostępnych urządzeń';
                     return;
                 }
-
+                // Filtruj tylko światła/przyciski (nie termostaty)
+                const lights = this.buttons.filter(btn => btn.type !== 'temperature_control');
+                if (lights.length === 0) {
+                    paramsContainer.textContent = 'Brak dostępnych świateł';
+                    return;
+                }
                 const deviceSelect = this.app.createElement('select', {
                     class: 'action-device',
                     name: `actions[${actionIndex}][device]`,
                     required: true
                 });
-
-                this.buttons.forEach(button => {
+                lights.forEach(button => {
                     deviceSelect.appendChild(this.app.createElement('option', {
                         value: `${button.room}_${button.name}`,
                         textContent: `${button.room} - ${button.name}`,
                         selected: existingAction?.device === `${button.room}_${button.name}`
                     }));
                 });
-
                 const stateSelect = this.app.createElement('select', {
                     class: 'action-device-state',
                     name: `actions[${actionIndex}][state]`,
@@ -538,11 +547,49 @@ class AutomationsManager {
                         selected: existingAction?.state === 'toggle'
                     })
                 ]);
-
                 paramsContainer.appendChild(deviceSelect);
                 paramsContainer.appendChild(stateSelect);
                 break;
-
+            case 'set_temperature':
+                if (!this.buttons || this.buttons.length === 0) {
+                    paramsContainer.textContent = 'Brak dostępnych termostatów';
+                    return;
+                }
+                // Filtruj tylko termostaty
+                const thermostats = this.buttons.filter(btn => btn.type === 'temperature_control');
+                if (thermostats.length === 0) {
+                    paramsContainer.textContent = 'Brak dostępnych termostatów';
+                    return;
+                }
+                const thermostatSelect = this.app.createElement('select', {
+                    class: 'action-thermostat',
+                    name: `actions[${actionIndex}][thermostat]`,
+                    required: true
+                });
+                thermostats.forEach(th => {
+                    thermostatSelect.appendChild(this.app.createElement('option', {
+                        value: `${th.room}_${th.name}`,
+                        textContent: `${th.room} - ${th.name}`,
+                        selected: existingAction?.thermostat === `${th.room}_${th.name}`
+                    }));
+                });
+                const tempLabel = this.app.createElement('label', {
+                    textContent: 'Temperatura (°C):'
+                });
+                const tempInput = this.app.createElement('input', {
+                    type: 'number',
+                    class: 'action-temperature-value',
+                    name: `actions[${actionIndex}][temperature]`,
+                    min: 16,
+                    max: 30,
+                    step: 0.5,
+                    value: existingAction?.temperature || 22,
+                    required: true
+                });
+                paramsContainer.appendChild(thermostatSelect);
+                paramsContainer.appendChild(tempLabel);
+                paramsContainer.appendChild(tempInput);
+                break;
             case 'notification':
                 const messageInput = this.app.createElement('input', {
                     type: 'text',
@@ -593,17 +640,19 @@ class AutomationsManager {
         queryAll('#actions-container .action').forEach(actionElement => {
             const actionType = actionElement.querySelector('.action-type').value;
             const action = { type: actionType };
-
             switch (actionType) {
                 case 'device':
                     action.device = actionElement.querySelector('.action-device').value;
                     action.state = actionElement.querySelector('.action-device-state').value;
                     break;
+                case 'set_temperature':
+                    action.thermostat = actionElement.querySelector('.action-thermostat').value;
+                    action.temperature = parseFloat(actionElement.querySelector('.action-temperature-value').value);
+                    break;
                 case 'notification':
                     action.message = actionElement.querySelector('.action-notification-message').value;
                     break;
             }
-
             formData.actions.push(action);
         });
 
