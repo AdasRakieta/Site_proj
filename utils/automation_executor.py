@@ -55,9 +55,9 @@ class AutomationExecutor:
             
             results = []
             for automation in automations:
-                logger.debug(f"[AUTOMATION] Checking automation: {automation.get('name')} (enabled={automation.get('enabled')})")
+                logger.info(f"[AUTOMATION] Checking automation: {automation.get('name')} (enabled={automation.get('enabled')})")
                 if not automation.get('enabled', False):
-                    logger.debug(f"[AUTOMATION] Skipping disabled automation: {automation.get('name')}")
+                    logger.info(f"[AUTOMATION] ⏭ Skipping disabled automation: {automation.get('name')}")
                     continue
                 
                 trigger = automation.get('trigger', {}) or automation.get('trigger_config', {})
@@ -217,6 +217,8 @@ class AutomationExecutor:
                 try:
                     if action_type == 'device':
                         self._execute_device_action(action, home_id, user_id)
+                    elif action_type == 'thermostat_control':
+                        self._execute_thermostat_control_action(action, home_id, user_id)
                     elif action_type == 'set_temperature':
                         self._execute_temperature_action(action, home_id, user_id)
                     elif action_type == 'notification':
@@ -335,6 +337,75 @@ class AutomationExecutor:
             logger.info(f"[AUTOMATION] Emitted WebSocket update for {device_key}")
         
         logger.info(f"[AUTOMATION] Set {device_key} to {new_state}")
+    
+    def _execute_thermostat_control_action(self, action: Dict, home_id: str, user_id: str):
+        """Execute thermostat on/off/toggle control action"""
+        device_key = action.get('device')  # format: room_name_devicename
+        target_state = action.get('state')  # 'on', 'off', or 'toggle'
+        
+        if not device_key or not target_state:
+            raise ValueError("Missing device or state in thermostat_control action")
+        
+        # Parse device key (room_name_devicename)
+        parts = device_key.split('_', 1)
+        if len(parts) < 2:
+            raise ValueError(f"Invalid thermostat key format: {device_key}")
+        
+        room_name, device_name = parts
+        
+        # Find thermostat in database
+        devices = self.multi_db.get_home_devices(home_id, user_id, device_type='temperature_control')
+        device = None
+        for d in devices:
+            if d['room_name'] == room_name and d['name'] == device_name:
+                device = d
+                break
+        
+        if not device:
+            raise ValueError(f"Thermostat not found: {device_key}")
+        
+        # Determine new state
+        current_state = device.get('state', False)
+        if target_state == 'on':
+            new_state = True
+        elif target_state == 'off':
+            new_state = False
+        elif target_state == 'toggle':
+            new_state = not current_state
+        else:
+            raise ValueError(f"Invalid target state: {target_state}")
+        
+        # Update thermostat state
+        device_id = device['id']
+        self.multi_db.update_device(device_id, user_id, state=bool(new_state))
+        
+        # Emit WebSocket updates if available - broadcast to all clients in the home
+        if self.socketio:
+            # Convert Decimal to float for JSON serialization
+            current_temp = device.get('temperature')
+            temp_value = float(current_temp) if current_temp is not None else None
+            
+            # Update thermostat state for all clients - include room_id for proper element matching
+            self.socketio.emit('update_temperature', {
+                'room': room_name,
+                'room_id': str(device.get('room_id', '')),
+                'name': device_name,
+                'state': new_state,
+                'device_id': device_id,
+                'temperature': temp_value  # Convert Decimal to float
+            })
+            
+            # Sync temperature states (for temperature page and other views)
+            self.socketio.emit('sync_temperature', {
+                f"{room_name}_{device_name}": {
+                    'state': new_state,
+                    'temperature': temp_value  # Convert Decimal to float
+                }
+            })
+            
+            logger.info(f"[AUTOMATION] Emitted WebSocket update for thermostat {device_key}")
+        
+        logger.info(f"[AUTOMATION] Set thermostat {device_key} to {new_state}")
     
     def _execute_temperature_action(self, action: Dict, home_id: str, user_id: str):
         """Execute temperature control action"""

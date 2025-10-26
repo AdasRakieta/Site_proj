@@ -447,7 +447,8 @@ class AutomationsManager {
             class: 'action-type',
             name: `actions[${actionIndex}][type]`
         }, [
-            this.app.createElement('option', { value: 'device', textContent: 'Urządzenie' }),
+            this.app.createElement('option', { value: 'device', textContent: 'Urządzenie (światła)' }),
+            this.app.createElement('option', { value: 'thermostat_control', textContent: 'Termostat (włącz/wyłącz)' }),
             this.app.createElement('option', { value: 'set_temperature', textContent: 'Ustaw temperaturę' }),
             this.app.createElement('option', { value: 'notification', textContent: 'Powiadomienie' })
         ]);
@@ -550,6 +551,53 @@ class AutomationsManager {
                 paramsContainer.appendChild(deviceSelect);
                 paramsContainer.appendChild(stateSelect);
                 break;
+            case 'thermostat_control':
+                if (!this.buttons || this.buttons.length === 0) {
+                    paramsContainer.textContent = 'Brak dostępnych termostatów';
+                    return;
+                }
+                // Filtruj tylko termostaty
+                const thermostatControlList = this.buttons.filter(btn => btn.type === 'temperature_control');
+                if (thermostatControlList.length === 0) {
+                    paramsContainer.textContent = 'Brak dostępnych termostatów';
+                    return;
+                }
+                const thermostatControlSelect = this.app.createElement('select', {
+                    class: 'action-thermostat-control',
+                    name: `actions[${actionIndex}][device]`,
+                    required: true
+                });
+                thermostatControlList.forEach(th => {
+                    thermostatControlSelect.appendChild(this.app.createElement('option', {
+                        value: `${th.room}_${th.name}`,
+                        textContent: `${th.room} - ${th.name}`,
+                        selected: existingAction?.device === `${th.room}_${th.name}`
+                    }));
+                });
+                const thermostatStateSelect = this.app.createElement('select', {
+                    class: 'action-thermostat-state',
+                    name: `actions[${actionIndex}][state]`,
+                    required: true
+                }, [
+                    this.app.createElement('option', {
+                        value: 'on',
+                        textContent: 'Włącz',
+                        selected: existingAction?.state === 'on'
+                    }),
+                    this.app.createElement('option', {
+                        value: 'off',
+                        textContent: 'Wyłącz',
+                        selected: existingAction?.state === 'off'
+                    }),
+                    this.app.createElement('option', {
+                        value: 'toggle',
+                        textContent: 'Przełącz',
+                        selected: existingAction?.state === 'toggle'
+                    })
+                ]);
+                paramsContainer.appendChild(thermostatControlSelect);
+                paramsContainer.appendChild(thermostatStateSelect);
+                break;
             case 'set_temperature':
                 if (!this.buttons || this.buttons.length === 0) {
                     paramsContainer.textContent = 'Brak dostępnych termostatów';
@@ -584,7 +632,8 @@ class AutomationsManager {
                     max: 30,
                     step: 0.5,
                     value: existingAction?.temperature || 22,
-                    required: true
+                    required: true,
+                    style: 'width: auto; height: fit-content;'
                 });
                 paramsContainer.appendChild(thermostatSelect);
                 paramsContainer.appendChild(tempLabel);
@@ -644,6 +693,10 @@ class AutomationsManager {
                 case 'device':
                     action.device = actionElement.querySelector('.action-device').value;
                     action.state = actionElement.querySelector('.action-device-state').value;
+                    break;
+                case 'thermostat_control':
+                    action.device = actionElement.querySelector('.action-thermostat-control').value;
+                    action.state = actionElement.querySelector('.action-thermostat-state').value;
                     break;
                 case 'set_temperature':
                     action.thermostat = actionElement.querySelector('.action-thermostat').value;

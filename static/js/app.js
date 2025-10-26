@@ -409,6 +409,61 @@ class SmartHomeApp {
                 ].filter(Boolean));
             }
         });
+        
+        // --- DODANE: nasłuchiwanie na update_temperature i aktualizacja stanu termostatu ---
+        this.socket.on('update_temperature', (data) => {
+            console.log('[WebSocket] update_temperature received:', data);
+            
+            // Obsługa dla temperature.html, room.html - checkbox enabled dla termostatu
+            const thermostatNameSafe = data.name.replace(/\s+/g, '_');
+            const roomNameSafe = data.room ? data.room.replace(/\s+/g, '_') : '';
+            const roomIdSafe = data.room_id ? data.room_id.replace(/\s+/g, '_') : null;
+            
+            // Próbujemy znaleźć checkbox "enabled" dla termostatu (używany w room.html i temperature.html)
+            // ID pattern: ${name}EnabledSwitch
+            let enabledSwitchId = `${thermostatNameSafe}EnabledSwitch`;
+            let enabledSwitch = document.getElementById(enabledSwitchId);
+            
+            if (enabledSwitch && data.state !== undefined) {
+                console.log(`[WebSocket] ✓ Found thermostat enabled switch: ${enabledSwitchId}`);
+                enabledSwitch.checked = data.state;
+                
+                // Zaktualizuj stan UI (disabled/enabled dla input i button)
+                const controlItem = enabledSwitch.closest('.control-item');
+                if (controlItem) {
+                    const controlContent = controlItem.querySelector('.control-content');
+                    if (controlContent) {
+                        const tempInput = controlContent.querySelector('input.input-temp');
+                        const button = controlContent.querySelector('button.control-button');
+                        
+                        if (data.state) {
+                            if (tempInput) tempInput.disabled = false;
+                            if (button) button.disabled = false;
+                            controlContent.classList.remove('disabled');
+                        } else {
+                            if (tempInput) tempInput.disabled = true;
+                            if (button) button.disabled = true;
+                            controlContent.classList.add('disabled');
+                        }
+                    }
+                }
+                
+                console.log(`[WebSocket] ✓✓✓ Updated thermostat enabled state to: ${data.state}`);
+            } else {
+                console.warn(`[WebSocket] ✗ Thermostat enabled switch not found, tried ID: ${enabledSwitchId}`);
+            }
+            
+            // Jeśli przyszła temperatura, zaktualizuj też wartość
+            if (data.temperature !== undefined) {
+                const tempInputId = `temp${thermostatNameSafe}`;
+                const tempInput = document.getElementById(tempInputId);
+                if (tempInput) {
+                    tempInput.value = data.temperature;
+                    console.log(`[WebSocket] ✓ Updated temperature value to: ${data.temperature}°C`);
+                }
+            }
+        });
+        
         // Dodaj obsługę update_rooms do cache
         this.socket.on('update_rooms', (roomsPayload) => {
             if (roomsPayload && typeof roomsPayload === 'object' && roomsPayload.meta && roomsPayload.meta.home_id) {
