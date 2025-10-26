@@ -242,7 +242,8 @@ class SmartHomeApp {
             'automations-icon': 'automations_icon',
             'edit-icon': 'edit_icon',
             'user-menu-settings-icon': 'settings_icon',
-            'user-menu-user-icon': 'user_icon'
+            'user-menu-user-icon': 'user_icon',
+            'rooms-icon': 'rooms_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
             const el = document.getElementById(id);
@@ -265,11 +266,11 @@ class SmartHomeApp {
         const iconSrc = theme === 'dark' 
             ? "/static/icons/menu_icon_dark.png" 
             : "/static/icons/menu_icon_light.png";
-        [document.getElementById('menu-icon'), 
-         document.getElementById('menu-icon-side'),
-         document.getElementById('menu-icon-header')]
-            .filter(Boolean)
-            .forEach(el => el.src = iconSrc);
+    [document.getElementById('menu-icon'), 
+     document.getElementById('menu-icon-side'),
+     document.getElementById('menu-icon-header')]
+        .filter(Boolean)
+        .forEach(el => el.src = iconSrc);
     }
 
     updateSideMenuIcons(theme) {
@@ -283,7 +284,8 @@ class SmartHomeApp {
             'automations-icon': 'automations_icon',
             'edit-icon': 'edit_icon',
             'user-menu-settings-icon': 'settings_icon',
-            'user-menu-user-icon': 'user_icon'
+            'user-menu-user-icon': 'user_icon',
+            'rooms-icon': 'rooms_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
             const element = document.getElementById(id);

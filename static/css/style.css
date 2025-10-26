@@ -289,6 +289,7 @@ main {
     list-style: none;
     padding: 0;
     margin: 0;
+    margin-top: 3px;
 }
 
 .side-menu li {
@@ -305,9 +306,7 @@ main {
     transition: all 0.3s ease;
     align-items: center;
     justify-content: center;
-    margin: 10px 0;
-    margin-right: 5px;
-    margin-left: 5px;
+
     display: flex;
     justify-content: flex-start;
     border: 2px solid var(--border);
