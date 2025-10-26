@@ -273,11 +273,8 @@ header .menu-handle {
 }
 
 .main-menu.active .menu-item:hover {
-    background: rgba(255, 255, 255, 0.15); /* DODANE: jaśniejszy hover w stanie active */
+background: none;
 }
-
-/* USUNIĘTE: niepotrzebne klasy .animating */
-
 
 @media (max-width: 600px) {
     .main-menu {

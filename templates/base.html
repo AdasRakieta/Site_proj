@@ -97,7 +97,7 @@
                 <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
                 <li class="menu-item-with-submenu">
                     <a href="#" class="menu-link" onclick="toggleRoomsSubmenu(event)">
-                        <img id="rooms-icon" class="menu-icon" src="{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Rooms"> Pokoje
+                        <img id="rooms-icon" class="menu-icon" src="{{ url_for('static', filename='icons/rooms_icon_light.png') }}" alt="Rooms"> Pokoje
                         <span class="submenu-arrow">▶</span>
                     </a>
                     <ul class="submenu" id="rooms-submenu">
@@ -109,10 +109,9 @@
                 <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
                 <li><a href="/automations" class="menu-link"><img id="automations-icon" class="menu-icon" src="{{ url_for('static', filename='icons/automations_icon_light.png') }}" alt="Automations"> Automatyzacje</a></li>
                 {% if has_admin_access %}
-                <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
+                <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="{{ url_for('static', filename='icons/dashboard_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
                 <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
                 {% endif %}
-                <!-- <li><a href="/settings" class="menu-link"><img id="settings-icon" class="menu-icon" src="{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Settings"> Ustawienia</a></li> -->
             </ul>
         </nav>
     </div>
@@ -213,11 +212,36 @@
             }
         });
 
-        // Rooms submenu toggle
+        // Rooms submenu toggle with smooth animation
         function toggleRoomsSubmenu(event) {
             event.preventDefault();
             const menuItem = event.target.closest('.menu-item-with-submenu');
-            menuItem.classList.toggle('active');
+            const submenu = menuItem.querySelector('.submenu');
+            
+            if (menuItem.classList.contains('active')) {
+                // Closing animation
+                submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                // Force reflow
+                submenu.offsetHeight;
+                submenu.style.maxHeight = '0px';
+                
+                // Remove active class after animation
+                setTimeout(() => {
+                    menuItem.classList.remove('active');
+                }, 350);
+            } else {
+                // Opening animation
+                menuItem.classList.add('active');
+                submenu.style.maxHeight = '0px';
+                // Force reflow
+                submenu.offsetHeight;
+                submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                
+                // Set to none after animation to allow content to expand
+                setTimeout(() => {
+                    submenu.style.maxHeight = 'none';
+                }, 350);
+            }
         }
     </script>
     

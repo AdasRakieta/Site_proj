@@ -5,6 +5,7 @@
 /* Globalne zmienne motywów */
 :root[data-theme="light"] {
     --text: #050315;
+    --text_negative: #f8f8f2be;
     --background: #DDE6ED;
     --primary: #27374D;
     --secondary: #688699;
@@ -15,7 +16,6 @@
     --btn_text: var(--text);
     --border: #DDE6ED;
     --box_shd: 0 3px 5px hsla(0, 0%, 0%, 0.226);
-    --box_shd-sug: 0 3px 5px hsla(0, 0%, 0%, 0.226);
     --log_txt: #DDE6ED;
     --log_background: #78a6c9;
     --log_usr: #050315;
@@ -64,6 +64,7 @@
 
 :root[data-theme="dark"] {
     --text: #f8f8f2be;
+    --text_negative: #050315;
     --background: #282a36;
     --primary: #6372a3;
     --secondary: #343746;
@@ -73,7 +74,6 @@
     --btn_text: var(--text);
     --border: #222831;
     --box_shd: 0 2px 5px hsla(0, 0%, 75%, 0.26);
-    --box_shd-sug: 0 2px 5px hsla(0, 0%, 75%, 0.26);
     --log_txt: #DDE6ED;
     --log_background: #565b74;
     --log_usr: #050315;
@@ -213,6 +213,7 @@ header {
     padding: 0;
     z-index: 999;
     top: 19%;
+    box-shadow: none;
 }
 
 .close-btn:hover {
@@ -332,10 +333,6 @@ main {
     scroll-behavior: smooth;
 }
 
-/* Submenu dla pokoi */
-.menu-item-with-submenu {
-    position: relative;
-}
 
 .submenu-arrow {
     margin-left: auto;
@@ -355,20 +352,12 @@ main {
     margin-top: 5px;
     margin-left: 15px;
     margin-right: 5px;
-    opacity: 0;
-    transform: scale(0.8) translateY(-10px);
-    transition: opacity 0.35s cubic-bezier(0,.52,.64,.99), transform 0.35s cubic-bezier(0,.52,.64,.99);
-    pointer-events: none;
-    box-shadow: var(--box_shd);
-    max-height: 500px;
+    max-height: 0;
     overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0,.52,.64,.99);
+    box-shadow: var(--box_shd);
 }
 
-.menu-item-with-submenu.active .submenu {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    pointer-events: auto;
-}
 
 .submenu li {
     margin: 0;

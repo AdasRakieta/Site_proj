@@ -800,7 +800,22 @@
 
 .quick-action-btn {
     padding: 10px 16px;
-    color: white;
+    display: inline-block;
+    background-color: var(--accent);
+    color: var(--text_negative);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 0.5rem;
+    text-decoration: none;
+    box-shadow: var(--box_shd);
+}
+
+.quick-action-btn:hover {
+    background-color: var(--hover);
+    box-shadow: var(--box_shd);
+    transform: scale(1.05);
 }
 
 
