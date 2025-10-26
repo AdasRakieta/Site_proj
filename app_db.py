@@ -909,6 +909,24 @@ class SmartHomeApp:
                         'enabled': payload_enabled
                     })
 
+                    # Trigger automation execution after successful thermostat state change
+                    if self.socket_automation_executor:
+                        try:
+                            results = self.socket_automation_executor.process_device_trigger(
+                                device_id=str(updated_device.get('id')),
+                                room_name=payload_room,
+                                device_name=payload_name,
+                                new_state=payload_enabled,  # Thermostat enabled state (True/False)
+                                home_id=str(current_home_id),
+                                user_id=str(user_id)
+                            )
+                            if results:
+                                logger.info(f"[AUTOMATION] Executed {len(results)} automations via SocketIO (thermostat trigger)")
+                        except Exception as auto_error:
+                            logger.error(f"[AUTOMATION] Error in SocketIO automation trigger (thermostat): {auto_error}")
+                            import traceback
+                            traceback.print_exc()
+
                     try:
                         if hasattr(self, 'cache_manager') and self.cache_manager:
                             self.cache.delete('temperature_controls')
