@@ -459,7 +459,17 @@ class SmartHomeApp {
                 const tempInput = document.getElementById(tempInputId);
                 if (tempInput) {
                     tempInput.value = data.temperature;
-                    console.log(`[WebSocket] ✓ Updated temperature value to: ${data.temperature}°C`);
+                    console.log(`[WebSocket] ✓ Updated temperature input value to: ${data.temperature}°C`);
+                }
+                
+                // Zaktualizuj również wskaźnik wizualny temperatury
+                const tempDisplayId = `tempDisplay${thermostatNameSafe}`;
+                const tempDisplay = document.getElementById(tempDisplayId);
+                if (tempDisplay) {
+                    tempDisplay.textContent = ` ${data.temperature}°C`;
+                    console.log(`[WebSocket] ✓ Updated temperature display to: ${data.temperature}°C`);
+                } else {
+                    console.warn(`[WebSocket] ✗ Temperature display element not found, tried ID: ${tempDisplayId}`);
                 }
             }
         });

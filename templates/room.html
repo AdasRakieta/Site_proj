@@ -193,6 +193,13 @@
                     controlNameSpan.textContent = `${control.name}:`;
                     controlHeader.appendChild(controlNameSpan);
 
+                    // Temperature display indicator
+                    const tempDisplaySpan = document.createElement('span');
+                    tempDisplaySpan.className = 'temp-display-value';
+                    tempDisplaySpan.id = `tempDisplay${control.name.replace(/\s+/g, '')}`;
+                    tempDisplaySpan.textContent = ` ${control.temperature || 22}°C`;
+                    controlHeader.appendChild(tempDisplaySpan);
+
                     const switchLabel = document.createElement('label');
                     switchLabel.className = 'switch temp-switch';
                     

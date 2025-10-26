@@ -1554,6 +1554,17 @@ footer {
     font-size: 1.1rem;
 }
 
+/* Wskaźnik temperatury w nagłówku termostatu */
+.temp-display-value {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 1.05rem;
+    margin-left: 5px;
+    background-color: rgba(0, 123, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
 .control-content {
     display: flex;
     align-items: center;
