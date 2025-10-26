@@ -41,8 +41,10 @@ services:
     container_name: smarthome_nginx
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
+      - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - app
     restart: unless-stopped
