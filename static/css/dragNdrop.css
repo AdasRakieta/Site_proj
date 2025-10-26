@@ -615,8 +615,11 @@ input:focus{
     border: none;
     cursor: pointer;
     color: inherit;
+    box-shadow: none;
 }           
 
 .edit-room-button:hover{
     font-Size: 1.3em;
+    box-shadow: none;
+    background: none;
 }

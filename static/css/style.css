@@ -355,14 +355,19 @@ main {
     margin-top: 5px;
     margin-left: 15px;
     margin-right: 5px;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
+    opacity: 0;
+    transform: scale(0.8) translateY(-10px);
+    transition: opacity 0.35s cubic-bezier(0,.52,.64,.99), transform 0.35s cubic-bezier(0,.52,.64,.99);
+    pointer-events: none;
     box-shadow: var(--box_shd);
+    max-height: 500px;
+    overflow: hidden;
 }
 
 .menu-item-with-submenu.active .submenu {
-    max-height: 500px; /* Dostatecznie duża wartość */
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
 }
 
 .submenu li {
