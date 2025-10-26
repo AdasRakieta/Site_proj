@@ -442,6 +442,11 @@ class SmartHomeApp:
             self.socket_automation_executor.socketio = self.socketio
             logger.info("[AUTOMATION] SocketIO connected to automation executor")
         
+        # Set socketio instance for scheduler's automation executor
+        if hasattr(self, 'automation_scheduler') and self.automation_scheduler:
+            self.automation_scheduler.automation_executor.socketio = self.socketio
+            logger.info("[AUTOMATION] SocketIO connected to scheduler's automation executor")
+        
         @self.socketio.on('connect')
         def handle_connect():
             """Handle client connection"""

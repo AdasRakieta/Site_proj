@@ -90,7 +90,18 @@ class AutomationScheduler:
                 automations = cursor.fetchall()
             
             current_time = now.strftime('%H:%M')
-            current_weekday = now.strftime('%A').lower()  # monday, tuesday, etc.
+            # Map weekday to 3-letter abbreviation used in frontend (mon, tue, wed, etc.)
+            weekday_map = {
+                'monday': 'mon',
+                'tuesday': 'tue', 
+                'wednesday': 'wed',
+                'thursday': 'thu',
+                'friday': 'fri',
+                'saturday': 'sat',
+                'sunday': 'sun'
+            }
+            current_weekday_full = now.strftime('%A').lower()  # monday, tuesday, etc.
+            current_weekday = weekday_map.get(current_weekday_full, current_weekday_full)
             
             logger.debug(f"[SCHEDULER] Checking {len(automations)} time-based automations at {current_time} ({current_weekday})")
             
@@ -112,16 +123,17 @@ class AutomationScheduler:
                     # Check if time matches
                     trigger_time = trigger.get('time', '')
                     if trigger_time != current_time:
+                        logger.debug(f"[SCHEDULER] ⏭ Automation '{automation_dict['name']}' - time mismatch: {trigger_time} != {current_time}")
                         continue
                     
                     # Check if day matches
                     trigger_days = trigger.get('days', [])
                     if trigger_days and current_weekday not in trigger_days:
-                        logger.debug(f"[SCHEDULER] Skipping automation '{automation_dict['name']}' - day mismatch ({current_weekday} not in {trigger_days})")
+                        logger.info(f"[SCHEDULER] ⏭ Skipping automation '{automation_dict['name']}' - day mismatch: {current_weekday} not in {trigger_days}")
                         continue
                     
                     # Execute automation
-                    logger.info(f"[SCHEDULER] Executing time-based automation: {automation_dict['name']} at {current_time}")
+                    logger.info(f"[SCHEDULER] ✓ Executing time-based automation: {automation_dict['name']} at {current_time} on {current_weekday}")
                     
                     # Get a user from this home to use for execution context
                     user_id = self._get_home_user(automation_dict['home_id'])
