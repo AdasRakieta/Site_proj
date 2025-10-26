@@ -371,20 +371,10 @@
 .form-control {
     width: 100%;
     padding: 12px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
     font-size: 16px;
-    transition: all 0.3s ease;
-    background: var(--background);
-    color: var(--text);
-    box-shadow: var(--box_shd);
     box-sizing: border-box;
 }
 
-.form-control:focus, .form-control:hover {
-    outline: none;
-    border-color: var(--accent);
-}
 
 .form-text {
     display: block;
@@ -809,23 +799,10 @@
 }
 
 .quick-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
     padding: 10px 16px;
-    background: var(--accent);
     color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 600;
-    transition: all 0.3s ease;
 }
 
-.quick-action-btn:hover {
-    background: var(--hover);
-    transform: translateY(-1px);
-    box-shadow: var(--box_shd);
-}
 
 .action-icon {
     font-size: 1.1em;

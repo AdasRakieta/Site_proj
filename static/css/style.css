@@ -59,6 +59,7 @@
     --nav-border: #dee2e6;
     --background-secondary: var(--bg-secondary);
     --card-background: var(--card-bg);
+    --border-in-sel: 1px solid var(--accent);
 }
 
 :root[data-theme="dark"] {
@@ -115,6 +116,7 @@
     --nav-border: #404040;
     --background-secondary: var(--bg-secondary);
     --card-background: var(--card-bg);
+    --border-in-sel: 1px solid var(--primary);
 }
 
 /* ============================== */
@@ -150,8 +152,9 @@ body {
     overflow-x: hidden;
 }
 
-select {
-    border: 1px solid var(--primary);
+
+input, textarea, select {
+    border: var(--border-in-sel);
     box-shadow: var(--box_shd);
     border-radius: 4px;
     background-color: var(--background);
@@ -159,41 +162,10 @@ select {
     transition: all 0.3s ease;
 }
 
-select:focus, select:hover {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 
-}
-
-input {
-    border: 1px solid var(--primary);
+input:focus, input:hover, textarea:hover, textarea:focus, select:focus, select:hover {
+    border-color: var(--accent-color) !important;
     box-shadow: var(--box_shd);
-    border-radius: 4px;
-    background-color: var(--background);
-    color: var(--text-color);
-    transition: all 0.3s ease;
-}
-
-textarea {
-    border: 1px solid var(--primary);
-    box-shadow: var(--box_shd);
-    border-radius: 4px;
-    background-color: var(--background);
-    color: var(--text-color);
-    transition: all 0.3s ease;
-}
-
-textarea:hover, textarea:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-input:focus, input:hover {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 
 }
 
@@ -207,6 +179,7 @@ button {
     cursor: pointer;
     transition: all 0.3s ease !important;
     text-decoration: none;
+    box-shadow: var(--box_shd);
 }
 
 button:hover {
@@ -290,11 +263,6 @@ main {
     text-align: center;
     flex: 1;
 }
-
-input{
-    outline: none;
-}
-
 /* ============================== */
 /*       Menu boczne (side menu)   */
 /* ============================== */
@@ -1184,13 +1152,8 @@ footer {
 .login-form input {
     width: 95%;
     padding: 10px;
-    border-radius: 5px;
-    background-color: var(--background);
-    color: var(--text-color);
     border: 1px solid var(--primary);
-    transition: all 0.3s ease;
     font-size: 12px;
-    box-shadow: var(--box_shd);
 }
 
 .login-form input:focus, .login-form input:hover {
