@@ -42,7 +42,6 @@ services:
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
       - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "80:80"
       - "443:443"
