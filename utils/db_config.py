@@ -63,7 +63,15 @@ def validate_db_config_or_raise(config: Optional[Dict[str, str]] = None) -> None
     missing = validate_db_config(config)
     
     if missing:
-        env_vars = [f'DB_{k.upper()}' for k in missing]
+        # Map config keys to environment variable names
+        env_var_map = {
+            'host': 'DB_HOST',
+            'dbname': 'DB_NAME',
+            'user': 'DB_USER',
+            'password': 'DB_PASSWORD',
+            'port': 'DB_PORT'
+        }
+        env_vars = [env_var_map.get(k, f'DB_{k.upper()}') for k in missing]
         raise ValueError(
             f"Missing required database configuration: {', '.join(missing)}. "
             f"Please set these environment variables: {', '.join(env_vars)}"

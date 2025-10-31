@@ -52,7 +52,7 @@ def home_settings_page(home_id):
     if not user:
         print("❌ No current user")
         logger.error("No current user")
-        return redirect('/login')
+        return redirect(url_for('login'))
     user_id = user['id']
     
     print(f"👤 User ID: {user_id}, accessing home: {home_id}")
