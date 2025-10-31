@@ -4,8 +4,8 @@ Separate API endpoints for home management functionality.
 """
 
 from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for, flash
-from functools import wraps
 from utils.multi_home_db_manager import MultiHomeDBManager
+from utils.auth_helpers import login_required, get_current_user
 from app.home_management import HomeSettingsManager
 import logging
 
@@ -27,23 +27,6 @@ def init_home_settings_routes(db_manager):
         logger.info("Home settings routes initialized with db_manager")
     else:
         logger.warning("Home settings routes initialized without db_manager")
-
-# Authentication decorator
-def login_required(f):
-    """Decorator for requiring login"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect('/login')
-        return f(*args, **kwargs)
-    return decorated_function
-
-def get_current_user():
-    """Get current logged in user from session"""
-    user_id = session.get('user_id')
-    if user_id:
-        return {'id': user_id}
-    return None
 
 # Test route to check if blueprint works
 @home_settings_bp.route('/test-home-settings')

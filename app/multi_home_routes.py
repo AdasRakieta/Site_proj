@@ -4,8 +4,8 @@ Handles home selection, creation, and management.
 """
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash, current_app
-from functools import wraps
 from utils.multi_home_db_manager import MultiHomeDBManager
+from utils.auth_helpers import login_required, get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,24 +46,6 @@ def get_multi_db():
 def _ensure_multi_db_loaded():
     """Ensure multi-home DB manager is loaded into module scope before handling requests."""
     get_multi_db()
-
-# Authentication helpers for multi-home routes
-def login_required(f):
-    """Decorator for requiring login"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def get_current_user():
-    """Get current logged in user from session"""
-    user_id = session.get('user_id')
-    if user_id:
-        # For now, return a simple user dict - this should integrate with your user system
-        return {'id': user_id}
-    return None
 
 @multi_home_bp.route('/home/select')
 @login_required
