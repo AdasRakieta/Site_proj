@@ -802,7 +802,7 @@
     padding: 10px 16px;
     display: inline-block;
     background-color: var(--accent);
-    color: var(--text_negative);
+    color: var(--btn_text);
     border: none;
     border-radius: 8px;
     cursor: pointer;

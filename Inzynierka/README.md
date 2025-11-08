@@ -13,36 +13,35 @@ Ten folder zawiera kompletną dokumentację pracy inżynierskiej dotyczącej sys
 | `00_STRUKTURA_PRACY.md` | Pełna struktura pracy, harmonogram, spis treści | ✅ Gotowe | 10 |
 | `01_WSTEP.md` | Wstęp, cele, zakres, motywacja, założenia | ✅ Gotowe | 12-15 |
 | `02_ANALIZA_I_PRZEGLAD.md` | Analiza problemu, przegląd rozwiązań, wymagania | ✅ Gotowe | 20-25 |
-| `03_PODSTAWY_TEORETYCZNE.md` | Technologie webowe, bazy danych, IoT, bezpieczeństwo | ⏳ Do napisania | 15-20 |
+| `03_PODSTAWY_TEORETYCZNE.md` | Technologie webowe, bazy danych, IoT, bezpieczeństwo | ✅ Gotowe | 15-20 |
 | `04_ARCHITEKTURA_SYSTEMU.md` | Architektura, komponenty, przepływ danych, schemat DB | ✅ Gotowe | 25-30 |
 | `05_IMPLEMENTACJA.md` | Szczegóły implementacji funkcjonalności (częściowo) | 🔄 W trakcie | 25-30 |
 | `06_DEPLOYMENT.md` | Deployment, Docker, CI/CD, infrastruktura | ✅ Gotowe | 15-20 |
-| `07_BEZPIECZENSTWO.md` | Analiza zagrożeń, mechanizmy bezpieczeństwa | ⏳ Do napisania | 8-10 |
-| `08_TESTY_I_OPTYMALIZACJA.md` | Testy, wyniki wydajnościowe, optymalizacje | ⏳ Do napisania | 10-12 |
-| `09_INSTRUKCJA_UZYTKOWNIKA.md` | Podręcznik użytkownika końcowego | ⏳ Do napisania | 5-7 |
-| `10_PODSUMOWANIE.md` | Podsumowanie, wnioski, rozwój przyszły | ⏳ Do napisania | 5-7 |
+| `07_BEZPIECZENSTWO.md` | Analiza zagrożeń, mechanizmy bezpieczeństwa | ✅ Gotowe | 8-10 |
+| `08_TESTY_I_OPTYMALIZACJA.md` | Testy, wyniki wydajnościowe, optymalizacje | ✅ Gotowe | 10-12 |
+| `09_INSTRUKCJA_UZYTKOWNIKA.md` | Podręcznik użytkownika końcowego | ✅ Gotowe | 5-7 |
+| `10_PODSUMOWANIE.md` | Podsumowanie, wnioski, rozwój przyszły | ✅ Gotowe | 5-7 |
 | `11_BIBLIOGRAFIA.md` | Bibliografia (80 źródeł) | ✅ Gotowe | 3-5 |
-| `12_ZALACZNIKI/` | Załączniki (kod, diagramy, screenshots) | ⏳ Do utworzenia | - |
+| `12_ZALACZNIKI/` | Załączniki (kod, diagramy, screenshots) | 🔄 W trakcie | - |
 
 ### Postęp pracy
 
-**Ukończone (50%):**
+**Ukończone (~85%):**
 - ✅ Struktura i spis treści
 - ✅ Rozdział 1: Wstęp
 - ✅ Rozdział 2: Analiza i przegląd
+- ✅ Rozdział 3: Podstawy teoretyczne
 - ✅ Rozdział 4: Architektura systemu
-- ✅ Rozdział 5: Implementacja (50%)
 - ✅ Rozdział 6: Deployment
+- ✅ Rozdział 7: Bezpieczeństwo
+- ✅ Rozdział 8: Testy i optymalizacja
+- ✅ Rozdział 9: Instrukcja użytkownika
+- ✅ Rozdział 10: Podsumowanie
 - ✅ Rozdział 11: Bibliografia
 
-**Do wykonania (50%):**
-- ⏳ Rozdział 3: Podstawy teoretyczne
-- ⏳ Rozdział 5: Implementacja (dokończenie)
-- ⏳ Rozdział 7: Bezpieczeństwo
-- ⏳ Rozdział 8: Testy i optymalizacja
-- ⏳ Rozdział 9: Instrukcja użytkownika
-- ⏳ Rozdział 10: Podsumowanie
-- ⏳ Rozdział 12: Załączniki
+**Do wykonania (~15%):**
+- 🔄 Rozdział 5: Implementacja (dokończenie i polerka)
+- 🔄 Rozdział 12: Załączniki (zrzuty ekranu, diagramy, fragmenty kodu)
 
 ### Najważniejsze cechy projektu
 

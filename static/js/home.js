@@ -35,7 +35,7 @@ function renderRooms(rooms) {
         for (let j = 0; j < roomsPerRow && i + j < rooms.length; j++) {
             const roomButton = document.createElement('a');
             roomButton.href = `/${rooms[i + j].toLowerCase()}`;
-            roomButton.className = 'rooms-button';
+            roomButton.className = 'quick-action-btn';
             roomButton.textContent = rooms[i + j];
             row.appendChild(roomButton);
         }

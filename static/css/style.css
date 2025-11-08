@@ -129,17 +129,6 @@
 /*       Globalne ustawienia       */
 /* ============================== */
 
-html, body {
-    font-family: 'Inter', Arial, sans-serif;
-    background: var(--background);
-    color: var(--text);
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    scroll-behavior: smooth;
-    overflow-x: hidden;
-}
-
 body {
     font-family: 'Roboto', sans-serif;
     margin: 0;
@@ -150,6 +139,7 @@ body {
     flex-direction: column;
     min-height: 100vh;
     overflow-x: hidden;
+    scroll-behavior: smooth;
 }
 
 
@@ -172,7 +162,7 @@ input:focus, input:hover, textarea:hover, textarea:focus, select:focus, select:h
 button {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
-    background-color: var(--button);
+    background-color: var(--accent);
     color: var(--btn_text);
     border: none;
     border-radius: 8px;
@@ -425,32 +415,6 @@ main {
     transform: scale(1.05);
 }
 
-
-/* Przyciski główne i specjalne dziedziczą po .btn */
-.rooms-button, .control-button, .map-button, .menu-btn, .action-btn, .delete-button, .cancel-button, .small-button, .logout-btn, .change-button, .btn-primary, .btn-secondary {
-    /* dziedziczą po .btn */
-    padding: inherit;
-    font-size: inherit;
-    background-color: inherit;
-    color: inherit;
-    border: inherit;
-    border-radius: inherit;
-    cursor: inherit;
-    transition: inherit;
-    text-decoration: inherit;
-    margin: inherit;
-    box-shadow: var(--box_shd);
-
-}
-
-/* Specyficzne style dla poszczególnych przycisków */
-.rooms-button:hover, .control-button:hover, .map-button:hover, .menu-btn:hover, .action-btn:hover, .small-button:hover, .logout-btn:hover, .change-button:hover, .btn-primary:hover, .btn-secondary:hover {
-    background-color: var(--hover);
-    box-shadow: var(--box_shd);
-    transform: scale(1.05);
-}
-
-
 .btn-secondary {
     background-color: var(--secondary);
     color: var(--btn_text);
@@ -520,20 +484,8 @@ main {
     margin: 0.5rem 0.5rem 0.5rem 0;
 }
 
-/* Specjalne style dla .control-button */
 .control-button {
-    display: inline-block;
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--accent);
-    color: var(--btn_text);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
     margin: 0.5rem;
-    text-decoration: none;
-    box-shadow: var(--box_shd);
 }
 
 .control-button:disabled {
@@ -552,20 +504,8 @@ main {
     align-items: center;
 }
 
-/* Specjalne style dla .rooms-button */
 .rooms-button {
-    display: inline-block;
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--accent);
-    color: var(--btn_text);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
     margin: 0.5rem;
-    text-decoration: none;
-    box-shadow: var(--box_shd);
 }
 
 /* ============================== */
@@ -580,7 +520,6 @@ main {
     height: 32px;
     padding: 0;
     margin: 0 4px;
-    border: none;
     border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
@@ -632,17 +571,8 @@ main {
 .edit-input {
     width: 100%;
     padding: 4px 8px;
-    border: 1px solid var(--accent);
     border-radius: 4px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
     font-size: 14px;
-}
-
-.edit-input:focus {
-    outline: none;
-    border-color: var(--accent-hover);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
 }
 
 /* User table row styling */
@@ -891,8 +821,6 @@ input:checked+.slider:before {
     flex-direction: row;
     justify-content: center;
     gap: 10px;
-    /* Odstęp między elementami */
-    text-align: center;
 }
 
 .grid-container {
@@ -1068,20 +996,9 @@ input:checked+.slider:before {
     font-weight: bold;
     height: 35px;
     width: 70px;
-    background-color: transparent;
-    border-radius: 5px;
-    border-color: var(--primary);
-    color: var(--btn_text);
-    transition: all 0.3s ease;
     margin-left: 10px;
     margin-right: 5px;
 }
-
-    .input-temp:focus, .input-temp:hover {
-    background-color: var(--accent);
-    color: var(--btn_text);
-}
-
 
 /* ============================== */
 /*            Stopka              */
@@ -1145,31 +1062,7 @@ footer {
 .login-form input {
     width: 95%;
     padding: 10px;
-    border: 1px solid var(--primary);
     font-size: 12px;
-}
-
-.login-form input:focus, .login-form input:hover {
-    border-color: var(--accent-color);
-    outline: none;
-}
-
-.login-form button {
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--button);
-    color: var(--btn_text);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: var(--box_shd);
-    text-decoration: none;
-}
-
-.login-form button:hover {
-    background-color: var(--btn-primary-hover);
-    transform: scale(1.05);
 }
 
 .alert-msg {
@@ -1757,17 +1650,12 @@ footer {
     background-color: var(--btn-danger);
     border-color: var(--btn-danger);
     color: var(--text-delete);
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
     margin-top: 10px;
     margin-right: 10px;
 }
 .automation-card button[class="delete-automation btn-secondary"]:hover {
     background-color: var(--btn-danger-hover);
     border-color: var(--btn-danger-hover);
-    box-shadow: var(--box_shd);
-
 }
 
 .automation-card button[class="confirm-delete-btn btn-danger"] {
@@ -1775,34 +1663,17 @@ footer {
     font-size: 0.9rem;
     background-color: var(--confirm-btn);
     color: var(--text-delete);
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
     margin-top: 10px;
     margin-right: 10px;
 }
 
 .automation-card button[class="confirm-delete-btn btn-danger"]:hover {
     background-color: var(--confirm-btn-hover);
-    box-shadow: var(--box_shd);
-
-}
-
-.automation-card button:hover {
-    background-color: var(--hover);
-    box-shadow: var(--box_shd);
-
 }
 
 .automation-card button {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
-    background-color: var(--button);
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
     margin-top: 10px;
     margin-right: 10px;
 }
@@ -1854,32 +1725,9 @@ footer {
     grid-column: 1 / -1;
 }
 
-.btn-primary{
-    background-color: var(--btn-primary);
-    border-color: var(--btn-primary);
-    color: var(--btn_text);
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-right: 0.5rem;
-    text-decoration: none;
-}
-
 #automation-form button[id="add-action"] {
     padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--button);
-    color: var(--btn_text);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
     margin-right: 0.5rem;
-    text-decoration: none;
-    box-shadow: var(--box_shd);
-
 }
 
 #automation-form button[id="add-action"]:hover {
