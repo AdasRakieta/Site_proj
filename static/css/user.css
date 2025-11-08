@@ -246,7 +246,7 @@
     border: 2px dashed var(--accent-color, #3498db);
     border-radius: 8px;
     padding: 1rem;
-    background: var(--background-secondary, #f8f8f8);
+    background: var(--bg-secondary, #f8f8f8);
     text-align: center;
     margin-bottom: 1rem;
     position: relative;

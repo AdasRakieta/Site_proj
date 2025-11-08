@@ -233,7 +233,7 @@
     justify-content: space-around;
     margin: 20px 0;
     padding: 16px;
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
     border-radius: 8px;
 }
 
@@ -262,7 +262,7 @@
 }
 
 .permission-tag {
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
     color: var(--text-secondary);
     padding: 4px 8px;
     border-radius: 6px;
@@ -617,7 +617,7 @@
     border-radius: 10px;
     text-decoration: none;
     color: var(--text);
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -633,7 +633,7 @@
 
 .settings-btn-primary {
     border-color: var(--accent);
-    background: linear-gradient(135deg, var(--background-secondary) 0%, var(--hover) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--hover) 100%);
 }
 
 .settings-btn .icon {
@@ -837,7 +837,7 @@
     font-size: 0.9em;
     color: var(--text-secondary);
     padding: 4px 8px;
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
     border-radius: 6px;
     font-weight: 500;
 }
@@ -902,7 +902,7 @@
     letter-spacing: 2px;
     text-align: center;
     padding: 16px;
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
     border: 2px dashed var(--border);
     border-radius: 8px;
     color: var(--accent);

@@ -57,8 +57,6 @@
     --link-hover: #0056b3;
     --nav-bg: #ffffff;
     --nav-border: #dee2e6;
-    --background-secondary: var(--bg-secondary);
-    --card-background: var(--card-bg);
     --border-in-sel: 1px solid var(--accent);
 }
 
@@ -114,8 +112,6 @@
     --link-hover: #0b5ed7;
     --nav-bg: #1a1a1a;
     --nav-border: #404040;
-    --background-secondary: var(--bg-secondary);
-    --card-background: var(--card-bg);
     --border-in-sel: 1px solid var(--primary);
 }
 
@@ -417,7 +413,6 @@ main {
 
 .btn-secondary {
     background-color: var(--secondary);
-    color: var(--btn_text);
 }
 
 /* Specjalne style dla logout-btn */
@@ -1728,12 +1723,6 @@ footer {
 #automation-form button[id="add-action"] {
     padding: 0.8rem 1.5rem;
     margin-right: 0.5rem;
-}
-
-#automation-form button[id="add-action"]:hover {
-    background-color: var(--hover);
-    box-shadow: var(--box_shd);
-
 }
 
 #automation-form button[class="remove-action"] {
