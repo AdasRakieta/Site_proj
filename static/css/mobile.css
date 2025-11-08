@@ -225,3 +225,19 @@
 
 }
 
+@media (max-width: 600px) {
+    .notification {
+        right: 8px;
+        left: 8px;
+        max-width: unset;
+        font-size: 1em;
+        padding: 10px 8px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+  .weekdays-checkbox-group .weekday-checkbox-label {
+    width: 100%;
+    display: inline-block;
+  }
+}

@@ -36,7 +36,7 @@
     top: 48px;
     right: 0;
     min-width: 180px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 18px;
     box-shadow: 0 8px 24px var(--shadow-color);
     padding: 18px 0 10px 0;
@@ -56,7 +56,7 @@
 
 #user-menu .user-menu-info {
     padding: 0 18px 10px 18px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--background-color);
     margin-bottom: 10px;
 }
 
@@ -195,7 +195,7 @@ header .menu-handle {
     height: 40px; /* DODANE: stała wysokość */
     top: 0;
     right: 28.8px;
-    background-color: var(--card-bg);
+    background-color: var(--background);
     border-radius: 50px;
     transform: scale(0);
     transition: transform .3s ease .6s, 

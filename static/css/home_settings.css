@@ -10,9 +10,9 @@
 .settings-header {
     margin-bottom: 32px;
     padding: 24px;
-    background: var(--card-bg) !important;
+    background: var(--background) !important;
     border-radius: 12px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     box-shadow: var(--box_shd);
     width: 650px;
     margin-left: auto;
@@ -48,7 +48,7 @@
     padding: 16px;
     background: var(--background);
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     min-width: 80px;
 }
 
@@ -73,9 +73,9 @@
 }
 
 .settings-section {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 12px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     overflow: hidden;
     box-shadow: var(--box_shd);
     width: 650px;
@@ -84,12 +84,12 @@
 
 .settings-section.danger-zone {
     border-color: var(--error);
-    background: linear-gradient(135deg, var(--card-bg), rgba(220, 53, 69, 0.05));
+    background: linear-gradient(135deg, var(--background), rgba(220, 53, 69, 0.05));
 }
 
 .section-header {
     padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--background);
 }
 
 .section-header h3 {
@@ -150,7 +150,7 @@
     padding: 10px 20px;
     background: var(--secondary);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     border-radius: 5px;
     cursor: pointer;
     font-size: 14px;
@@ -180,7 +180,7 @@
     top: calc(100% - 1px); /* Przylega do inputa */
     left: 0;
     right: 0;
-    background: var(--card-bg);
+    background: var(--background);
     border: 2px solid var(--accent);
     border-top: none; /* Usuwa górną ramkę aby wyglądało jak rozwinięcie */
     border-radius: 0 0 8px 8px; /* Tylko dolne rogi zaokrąglone */
@@ -213,7 +213,7 @@
     cursor: pointer;
     transition: all 0.15s ease;
     border-bottom: 1px solid rgba(128, 128, 128, 0.1);
-    background: var(--card-bg);
+    background: var(--background);
 }
 
 .suggestion-item:last-child {
@@ -237,7 +237,7 @@
 }
 
 .suggestion-item.no-results:hover {
-    background: var(--card-bg);
+    background: var(--background);
 }
 
 .city-name {
@@ -276,7 +276,7 @@
     padding: 20px;
     background: var(--background);
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
 }
 
 .invitation-section h4,
@@ -301,14 +301,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
 }
 
 .user-item.owner {
     border-color: var(--accent);
-    background: linear-gradient(135deg, var(--card-bg), rgba(var(--accent-rgb), 0.1));
+    background: linear-gradient(135deg, var(--background), rgba(var(--accent-rgb), 0.1));
 }
 
 .user-info {
@@ -345,7 +345,7 @@
 
 .room-card {
     background: var(--background);
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     border-radius: 8px;
     padding: 16px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -394,7 +394,7 @@
 
 .btn-icon {
     background: none;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     border-radius: 4px;
     padding: 6px 8px;
     cursor: pointer;
@@ -405,7 +405,7 @@
 }
 
 .btn-icon:hover {
-    background: var(--card-bg);
+    background: var(--background);
     border-color: var(--accent);
 }
 
@@ -500,7 +500,7 @@
 .settings-footer {
     margin-top: 32px;
     padding-top: 24px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--background);
     text-align: center;
 }
 
@@ -519,7 +519,7 @@
 }
 
 .modal-content {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 12px;
     width: 90%;
     max-width: 500px;
@@ -532,7 +532,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--background);
 }
 
 .modal-header h3 {

@@ -1,8 +1,7 @@
-/* ============================== */
-/*        Zmienne motywów          */
-/* ============================== */
+/* ========================================
+   CSS VARIABLES - Theme and Color Definitions
+   ======================================== */
 
-/* Globalne zmienne motywów */
 :root[data-theme="light"] {
     --text: #050315;
     --text_negative: #f8f8f2be;
@@ -10,41 +9,28 @@
     --primary: #27374D;
     --secondary: #688699;
     --accent: #9DB2BF;
-    --automation-hover: var(--input-bg);
-    --button: #9DB2BF;
     --hover: rgb(182, 206, 223);
-    --btn_text: var(--text);
-    --border: #DDE6ED;
     --box_shd: 0 3px 5px hsla(0, 0%, 0%, 0.226);
-    --log_txt: #DDE6ED;
     --log_background: #78a6c9;
-    --log_usr: #050315;
-    --border_side_men: #dde6ed9a;
-    --card-bg: #DDE6ED;
     --text-secondary: #666;
     --confirm-btn: rgba(0, 255, 0, 0.253);
     --confirm-btn-hover: rgba(0, 255, 0, 0.466);
     --delete-btn: rgba(255, 0, 0, 0.411);
     --delete-btn-hover: rgba(255, 0, 0, 0.7);
-    --text-delete: #fff;
     --checkbox-bg: #fff;
     --checkbox-border: #cccfdb;
     --checkbox-hover: #717476;
     --checkbox-checked-bg: #8f949a;
     --checkbox-checked-border: #212428;
-    --checkbox-checkmark: #fff;
     --text-color: #000000;
     --bg-primary: #ffffff;
     --bg-secondary: #f0f0f0;
-    --accent-color: #007bff;
-    --accent-hover: #0056b3;
-    --border-color: #dee2e6;
+    --accent-color-blue: #007bff;
+    --accent-hover-blue: #0056b3;
+    --background-color: #dee2e6;
     --shadow-color: rgba(0, 0, 0, 0.15);
     --input-bg: #9DB2BF;
-    --input-border: #ced4da;
     --input-text-hover: #5e5e5e;
-    --btn-primary: #9DB2BF;
-    --btn-primary-hover: rgb(182, 206, 223);
     --btn-danger: #f44336;
     --btn-danger-hover: #f32819;
     --btn-success: #28a745;
@@ -52,12 +38,7 @@
     --disabled-bg: #cccccc;
     --disabled-text: #666666;
     --btn-secondary: #6c757d;
-    --btn-secondary-hover: #5a6268;
-    --link-color: #007bff;
-    --link-hover: #0056b3;
-    --nav-bg: #ffffff;
-    --nav-border: #dee2e6;
-    --border-in-sel: 1px solid var(--accent);
+    --background-in-sel: 1px solid var(--accent);
 }
 
 :root[data-theme="dark"] {
@@ -68,62 +49,39 @@
     --secondary: #343746;
     --accent: #6170a0;
     --hover: #f8f8f28c;
-    --automation-hover: var(--hover);
-    --btn_text: var(--text);
-    --border: #222831;
     --box_shd: 0 2px 5px hsla(0, 0%, 75%, 0.26);
-    --log_txt: #DDE6ED;
     --log_background: #565b74;
-    --log_usr: #050315;
-    --border_side_men: #dde6ed9a;
-    --card-bg: #282a36;
     --text-secondary: #aaa;
     --confirm-btn: rgba(0, 255, 0, 0.253);
     --confirm-btn-hover: rgba(0, 255, 0, 0.466);
     --delete-btn: rgba(255, 0, 0, 0.411);
     --delete-btn-hover: rgba(255, 0, 0, 0.7);
-    --text-delete: #fff;
     --checkbox-bg: #22242a;
     --checkbox-border: #44485a;
     --checkbox-hover: #7a8dcb;
     --checkbox-checked-bg: #6170a0;
     --checkbox-checked-border: #56638d;
-    --checkbox-checkmark: #fff;
     --text-color: #ffffff;
     --bg-primary: #1a1a1a;
     --bg-secondary: #2d2d2d;
-    --accent-color: #0d6efd;
-    --accent-hover: #0b5ed7;
-    --border-color: #404040;
+    --accent-color-blue: #0d6efd;
+    --accent-hover-blue: #0b5ed7;
+    --background-color: #404040;
     --shadow-color: rgba(0, 0, 0, 0.3);
     --input-bg: #333333;
-    --input-border: #404040;
-    --btn-primary: #282a36;
-    --btn-primary-hover: #f8f8f28c;
     --btn-danger: #dc3545;
     --btn-danger-hover: #bb2d3b;
     --btn-success: #28a745;
     --btn-success-hover: #218838;
     --btn-secondary: #6c757d;
-    --btn-secondary-hover: #5a6268;
     --disabled-bg: #444444;
     --disabled-text: #888888;
-    --link-color: #0d6efd;
-    --link-hover: #0b5ed7;
-    --nav-bg: #1a1a1a;
-    --nav-border: #404040;
-    --border-in-sel: 1px solid var(--primary);
+    --background-in-sel: 1px solid var(--primary);
 }
 
-/* ============================== */
-/*          Media Queries          */
-/* ============================== */
-
-
-
-/* ============================== */
-/*       Globalne ustawienia       */
-/* ============================== */
+/* ========================================
+   RESET & GLOBAL STYLES
+   ======================================== */
 
 body {
     font-family: 'Roboto', sans-serif;
@@ -138,9 +96,8 @@ body {
     scroll-behavior: smooth;
 }
 
-
 input, textarea, select {
-    border: var(--border-in-sel);
+    border: var(--background-in-sel);
     box-shadow: var(--box_shd);
     border-radius: 4px;
     background-color: var(--background);
@@ -148,18 +105,16 @@ input, textarea, select {
     transition: all 0.3s ease;
 }
 
-
 input:focus, input:hover, textarea:hover, textarea:focus, select:focus, select:hover {
-    border-color: var(--accent-color) !important;
+    border-color: var(--accent-color-blue) !important;
     box-shadow: var(--box_shd);
-
 }
 
 button {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
     background-color: var(--accent);
-    color: var(--btn_text);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -174,22 +129,31 @@ button:hover {
     transform: scale(1.05);
 }
 
-/* ============================== */
-/*          Nagłówek              */
-/* ============================== */
+hr {
+    border: 1px;
+    border-radius: 15px;
+    height: 2.5px;
+    background-color: var(--accent);
+    margin: 20px 0;
+}
+
+hr3 {
+    margin-top: 7px;
+}
+
+/* ========================================
+   LAYOUT - Header, Main Content, Footer
+   ======================================== */
 
 header {
     color: var(--background);
     background-color: var(--primary);
-    /* Kolor tła nagłówka */
     text-align: center;
     padding: 1rem 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    /* Delikatny cień */
     position: relative;
 }
 
-/* Przycisk zamykania w nagłówku */
 .close-btn {
     background: transparent;
     border: none;
@@ -204,55 +168,41 @@ header {
 
 .close-btn:hover {
     background-color: transparent;
-    box-shadow: none;}
+    box-shadow: none;
+}
 
-/* Ikona przycisku menu w nagłówku */
 .menu-toggle {
     width: 40px;
     height: 40px;
     transition: transform 0.3s ease;
-    
-    /* Efekt transformacji */
 }
 
-/* Efekt hover na ikonie przycisku w nagłówku */
 .close-btn:hover .menu-toggle {
     transform: scale(1.1);
-    /* Powiększenie ikony */
 }
 
-/* Tytuł w nagłówku */
 h1 {
     margin: 0;
     font-size: 1.8rem;
 }
-
-/* Linie rozdzielające */
-hr {
-    border: 1px;
-    border-radius: 15px;
-    height: 2.5px;
-    background-color: var(--accent);
-    /* Kolor linii */
-    margin: 20px 0;
-}
-
-hr3 {
-    margin-top: 7px;
-}
-
-/* ============================== */
-/*          Główna zawartość       */
-/* ============================== */
 
 main {
     padding: 2rem;
     text-align: center;
     flex: 1;
 }
-/* ============================== */
-/*       Menu boczne (side menu)   */
-/* ============================== */
+
+footer {
+    background-color: var(--primary);
+    color: var(--background);
+    text-align: center;
+    padding: 1rem 0;
+    margin-top: auto;
+}
+
+/* ========================================
+   NAVIGATION - Side Menu & Menu Components
+   ======================================== */
 
 .side-menu {
     overflow-y: auto;
@@ -265,7 +215,7 @@ main {
     transition: left 0.3s ease-in-out;
     padding-top: 2rem;
     z-index: 9999;
-    border-right: 4px solid var(--border_side_men);
+    border-right: 4px solid #dde6ed9a;
     border-radius: 2px;
     scrollbar-width: none;
     box-shadow: 0 0 16px 0 rgba(0,0,0,0.12);
@@ -284,7 +234,7 @@ main {
 
 .menu-link {
     text-decoration: none;
-    color: var(--btn_text);
+    color: var(--text);
     background-color: var(--accent);
     padding: 12px;
     border-radius: 8px;
@@ -295,7 +245,7 @@ main {
 
     display: flex;
     justify-content: flex-start;
-    border: 2px solid var(--border);
+    border: 2px solid var(--background);
     box-shadow: var(--box_shd);
 }
 
@@ -351,14 +301,14 @@ main {
 .submenu-link {
     display: block;
     text-decoration: none;
-    color: var(--btn_text);
+    color: var(--text);
     background-color: var(--accent);
     padding: 10px 12px;
     border-radius: 6px;
     font-weight: 500;
     transition: all 0.3s ease;
     margin: 5px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
 }
 
 .submenu-link:hover {
@@ -367,7 +317,6 @@ main {
     transform: scale(1.02);
 }
 
-/* Przycisk menu głównego */
 .menu-btn {
     background-color: var(--accent);
     color: var(--background);
@@ -383,20 +332,19 @@ main {
 }
 .menu-btn:hover {
     background-color: var(--hover);
-    color: var(--btn_text);
+    color: var(--text);
     box-shadow: 0 4px 12px rgba(0,0,0,0.10);
 }
 
-/* ============================== */
-/*   Sekcja: Przyciski (obiektowo) */
-/* ============================== */
+/* ========================================
+   BUTTONS - All Button Styles and Variants
+   ======================================== */
 
-/* Klasa bazowa dla wszystkich przycisków */
 .btn {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
-    background-color: var(--button);
-    color: var(--btn_text);
+    background-color: var(--accent);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -415,10 +363,9 @@ main {
     background-color: var(--secondary);
 }
 
-/* Specjalne style dla logout-btn */
 .logout-btn {
     display: inline-block;
-    border: 2px solid var(--border);
+    border: 2px solid var(--background);
     font-size: 0.9em;
     border-radius: 5px;
     padding: 6px 12px;
@@ -431,28 +378,23 @@ main {
     transform: scale(1.1);
 }
 
-/* Specjalne style dla .small-button */
 .small-button {
     font-size: 1rem;
     border-radius: 8px;
 }
 
-
-
-/* Specjalne style dla .cancel-button */
 .cancel-button {
     font-size: 1rem;
     border-radius: 8px;
     margin: 0.5rem;
 }
 
-/* Specjalne style dla .map-button */
 .map-button {
     display: inline-block;
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
     background-color: var(--accent);
-    color: var(--btn_text);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -466,12 +408,11 @@ main {
 }
 .map-button:hover {
     background-color: var(--hover);
-    color: var(--btn_text);
+    color: var(--text);
     box-shadow: var(--box_shd);
     transform: scale(1.08);
 }
 
-/* Specjalne style dla .action-btn */
 .action-btn {
     padding: 6px 12px;
     border-radius: 5px;
@@ -503,10 +444,6 @@ main {
     margin: 0.5rem;
 }
 
-/* ============================== */
-/*   Icon buttons for user management */
-/* ============================== */
-
 .icon-button {
     display: inline-flex;
     align-items: center;
@@ -528,7 +465,7 @@ main {
 }
 
 .icon-button.edit-button:hover {
-    background-color: var(--accent-hover);
+    background-color: var(--accent-hover-blue);
     transform: scale(1.1);
 }
 
@@ -558,11 +495,10 @@ main {
 }
 
 .icon-button.cancel-button:hover {
-    background-color: var(--btn-secondary-hover);
+    background-color: #5a6268;
     transform: scale(1.1);
 }
 
-/* Edit inputs for inline editing */
 .edit-input {
     width: 100%;
     padding: 4px 8px;
@@ -570,24 +506,18 @@ main {
     font-size: 14px;
 }
 
-/* User table row styling */
 .user-row .display-value {
     display: inline-block;
     width: 100%;
     padding: 4px 0;
 }
 
-/* Action buttons container */
 .action-buttons {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     gap: 4px;
 }
-
-/* ============================== */
-/*   Poprawki przycisków akcji w tabeli użytkowników (settings) */
-/* ============================== */
 
 .change-button, .delete-button {
     display: inline-block;
@@ -607,36 +537,31 @@ main {
 .delete-button, .cancel-button {
     background-color: var(--btn-danger);
     border-color: var(--btn-danger);
-    color: var(--text-delete);
+    color: #fff;
     transition:all 0.3s ease;
 }
 
 .delete-button:hover, .cancel-button:hover {
     background-color: var(--btn-danger-hover);
     border-color: var(--btn-danger-hover);
-    color: var(--text-delete);
+    color: #fff;
     box-shadow: var(--box_shd);
     transform: scale(1.08);
 }
 
-/* Specjalne style dla .change-button */
 .change-button {
     background-color: var(--accent);
-    color: var(--btn_text);
+    color: var(--text);
 }
 
 .change-button[type="submit"] {
     background-color: var(--confirm-btn);
-    color: var(--btn_text);
+    color: var(--text);
 }
 
 .change-button[type="submit"]:hover {
     background-color: var(--confirm-btn-hover);
 }
-
-/* ============================== */
-/*   Poprawka pozycji przycisku zamykania menu bocznego (side-menu) */
-/* ============================== */
 
 .side-menu .close-btn {
     background: transparent;
@@ -650,40 +575,27 @@ main {
     transform: none;
 }
 
-/* ============================== */
-/*     Stylowanie checklisty    */
-/* ============================== */
-
 .check-list {
     margin: 0;
     padding-left: 0;
-    /* Zmniejsz padding po lewej stronie */
 }
 
 .check-list li {
     position: relative;
     list-style-type: none;
     padding-left: 1.5rem;
-    /* Zmniejsz padding po lewej stronie */
     margin-bottom: 0.5rem;
 }
 
-/* Styl dla czerwonego krzyżyka */
 .check-list li span {
     position: absolute;
     left: 0;
-    /* Krzyżyk będzie bliżej lewej krawędzi */
     top: 0;
     color: red;
     cursor: pointer;
     margin-right: 10px;
 }
 
-/* ============================== */
-/*     Stylowanie przełączników    */
-/* ============================== */
-
-/* Stylowanie przełączników */
 .switch {
     position: relative;
     display: inline-block;
@@ -730,12 +642,10 @@ main {
 
 input:checked+.slider {
     background-color: #4CAF50;
-    /* Kolor przełącznika w trybie aktywnym */
 }
 
 input:checked+.slider:before {
     transform: translateX(26px);
-    /* Ruch przełącznika */
 }
 
 
@@ -747,7 +657,7 @@ input:checked+.slider:before {
     min-height: 102px;
     padding: 20px;
     padding-bottom: 40px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin-right: auto;
@@ -755,9 +665,6 @@ input:checked+.slider:before {
     margin-top: 20px;
     margin-bottom: 20px;
 }
-/* ============================== */
-/*       Stylowanie przełączników świateł */
-/* ============================== */
 
 .light-control {
     display: flex;
@@ -793,24 +700,16 @@ input:checked+.slider:before {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center; /* lub inna wartość, zależnie od szerokości przycisków */
+    align-items: center;
     min-width: 300px;
     width: fit-content;
     padding: 20px 30px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin: 20px auto;
 }
 
-
-
-
-/* ============================== */
-/*        Centralne ustawienia     */
-/* ============================== */
-
-/* Układ elementów w centralnym kontenerze */
 .center-container {
     display: flex;
     flex-direction: row;
@@ -862,10 +761,13 @@ input:checked+.slider:before {
     }
 }
 
-/* Ustawienia dla select w centralnym kontenerze */
+/* ========================================
+   FORMS - Input Fields, Selects, Form Elements
+   ======================================== */
+
 .select-edit {
     background-color: transparent;
-    color: var(--btn_text);
+    color: var(--text);
     border-color: var(--primary);
     border-radius: 5px;
     margin-left: 15px;
@@ -899,7 +801,7 @@ input:checked+.slider:before {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(157, 178, 191, 0.3);
-    background-color: var(--automation-hover);
+    background-color: var(--input-bg);
     color: var(--background);
 }
 
@@ -953,7 +855,7 @@ input:checked+.slider:before {
     min-width: 200px;
     padding: 20px;
     max-width: fit-content;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
@@ -966,13 +868,13 @@ input:checked+.slider:before {
     min-width: 300px;
     padding: 20px;
     max-width: fit-content;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
 
 .notification-inside-form {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     padding: 20px;
@@ -984,8 +886,6 @@ input:checked+.slider:before {
     margin-right: auto;
 }
 
-
-/* Ustawienia dla input temperatury */
 .input-temp {
     font-size: 15px;
     font-weight: bold;
@@ -995,9 +895,6 @@ input:checked+.slider:before {
     margin-right: 5px;
 }
 
-/* ============================== */
-/*            Stopka              */
-/* ============================== */
 
 footer {
     text-align: center;
@@ -1006,12 +903,12 @@ footer {
     color: var(--background);
     font-size: 0.9rem;
     border-top: 1px solid #bbb;
-    /* Subtelna linia na górze stopki */
 }
 
-/* ============================== */
-/*            Kamery              */
-/* ============================== */
+/* ========================================
+   SPECIALIZED COMPONENTS - Cameras, Authentication, User Management
+   ======================================== */
+
 
 #cameraView {
     text-align: center;
@@ -1024,17 +921,12 @@ footer {
     border: 0;
 }
 
-/* ============================== */
-/*            Logowanie           */
-/* ============================== */
-
-
 .login-container {
     max-width: 400px;
     margin: 50px auto;
     padding: 20px;
     padding-right: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
@@ -1068,20 +960,20 @@ footer {
 .remember-me-container {
     display: flex;
     align-items: center;
-    gap: 56px; /* Odstęp między checkboxem a napisem */
-    margin-bottom: 1rem; /* Opcjonalny margines dolny, aby oddzielić od innych elementów */
+    gap: 56px;
+    margin-bottom: 1rem; 
     justify-content: center;
 }
 
 .remember-me-container input[type="checkbox"] {
-    margin: 0; /* Usunięcie domyślnych marginesów checkboxa */
+    margin: 0;
     cursor: pointer;
     width:auto;
 }
 
 .remember-me-container label {
     cursor: pointer;
-    font-size: 1rem; /* Dopasuj rozmiar czcionki do reszty formularza */
+    font-size: 1rem;
 }
 
 .reset_password {
@@ -1095,11 +987,6 @@ footer {
     transform: scale(1.05);
 }
 
-/* ============================== */
-/*     Kontrola użytkowników      */
-/* ============================== */
-
-
 .user-management {
     display: flex;
     gap: 20px;
@@ -1110,7 +997,7 @@ footer {
     flex: 1;
     min-width: auto;
     padding: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
@@ -1143,11 +1030,10 @@ footer {
     justify-content: space-between;
     padding: 8px;
     margin: 5px 0;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 5px;
 }
 
-/* Dodatkowe style dla tabeli */
 .user-table {
     width: 100%;
     border-collapse: collapse;
@@ -1158,14 +1044,14 @@ footer {
 .user-table td {
     padding: 12px 15px;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--background-color);
     text-align: center;
     justify-content: center;
     
 }
 
 .user-table th {
-    background-color: var(--card-bg);
+    background-color: var(--background);
     font-weight: bold;
 }
 
@@ -1189,18 +1075,18 @@ footer {
 }
 
 .change-password-btn {
-    background-color: var(--button-bg);
-    color: var(--button-text);
+    background-color: var(--accent-bg);
+    color: var(--accent-text);
 }
 
 .change-password-btn:hover {
-    background-color: var(--button-hover);
+    background-color: var(--accent-hover-blue);
 }
 
 .delete-btn {
     background-color: var(--btn-danger);
     border-color: var(--btn-danger);
-    color: var(--text-delete);
+    color: #fff;
 }
 
 .delete-btn:hover {
@@ -1212,10 +1098,6 @@ footer {
     font-family: monospace;
     letter-spacing: 2px;
 }
-
-/* ============================== */
-/*     Stylowanie checklisty      */
-/* ============================== */
 
 .check-list {
     margin: 0;
@@ -1229,7 +1111,7 @@ footer {
     justify-content: space-between;
     padding: 8px 12px;
     margin-bottom: 8px;
-    background-color: var(--card-bg);
+    background-color: var(--background);
     border-radius: 5px;
     box-shadow: var(--box_shd);
 }
@@ -1251,10 +1133,6 @@ footer {
     margin-right: 10px;
 }
 
-/* ============================== */
-/*       Stylowanie list          */
-/* ============================== */
-
 .list-container {
     margin: 0;
     padding-left: 0;
@@ -1267,7 +1145,7 @@ footer {
     align-items: center;
     padding: 8px 12px;
     margin-bottom: 8px;
-    background-color: var(--card-bg);
+    background-color: var(--background);
     border-radius: 5px;
     box-shadow: var(--box_shd);
 }
@@ -1306,13 +1184,9 @@ footer {
     transform: scale(1.2);
 }
 
-/* ============================== */
-/*Informacje o użytkowniku w menu */
-/* ============================== */
-
 .user-info-menu {
-    margin-top: auto; /* Przesuwa na dół menu */
-    border: 2px solid var(--border);
+    margin-top: auto;
+    border: 2px solid var(--background);
     background-color: var(--log_background);
     border-radius: 8px;
     margin-right: 5px;
@@ -1328,18 +1202,18 @@ footer {
 .user-info-label {
     margin-bottom: 5px;
     font-size: 0.9em;
-    color: var(--log_txt);
+    color: #DDE6ED;
 }
 
 .user-info-menu .username {
     font-weight: bold;
     font-size: 1.1em;
     margin: 5px 0;
-    color: var(--log_usr);
+    color: #050315;
 }
 
 .user-info-menu .user-role {
-    color: var(--log_txt);
+    color: #DDE6ED;
     margin-bottom: 10px;
     font-size: 0.9em;
 }
@@ -1347,15 +1221,15 @@ footer {
 .logout-btn {
     display: inline-block;
     padding: 6px 12px;
-    background-color: var(--button);
-    color: var(--btn_text);
+    background-color: var(--accent);
+    color: var(--text);
     border-radius: 5px;
     text-decoration: none;
     font-size: 0.9em;
     transition: transform 1.3s;
     transition: background-color 0.3s;
     transition: box-shadow 1.3s;
-    border: 2px solid var(--border);
+    border: 2px solid var(--background);
 }
 
 .logout-btn:hover {
@@ -1365,19 +1239,13 @@ footer {
 
 }
 
-
-/* ============================== */
-/*    Style na stronie głównej    */
-/* ============================== */
-
-
 .rooms-container {
     display: flex;
     flex-direction: column;
     gap: 15px;
     width: 360px;
     padding: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin: auto;
@@ -1386,7 +1254,7 @@ footer {
 
 .rooms-container.wide {
     width: 600px;
-    justify-content: center; /* Szerokość dla trybu szerokiego */
+    justify-content: center;
 }
 
 .temp-cont {
@@ -1396,7 +1264,7 @@ footer {
     gap: 15px;
     width: 360px;
     padding: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     text-align: center;
@@ -1411,20 +1279,19 @@ footer {
     padding: 20px;
     justify-content: center;
     max-width: fit-content;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin: auto;
     margin-bottom: 20px;
 }
 
-/* Style dla kontrolek temperatury */
 .control-item {
     margin: 10px 0;
     padding: 15px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--background-color);
     box-shadow: var(--box_shd);
 }
 
@@ -1442,7 +1309,6 @@ footer {
     font-size: 1.1rem;
 }
 
-/* Wskaźnik temperatury w nagłówku termostatu */
 .temp-display-value {
     font-weight: 600;
     color: var(--primary);
@@ -1464,7 +1330,6 @@ footer {
     opacity: 0.5;
 }
 
-/* Mały przełącznik dla termostatów */
 .temp-switch {
     width: 40px;
     height: 22px;
@@ -1486,7 +1351,6 @@ footer {
     transform: translateX(18px);
 }
 
-/* Style dla wyłączonych kontrolek */
 .control-item input:disabled,
 .control-item button:disabled {
     opacity: 0.5;
@@ -1495,21 +1359,21 @@ footer {
 
 .control-item button:disabled:hover {
     transform: none;
-    background-color: var(--btn-primary);
+    background-color: var(--accent);
 }
 
 #map { 
     height: 400px;
     width: 100%;
     border-radius: 8px;
-    z-index: 0; /* Ważne dla poprawnego wyświetlania */
+    z-index: 0;
 }
 
 #map-container {
     margin: 20px auto;
     max-width: 800px;
     padding: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
@@ -1520,7 +1384,7 @@ footer {
     padding: 20px;
     width: fit-content;
     padding-bottom: 40px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin-right: auto;
@@ -1535,7 +1399,7 @@ footer {
     padding: 20px;
     width: fit-content;
     padding-bottom: 40px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
     margin-right: auto;
@@ -1547,14 +1411,6 @@ footer {
 .hidden {
     display: none;
 }
-
-
-/* ============================== */
-/*         Automatyzacje          */
-/* ============================== */
-/* ============================== */
-/*        Stylowanie automatyzacji */
-/* ============================== */
 
 .automations-container {
     max-width: 800px;
@@ -1570,7 +1426,7 @@ footer {
 }
 
 .automation-card {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 8px;
     padding: 20px;
     box-shadow: var(--box_shd);
@@ -1609,7 +1465,6 @@ footer {
     color: white;
 }
 
-/* Security status styles */
 .status-text {
     font-size: 1.1rem;
     font-weight: 600;
@@ -1644,7 +1499,7 @@ footer {
     font-size: 0.9rem;
     background-color: var(--btn-danger);
     border-color: var(--btn-danger);
-    color: var(--text-delete);
+    color: #fff;
     margin-top: 10px;
     margin-right: 10px;
 }
@@ -1657,7 +1512,7 @@ footer {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
     background-color: var(--confirm-btn);
-    color: var(--text-delete);
+    color: #fff;
     margin-top: 10px;
     margin-right: 10px;
 }
@@ -1674,7 +1529,7 @@ footer {
 }
 
 #automation-form-container {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 8px;
     padding: 20px;
     margin-top: 20px;
@@ -1748,12 +1603,11 @@ footer {
 }
 
 
-/* Style dla przycisków w formularzu */
 #automation-form button[type="submit"] {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
     background-color: var(--confirm-btn);
-    color: var(--btn_text);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -1784,11 +1638,6 @@ footer {
     box-shadow: var(--box_shd);
 }
 
-/* ============================== */
-/*  Stylowanie inputów w automatyzacji */
-/* ============================== */
-
-/* Specyficzne dla inputów w formularzu automatyzacji */
 #automation-form-container input[type="text"],
 #automation-form-container input[type="time"],
 #automation-form-container input[type="number"] {
@@ -1800,7 +1649,6 @@ footer {
     text-align: center;
 }
 
-/* Style dla selectów w formularzu automatyzacji */
 #automation-form-container select {
     width: 217.6px;
     margin-bottom: 15px;
@@ -1812,8 +1660,6 @@ footer {
 
 }
 
-
-/* Styl dedykowany do inputa treści powiadomienia w automatyzacji */
 #automation-form-container .action-notification-message {
   width: 100%;
   min-width: 220px;
@@ -1832,7 +1678,7 @@ footer {
   border-color: var(--primary);
   outline: none;
   box-shadow: 0 0 0 2px var(--accent);
-  background: var(--card-bg);
+  background: var(--background);
 }
 
 .notification {
@@ -1886,15 +1732,6 @@ footer {
 .notification .notification-close:hover {
     opacity: 1;
 }
-@media (max-width: 600px) {
-    .notification {
-        right: 8px;
-        left: 8px;
-        max-width: unset;
-        font-size: 1em;
-        padding: 10px 8px;
-    }
-}
 
 .notification {
     position: fixed;
@@ -1936,14 +1773,12 @@ footer {
     background-color: #2196F3;
 }
 
-/* Animacja dla płynnego przejścia */
 .delete-btn-container {
     transition: all 0.3s ease;
-    height: 30px; /* Ustalona wysokość dla płynnych przejść */
+    height: 30px;
     overflow: hidden;
 }
 
-/* Dodaj te style do swojego pliku CSS */
 .loading-indicator {
     display: flex;
     flex-direction: column;
@@ -1974,7 +1809,6 @@ footer {
     color: #666;
 }
 
-/* Stylowane dni tygodnia w automatyzacji (czytelne klasy) */
 .weekdays-checkbox-group * {
   box-sizing: border-box;
   justify-content: center;
@@ -2023,7 +1857,7 @@ footer {
   top: 3px;
   left: 2px;
   fill: none;
-  stroke: var(--checkbox-checkmark);
+  stroke: #fff;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2060,12 +1894,7 @@ footer {
   pointer-events: none;
   user-select: none;
 }
-@media screen and (max-width: 640px) {
-  .weekdays-checkbox-group .weekday-checkbox-label {
-    width: 100%;
-    display: inline-block;
-  }
-}
+
 @-moz-keyframes wave-4 {
   50% {
     transform: scale(0.9);
@@ -2082,7 +1911,6 @@ footer {
   }
 }
 
-/* Stylowanie checkboxów dla powiadomień */
 .checkbox-notification {
     position: relative;
     width: 18px;
@@ -2109,7 +1937,7 @@ footer {
     top: 1px;
     width: 7px;
     height: 12px;
-    border: solid var(--checkbox-checkmark);
+    border: solid #fff;
     border-width: 0 3px 3px 0;
     opacity: 0;
     transform: scale(0.8) rotate(45deg);
@@ -2123,7 +1951,6 @@ footer {
     border-color: var(--checkbox-hover);
 }
 
-/* Stylowanie checkboxów dla powiadomień z animacją */
 .checkbox-notification-group {
     display: flex;
     align-items: center;
@@ -2174,7 +2001,7 @@ footer {
     width: 13px;
     height: 10px;
     fill: none;
-    stroke: var(--checkbox-checkmark);
+    stroke: #fff;
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -2198,11 +2025,6 @@ footer {
     }
 }
 
-/* ============================== */
-/*  Uniwersalne przyciski usuwania z potwierdzeniem */
-/* ============================== */
-
-/* Klasa bazowa dla wszystkich przycisków usuwania z dwuetapowym potwierdzeniem */
 .confirm-delete-btn {
     background: #e74c3c !important;
     color: white;
@@ -2229,7 +2051,6 @@ footer {
     opacity: 0.6;
 }
 
-/* Stan potwierdzenia - pomarańczowy z animacją */
 .confirm-delete-btn.confirm-state {
     background: #f39c12 !important;
     animation: confirm-pulse 0.8s ease-in-out infinite;
@@ -2239,6 +2060,10 @@ footer {
     background: #e67e22 !important;
     box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
 }
+
+/* ========================================
+   ANIMATIONS - Keyframe Definitions
+   ======================================== */
 
 @keyframes confirm-pulse {
     0%, 100% { transform: scale(1); }

@@ -1,3 +1,7 @@
+/* ========================================
+   HOME SELECTION PAGE STYLES
+   ======================================== */
+
 /* Home Select Page Styles */
 
 .home-footer {
@@ -6,7 +10,7 @@
     align-items: center;
     margin-top: 15px;
     padding-top: 12px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--background-color);
 }
 
 .home-footer-actions {

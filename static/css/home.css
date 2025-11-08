@@ -42,8 +42,8 @@
 .home-selector-dropdown {
     position: absolute;
     top: calc(100% - 7px);
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+    background: var(--background);
+    border: 1px solid var(--background);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
     z-index: 10000; /* ZMIANA: wyższy z-index aby był nad wszystkim */
@@ -60,7 +60,7 @@
 .home-option {
     padding: 12px;
     cursor: pointer;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--background);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -92,7 +92,7 @@
 
 .home-selector-actions {
     padding: 8px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--background-color);
     display: flex;
     gap: 8px;
 }
@@ -160,8 +160,8 @@
 }
 
 .home-card {
-    background: var(--card-bg);
-    border: 2px solid var(--border);
+    background: var(--background);
+    border: 2px solid var(--background);
     border-radius: 12px;
     padding: 24px;
     cursor: pointer;
@@ -177,7 +177,7 @@
 
 .home-card.active {
     border-color: var(--accent);
-    background: linear-gradient(135deg, var(--card-bg) 0%, var(--hover) 100%);
+    background: linear-gradient(135deg, var(--background) 0%, var(--hover) 100%);
 }
 
 .home-header {
@@ -275,7 +275,7 @@
     align-items: center;
     margin-top: 20px;
     padding-top: 16px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--background);
 }
 
 .home-footer small {
@@ -312,7 +312,7 @@
 
 /* Loading spinner for home switching */
 .loading-spinner {
-    border: 3px solid var(--border);
+    border: 3px solid var(--background);
     border-top: 3px solid var(--accent);
     border-radius: 50%;
     width: 30px;
@@ -336,7 +336,7 @@
 }
 
 .form-container {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 12px;
     padding: 32px;
     box-shadow: var(--box_shd);
@@ -415,13 +415,13 @@
 
 .home-form-container .btn-primary,
 .home-selection-container .btn-primary {
-    background: var(--btn-primary);
-    color: var(--btn_text);
+    background: var(--accent);
+    color: var(--text);
 }
 
 .home-form-container .btn-primary:hover:not(:disabled),
 .home-selection-container .btn-primary:hover:not(:disabled) {
-    background: var(--btn-primary-hover);
+    background: var(--hover);
     transform: translateY(-1px);
 }
 
@@ -434,9 +434,9 @@
 
 .home-form-container .btn-secondary,
 .home-selection-container .btn-secondary {
-    background: var(--card-bg);
+    background: var(--background);
     color: var(--text);
-    border: 2px solid var(--border);
+    border: 2px solid var(--background);
 }
 
 .home-form-container .btn-secondary:hover,
@@ -451,7 +451,7 @@
 .info-section {
     margin-top: 32px;
     padding-top: 24px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--background);
 }
 
 .info-section h3 {
@@ -579,8 +579,8 @@
 }
 
 .settings-section {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+    background: var(--background);
+    border: 1px solid var(--background);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 24px;
@@ -613,7 +613,7 @@
     align-items: center;
     gap: 16px;
     padding: 16px;
-    border: 2px solid var(--border);
+    border: 2px solid var(--background);
     border-radius: 10px;
     text-decoration: none;
     color: var(--text);
@@ -693,7 +693,7 @@
 
 .select-settings {
     padding: 10px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--background);
     border-radius: 6px;
     background: var(--background);
     color: var(--text);
@@ -719,7 +719,7 @@
     justify-content: center;
     align-items: center;
     padding: 12px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--background);
     gap: 50px;
 }
 
@@ -765,7 +765,7 @@
     HOME MANAGEMENT CARD (on homepage)
    ======================================== */
 .home-management-card {
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 12px;
     padding: 20px;
     box-shadow: var(--box_shd);
@@ -802,7 +802,7 @@
     padding: 10px 16px;
     display: inline-block;
     background-color: var(--accent);
-    color: var(--btn_text);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -903,15 +903,15 @@
     text-align: center;
     padding: 16px;
     background: var(--bg-secondary);
-    border: 2px dashed var(--border);
+    border: 2px dashed var(--background);
     border-radius: 8px;
     color: var(--accent);
 }
 
 /* Home settings styles */
 .home-settings-section {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: var(--background);
+    border: 1px solid var(--background-color);
     border-radius: 8px;
     padding: 24px;
     margin-bottom: 24px;
@@ -920,7 +920,7 @@
 .home-settings-section h3 {
     margin-top: 0;
     color: var(--text-color);
-    border-bottom: 2px solid var(--accent-color);
+    border-bottom: 2px solid var(--accent-color-blue);
     padding-bottom: 8px;
 }
 
@@ -959,8 +959,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--card-bg);
-    border: 2px solid var(--accent-color);
+    background: var(--background);
+    border: 2px solid var(--accent-color-blue);
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);

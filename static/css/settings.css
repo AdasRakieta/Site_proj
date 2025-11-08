@@ -1,3 +1,7 @@
+/* ========================================
+   SETTINGS PAGE STYLES
+   ======================================== */
+
 /* Settings Page Styles */
 
 .users-table-wrapper {
@@ -52,7 +56,7 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--accent-color, #3498db);
+    background: var(--accent-color-blue, #3498db);
     color: white;
     display: flex;
     align-items: center;
@@ -113,7 +117,7 @@
 }
 
 .users-stats strong {
-    color: var(--accent-color, #3498db);
+    color: var(--accent-color-blue, #3498db);
 }
 
 .delete-user-btn {

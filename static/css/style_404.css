@@ -1,17 +1,21 @@
+/* ========================================
+   404 ERROR PAGE STYLES
+   ======================================== */
+
 @import url("https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300&display=swap");
 
     :root {
         --text: #818181;
         --accent: #3f3fa1;
         --hover: #212166;
-        --btn_text: var(--text);
-        --border: #DDE6ED;
+        --text: var(--text);
+        --background: #DDE6ED;
     }
 
     .back-link {
         font-family: 'Roboto', sans-serif;
         text-decoration: none;
-        color: var(--btn_text);
+        color: var(--text);
         background-color: var(--accent);
         padding: 12px;
         border-radius: 8px;
@@ -20,7 +24,7 @@
         transition: background-color 0.3s ease;
         align-items: center;
         justify-content: center;
-        border: 2px solid var(--border);
+        border: 2px solid var(--background);
     }
 
 

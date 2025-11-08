@@ -1,3 +1,7 @@
+/* ========================================
+   ADMIN DASHBOARD STYLES
+   ======================================== */
+
 /* ============================== */
 /*    Admin Dashboard Styles      */
 /* ============================== */
@@ -19,8 +23,8 @@
 
 /* Dashboard cards */
 .dashboard-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: var(--background);
+    border: 1px solid var(--background-color);
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -29,7 +33,7 @@
 .dashboard-card h3 {
     margin-top: 0;
     color: var(--text-primary, var(--text));
-    border-bottom: 2px solid var(--accent-color, var(--accent));
+    border-bottom: 2px solid var(--accent-color-blue, var(--accent));
     padding-bottom: 10px;
    
 }
@@ -40,7 +44,7 @@
     justify-content: space-between;
     margin: 10px 0;
     padding: 8px 0;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--background-color);
 }
 
 .stat-label {
@@ -58,7 +62,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 4px;
     margin: 10px 0;
     position: relative;
@@ -68,6 +72,10 @@
     color: var(--text-secondary);
     font-style: italic;
 }
+
+/* ========================================
+   USER MANAGEMENT STYLES
+   ======================================== */
 
 /* ============================== */
 /*      User Management Styles    */
@@ -91,7 +99,7 @@
     flex: 1;
     min-width: auto;
     padding: 20px;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 10px;
     box-shadow: var(--box_shd);
 }
@@ -99,7 +107,7 @@
 .user-form h3, .user-form h4 {
     margin-top: 0;
     color: var(--text-primary, var(--text));
-    border-bottom: 2px solid var(--accent-color, var(--accent));
+    border-bottom: 2px solid var(--accent-color-blue, var(--accent));
     padding-bottom: 10px;
 }
 
@@ -131,7 +139,7 @@
     max-height: 400px;
     overflow-y: auto;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--background-color);
 }
 
 .user-table {
@@ -144,12 +152,12 @@
 .user-table td {
     padding: 12px 15px;
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--background-color);
     justify-content: center;
 }
 
 .user-table th {
-    background-color: var(--card-bg);
+    background-color: var(--background);
     font-weight: bold;
     position: sticky;
     top: 0;
@@ -188,7 +196,7 @@
 }
 
 .icon-button.edit-button:hover {
-    background-color: var(--accent-hover, #0056b3);
+    background-color: var(--accent-hover-blue, #0056b3);
     transform: scale(1.1);
 }
 
@@ -234,7 +242,7 @@
 
 .edit-input:focus {
     outline: none;
-    border-color: var(--accent-hover, #0056b3);
+    border-color: var(--accent-hover-blue, #0056b3);
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
@@ -242,6 +250,10 @@
 .hidden {
     display: none !important;
 }
+
+/* ========================================
+   NOTIFICATION MANAGEMENT STYLES
+   ======================================== */
 
 /* ============================== */
 /*   Notification Management     */
@@ -333,6 +345,10 @@
     padding: 20px;
 }
 
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
 /* ============================== */
 /*       Responsive Design       */
 /* ============================== */
@@ -371,7 +387,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 4px;
     margin: 10px 0;
     position: relative;
@@ -385,7 +401,7 @@
 .logs-container {
     max-height: 300px;
     overflow-y: auto;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 4px;
     padding: 10px;
 }
@@ -395,7 +411,7 @@
     margin: 5px 0;
     background: var(--accent);
     border-radius: 4px;
-    border-left: 3px solid var(--accent-color);
+    border-left: 3px solid var(--accent-color-blue);
     font-family: monospace;
     font-size: 0.9em;
 }
@@ -455,7 +471,7 @@
 }
 
 .refresh-btn {
-    background: var(--accent-color);
+    background: var(--accent-color-blue);
     color: white;
     border: none;
     padding: 8px 16px;
@@ -465,7 +481,7 @@
 }
 
 .refresh-btn:hover {
-    background: var(--accent-hover);
+    background: var(--accent-hover-blue);
 }
 
 .device-list {
@@ -479,7 +495,7 @@
     align-items: center;
     padding: 8px;
     margin: 5px 0;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 4px;
 }
 

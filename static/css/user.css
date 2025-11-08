@@ -1,3 +1,7 @@
+/* ========================================
+   USER PROFILE & BUG REPORT STYLES
+   ======================================== */
+
 .user-profile-container {
     max-width: 800px;
     margin: 2rem auto;
@@ -36,7 +40,7 @@
     height: 128px !important;
     border-radius: 50% !important;
     overflow: hidden !important;
-    border: 2px solid var(--accent-color);
+    border: 2px solid var(--accent-color-blue);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -62,8 +66,8 @@
 }
 
 .upload-btn {
-    background-color: var(--button);
-    color: var(--btn_text);
+    background-color: var(--accent);
+    color: var(--text);
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 8px;
@@ -75,7 +79,7 @@
 }
 
 .upload-btn:hover {
-    background-color: var(--btn-primary-hover);
+    background-color: var(--hover);
     transform: scale(1.05);
 }
 
@@ -108,7 +112,7 @@
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
     background-color: var(--confirm-btn);
-    color: var(--btn_text);
+    color: var(--text);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -189,7 +193,7 @@
 
 .form-info {
     background-color: #e8f4f8;
-    border-left: 4px solid var(--accent-color, #3498db);
+    border-left: 4px solid var(--accent-color-blue, #3498db);
     padding: 0.75rem 1rem;
     margin: 1.25rem 0;
     border-radius: 4px;
@@ -237,13 +241,13 @@
 }
 
 .status-message a {
-    color: var(--accent-color, #3498db);
+    color: var(--accent-color-blue, #3498db);
     text-decoration: underline;
     font-weight: 600;
 }
 
 .attachment-dropzone {
-    border: 2px dashed var(--accent-color, #3498db);
+    border: 2px dashed var(--accent-color-blue, #3498db);
     border-radius: 8px;
     padding: 1rem;
     background: var(--bg-secondary, #f8f8f8);
@@ -257,8 +261,8 @@
     background: #eafaf1;
 }
 .attachment-btn {
-    background: var(--btn-primary, #9DB2BF);
-    color: var(--btn_text, #fff);
+    background: var(--accent, #9DB2BF);
+    color: var(--text, #fff);
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1.2rem;
@@ -269,7 +273,7 @@
     transition: background 0.2s, transform 0.2s;
 }
 .attachment-btn:hover {
-    background: var(--btn-primary-hover, #b6cedf);
+    background: var(--accent-hover, #b6cedf);
     transform: scale(1.05);
 }
 .attachment-info {

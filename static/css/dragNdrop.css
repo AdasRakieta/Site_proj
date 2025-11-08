@@ -1,17 +1,21 @@
+/* ========================================
+   DRAG & DROP KANBAN BOARD STYLES
+   ======================================== */
+
 :root[data-theme="light"] {
     --bg-column: var(--background); /* #DDE6ED */
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
     --bg-header: var(--accent); /* #9DB2BF */
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
-    --bg-button: var(--btn-primary); /* #9DB2BF */
-    --bg-button-hover: var(--btn-primary-hover); /* rgb(182, 206, 223) */
+    --bg-button: var(--accent); /* #9DB2BF */
+    --bg-button-hover: var(--hover); /* rgb(182, 206, 223) */
     --bg-delete-button: var(--delete-btn); /* rgba(255, 0, 0, 0.411) */
     --bg-delete-button-hover: var(--delete-btn-hover); /* rgba(255, 0, 0, 0.7) */
     --bg-add-card: rgba(0, 0, 0, 0.2);
     --bg-input: var(--background); /* #DDE6ED */
     --bg-input-hover: var(--input-bg); /* #9DB2BF */
     --input-text-hover: var(--text); /* #050315 */
-    --border-input: var(--primary); /* #27374D */
+    --background-input: var(--primary); /* #27374D */
     --shadow-color: 0 4px 8px rgba(0, 0, 0, 0.20);
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
@@ -32,13 +36,13 @@
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
     --bg-card: var(--secondary); /* #343746 */
     --bg-card-hover: var(--hover); /* #f8f8f28c */
-    --bg-button: var(--btn-primary); /* #282a36 */
-    --bg-button-hover: var(--btn-primary-hover); /* #f8f8f28c */
+    --bg-button: var(--accent); /* #282a36 */
+    --bg-button-hover: var(--hover); /* #f8f8f28c */
     --bg-delete-button: var(--delete-btn); /* #dc3545 */
     --bg-delete-button-hover: var(--delete-btn-hover); /* #bb2d3b */
     --bg-add-card: rgba(0, 0, 0, 0.2);
     --bg-input: var(--input-bg); /* #333333 */
-    --border-input: var(--border-input); /* #404040 */
+    --background-input: var(--background-input); /* #404040 */
     --shadow-color: 0 2px 5px hsla(0, 0%, 75%, 0.26);
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
@@ -307,7 +311,7 @@ input:focus{
     padding: 10px 20px;
     background: var(--bg-button);
     color: inherit;
-    border: var(--border-input);
+    border: var(--background-input);
     border-radius: 4px;
     cursor: pointer;
     font-size: 1.1em;
@@ -327,7 +331,7 @@ input:focus{
   margin: 5px;
   padding: 4px 8px;
   width: inherit;
-  border: 1px solid var(--border-input);
+  border: 1px solid var(--background-input);
   border-radius: 4px;
   background: var(--bg-input);
   box-shadow: var(--shadow-color);
@@ -470,7 +474,7 @@ input:focus{
 
 .room-name-input {
     background: var(--bg-input);
-    border: 1px solid var(--border-input);
+    border: 1px solid var(--background-input);
     color: inherit;
     padding: 4px 8px;
     border-radius: 4px;
@@ -601,7 +605,7 @@ input:focus{
 
 .room-name-input-edit {
     background: var(--bg-input);
-    border: 1px solid var(--border-input);
+    border: 1px solid var(--background-input);
     color: inherit;
     padding: 4px 8px;
     border-radius: 4px;
