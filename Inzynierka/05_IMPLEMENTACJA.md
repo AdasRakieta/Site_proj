@@ -890,3 +890,188 @@ Rozdział implementacji szczegółowo opisuje kluczowe funkcjonalności systemu.
 Sekcja multi-home opisuje koncepcję wielu domów, przełączanie między nimi oraz mechanizm zaproszeń z tokenami i expiracją. Zaprezentowano również implementację zarządzania pokojami i urządzeniami z real-time synchronizacją przez Socket.IO.
 
 W dalszej części rozdziału zostaną opisane automatyzacje, panel administratora oraz system powiadomień.
+
+## 5.4. Warstwa automatyzacji i harmonogram
+
+### 5.4.1. Model automatyzacji
+
+Automatyzacja składa się logicznie z trzech części:
+- `trigger_config` – definicja warunku (czas, stan urządzenia, przyszłościowo: warunek złożony)
+- `actions_config` – lista akcji (ustawienie stanu urządzenia, wysłanie maila, w przyszłości: webhook)
+- `enabled` – flaga aktywności
+
+Przykładowa struktura w bazie (`jsonb`):
+```json
+{
+  "trigger": {"type": "time", "cron": "0 7 * * *"},
+  "actions": [
+    {"type": "device_state", "device_id": "<uuid>", "state": true},
+    {"type": "email", "template": "automation_executed"}
+  ]
+}
+```
+
+### 5.4.2. Scheduler w tle
+
+Harmonogram uruchamiany przy starcie aplikacji (np. w `background_scheduler.py`) period ycznie wykonuje pętlę:
+1. Pobierz aktywne automatyzacje (`enabled = true`)
+2. Odfiltruj te, których `trigger` pasuje do czasu lub stanu
+3. Wykonaj akcje – każda akcja jest strategią (wzorzec Strategy)
+4. Zaloguj wykonanie / zapisz historię
+5. Emituj aktualizację Socket.IO jeśli zmienia się stan urządzenia
+
+### 5.4.3. Wzorzec strategii dla akcji
+
+```python
+class ActionExecutor:
+    def __init__(self, multi_db, cache_manager, socketio, mail_manager):
+        self.multi_db = multi_db
+        self.cache = cache_manager
+        self.socketio = socketio
+        self.mail = mail_manager
+
+    def execute(self, action, context):
+        atype = action.get('type')
+        if atype == 'device_state':
+            return self._exec_device_state(action, context)
+        if atype == 'email':
+            return self._exec_email(action, context)
+        # przyszłościowo: webhook, queue publish
+        return False
+
+    def _exec_device_state(self, action, context):
+        device_id = action['device_id']
+        state = action['state']
+        device = self.multi_db.get_device(device_id)
+        if not device:
+            return False
+        if device['state'] == state:
+            return True  # idempotencja
+        self.multi_db.update_device_state(
+            device_id=device_id,
+            state=state,
+            changed_by=context.get('system_user', 'automation'),
+            change_reason='automation'
+        )
+        self.cache.invalidate_device_cache(device_id)
+        self.socketio.emit('device_state_changed', {
+            'device_id': device_id,
+            'state': state,
+            'changed_by': 'automation'
+        }, room=f"home_{device['home_id']}")
+        return True
+
+    def _exec_email(self, action, context):
+        self.mail.enqueue_email(
+            to=context['user_email'],
+            subject='Automation executed',
+            template=action.get('template', 'generic'),
+            variables={'ts': datetime.utcnow().isoformat()}
+        )
+        return True
+```
+
+### 5.4.4. Odporność i idempotencja
+
+Kluczowe założenia:
+- Brak duplikacji akcji – identyfikacja przez `(automation_id, window_ts)`
+- Zabezpieczenie przed nakładaniem – lock w Redis (przyszłościowo)
+- Re-try polityka: tylko akcje komunikacyjne (email/webhook)
+
+## 5.5. Panel administratora
+
+Panel agreguje dane z kilku managerów i prezentuje je (role: admin/owner/sys-admin):
+- Liczba użytkowników w domu
+- Liczba urządzeń / pokojów
+- Ostatnie logi zarządzania (tabela `management_logs` – przyszłościowo)
+- Wskaźnik cache hit rate (jeśli Redis aktywny)
+
+Przykładowy endpoint (szkic):
+```python
+@self.app.route('/api/admin/metrics')
+@self.auth_manager.login_required
+@self.auth_manager.admin_required
+def admin_metrics():
+    home_id = session['current_home_id']
+    return jsonify({
+        'users': len(self.multi_db.get_home_members(home_id)),
+        'rooms': len(self.multi_db.get_rooms(home_id)),
+        'devices': len(self.multi_db.get_devices(home_id)),
+        'automations': len(self.multi_db.get_automations(home_id)),
+        # 'cache_hit_rate': self.cache_manager.hit_rate()  # jeśli zaimplementowano
+    })
+```
+
+## 5.6. System powiadomień
+
+Aktualnie powiadomienia ograniczają się do wysyłki email (asynchronicznie) dla wybranych zdarzeń (np. alert bezpieczeństwa, wykonanie automatyzacji). Struktura kolejki (minimalistyczna): lista w pamięci z workerem w wątku.
+
+Przyszłe rozszerzenia:
+- Kanały: WebPush, mobilne powiadomienia (PWA), webhooki
+- Reguły filtrowania per użytkownik
+- Agregacja (throttling) – łączenie wielu zdarzeń w jedno powiadomienie
+
+## 5.7. (Przyszłość) Adapter Device Interface – projekt rozszerzeń IoT
+
+W bieżącej wersji brak bezpośredniego połączenia z fizycznymi urządzeniami. Aby umożliwić przyszłą integrację w sposób modularny zaprojektowano koncepcję „Adapter Device Interface”.
+
+### 5.7.1. Cele
+- Izolacja różnic protokołów (MQTT, Zigbee, Z-Wave, Matter, BLE)
+- Plug-in architecture – hot-plug adapterów bez modyfikacji core
+- Jednolity model stanu urządzenia (`{id, type, state, meta}`)
+
+### 5.7.2. Interfejs bazowy (propozycja)
+```python
+class DeviceAdapter(Protocol):
+    def connect(self) -> None: ...
+    def list_devices(self) -> list[dict]: ...
+    def get_state(self, device_id: str) -> dict: ...
+    def set_state(self, device_id: str, state: dict) -> bool: ...
+    def subscribe(self, callback: Callable[[dict], None]) -> None: ...
+```
+
+### 5.7.3. Mock adapter (testy bez sprzętu)
+```python
+class MockAdapter:
+    def __init__(self):
+        self._devices = {
+            'mock-1': {'id': 'mock-1', 'type': 'button', 'state': {'on': False}},
+        }
+        self._callbacks = []
+
+    def connect(self):
+        return True
+
+    def list_devices(self):
+        return list(self._devices.values())
+
+    def get_state(self, device_id):
+        return self._devices[device_id]['state']
+
+    def set_state(self, device_id, state):
+        self._devices[device_id]['state'] = state
+        event = {'device_id': device_id, 'state': state}
+        for cb in self._callbacks:
+            cb(event)
+        return True
+
+    def subscribe(self, callback):
+        self._callbacks.append(callback)
+```
+
+### 5.7.4. Integracja z istniejącym kodem (plan)
+1. Warstwa adapterów rejestrowana przy starcie (fabryka)
+2. Cykl życia: `connect()` -> enumeracja -> mapowanie do tabeli `devices`
+3. Zmiany stanu → adapter → event → aktualizacja DB + Socket.IO emit
+4. Akcje użytkownika → DB update → (opcjonalnie) adapter `set_state`
+
+### 5.7.5. Bezpieczeństwo i sandbox
+- Oddzielne procesy / kontenery dla adapterów
+- Whitelist protokołów i portów
+- Walidacja payloadów JSON
+
+---
+
+**Podsumowanie części 5.4–5.7:**
+
+Dodano opis logiki automatyzacji opartej o scheduler i strategię akcji, panelu administratora z metrykami oraz systemu powiadomień. Zaprojektowano przyszłościowy interfejs adapterów urządzeń umożliwiający rozszerzenie platformy bez zmian w rdzeniu.

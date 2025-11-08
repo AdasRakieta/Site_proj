@@ -89,7 +89,7 @@ Utworzono kompletną strukturę pracy inżynierskiej w folderze `/Inzynierka`:
      * 100 concurrent users tested
    - Napotkane problemy i rozwiązania (9 problemów opisanych)
    - Możliwości rozwoju:
-     * Integracja z nowymi urządzeniami (Matter, Zigbee, MQTT)
+     * Integracje z urządzeniami IoT w przyszłości (np. standardy: MQTT, Zigbee, Matter) – obecnie brak połączeń z fizycznym sprzętem
      * Aplikacja mobilna (PWA, React Native)
      * Machine Learning (predykcja, anomaly detection)
      * Voice control (Google Assistant, Alexa, Siri)
@@ -201,10 +201,10 @@ Utworzono kompletną strukturę pracy inżynierskiej w folderze `/Inzynierka`:
   - Security notifications
   - Konfiguracja preferencji
   
-- 5.7. Integracja IoT (opcjonalnie)
-  - TinyTuya API
-  - MQTT broker
-  - Mock device interface
+- 5.7: Integracje IoT (opcjonalnie, w przyszłości)
+  - Warstwa abstrakcji urządzeń (interface + mock driver)
+  - Adaptery protokołów (np. MQTT/HTTP) – planowane
+  - Testy na mockach bez łączenia z rzeczywistym sprzętem
 
 #### Rozdział 7: Bezpieczeństwo (8-10 stron) ⏳
 **Co zawrzeć:**

@@ -71,10 +71,9 @@
 ┌────┼─────────────────────────────────────────────────────────────┐
 │    │              EXTERNAL SERVICES LAYER                        │
 │    │    ┌──────────────────┐        ┌────────────────┐          │
-│    └───▶│  SMTP Server     │        │  IoT Devices   │          │
-│         │  (Email sending) │        │  - TinyTuya    │          │
-│         └──────────────────┘        │  - MQTT        │          │
-│                                     └────────────────┘          │
+│    └───▶│  SMTP Server     │                                   │
+│         │  (Email sending) │   (Przyszłe adaptery IoT)         │
+│         └──────────────────┘                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,8 +103,8 @@
 - **Backup system** - regularne kopie zapasowe
 
 **Warstwa usług zewnętrznych:**
-- **SMTP Server** - wysyłka powiadomień email
-- **IoT Devices** - integracja z urządzeniami (TinyTuya, MQTT)
+- **SMTP Server** – wysyłka powiadomień email
+- (Opcjonalnie, w przyszłości) Adaptery IoT – możliwość integracji z fizycznymi urządzeniami poprzez standardowe protokoły (planowane, brak implementacji w obecnej wersji)
 
 ### 4.1.3. Przepływ danych
 
@@ -122,9 +121,6 @@
 9. [Browser] ← HTTP response → {status: 'success'}
 ```
 
-**Scenariusz 2: Automatyzacja uruchamia akcję**
-```
-1. [Background Task] → Check time-based triggers
 2. [SmartHomeSystemDB] → Get enabled automations
 3. [PostgreSQL] ← SELECT automations WHERE enabled = true
 4. [AutomationEngine] → Evaluate trigger conditions
@@ -143,10 +139,6 @@
 5. IF cache miss:
    [MultiHomeDBManager] → Query PostgreSQL
    [CacheManager] → Store in cache with TTL
-6. [Jinja2] → Render template with data
-7. [Browser] ← HTML page
-8. [Browser] → Load CSS/JS from Nginx (cached)
-9. [Browser] → Establish WebSocket connection
 10. [SocketIO] → Join room for user's current home
 ```
 

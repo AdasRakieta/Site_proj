@@ -1,0 +1,29 @@
+﻿graph LR
+  A[User Browser] -->|HTTPS| Nginx
+  subgraph docker_network_public[Docker network: public]
+    Nginx[Nginx Container]
+  end
+
+  subgraph docker_network_app[Docker network: app]
+    App["Flask App Container<br/>app_db.py + Socket.IO"]
+    Redis[("Redis Container")]
+    Postgres[("PostgreSQL Container")]
+  end
+
+  Nginx -->|proxy_pass| App
+  App -->|SQL| Postgres
+  App -->|cache| Redis
+
+  subgraph volumes[Volumes]
+    v_static["/static/profile_pictures/"]
+    v_db["/var/lib/postgresql/data/"]
+  end
+
+  App --- v_static
+  Postgres --- v_db
+
+  App -.->|env vars| E[".env / secrets"]
+  Nginx -.->|conf| C["nginx/default.conf"]
+
+  classDef infra fill:#eef,stroke:#77a,stroke-width:1px
+  class Nginx,App,Redis,Postgres infra

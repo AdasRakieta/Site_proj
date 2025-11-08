@@ -1,0 +1,22 @@
+﻿sequenceDiagram
+    participant U as User (Browser)
+    participant N as Nginx
+    participant F as Flask (RoutesManager)
+    participant M as MultiHomeDBManager
+    participant PG as PostgreSQL
+    participant S as Socket.IO
+
+    U->>S: emit select_home(new_home_id)
+    S->>F: select_home event
+    F->>M: verify membership
+    M->>PG: SELECT role FROM home_members
+    PG-->>M: role row
+    M-->>F: membership ok
+    F->>F: update session current_home_id
+    F->>M: get_rooms(new_home_id)
+    F->>M: get_devices(new_home_id)
+    M->>PG: SELECT rooms/devices
+    PG-->>M: data sets
+    M-->>F: rooms/devices
+    F->>S: emit initial_state to user
+    U-->>U: UI re-renders with new home data

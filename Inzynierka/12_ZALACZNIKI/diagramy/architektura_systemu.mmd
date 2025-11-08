@@ -1,0 +1,39 @@
+﻿flowchart LR
+    subgraph Client[Warstwa klienta]
+        B[Przeglądarka / Mobile UI]
+    end
+    subgraph Proxy[Reverse Proxy]
+        N[Nginx]
+    end
+    subgraph App[Warstwa aplikacji]
+        F[Flask: RoutesManager/API]
+        S["Socket.IO: kanały home_id"]
+        C[CacheManager]
+        A[AuthManager]
+        M[MultiHomeDBManager]
+    end
+    subgraph Data[Warstwa danych]
+        PG[("PostgreSQL<br/>users, homes, rooms, devices, automations, history")]
+        R[("Redis Cache<br/>TTL, klucze per-home")]
+    end
+    subgraph External[Usługi zewnętrzne]
+        SMTP[("SMTP Server")]
+        Future[("Przyszłe adaptery IoT")]
+    end
+
+    B -->|HTTPS/WSS| N
+    N -->|forward| F
+    F -->|REST zapytania| PG
+    F -->|odczyt/zapis| M
+    M -->|CRUD / SQL| PG
+    F --> A
+    F --> C
+    C -->|get/set| R
+    S -->|emit/broadcast| B
+    F -->|async email| SMTP
+    Future -.->|planowane integracje| F
+
+    classDef layer fill:#0f3d5e,stroke:#0f3d5e,color:#fff
+    classDef store fill:#145880,stroke:#0f3d5e,color:#fff
+    class PG,R store
+    class Client,Proxy,App,Data,External layer

@@ -1,0 +1,17 @@
+﻿sequenceDiagram
+    participant U as User (Browser)
+    participant N as Nginx
+    participant F as Flask (APIManager)
+    participant M as MultiHomeDBManager
+    participant PG as PostgreSQL
+    participant S as Socket.IO
+
+    U->>N: POST /api/devices/id/state (toggle)
+    N->>F: forward
+    F->>M: UPDATE devices SET state=...
+    M->>PG: execute UPDATE + INSERT device_history
+    PG-->>M: ok
+    M-->>F: ok
+    F->>S: emit device_state_changed
+    S-->>U: real-time update
+    F-->>U: 200 success

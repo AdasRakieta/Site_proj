@@ -1,0 +1,77 @@
+﻿erDiagram
+    USERS ||--o{ HOME_MEMBERS : has
+    HOMES ||--o{ HOME_MEMBERS : has
+    HOMES ||--o{ ROOMS : contains
+    ROOMS ||--o{ DEVICES : contains
+    HOMES ||--o{ DEVICES : mayHave
+    HOMES ||--o{ HOME_AUTOMATIONS : has
+    DEVICES ||--o{ DEVICE_HISTORY : changes
+
+    USERS {
+        uuid id PK
+        string name
+        string email
+        string password_hash
+        datetime created_at
+    }
+
+    HOMES {
+        uuid id PK
+        uuid owner_id FK
+        string name
+        jsonb settings
+        datetime created_at
+        datetime updated_at
+    }
+
+    HOME_MEMBERS {
+        uuid id PK
+        uuid home_id FK
+        uuid user_id FK
+        string role
+        datetime created_at
+    }
+
+    ROOMS {
+        uuid id PK
+        uuid home_id FK
+        string name
+        int display_order
+        datetime created_at
+        datetime updated_at
+    }
+
+    DEVICES {
+        uuid id PK
+        uuid home_id FK
+        uuid room_id FK
+        string name
+        string device_type
+        jsonb state
+        boolean enabled
+        jsonb settings
+        int display_order
+        datetime created_at
+        datetime updated_at
+    }
+
+    HOME_AUTOMATIONS {
+        uuid id PK
+        uuid home_id FK
+        string name
+        jsonb trigger_config
+        jsonb actions_config
+        boolean enabled
+        datetime created_at
+        datetime updated_at
+    }
+
+    DEVICE_HISTORY {
+        uuid id PK
+        uuid device_id FK
+        jsonb old_state
+        jsonb new_state
+        uuid changed_by
+        string change_reason
+        datetime created_at
+    }

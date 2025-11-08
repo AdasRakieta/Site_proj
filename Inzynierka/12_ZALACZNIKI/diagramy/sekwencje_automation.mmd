@@ -1,0 +1,26 @@
+﻿sequenceDiagram
+    participant Sch as Background Scheduler
+    participant AE as AutomationEngine
+    participant M as MultiHomeDBManager
+    participant PG as PostgreSQL
+    participant F as Flask
+    participant S as Socket.IO
+
+    Sch->>AE: tick()
+    AE->>M: get_enabled_automations()
+    M->>PG: SELECT automations WHERE enabled=true
+    PG-->>M: rows
+    M-->>AE: automations
+    loop each automation
+        AE->>AE: evaluate triggers/conditions
+        alt should run
+            AE->>M: apply actions
+            M->>PG: UPDATE devices, INSERT history
+            PG-->>M: ok
+            M-->>AE: ok
+            AE->>F: invalidate caches
+            F->>S: emit device_state_changed
+        else skip
+            AE-->>Sch: no-op
+        end
+    end

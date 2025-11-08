@@ -1,0 +1,20 @@
+﻿sequenceDiagram
+    participant U as User (Browser)
+    participant N as Nginx
+    participant F as Flask (RoutesManager)
+    participant M as MultiHomeDBManager
+    participant PG as PostgreSQL
+
+    U->>N: POST /login (credentials)
+    N->>F: forward request
+    F->>M: get_user_by_name(email)
+    M->>PG: SELECT * FROM users WHERE email=...
+    PG-->>M: user row
+    M-->>F: user
+    F->>F: bcrypt.verify(password)
+    alt success
+        F->>F: set session (HttpOnly, SameSite)
+        F-->>U: 302 redirect / (success)
+    else fail
+        F-->>U: 401 Invalid credentials
+    end

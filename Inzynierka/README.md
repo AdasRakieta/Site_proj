@@ -59,7 +59,7 @@ Ten folder zawiera kompletną dokumentację pracy inżynierskiej dotyczącej sys
 - **Frontend:** Jinja2, Vanilla JavaScript, Bootstrap
 - **Baza danych:** PostgreSQL 15, Redis 7 (cache)
 - **Deployment:** Docker, Nginx, GitHub Actions
-- **IoT:** TinyTuya, MQTT (abstrakcja)
+- **IoT:** brak bezpośrednich połączeń; przewidziane opcjonalne integracje w przyszłości (adaptery/protokoły)
 
 **Architektura:**
 - Multi-tenant architecture (per-home isolation)
@@ -77,16 +77,16 @@ Ten folder zawiera kompletną dokumentację pracy inżynierskiej dotyczącej sys
 
 ### Kluczowe diagramy do utworzenia
 
-1. **Diagram architektury wysokopoziomowej** (done - w tekście ASCII)
-2. **Diagram komponentów systemu**
-3. **Diagram sekwencji - toggle device**
-4. **Diagram sekwencji - user login**
-5. **Diagram przepływu danych - automatyzacja**
-6. **Schemat ER bazy danych** (done - w tekście ASCII)
-7. **Diagram deployment (Docker containers)**
-8. **Diagram sieci (network topology)**
+1. **Diagram architektury wysokopoziomowej** (done: `architektura_systemu.mmd` + ASCII)
+2. **Diagram komponentów systemu** (częściowo ujęte w architekturze – opcjonalny dedykowany)
+3. **Diagram sekwencji - toggle device** (done: `sekwencje_toggle_device.mmd`)
+4. **Diagram sekwencji - user login** (done: `sekwencje_login.mmd`)
+5. **Diagram przepływu danych - automatyzacja** (done: `sekwencje_automation.mmd`)
+6. **Schemat ER bazy danych** (done: `erd_smarthome.mmd` + fragment w rozdz. 4)
+7. **Diagram deployment (Docker containers)** (done: `deployment_docker.mmd`)
+8. **Diagram sieci (network topology)** (done: `network_topology.mmd`)
 9. **Use case diagram - główne funkcjonalności**
-10. **Activity diagram - proces zaproszenia użytkownika**
+10. **Activity diagram - proces zaproszenia użytkownika** (do wykonania)
 
 ### Kluczowe fragmenty kodu do załączników
 

@@ -197,16 +197,14 @@ Jedyne obszary wymagające dalszego rozwoju to:
 ### 10.4.1. Integracja z nowymi urządzeniami
 
 **Krótkoterminowe (3-6 miesięcy):**
-- Integracja z TinyTuya (Tuya Cloud API)
-- Obsługa MQTT broker (Mosquitto)
-- Zigbee2MQTT integration
-- Home Assistant integration (jako fallback)
+- Przygotowanie warstwy abstrakcji urządzeń (adapter interface + mock driver)
+- Specyfikacja integracji przez protokół MQTT (planowane – brak implementacji w bieżącej wersji)
+- Weryfikacja możliwości współpracy z zewnętrznymi platformami (np. Home Assistant) jako opcjonalnej bramki
 
 **Długoterminowe (1-2 lata):**
-- Matter protocol support (nowy standard)
-- Z-Wave integration
-- Własny protokół dla custom hardware
-- BLE (Bluetooth Low Energy) devices
+- Modułowe adaptery dla standardów (Matter, Zigbee, Z-Wave, BLE) – wdrożenie zależne od zapotrzebowania
+- Lekki protokół własny dla urządzeń DIY (opcjonalnie)
+- Mechanizmy autodetekcji i rejestracji urządzeń
 
 ### 10.4.2. Aplikacja mobilna
 

@@ -99,7 +99,7 @@ Nginx odpowiada za terminację TLS, serwowanie statyk, ochronę i buforowanie. K
 GitHub Actions realizuje pipeline: checkout → buildx → login → build → push do GHCR → artifact z podsumowaniem. Osobny workflow uruchamia testy i zapewnia szybki feedback deweloperski [32].
 
 ## 3.6. Internet Rzeczy (IoT) – kontekst
-System koncentruje się na warstwie zarządzania i prezentacji, abstrahując warstwę komunikacji z urządzeniami. Integracje (np. TinyTuya, MQTT) są projektowane jako rozszerzenia logiki, a stany urządzeń są utrwalane w DB i propagowane w UI przez Socket.IO. Taki podział umożliwia testowanie bez sprzętu oraz wymianę adapterów urządzeń bez ingerencji w UI.
+System koncentruje się na warstwie zarządzania i prezentacji, abstrahując warstwę komunikacji z urządzeniami. W aktualnej wersji nie ma bezpośredniego połączenia z rzeczywistymi urządzeniami; przewiduje się natomiast możliwość przyszłej integracji poprzez standardowe protokoły i adaptery, przy zachowaniu obecnego API aplikacji (stany utrwalane w DB, propagacja do UI przez Socket.IO). Takie podejście umożliwia testowanie na mockach oraz późniejsze dołączanie adapterów bez ingerencji w interfejs użytkownika.
 
 ## 3.7. Bezpieczeństwo – wprowadzenie
 
