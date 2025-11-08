@@ -3,51 +3,51 @@
    ======================================== */
 
 :root[data-theme="light"] {
-    --bg-column: var(--background); /* #DDE6ED */
+    --bg-column: var(--background);
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
-    --bg-header: var(--accent); /* #9DB2BF */
+    --bg-header: var(--accent);
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
-    --bg-button: var(--accent); /* #9DB2BF */
-    --bg-button-hover: var(--hover); /* rgb(182, 206, 223) */
-    --bg-delete-button: var(--delete-btn); /* rgba(255, 0, 0, 0.411) */
-    --bg-delete-button-hover: var(--delete-btn-hover); /* rgba(255, 0, 0, 0.7) */
+    --bg-button: var(--accent);
+    --bg-button-hover: var(--hover);
+    --bg-delete-button: var(--delete-btn);
+    --bg-delete-button-hover: var(--delete-btn-hover);
     --bg-add-card: rgba(0, 0, 0, 0.2);
-    --bg-input: var(--background); /* #DDE6ED */
-    --bg-input-hover: var(--input-bg); /* #9DB2BF */
-    --input-text-hover: var(--text); /* #050315 */
-    --background-input: var(--primary); /* #27374D */
+    --bg-input: var(--background);
+    --bg-input-hover: var(--input-bg);
+    --input-text-hover: var(--text);
+    --background-input: var(--primary);
     --shadow-color: 0 4px 8px rgba(0, 0, 0, 0.20);
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
     --moving-bg: rgba(0, 0, 0, 0.8);
-    --bg-add-column: var(--background); /* #DDE6ED */
-    --bg-kaban-column: var(--background); /* #DDE6ED */
-    --bg-card: #f0f0f0; /* zbliżone do --bg-secondary */
+    --bg-add-column: var(--background);
+    --bg-kaban-column: var(--background);
+    --bg-card: #f0f0f0;
     --bg-card-hover: var(--hover);
     --confirm-btn: rgba(0, 255, 0, 0.397);
-    --confirm-btn-hover: rgba(0, 255, 0, 0.659); /* rgb(182, 206, 223) */
+    --confirm-btn-hover: rgba(0, 255, 0, 0.659);
 }
 
 :root[data-theme="dark"] {
-    --bg-column: var(--background); /* #282a36 */
-    --bg-kaban-column: var(--background); /* #282a36 */
+    --bg-column: var(--background);
+    --bg-kaban-column: var(--background);
     --bg-column-fixed: rgba(0, 0, 0, 0.2);
-    --bg-header: var(--accent); /* #6170a0 */
+    --bg-header: var(--accent);
     --bg-header-fixed: rgba(0, 0, 0, 0.15);
-    --bg-card: var(--secondary); /* #343746 */
-    --bg-card-hover: var(--hover); /* #f8f8f28c */
-    --bg-button: var(--accent); /* #282a36 */
-    --bg-button-hover: var(--hover); /* #f8f8f28c */
-    --bg-delete-button: var(--delete-btn); /* #dc3545 */
-    --bg-delete-button-hover: var(--delete-btn-hover); /* #bb2d3b */
+    --bg-card: var(--secondary);
+    --bg-card-hover: var(--hover);
+    --bg-button: var(--accent);
+    --bg-button-hover: var(--hover);
+    --bg-delete-button: var(--delete-btn);
+    --bg-delete-button-hover: var(--delete-btn-hover);
     --bg-add-card: rgba(0, 0, 0, 0.2);
-    --bg-input: var(--input-bg); /* #333333 */
-    --background-input: var(--background-input); /* #404040 */
+    --bg-input: var(--input-bg);
+    --background-input: var(--background-input);
     --shadow-color: 0 2px 5px hsla(0, 0%, 75%, 0.26);
     --mirror-opacity: 0.8;
     --transit-opacity: 0.2;
     --moving-bg: rgba(0, 0, 0, 0.8);
-    --bg-add-column: var(--background); /* #282a36 */
+    --bg-add-column: var(--background);
 }
 
 

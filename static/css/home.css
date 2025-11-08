@@ -3,13 +3,10 @@
    Styles for home selection, creation, joining, and management
    ======================================== */
 
-/* ========================================
-   HOME SELECTOR (in navigation)
-   ======================================== */
 .home-selector-item {
     position: relative;
     width: 100%;
-    overflow: visible; /* DODANE: pozwól dropdown wystawać poza kontener */
+    overflow: visible;
 }
 
 .current-home-display {
@@ -46,11 +43,11 @@
     border: 1px solid var(--background);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
-    z-index: 10000; /* ZMIANA: wyższy z-index aby był nad wszystkim */
+    z-index: 10000;
     display: none;
     max-height: 300px;
     overflow-y: auto;
-    min-width: 250px; /* DODANE: minimalna szerokość */
+    min-width: 250px;
 }
 
 .home-selector-dropdown.show {
@@ -112,7 +109,6 @@
     background-color: var(--hover);
 }
 
-/* Mobile responsive for home selector */
 @media (max-width: 768px) {
     .home-selector-dropdown {
         position: fixed;
@@ -310,7 +306,6 @@
     margin-top: 40px;
 }
 
-/* Loading spinner for home switching */
 .loading-spinner {
     border: 3px solid var(--background);
     border-top: 3px solid var(--accent);
@@ -394,7 +389,6 @@
     margin-top: 32px;
 }
 
-/* Specyficzne style dla przycisków w formularzach zarządzania domami */
 .home-form-container .btn,
 .home-selection-container .btn {
     display: inline-flex;
@@ -477,7 +471,6 @@
     font-weight: bold;
 }
 
-/* Different icons for create vs join pages */
 .home-create .info-section li:before {
     content: "✓";
     color: var(--accent);
@@ -513,60 +506,6 @@
     border-radius: 6px;
     margin-bottom: 20px;
     border: 1px solid var(--btn-success-hover);
-}
-
-/* ========================================
-   DARK MODE ADJUSTMENTS
-   ======================================== */
-/* Dark mode is handled by CSS variables in style.css, 
-   so no additional overrides needed here */
-
-/* ========================================
-   MOBILE RESPONSIVE
-   ======================================== */
-@media (max-width: 768px) {
-    .home-selection-container,
-    .home-form-container {
-        padding: 16px;
-    }
-    
-    .homes-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .home-card {
-        padding: 20px;
-    }
-    
-    .home-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .form-container {
-        padding: 24px;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .home-form-container .btn,
-    .home-selection-container .btn {
-        flex: none;
-        width: 100%;
-        max-width: 300px;
-    }
-    
-    .home-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-    
-    .home-badges {
-        order: -1;
-    }
 }
 
 /* ========================================
@@ -671,7 +610,6 @@
     transform: translateX(4px);
 }
 
-/* Theme selector styles */
 .theme-form {
     display: flex;
     flex-direction: column;
@@ -707,7 +645,6 @@
     border-color: var(--accent);
 }
 
-/* Account info styles */
 .account-info {
     display: flex;
     flex-direction: column;
@@ -842,7 +779,6 @@
     font-weight: 500;
 }
 
-/* Mobile responsive */
 @media (max-width: 768px) {
     .settings-container {
         padding: 16px;
@@ -894,7 +830,6 @@
    HOME MANAGEMENT ADDITIONAL STYLES
    ======================================== */
 
-/* Home invitation styles */
 .invitation-code {
     font-family: 'Courier New', monospace;
     font-size: 1.2em;
@@ -908,7 +843,6 @@
     color: var(--accent);
 }
 
-/* Home settings styles */
 .home-settings-section {
     background: var(--background);
     border: 1px solid var(--background-color);
@@ -953,7 +887,6 @@
     color: white;
 }
 
-/* Home switching indicator */
 .home-switching-indicator {
     position: fixed;
     top: 50%;

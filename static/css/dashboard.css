@@ -2,18 +2,12 @@
    ADMIN DASHBOARD STYLES
    ======================================== */
 
-/* ============================== */
-/*    Admin Dashboard Styles      */
-/* ============================== */
-
-/* Dashboard container */
 .dashboard-container {
     padding: 20px;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-/* Dashboard grid layout */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -21,7 +15,6 @@
     margin-bottom: 20px;
 }
 
-/* Dashboard cards */
 .dashboard-card {
     background: var(--background);
     border: 1px solid var(--background-color);
@@ -38,7 +31,6 @@
    
 }
 
-/* Statistics rows */
 .stat-row {
     display: flex;
     justify-content: space-between;
@@ -56,7 +48,6 @@
     color: var(--text-primary, var(--text));
 }
 
-/* Chart containers */
 .chart-container {
     height: 200px;
     display: flex;
@@ -77,17 +68,12 @@
    USER MANAGEMENT STYLES
    ======================================== */
 
-/* ============================== */
-/*      User Management Styles    */
-/* ============================== */
-
 .user-management {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
 }
 
-/* Force two-column layout variant */
 .user-management.two-column {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -118,7 +104,6 @@
     align-items: center;
 }
 
-/* Ensure notification add form mirrors add-user widths */
 #notificationRecipientEmail.input-settings-add-user {
     width: 250px;
 }
@@ -134,7 +119,6 @@
     align-items: center;
 }
 
-/* User table styles */
 .user-table-container {
     max-height: 400px;
     overflow-y: auto;
@@ -168,7 +152,6 @@
     background-color: var(--hover-bg, var(--hover));
 }
 
-/* Action buttons */
 .action-buttons {
     display: flex;
     gap: 10px;
@@ -230,7 +213,6 @@
     transform: scale(1.1);
 }
 
-/* Edit inputs for inline editing */
 .edit-input {
     width: 100%;
     padding: 4px 8px;
@@ -246,7 +228,6 @@
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-/* Hidden class utility */
 .hidden {
     display: none !important;
 }
@@ -254,10 +235,6 @@
 /* ========================================
    NOTIFICATION MANAGEMENT STYLES
    ======================================== */
-
-/* ============================== */
-/*   Notification Management     */
-/* ============================== */
 
 .checkbox-notification-label {
     display: flex;
@@ -317,7 +294,6 @@
     color: var(--text);
 }
 
-/* Alert messages */
 .alert-msg {
     padding: 10px;
     margin: 10px 0;
@@ -337,7 +313,6 @@
     border-color: var(--btn-danger-hover, #f32819);
 }
 
-/* No recipients row */
 .no-recipients-row td {
     text-align: center;
     font-style: italic;
@@ -345,43 +320,8 @@
     padding: 20px;
 }
 
-/* ========================================
-   RESPONSIVE DESIGN
-   ======================================== */
 
-/* ============================== */
-/*       Responsive Design       */
-/* ============================== */
 
-@media (max-width: 768px) {
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .user-management {
-        flex-direction: column;
-    }
-
-    .user-management.two-column {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .user-table-container {
-        overflow-x: auto;
-    }
-    
-    .user-table {
-        min-width: 600px;
-    }
-    
-    .input-group {
-        flex-direction: column;
-        align-items: stretch;
-    }
-}
-
-/* Additional Admin Dashboard Inline Styles */
 .chart-container {
     height: 200px;
     display: flex;

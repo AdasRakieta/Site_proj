@@ -1,4 +1,6 @@
-/* ================= Gooey User Menu Animation Styles ================= */
+/* ========================================
+   USER MENU ANIMATION STYLES
+   ======================================== */
 
 .user-avatar {
   width: 44px;
@@ -77,12 +79,12 @@
     color: var(--text-color);
     text-decoration: none;
     border-radius: 8px;
-    transition: background 0.2s, transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); /* animacja jak w menu głównym */
+    transition: background 0.2s, transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); 
 }
 
 #user-menu .user-menu-link:hover {
     background: var(--hover);
-    transform: scale(1.05); /* animacja jak w menu głównym */
+    transform: scale(1.05);
 }
 
 #user-menu .logout {
@@ -104,11 +106,11 @@
     margin-right: 8px;
     vertical-align: middle;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
-    transition: transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); /* animacja jak w menu głównym */
+    transition: transform 0.3s cubic-bezier(0.74, 0.01, 0.37, 1.55); 
 }
 .user-menu-link:hover .user-menu-icon,
 .user-menu-icon:hover {
-    transform: scale(1.05); /* animacja jak w menu głównym */
+    transform: scale(1.05);
 }
 
 header {
@@ -190,9 +192,9 @@ header .menu-handle {
 
 .main-menu {
     position: fixed;
-    overflow: hidden; /* ZMIANA: hidden zamiast visible aby elementy nie wystawały */
+    overflow: hidden;
     width: 40px;
-    height: 40px; /* DODANE: stała wysokość */
+    height: 40px; 
     top: 0;
     right: 28.8px;
     background-color: var(--background);
@@ -201,7 +203,7 @@ header .menu-handle {
     transition: transform .3s ease .6s, 
                 top .65s cubic-bezier(.74,.01,.2,1) .5s, 
                 width .55s cubic-bezier(.74,.01,.2,1),
-                height .55s cubic-bezier(.74,.01,.2,1); /* DODANE: animacja wysokości */
+                height .55s cubic-bezier(.74,.01,.2,1);
     z-index: 0;
 }
 .main-menu .menu-wrap {
@@ -211,10 +213,10 @@ header .menu-handle {
     height: 100%;
     left: 0;
     position: relative;
-    opacity: 0; /* DODANE: ukryj elementy podczas zamykania */
-    transform: scale(0.8); /* DODANE: skaluj elementy */
-    transition: opacity .2s ease, transform .2s ease; /* DODANE: animacja */
-    overflow: visible; /* ZMIANA: visible aby dropdown był widoczny */
+    opacity: 0; 
+    transform: scale(0.8); 
+    transition: opacity .2s ease, transform .2s ease;
+    overflow: visible; 
 }
 .main-menu .menu-item {
     padding: 12px 25px;
@@ -223,77 +225,56 @@ header .menu-handle {
     align-items: center;
     justify-content: center;
     color: #fff;
-    flex: 0 0 auto; /* ZMIANA: nie pozwalaj na rozciąganie */
-    min-width: 0; /* DODANE: pozwól na zmniejszanie */
-    opacity: 0; /* DODANE: ukryj podczas zamykania */
-    transform: scale(0.5); /* DODANE: zmniejsz podczas zamykania */
-    transition: all 0.35s cubic-bezier(.74,.01,.37,1.55); /* ZMIANA: ujednolicony timing */
+    flex: 0 0 auto; 
+    min-width: 0;
+    opacity: 0; 
+    transform: scale(0.5);
+    transition: all 0.35s cubic-bezier(.74,.01,.37,1.55);
     box-sizing: border-box;
-    cursor: pointer; /* DODANE: wskaźnik kursora */
-    border-radius: 8px; /* DODANE: zaokrąglone rogi */
-    text-decoration: none; /* DODANE: brak podkreślenia */
-    overflow: visible; /* DODANE: pozwól dropdown na wystawanie */
+    cursor: pointer;
+    border-radius: 8px;
+    text-decoration: none;
+    overflow: visible;
 }
 
 .main-menu .menu-item.home-selector-item {
-    position: static; /* DODANE: zmień pozycjonowanie dla home selector */
-    overflow: visible; /* WAŻNE: pozwól dropdown wystawać */
+    position: static;
+    overflow: visible;
 }
 
 .main-menu .menu-item:hover {
-    background: rgba(255, 255, 255, 0.1); /* DODANE: hover efekt */
-    transform: scale(1.05); /* DODANE: powiększenie przy hover */
+    background: rgba(255, 255, 255, 0.1); 
+    transform: scale(1.05);
 }
 
 .main-menu.active {
     top: 70px;
     transform: scale(1);
     width: 350px;
-    height: 50px; /* DODANE: docelowa wysokość */
+    height: 50px; 
     border: 2px solid var(--accent);
-    overflow: visible; /* DODANE: visible aby dropdown był widoczny */
-    z-index: 1000; /* DODANE: wyższy z-index */
+    overflow: visible;
+    z-index: 1000;
     transition: transform .3s ease, 
                 top .65s cubic-bezier(.74,.01,.37,1.55), 
                 width .55s cubic-bezier(.74,.01,.37,1.55) .5s,
-                height .55s cubic-bezier(.74,.01,.37,1.55) .5s; /* DODANE: animacja wysokości */
+                height .55s cubic-bezier(.74,.01,.37,1.55) .5s;
 }
 
 .main-menu.active .menu-wrap {
-    opacity: 1; /* DODANE: pokaż elementy */
-    transform: scale(1); /* DODANE: przywróć skalę */
-    transition: opacity .3s ease .6s, transform .3s ease .6s; /* DODANE: opóźnij pokazanie */
+    opacity: 1;
+    transform: scale(1); 
+    transition: opacity .3s ease .6s, transform .3s ease .6s;
 }
 
 .main-menu.active .menu-item {
-    opacity: 1; /* DODANE: pokaż elementy */
-    transform: scale(1); /* DODANE: przywróć skalę */
-    flex: 1 1 auto; /* ZMIANA: pozwól na rozciąganie */
-    transition: all 0.4s cubic-bezier(.74,.01,.37,1.55) .65s; /* DODANE: opóźnij animację */
+    opacity: 1;  
+    transform: scale(1);
+    flex: 1 1 auto;
+    transition: all 0.4s cubic-bezier(.74,.01,.37,1.55) .65s;
 }
 
 .main-menu.active .menu-item:hover {
 background: none;
-}
-
-@media (max-width: 600px) {
-    .main-menu {
-    right: 50px;    }
-    #user-menu{
-        transform: scale(1.10);
-        top: 60px;
-    }
-    .user-menu-container {
-        top: -2px;
-        right: 5px;
-    }
-    header .menu-handle {
-        top: 10px;
-        right: 10px;
-    }
-    .menu-handle {
-        top: 4px;
-        right: 10px;
-    }
 }
 

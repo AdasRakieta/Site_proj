@@ -1,4 +1,6 @@
-/* Home Settings Page Styles */
+/* ========================================
+   HOME SETTINGS PAGE STYLES
+   ======================================== */
 
 .home-settings-container {
     max-width: 1200px;
@@ -6,7 +8,6 @@
     padding: 20px;
 }
 
-/* Header Section */
 .settings-header {
     margin-bottom: 32px;
     padding: 24px;
@@ -65,7 +66,6 @@
     color: var(--text-secondary);
 }
 
-/* Settings Sections */
 .settings-sections {
     display: flex;
     flex-direction: column;
@@ -108,7 +108,6 @@
     padding: 24px;
 }
 
-/* Forms */
 .settings-form {
     max-width: 600px;
 }
@@ -169,7 +168,6 @@
     transform: none;
 }
 
-/* Autocomplete Styles */
 .autocomplete-wrapper {
     position: relative;
 }
@@ -177,13 +175,13 @@
 .autocomplete-suggestions {
     display: none;
     position: absolute;
-    top: calc(100% - 1px); /* Przylega do inputa */
+    top: calc(100% - 1px);
     left: 0;
     right: 0;
     background: var(--background);
     border: 2px solid var(--accent);
-    border-top: none; /* Usuwa górną ramkę aby wyglądało jak rozwinięcie */
-    border-radius: 0 0 8px 8px; /* Tylko dolne rogi zaokrąglone */
+    border-top: none;
+    border-radius: 0 0 8px 8px;
     max-height: 300px;
     overflow-y: auto;
     z-index: 1000;
@@ -218,7 +216,7 @@
 
 .suggestion-item:last-child {
     border-bottom: none;
-    border-radius: 0 0 8px 8px; /* Ostatni element ma zaokrąglone rogi */
+    border-radius: 0 0 8px 8px;
 }
 
 .suggestion-item:hover {
@@ -253,9 +251,8 @@
     opacity: 0.85;
 }
 
-/* Input z otwartym autocomplete - zmiana stylizacji */
 .autocomplete-wrapper input.form-control:focus {
-    border-radius: 8px 8px 0 0; /* Gdy dropdown otwarty, zaokrąglone tylko górne rogi */
+    border-radius: 8px 8px 0 0;
     border-bottom-color: var(--accent);
 }
 
@@ -264,7 +261,6 @@
     border-bottom-color: transparent;
 }
 
-/* User Management */
 .user-management {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -336,7 +332,6 @@
     font-weight: 600;
 }
 
-/* Rooms Grid */
 .rooms-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -419,7 +414,6 @@
     font-size: 14px;
 }
 
-/* Empty State */
 .empty-state {
     text-align: center;
     padding: 40px 20px;
@@ -441,7 +435,6 @@
     font-size: 0.9rem;
 }
 
-/* Danger Zone */
 .danger-actions {
     display: flex;
     flex-direction: column;
@@ -496,7 +489,6 @@
     box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
 }
 
-/* Footer */
 .settings-footer {
     margin-top: 32px;
     padding-top: 24px;
@@ -504,7 +496,6 @@
     text-align: center;
 }
 
-/* Modal Styles */
 .modal {
     position: fixed;
     z-index: 1000;
@@ -567,59 +558,4 @@
     gap: 12px;
     justify-content: flex-end;
     margin-top: 24px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .home-settings-container {
-        padding: 16px;
-    }
-
-    .settings-header {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .header-stats {
-        width: 100%;
-        justify-content: space-around;
-    }
-
-    .user-management {
-        grid-template-columns: 1fr;
-    }
-
-    .rooms-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .danger-action {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-    }
-
-    .modal-content {
-        width: 95%;
-        margin: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    .settings-header {
-        padding: 16px;
-    }
-
-    .section-content {
-        padding: 16px;
-    }
-
-    .stat-card {
-        min-width: 60px;
-        padding: 12px;
-    }
-
-    .stat-number {
-        font-size: 1.2rem;
-    }
 }

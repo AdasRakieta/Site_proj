@@ -1,9 +1,8 @@
-/* ============================== */
-/*        MOBILE MEDIA QUERIES    */
-/* ============================== */
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
 
 @media (max-width: 768px) {
-    /* Z pliku style.css */
     .side-menu {
         width: 200px !important;
     }
@@ -74,11 +73,9 @@
     .grid-container {
         grid-template-columns: 1fr;
     }
-    /* Z pliku dragNdrop.css */
     .drag-list {
         display: block;
     }
-    /* Z pliku user.css (przykład dla formularza profilu użytkownika) */
     .user-profile-container {
         max-width: 98vw;
         padding: 1rem;
@@ -212,20 +209,145 @@
     display: flex !important;
     flex-direction: column !important;
     gap: 20px !important;
+    }
+
+    .kanban-edit-btn {
+        font-size: 1.5em !important;
+        align-self: center !important;
+
+    }
+    .edit-room-button {
+        font-size: 1.5em !important;;
+    }
+
+    .home-selection-container,
+    .home-form-container {
+        padding: 16px;
+    }
+        
+    .homes-grid {
+        grid-template-columns: 1fr;
+    }
+        
+    .home-card {
+        padding: 20px;
+    }
+        
+    .home-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+        
+    .form-container {
+        padding: 24px;
+    }
+        
+    .form-actions {
+        flex-direction: column;
+    }
+        
+    .home-form-container .btn,
+    .home-selection-container .btn {
+        flex: none;
+        width: 100%;
+        max-width: 300px;
+    }
+        
+    .home-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+        
+    .home-badges {
+        order: -1;
+    }
+
+.home-settings-container {
+        padding: 16px;
+    }
+
+    .settings-header {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .header-stats {
+        width: 100%;
+        justify-content: space-around;
+    }
+
+    .user-management {
+        grid-template-columns: 1fr;
+    }
+
+    .rooms-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .danger-action {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-management {
+        flex-direction: column;
+    }
+
+    .user-management.two-column {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-table-container {
+        overflow-x: auto;
+    }
+    
+    .user-table {
+        min-width: 600px;
+    }
+    
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
 }
 
-.kanban-edit-btn {
-    font-size: 1.5em !important;
-    align-self: center !important;
+@media screen and (max-width: 640px) {
+  .weekdays-checkbox-group .weekday-checkbox-label {
+    width: 100%;
+    display: inline-block;
+  }
+    .main-menu {
+    right: 50px;    }
+    #user-menu{
+        transform: scale(1.10);
+        top: 60px;
+    }
+    .user-menu-container {
+        top: -2px;
+        right: 5px;
+    }
+    header .menu-handle {
+        top: 10px;
+        right: 10px;
+    }
+    .menu-handle {
+        top: 4px;
+        right: 10px;
+    }
 
-}
-.edit-room-button {
-    font-size: 1.5em !important;;
-}
-
-}
-
-@media (max-width: 600px) {
     .notification {
         right: 8px;
         left: 8px;
@@ -235,9 +357,21 @@
     }
 }
 
-@media screen and (max-width: 640px) {
-  .weekdays-checkbox-group .weekday-checkbox-label {
-    width: 100%;
-    display: inline-block;
-  }
+@media (max-width: 480px) {
+    .settings-header {
+        padding: 16px;
+    }
+
+    .section-content {
+        padding: 16px;
+    }
+
+    .stat-card {
+        min-width: 60px;
+        padding: 12px;
+    }
+
+    .stat-number {
+        font-size: 1.2rem;
+    }
 }

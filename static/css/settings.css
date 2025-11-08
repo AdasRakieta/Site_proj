@@ -2,8 +2,6 @@
    SETTINGS PAGE STYLES
    ======================================== */
 
-/* Settings Page Styles */
-
 .users-table-wrapper {
     overflow-x: auto;
     margin: 20px 0;
@@ -159,7 +157,6 @@
     50% { transform: scale(1.05); }
 }
 
-/* Bug Report Form Styles */
 .bug-report-section {
     margin-top: 30px;
     border-top: 2px solid #e0e0e0;
