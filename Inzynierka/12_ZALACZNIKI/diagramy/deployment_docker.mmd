@@ -1,4 +1,8 @@
-﻿graph LR
+﻿---
+config:
+  theme: dark
+---
+graph LR
   A[User Browser] -->|HTTPS| Nginx
   subgraph docker_network_public[Docker network: public]
     Nginx[Nginx Container]
@@ -25,5 +29,5 @@
   App -.->|env vars| E[".env / secrets"]
   Nginx -.->|conf| C["nginx/default.conf"]
 
-  classDef infra fill:#eef,stroke:#77a,stroke-width:1px
+  classDef infra stroke:#77a,stroke-width:1px
   class Nginx,App,Redis,Postgres infra

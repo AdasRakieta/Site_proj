@@ -1,4 +1,8 @@
-﻿flowchart LR
+﻿---
+config:
+  theme: dark
+---
+flowchart LR
     subgraph Client[Warstwa klienta]
         B[Przeglądarka / Mobile UI]
     end
@@ -33,7 +37,7 @@
     F -->|async email| SMTP
     Future -.->|planowane integracje| F
 
-    classDef layer fill:#0f3d5e,stroke:#0f3d5e,color:#fff
-    classDef store fill:#145880,stroke:#0f3d5e,color:#fff
+    classDef layer stroke:#0f3d5e,color:#fff
+    classDef store stroke:#0f3d5e,color:#fff
     class PG,R store
     class Client,Proxy,App,Data,External layer

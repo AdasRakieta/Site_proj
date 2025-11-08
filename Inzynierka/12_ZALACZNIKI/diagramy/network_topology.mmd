@@ -1,4 +1,8 @@
-﻿graph TD
+﻿---
+config:
+  theme: dark
+---
+graph TD
   Client1["Client: Browser/Mobile"]
   Internet(("Internet"))
   RevProxy["Nginx Reverse Proxy<br/>(HTTPS termination)"]
@@ -27,5 +31,5 @@
     Z3[Internal App Network]
   end
 
-  classDef zone fill:#f8f8f8,stroke:#ccc,stroke-dasharray:3
+  classDef zone fill:#f8sf8f8,stroke:#ccc,stroke-dasharray:3
   class Z1,Z2,Z3 zone
