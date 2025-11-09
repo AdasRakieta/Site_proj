@@ -3,28 +3,110 @@ config:
   theme: dark
 ---
 sequenceDiagram
-    participant Sch as Background Scheduler
-    participant AE as AutomationEngine
-    participant M as MultiHomeDBManager
+    actor User
+    participant UI as Browser UI
+    participant Flask as Flask App
+    participant Socket as Socket.IO Server
+    participant Routes as RoutesManager
+    participant Executor as AutomationExecutor
+    participant MultiDB as MultiHomeDBManager
     participant PG as PostgreSQL
-    participant F as Flask
-    participant S as Socket.IO
-
-    Sch->>AE: tick()
-    AE->>M: get_enabled_automations()
-    M->>PG: SELECT automations WHERE enabled=true
-    PG-->>M: rows
-    M-->>AE: automations
-    loop each automation
-        AE->>AE: evaluate triggers/conditions
-        alt should run
-            AE->>M: apply actions
-            M->>PG: UPDATE devices, INSERT history
-            PG-->>M: ok
-            M-->>AE: ok
-            AE->>F: invalidate caches
-            F->>S: emit device_state_changed
-        else skip
-            AE-->>Sch: no-op
-        end
+    participant Redis as Redis Cache
+    
+    Note over User,Redis: Użytkownik zmienia stan urządzenia (wyzwalacz automatyzacji)
+    
+    User->>UI: Click device toggle/button
+    UI->>Socket: emit('toggle_button', device_data)
+    Socket->>Routes: handle_toggle_button()
+    Routes->>MultiDB: update_device(device_id, state)
+    MultiDB->>PG: UPDATE devices SET state=...
+    PG-->>MultiDB: rows affected
+    MultiDB-->>Routes: success
+    
+    Note over Routes,Redis: Invalidacja cache dla zmienionego urządzenia
+    Routes->>Redis: delete cache_key(home_id, devices)
+    
+    Note over Routes,Executor: Sprawdzenie automatyzacji dla tego urządzenia
+    Routes->>Executor: process_device_trigger(device_id, room, name, state, home_id, user_id)
+    
+    Executor->>MultiDB: get_home_automations(home_id, user_id)
+    MultiDB->>PG: SELECT * FROM home_automations WHERE home_id=... AND enabled=true
+    PG-->>MultiDB: automations list
+    MultiDB-->>Executor: automations[]
+    
+    Note over Executor: Filtrowanie automatyzacji według triggera
+    loop Each automation
+        Executor->>Executor: Check if trigger.type=='device'
+        Executor->>Executor: Check if trigger.device matches device_key
+        Executor->>Executor: Check if trigger.state matches new_state
     end
+    
+    alt Automation matched
+        Note over Executor: Wykonanie automatyzacji
+        Executor->>Executor: _execute_automation(automation, home_id, user_id, trigger_data)
+        
+        loop Each action in actions_config
+            alt action.type == 'device'
+                Executor->>MultiDB: get_home_devices(home_id, user_id, 'button')
+                MultiDB->>PG: SELECT devices WHERE device_type='button'
+                PG-->>MultiDB: devices[]
+                MultiDB-->>Executor: target_device
+                
+                Executor->>Executor: Calculate new_state (on/off/toggle)
+                Executor->>MultiDB: update_device(target_device_id, user_id, state=new_state)
+                MultiDB->>PG: UPDATE devices SET state=...
+                PG-->>MultiDB: rows affected
+                
+                Executor->>Socket: emit('update_button', {room, name, state, device_id})
+                Socket-->>UI: Update button UI
+                Executor->>Socket: emit('sync_button_states', state_map)
+                Socket-->>UI: Sync all buttons
+                
+            else action.type == 'thermostat_control'
+                Executor->>MultiDB: get_home_devices(home_id, user_id, 'temperature_control')
+                MultiDB->>PG: SELECT devices WHERE device_type='temperature_control'
+                PG-->>MultiDB: devices[]
+                MultiDB-->>Executor: thermostat_device
+                
+                Executor->>MultiDB: update_device(thermostat_id, user_id, state=new_state)
+                MultiDB->>PG: UPDATE devices SET state=...
+                Executor->>Socket: emit('update_temperature', {room, name, state, temp})
+                Socket-->>UI: Update thermostat UI
+                
+            else action.type == 'set_temperature'
+                Executor->>MultiDB: get_home_devices(home_id, user_id, 'temperature_control')
+                Executor->>MultiDB: update_device(thermostat_id, user_id, temperature=target_temp)
+                MultiDB->>PG: UPDATE devices SET temperature=...
+                Executor->>Socket: emit('update_temperature', data)
+                Socket-->>UI: Update temperature display
+                
+            else action.type == 'notification'
+                Note over Executor: Email notification (future)
+                Executor->>Executor: _execute_notification_action()
+            end
+        end
+        
+        Note over Executor: Logowanie wykonania automatyzacji
+        Executor->>Executor: Calculate execution_time_ms
+        Executor->>Executor: _log_execution(automation_id, status, trigger_data, actions_executed)
+        Executor->>MultiDB: log_automation_execution(...)
+        MultiDB->>PG: INSERT INTO automation_executions (...)
+        PG-->>MultiDB: execution_id
+        
+        Executor->>MultiDB: update_automation_stats(automation_id, execution_count++)
+        MultiDB->>PG: UPDATE home_automations SET execution_count=execution_count+1, last_executed=NOW()
+        
+        Executor-->>Routes: execution_result{status, actions_executed, errors, execution_time_ms}
+    end
+    
+    Note over Routes,Socket: Broadcast zaktualizowanego stanu do wszystkich klientów
+    Routes->>Socket: emit('update_button', device_state)
+    Socket-->>UI: Real-time update for all connected clients
+    Routes->>Socket: emit('sync_button_states', all_states)
+    Socket-->>UI: Synchronize all device states
+    
+    Routes-->>Socket: success response
+    Socket-->>UI: Confirm toggle
+    UI-->>User: Visual feedback (updated state)
+    
+    Note over User,Redis: Automatyzacja zakończona - urządzenia zaktualizowane w czasie rzeczywistym

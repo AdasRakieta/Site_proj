@@ -1,0 +1,22 @@
+---
+config:
+  theme: dark
+---
+flowchart TB
+    Client[Browser Client]
+    Nginx[Nginx Reverse Proxy]
+    Flask[Flask Application]
+    Socket[Socket.IO Real-time]
+    MultiDB[MultiHomeDBManager]
+    PG[(PostgreSQL Database)]
+    Redis[(Redis Cache)]
+    SMTP[SMTP Email Service]
+    
+    Client -->|HTTPS| Nginx
+    Client <-->|WebSocket| Socket
+    Nginx -->|proxy| Flask
+    Flask --> MultiDB
+    Flask --> Socket
+    MultiDB --> PG
+    Flask --> Redis
+    Flask --> SMTP

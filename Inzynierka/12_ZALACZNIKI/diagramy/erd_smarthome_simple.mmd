@@ -1,0 +1,94 @@
+---
+config:
+  theme: dark
+---
+erDiagram
+
+    %% Uproszczony diagram ERD - główne relacje
+    
+    users ||--o{ user_homes : "member of"
+    users ||--o{ session_tokens : "authenticates"
+    
+    homes ||--o{ user_homes : "has members"
+    homes ||--o{ rooms : "contains"
+    homes ||--o{ home_automations : "has automations"
+    
+    rooms ||--o{ devices : "contains"
+    
+    devices ||--o{ device_history : "changes tracked"
+    
+    home_automations ||--o{ automation_executions : "execution log"
+    
+    users {
+        uuid id PK
+        varchar name UK
+        varchar email UK
+        text password_hash
+        varchar role
+    }
+    
+    homes {
+        uuid id PK
+        varchar name
+        uuid owner_id FK
+        varchar address
+        float latitude
+        float longitude
+    }
+    
+    user_homes {
+        uuid id PK
+        uuid user_id FK
+        uuid home_id FK
+        varchar role
+        jsonb permissions
+    }
+    
+    rooms {
+        uuid id PK
+        uuid home_id FK
+        varchar name
+        int display_order
+    }
+    
+    devices {
+        uuid id PK
+        uuid room_id FK
+        uuid home_id FK
+        varchar name
+        varchar device_type
+        boolean state
+        numeric temperature
+    }
+    
+    home_automations {
+        uuid id PK
+        uuid home_id FK
+        text name
+        jsonb trigger_config
+        jsonb actions_config
+        boolean enabled
+    }
+    
+    automation_executions {
+        uuid id PK
+        uuid automation_id FK
+        varchar execution_status
+        timestamptz executed_at
+    }
+    
+    device_history {
+        uuid id PK
+        uuid device_id FK
+        jsonb old_state
+        jsonb new_state
+        uuid changed_by FK
+        timestamptz created_at
+    }
+    
+    session_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash UK
+        timestamptz expires_at
+    }

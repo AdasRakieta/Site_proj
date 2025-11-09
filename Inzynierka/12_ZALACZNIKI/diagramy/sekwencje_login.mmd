@@ -3,22 +3,109 @@ config:
   theme: dark
 ---
 sequenceDiagram
-    participant U as User (Browser)
-    participant N as Nginx
-    participant F as Flask (RoutesManager)
-    participant M as MultiHomeDBManager
+    actor User
+    participant UI as Browser (login.html)
+    participant Flask as Flask App
+    participant Routes as RoutesManager
+    participant Auth as SimpleAuthManager
+    participant MultiDB as MultiHomeDBManager
     participant PG as PostgreSQL
-
-    U->>N: POST /login (credentials)
-    N->>F: forward request
-    F->>M: get_user_by_name(email)
-    M->>PG: SELECT * FROM users WHERE email=...
-    PG-->>M: user row
-    M-->>F: user
-    F->>F: bcrypt.verify(password)
-    alt success
-        F->>F: set session (HttpOnly, SameSite)
-        F-->>U: 302 redirect / (success)
-    else fail
-        F-->>U: 401 Invalid credentials
+    participant Redis as Redis Cache
+    participant Socket as Socket.IO
+    
+    Note over User,Redis: Proces logowania użytkownika
+    
+    User->>UI: Wprowadza username & password
+    User->>UI: Kliknięcie przycisku "Login"
+    
+    UI->>Flask: POST /login (username, password, remember_me)
+    Flask->>Routes: handle_login()
+    
+    Routes->>MultiDB: get_user_by_name(username)
+    MultiDB->>PG: SELECT * FROM users WHERE name = %s
+    PG-->>MultiDB: user_record or None
+    MultiDB-->>Routes: user_dict
+    
+    alt User not found
+        Routes-->>Flask: error "Invalid username or password"
+        Flask-->>UI: Render login page with error message
+        UI-->>User: "Nieprawidłowa nazwa użytkownika lub hasło"
+    else User found
+        Routes->>Auth: verify_password(password, user['password_hash'])
+        Auth->>Auth: bcrypt.checkpw(password, hash)
+        
+        alt Password incorrect
+            Auth-->>Routes: False
+            Routes-->>Flask: error "Invalid username or password"
+            Flask-->>UI: Render login page with error
+            UI-->>User: "Nieprawidłowa nazwa użytkownika lub hasło"
+        else Password correct
+            Auth-->>Routes: True
+            
+            Note over Routes: Tworzenie sesji użytkownika
+            Routes->>Auth: create_session(user_id, remember_me, request)
+            Auth->>Auth: Generate session_token (secrets.token_urlsafe)
+            Auth->>Auth: Hash token with SHA256
+            
+            alt Remember Me = True
+                Auth->>Auth: Set expires_at = now + 30 days
+            else Remember Me = False
+                Auth->>Auth: Set expires_at = now + 1 day
+            end
+            
+            Auth->>MultiDB: create_session_token(user_id, token_hash, remember_me, ip, user_agent, expires_at)
+            MultiDB->>PG: INSERT INTO session_tokens (user_id, token_hash, remember_me, ip_address, user_agent, expires_at)
+            PG-->>MultiDB: token_id
+            MultiDB-->>Auth: token_id
+            
+            Auth->>Auth: Store session_token in Flask session
+            Auth->>Flask: Set cookie 'session_token' (HttpOnly, Secure if HTTPS)
+            Auth-->>Routes: session_created
+            
+            Note over Routes: Pobieranie domów użytkownika
+            Routes->>MultiDB: get_user_homes(user_id)
+            MultiDB->>PG: SELECT h.*, uh.role FROM homes h JOIN user_homes uh WHERE uh.user_id = %s
+            PG-->>MultiDB: homes[]
+            MultiDB-->>Routes: user_homes[]
+            
+            alt User has homes
+                Routes->>Routes: session['current_home_id'] = homes[0]['id']
+                Routes->>MultiDB: set_user_current_home(user_id, home_id)
+                MultiDB->>Redis: SET user:{user_id}:current_home = home_id (TTL 24h)
+                Redis-->>MultiDB: OK
+                
+                Note over Routes: Logowanie do logu zarządzania
+                Routes->>MultiDB: log_management_event('user_login', user_id, username, ip, details)
+                MultiDB->>PG: INSERT INTO management_logs (event_type, user_id, username, ip_address, details)
+                
+                Routes-->>Flask: redirect to '/home' or '/'
+                Flask-->>UI: HTTP 302 Redirect to home page
+                
+                Note over UI,Socket: Nawiązanie połączenia WebSocket
+                UI->>Socket: connect() with session cookie
+                Socket->>Auth: verify_session(session_token)
+                Auth->>MultiDB: get_session_by_token(token_hash)
+                MultiDB->>PG: SELECT * FROM session_tokens WHERE token_hash = %s AND expires_at > NOW()
+                PG-->>MultiDB: session_record
+                
+                alt Session valid
+                    Auth-->>Socket: user authenticated
+                    Socket->>Socket: Join room: home_{home_id}
+                    Socket-->>UI: connection established
+                    UI-->>User: Przekierowanie do strony głównej (dashboard)
+                else Session invalid
+                    Auth-->>Socket: authentication failed
+                    Socket-->>UI: disconnect
+                    UI-->>User: Redirect to /login
+                end
+                
+            else User has no homes
+                Routes->>Routes: session['current_home_id'] = None
+                Routes-->>Flask: redirect to '/homes/select'
+                Flask-->>UI: HTTP 302 Redirect to home selection
+                UI-->>User: Wyświetla stronę wyboru/utworzenia domu
+            end
+        end
     end
+    
+    Note over User,Redis: Użytkownik zalogowany - sesja aktywna

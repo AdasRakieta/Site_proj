@@ -3,79 +3,254 @@ config:
   theme: dark
 ---
 erDiagram
-    USERS ||--o{ HOME_MEMBERS : has
-    HOMES ||--o{ HOME_MEMBERS : has
-    HOMES ||--o{ ROOMS : contains
-    ROOMS ||--o{ DEVICES : contains
-    HOMES ||--o{ DEVICES : mayHave
-    HOMES ||--o{ HOME_AUTOMATIONS : has
-    DEVICES ||--o{ DEVICE_HISTORY : changes
-
-    USERS {
+    %% ========================================
+    %% USERS & AUTHENTICATION
+    %% ========================================
+    users ||--o{ session_tokens : "has sessions"
+    users ||--o{ user_homes : "member of"
+    users ||--o{ management_logs : "generates"
+    users ||--o{ device_history : "changes device"
+    users {
         uuid id PK
-        string name
-        string email
-        string password_hash
-        datetime created_at
+        varchar name UK
+        varchar email UK
+        text password_hash
+        varchar role
+        text profile_picture
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    HOMES {
+    session_tokens {
         uuid id PK
-        uuid owner_id FK
-        string name
-        jsonb settings
-        datetime created_at
-        datetime updated_at
-    }
-
-    HOME_MEMBERS {
-        uuid id PK
-        uuid home_id FK
         uuid user_id FK
-        string role
-        datetime created_at
+        varchar token_hash UK
+        boolean remember_me
+        inet ip_address
+        text user_agent
+        timestamptz expires_at
+        timestamptz created_at
+        timestamptz last_used_at
     }
 
-    ROOMS {
+    %% ========================================
+    %% MULTI-HOME STRUCTURE
+    %% ========================================
+    homes ||--o{ user_homes : "has members"
+    homes ||--o{ rooms : "contains"
+    homes ||--o{ home_invitations : "has invitations"
+    homes ||--o{ home_automations : "has automations"
+    homes ||--o{ home_security_states : "security state"
+    homes ||--o{ notification_recipients : "notification targets"
+    homes ||--o{ notification_settings : "notification config"
+
+    homes {
+        uuid id PK
+        varchar name
+        text description
+        uuid owner_id FK
+        varchar address
+        float latitude
+        float longitude
+        varchar city
+        varchar country
+        varchar street
+        varchar house_number
+        varchar apartment_number
+        varchar postal_code
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    user_homes {
+        uuid id PK
+        uuid user_id FK
+        uuid home_id FK
+        varchar role
+        jsonb permissions
+        timestamptz joined_at
+        timestamptz updated_at
+    }
+
+    home_invitations {
         uuid id PK
         uuid home_id FK
-        string name
+        varchar email
+        varchar role
+        varchar invitation_code UK
+        uuid invited_by FK
+        timestamptz created_at
+        timestamptz expires_at
+        varchar status
+        timestamptz accepted_at
+        uuid accepted_by FK
+    }
+
+    home_security_states {
+        uuid home_id PK
+        varchar state
+        timestamptz last_changed
+        uuid changed_by FK
+        jsonb details
+    }
+
+    %% ========================================
+    %% ROOMS & DEVICES
+    %% ========================================
+    rooms ||--o{ devices : "contains"
+    rooms ||--o{ room_temperature_states : "temperature state"
+
+    rooms {
+        uuid id PK
+        uuid home_id FK
+        varchar name
         int display_order
-        datetime created_at
-        datetime updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    DEVICES {
+    devices ||--o{ device_history : "has history"
+
+    devices {
         uuid id PK
-        uuid home_id FK
+        varchar name
         uuid room_id FK
-        string name
-        string device_type
-        jsonb state
-        boolean enabled
-        jsonb settings
-        int display_order
-        datetime created_at
-        datetime updated_at
-    }
-
-    HOME_AUTOMATIONS {
-        uuid id PK
         uuid home_id FK
-        string name
-        jsonb trigger_config
-        jsonb actions_config
+        varchar device_type
+        boolean state
+        numeric temperature
+        numeric min_temperature
+        numeric max_temperature
+        int display_order
         boolean enabled
-        datetime created_at
-        datetime updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    DEVICE_HISTORY {
+    device_history {
         uuid id PK
         uuid device_id FK
         jsonb old_state
         jsonb new_state
-        uuid changed_by
-        string change_reason
-        datetime created_at
+        uuid changed_by FK
+        varchar change_reason
+        timestamptz created_at
+    }
+
+    room_temperature_states {
+        uuid id PK
+        uuid room_id FK
+        numeric current_temperature
+        numeric target_temperature
+        boolean heating_active
+        timestamptz last_updated
+    }
+
+    %% ========================================
+    %% AUTOMATIONS
+    %% ========================================
+    home_automations ||--o{ automation_executions : "execution history"
+
+    home_automations {
+        uuid id PK
+        uuid home_id FK
+        text name
+        text name_normalized
+        jsonb trigger_config
+        jsonb actions_config
+        boolean enabled
+        int execution_count
+        timestamptz last_executed
+        int error_count
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    automation_executions {
+        uuid id PK
+        uuid automation_id FK
+        varchar execution_status
+        jsonb trigger_data
+        jsonb actions_executed
+        text error_message
+        int execution_time_ms
+        timestamptz executed_at
+    }
+
+    %% ========================================
+    %% LEGACY GLOBAL AUTOMATIONS (fallback)
+    %% ========================================
+    automations ||--o{ automation_executions_legacy : "legacy execution history"
+
+    automations {
+        uuid id PK
+        varchar name UK
+        jsonb trigger_config
+        jsonb actions_config
+        boolean enabled
+        timestamptz last_executed
+        int execution_count
+        int error_count
+        text last_error
+        timestamptz last_error_time
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    automation_executions_legacy {
+        uuid id PK
+        uuid automation_id FK
+        varchar execution_status
+        jsonb trigger_data
+        jsonb actions_executed
+        text error_message
+        int execution_time_ms
+        timestamptz executed_at
+    }
+
+    %% ========================================
+    %% NOTIFICATIONS
+    %% ========================================
+    notification_recipients {
+        uuid id PK
+        uuid home_id FK
+        varchar email
+        uuid user_id FK
+        boolean enabled
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    notification_settings {
+        uuid id PK
+        uuid home_id FK
+        varchar setting_key UK
+        jsonb setting_value
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    %% ========================================
+    %% LOGGING & SYSTEM
+    %% ========================================
+    management_logs {
+        uuid id PK
+        timestamptz timestamp
+        varchar level
+        text message
+        varchar event_type
+        uuid user_id FK
+        varchar username
+        inet ip_address
+        jsonb details
+        timestamptz created_at
+    }
+
+    system_settings {
+        uuid id PK
+        varchar setting_key UK
+        jsonb setting_value
+        text description
+        timestamptz updated_at
+        uuid updated_by FK
     }

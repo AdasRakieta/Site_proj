@@ -1,35 +1,80 @@
-﻿---
+---
 config:
   theme: dark
 ---
-graph TD
-  Client1["Client: Browser/Mobile"]
-  Internet(("Internet"))
-  RevProxy["Nginx Reverse Proxy<br/>(HTTPS termination)"]
-  App["Flask App<br/>Socket.IO"]
-  DB[("PostgreSQL")]
-  Cache[("Redis")]
-  SMTP[("SMTP Server")]
 
-  Client1 -->|TLS| Internet
-  Internet -->|TLS| RevProxy
-  RevProxy -->|internal HTTP| App
-  App -->|SQL| DB
-  App -->|cache| Cache
-  App -->|SMTP| SMTP
-
-  subgraph DockerHost[Docker Host]
-    RevProxy
-    App
-    DB
-    Cache
-  end
-
-  subgraph SecurityZones[Security Zones]
-    Z1[Public Zone]
-    Z2[DMZ / Reverse Proxy]
-    Z3[Internal App Network]
-  end
-
-  classDef zone fill:#f8sf8f8,stroke:#ccc,stroke-dasharray:3
-  class Z1,Z2,Z3 zone
+graph TB
+    subgraph Internet["Internet"]
+        Clients["Client Devices<br/>Desktop browsers<br/>Mobile browsers<br/>Tablets"]
+    end
+    
+    subgraph Tailscale_VPN["Tailscale VPN Network"]
+        TS_Node["Tailscale Exit Node<br/>Encrypted tunnel<br/>MagicDNS<br/>ACL policies"]
+    end
+    
+    subgraph Docker_Host["Docker Host bridge network"]
+        direction TB
+        
+        subgraph Nginx_Net["Nginx Container"]
+            Nginx["Nginx<br/>:80 HTTP<br/>:443 HTTPS<br/>SSL termination"]
+        end
+        
+        subgraph App_Net["App Container"]
+            Flask["Flask App<br/>:5000 HTTP<br/>Socket.IO WSS"]
+        end
+        
+        subgraph Redis_Net["Redis Container"]
+            Redis["Redis<br/>:6379<br/>Cache and Sessions"]
+        end
+    end
+    
+    subgraph External_DB["External Database Server"]
+        PostgreSQL["PostgreSQL<br/>:5432<br/>Primary data store<br/>SSL/TLS connection"]
+    end
+    
+    subgraph Email_Service["External Email Service"]
+        SMTP["SMTP Server<br/>:587 TLS<br/>Email notifications"]
+    end
+    
+    subgraph Monitoring["Monitoring Stack Optional"]
+        Grafana["Grafana<br/>:3000<br/>Dashboards"]
+        Prometheus["Prometheus<br/>:9090<br/>Metrics"]
+        Loki["Loki<br/>:3100<br/>Log aggregation"]
+    end
+    
+    %% External connections
+    Clients -->|HTTPS :443<br/>HTTP :80| TS_Node
+    TS_Node -->|Encrypted tunnel| Nginx
+    
+    %% External connections
+    Clients -->|HTTPS :443 HTTP :80| TS_Node
+    TS_Node -->|Encrypted tunnel| Nginx
+    
+    %% Internal Docker network
+    Nginx -->|proxy_pass :5000| Flask
+    Flask -->|external_link :6379| Redis
+    
+    %% External service connections
+    Flask -->|TCP :5432 SSL connection| PostgreSQL
+    Flask -->|SMTP :587 TLS connection| SMTP
+    
+    %% WebSocket connections
+    Clients -.->|WSS WebSocket Secure| TS_Node
+    TS_Node -.->|WSS| Nginx
+    Nginx -.->|WS upgrade| Flask
+    
+    %% Monitoring connections optional
+    Flask -.->|metrics endpoint| Prometheus
+    Flask -.->|logs| Loki
+    Prometheus -.->|data source| Grafana
+    Loki -.->|data source| Grafana
+    
+    %% Port mappings
+    Nginx -->|expose| Port80["Host :80 to Container :80"]
+    Nginx -->|expose| Port443["Host :443 to Container :443"]
+    Flask -->|expose| Port5000["Host :5000 to Container :5000"]
+    
+    %% Volume mounts
+    Nginx -.->|mount ro| SSL_Vol["SSL Certificates<br/>/etc/ssl/tailscale"]
+    Nginx -.->|mount ro| Static_Vol["Static Uploads<br/>/srv/static/profile_pictures"]
+    Flask -.->|mount rw| Static_Vol

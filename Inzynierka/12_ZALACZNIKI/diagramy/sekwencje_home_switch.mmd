@@ -3,24 +3,139 @@ config:
   theme: dark
 ---
 sequenceDiagram
-    participant U as User (Browser)
-    participant N as Nginx
-    participant F as Flask (RoutesManager)
-    participant M as MultiHomeDBManager
+    actor User
+    participant UI as Browser (home_select.html)
+    participant Flask as Flask App
+    participant Routes as RoutesManager (multi_home_routes)
+    participant Auth as SimpleAuthManager
+    participant MultiDB as MultiHomeDBManager
     participant PG as PostgreSQL
-    participant S as Socket.IO
-
-    U->>S: emit select_home(new_home_id)
-    S->>F: select_home event
-    F->>M: verify membership
-    M->>PG: SELECT role FROM home_members
-    PG-->>M: role row
-    M-->>F: membership ok
-    F->>F: update session current_home_id
-    F->>M: get_rooms(new_home_id)
-    F->>M: get_devices(new_home_id)
-    M->>PG: SELECT rooms/devices
-    PG-->>M: data sets
-    M-->>F: rooms/devices
-    F->>S: emit initial_state to user
-    U-->>U: UI re-renders with new home data
+    participant Redis as Redis Cache
+    participant Socket as Socket.IO
+    
+    Note over User,Redis: Użytkownik przełącza aktywny dom
+    
+    User->>UI: Displays home selection page (/homes/select)
+    UI->>Flask: GET /homes/select
+    Flask->>Routes: render_select_home()
+    
+    Routes->>Auth: get_current_user()
+    Auth->>Auth: Verify session from cookie
+    Auth-->>Routes: user_id
+    
+    Routes->>MultiDB: get_user_homes(user_id)
+    MultiDB->>PG: SELECT h.*, uh.role, uh.permissions FROM homes h JOIN user_homes uh ON h.id = uh.home_id WHERE uh.user_id = %s
+    PG-->>MultiDB: homes[] with roles
+    MultiDB-->>Routes: user_homes[]
+    
+    Routes->>MultiDB: get_user_current_home(user_id)
+    MultiDB->>Redis: GET user:{user_id}:current_home
+    Redis-->>MultiDB: current_home_id or None
+    MultiDB-->>Routes: current_home_id
+    
+    Routes-->>Flask: render 'home_select.html' with homes, current_home_id
+    Flask-->>UI: HTML page with home cards
+    UI-->>User: Wyświetla listę dostępnych domów
+    
+    Note over User: Użytkownik klika na kartę domu aby go wybrać
+    
+    User->>UI: Click on home card
+    UI->>Flask: POST /api/homes/switch (home_id in JSON body)
+    Flask->>Routes: api_switch_home()
+    
+    Routes->>Auth: get_current_user()
+    Auth-->>Routes: user_id
+    
+    Routes->>Routes: Extract home_id from request.json
+    Routes->>Routes: Validate home_id (UUID format)
+    
+    alt Invalid home_id format
+        Routes-->>Flask: error response 400 "Invalid home_id format"
+        Flask-->>UI: JSON error
+        UI-->>User: Display error notification
+    else Valid home_id
+        Note over Routes,MultiDB: Weryfikacja dostępu użytkownika do domu
+        Routes->>MultiDB: get_user_homes(user_id)
+        MultiDB->>PG: SELECT h.id FROM homes h JOIN user_homes uh WHERE uh.user_id = %s
+        PG-->>MultiDB: accessible_homes[]
+        MultiDB-->>Routes: user_homes[]
+        
+        Routes->>Routes: Check if home_id in [home['id'] for home in user_homes]
+        
+        alt User has no access to home
+            Routes-->>Flask: error response 403 "Access denied to this home"
+            Flask-->>UI: JSON error
+            UI-->>User: "Brak dostępu do tego domu"
+        else User has access
+            Note over Routes: Aktualizacja sesji i Redis
+            Routes->>Routes: session['current_home_id'] = home_id
+            Routes->>Routes: session.modified = True
+            
+            Routes->>MultiDB: set_user_current_home(user_id, home_id)
+            MultiDB->>Redis: SETEX user:{user_id}:current_home = home_id (TTL 86400s = 24h)
+            Redis-->>MultiDB: OK
+            MultiDB-->>Routes: success
+            
+            Note over Routes: Invalidacja cache dla nowego domu
+            Routes->>Redis: DELETE cache:home:{home_id}:*
+            Redis-->>Routes: cache cleared
+            
+            Note over Routes: Pobieranie informacji o nowym domu
+            Routes->>MultiDB: get_home_info(home_id, user_id)
+            MultiDB->>PG: SELECT h.*, uh.role FROM homes h JOIN user_homes uh WHERE h.id = %s AND uh.user_id = %s
+            PG-->>MultiDB: home_info{id, name, description, role, permissions}
+            MultiDB-->>Routes: home_dict
+            
+            Note over Routes: Logowanie zmiany domu
+            Routes->>MultiDB: log_management_event('home_switch', user_id, username, ip, {old_home, new_home})
+            MultiDB->>PG: INSERT INTO management_logs (event_type, user_id, details)
+            PG-->>MultiDB: log_id
+            
+            Routes-->>Flask: success response 200 {success: true, home: home_dict}
+            Flask-->>UI: JSON response with home data
+            
+            UI->>UI: Store current_home_id in localStorage
+            UI->>UI: Update UI: home name, home selector badge
+            
+            Note over UI,Socket: Ponowne połączenie Socket.IO dla nowego domu
+            UI->>Socket: disconnect()
+            Socket->>Server: Client disconnected from old home room
+            
+            UI->>Socket: connect() with updated session
+            Socket->>Routes: handle_connect()
+            Routes->>Auth: get_current_user()
+            Auth-->>Routes: user_id
+            Routes->>Routes: Get current_home_id from session
+            
+            Socket->>Socket: Join room: home_{new_home_id}
+            Socket->>Socket: Leave room: home_{old_home_id}
+            
+            Socket-->>UI: connected to new home room
+            
+            Note over UI: Odświeżenie danych dla nowego domu
+            UI->>Flask: GET /api/rooms (loads rooms for current home)
+            Flask->>Routes: api_get_rooms()
+            Routes->>MultiDB: get_home_rooms(home_id, user_id)
+            MultiDB->>PG: SELECT * FROM rooms WHERE home_id = %s ORDER BY display_order
+            PG-->>MultiDB: rooms[]
+            MultiDB-->>Routes: rooms[]
+            Routes-->>Flask: JSON rooms
+            Flask-->>UI: rooms data
+            
+            UI->>Flask: GET /api/devices (loads devices for current home)
+            Flask->>Routes: api_get_devices()
+            Routes->>MultiDB: get_home_devices(home_id, user_id)
+            MultiDB->>PG: SELECT d.*, r.name as room_name FROM devices d JOIN rooms r WHERE d.home_id = %s
+            PG-->>MultiDB: devices[]
+            MultiDB-->>Routes: devices[]
+            Routes-->>Flask: JSON devices
+            Flask-->>UI: devices data
+            
+            UI->>UI: Rebuild room cards, device lists
+            UI->>UI: Update all UI elements with new home context
+            
+            UI-->>User: Wyświetla dane nowego domu (pokoje, urządzenia)
+        end
+    end
+    
+    Note over User,Redis: Aktywny dom zmieniony - sesja zaktualizowana, UI odświeżony

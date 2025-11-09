@@ -1,0 +1,37 @@
+---
+config:
+  theme: dark
+---
+sequenceDiagram
+    actor User
+    participant UI as Browser
+    participant Socket as Socket.IO
+    participant Routes as RoutesManager
+    participant Executor as AutomationExecutor
+    participant DB as Database
+    
+    Note over User,DB: Uproszczony przepływ automatyzacji
+    
+    User->>UI: Toggle device
+    UI->>Socket: emit toggle event
+    Socket->>Routes: handle_toggle_button
+    Routes->>DB: update_device state
+    DB-->>Routes: success
+    
+    Routes->>Executor: process_device_trigger
+    Executor->>DB: get_home_automations
+    DB-->>Executor: automations list
+    
+    loop Check each automation
+        Executor->>Executor: Check trigger conditions
+        alt Trigger matches
+            Executor->>DB: execute_actions update devices
+            Executor->>Socket: emit update_button
+            Socket-->>UI: Update UI for all clients
+            Executor->>DB: log_automation_execution
+        end
+    end
+    
+    Routes->>Socket: broadcast device state
+    Socket-->>UI: Real-time update
+    UI-->>User: Visual feedback

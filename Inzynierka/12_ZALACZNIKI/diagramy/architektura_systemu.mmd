@@ -2,42 +2,104 @@
 config:
   theme: dark
 ---
-flowchart LR
-    subgraph Client[Warstwa klienta]
-        B[Przeglądarka / Mobile UI]
+flowchart TB
+    subgraph Client["Warstwa klienta"]
+        Browser["Przeglądarka / Mobile UI<br/>(HTTPS/WSS)"]
     end
-    subgraph Proxy[Reverse Proxy]
-        N[Nginx]
+    
+    subgraph Proxy["Reverse Proxy"]
+        Nginx["Nginx<br/>SSL/TLS termination<br/>Static file serving<br/>Load balancing"]
     end
-    subgraph App[Warstwa aplikacji]
-        F[Flask: RoutesManager/API]
-        S["Socket.IO: kanały home_id"]
-        C[CacheManager]
-        A[AuthManager]
-        M[MultiHomeDBManager]
+    
+    subgraph App["Warstwa aplikacji Flask"]
+        direction TB
+        
+        subgraph Core["Core Application"]
+            AppDB["SmartHomeApp app_db.py<br/>Flask initialization<br/>Socket.IO setup<br/>Manager injection"]
+        end
+        
+        subgraph Routes["Routing Layer"]
+            RoutesManager["RoutesManager<br/>HTML views<br/>MultiHomeHelpersMixin"]
+            APIManager["APIManager<br/>REST endpoints<br/>/api/* routes"]
+            MultiHomeRoutes["multi_home_routes.py<br/>Home selection<br/>Home creation"]
+            HomeSettings["home_settings_routes.py<br/>Home management<br/>User permissions"]
+        end
+        
+        subgraph Business["Business Logic"]
+            SmartHomeDB["SmartHomeSystemDB<br/>JSON fallback wrapper<br/>Delegates to DB manager"]
+            MultiDB["MultiHomeDBManager<br/>PostgreSQL operations<br/>Home context isolation"]
+            HomeManagers["Home Management<br/>HomeInfoManager<br/>HomeUserManager<br/>HomeRoomManager<br/>HomeDeletionManager"]
+            AutoExec["AutomationExecutor<br/>Trigger processing<br/>Action execution"]
+        end
+        
+        subgraph Support["Supporting Services"]
+            Auth["SimpleAuthManager<br/>Session management<br/>Permission checks"]
+            Cache["CacheManager<br/>Redis integration<br/>TTL management"]
+            AsyncMail["AsyncMailManager<br/>Background email queue<br/>SMTP delivery"]
+            Scheduler["BackgroundScheduler<br/>Automation scheduling<br/>Periodic tasks"]
+        end
+        
+        subgraph Socket["Real-time Layer"]
+            SocketIO["Socket.IO Server<br/>Per-home channels<br/>State broadcasts<br/>Event handlers"]
+        end
     end
-    subgraph Data[Warstwa danych]
-        PG[("PostgreSQL<br/>users, homes, rooms, devices, automations, history")]
-        R[("Redis Cache<br/>TTL, klucze per-home")]
+    
+    subgraph Data["Warstwa danych"]
+        direction LR
+        PG[("PostgreSQL<br/>users homes home_users<br/>rooms devices<br/>home_automations<br/>device_history<br/>management_logs")]
+        Redis[("Redis Cache<br/>Session data<br/>Query cache<br/>Per-home keys<br/>TTL expiration")]
     end
-    subgraph External[Usługi zewnętrzne]
-        SMTP[("SMTP Server")]
-        Future[("Przyszłe adaptery IoT")]
+    
+    subgraph External["Uslugi zewnetrzne"]
+        SMTP["SMTP Server<br/>Email notifications"]
+        Future["Przyszle adaptery<br/>IoT protocols<br/>External APIs"]
     end
-
-    B -->|HTTPS/WSS| N
-    N -->|forward| F
-    F -->|REST zapytania| PG
-    F -->|odczyt/zapis| M
-    M -->|CRUD / SQL| PG
-    F --> A
-    F --> C
-    C -->|get/set| R
-    S -->|emit/broadcast| B
-    F -->|async email| SMTP
-    Future -.->|planowane integracje| F
-
-    classDef layer stroke:#0f3d5e,color:#fff
-    classDef store stroke:#0f3d5e,color:#fff
-    class PG,R store
-    class Client,Proxy,App,Data,External layer
+    
+    %% Client connections
+    Browser -->|HTTPS :443 HTTP :80| Nginx
+    Browser <-->|WSS WebSocket| SocketIO
+    
+    %% Nginx routing
+    Nginx -->|proxy_pass :5000| AppDB
+    Nginx -.->|static files| Browser
+    
+    %% Core to Routes
+    AppDB --> RoutesManager
+    AppDB --> APIManager
+    AppDB --> MultiHomeRoutes
+    AppDB --> HomeSettings
+    
+    %% Routes to Business Logic
+    RoutesManager --> MultiDB
+    APIManager --> MultiDB
+    MultiHomeRoutes --> MultiDB
+    HomeSettings --> HomeManagers
+    
+    RoutesManager --> SmartHomeDB
+    SmartHomeDB -.->|delegates| MultiDB
+    
+    %% Business Logic interactions
+    MultiDB --> PG
+    HomeManagers --> MultiDB
+    AutoExec --> MultiDB
+    RoutesManager --> AutoExec
+    
+    %% Supporting services
+    RoutesManager --> Auth
+    RoutesManager --> Cache
+    RoutesManager --> AsyncMail
+    Auth --> MultiDB
+    Cache --> Redis
+    
+    %% Socket.IO integration
+    RoutesManager --> SocketIO
+    AutoExec --> SocketIO
+    SocketIO -.->|state sync| Browser
+    
+    %% External services
+    AsyncMail -->|SMTP :587| SMTP
+    Future -.->|future integrations| AppDB
+    
+    %% Scheduler
+    Scheduler --> AutoExec
+    Scheduler --> MultiDB

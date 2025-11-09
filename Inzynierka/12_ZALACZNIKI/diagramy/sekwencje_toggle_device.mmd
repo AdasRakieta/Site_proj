@@ -3,19 +3,95 @@ config:
   theme: dark
 ---
 sequenceDiagram
-    participant U as User (Browser)
-    participant N as Nginx
-    participant F as Flask (APIManager)
-    participant M as MultiHomeDBManager
+    actor User
+    participant UI as Browser UI (lights.html)
+    participant Socket as Socket.IO Client
+    participant Server as Socket.IO Server
+    participant Routes as RoutesManager
+    participant MultiDB as MultiHomeDBManager
     participant PG as PostgreSQL
-    participant S as Socket.IO
-
-    U->>N: POST /api/devices/id/state (toggle)
-    N->>F: forward
-    F->>M: UPDATE devices SET state=...
-    M->>PG: execute UPDATE + INSERT device_history
-    PG-->>M: ok
-    M-->>F: ok
-    F->>S: emit device_state_changed
-    S-->>U: real-time update
-    F-->>U: 200 success
+    participant Redis as Redis Cache
+    participant AutoExec as AutomationExecutor
+    
+    Note over User,AutoExec: Użytkownik przełącza stan urządzenia (button)
+    
+    User->>UI: Click toggle switch for device
+    UI->>UI: Get device data: room_id, room_name, device_name, current_state
+    UI->>Socket: emit('toggle_button', {room_id, room, name, current_state})
+    
+    Socket->>Server: Receive 'toggle_button' event
+    Server->>Routes: handle_toggle_button(data)
+    
+    Routes->>Routes: Validate session & home_id
+    Routes->>Routes: Extract: room_id, room_name, device_name, state
+    
+    Note over Routes,MultiDB: Pobranie urządzenia i aktualizacja stanu
+    Routes->>MultiDB: get_device_by_room_and_name(home_id, room_id, device_name, 'button')
+    MultiDB->>PG: SELECT * FROM devices WHERE home_id=%s AND room_id=%s AND name=%s AND device_type='button'
+    PG-->>MultiDB: device record
+    MultiDB-->>Routes: device{id, name, state, room_id, room_name, ...}
+    
+    alt Device not found
+        Routes-->>Server: error response
+        Server->>Socket: emit('error', {message: 'Device not found'})
+        Socket-->>UI: Display error notification
+        UI-->>User: "Nie znaleziono urządzenia"
+    else Device found
+        Routes->>Routes: Calculate new_state = !current_state
+        
+        Routes->>MultiDB: update_device(device_id, user_id, state=new_state)
+        MultiDB->>PG: UPDATE devices SET state=%s, updated_at=NOW() WHERE id=%s
+        PG-->>MultiDB: rows_affected = 1
+        
+        Note over MultiDB: Logowanie zmiany do historii
+        MultiDB->>MultiDB: get_device_old_state(device_id)
+        MultiDB->>PG: INSERT INTO device_history (device_id, old_state, new_state, changed_by, change_reason)
+        PG-->>MultiDB: history_id
+        
+        MultiDB-->>Routes: update success
+        
+        Note over Routes,Redis: Invalidacja cache dla urządzeń
+        Routes->>Redis: DELETE cache:home:{home_id}:devices
+        Redis-->>Routes: OK
+        
+        Note over Routes,AutoExec: Sprawdzenie automatyzacji
+        Routes->>AutoExec: process_device_trigger(device_id, room_name, device_name, new_state, home_id, user_id)
+        AutoExec->>MultiDB: get_home_automations(home_id, user_id)
+        MultiDB->>PG: SELECT * FROM home_automations WHERE home_id=%s AND enabled=true
+        PG-->>MultiDB: automations[]
+        
+        loop Each enabled automation
+            AutoExec->>AutoExec: Check if trigger matches device & state
+            alt Automation triggered
+                AutoExec->>AutoExec: _execute_automation(automation, trigger_data)
+                Note over AutoExec: Execute actions (other devices, thermostats, etc.)
+                AutoExec->>MultiDB: update_device(target_device_id, ...)
+                AutoExec->>Server: emit('update_button', target_device_state)
+                AutoExec->>MultiDB: log_automation_execution(...)
+            end
+        end
+        
+        AutoExec-->>Routes: execution_results[]
+        
+        Note over Routes,Server: Broadcast aktualizacji stanu do wszystkich klientów
+        Routes->>Server: emit('update_button', {room, room_id, name, state: new_state, device_id})
+        Server->>Server: Broadcast to all clients in room: home_{home_id}
+        
+        Server->>Socket: Receive 'update_button'
+        Socket->>UI: Update toggle switch state
+        UI->>UI: Find element by data-device-id or data-room-id + name
+        UI->>UI: Set switch.checked = new_state
+        UI->>UI: Update visual feedback (color, icon)
+        
+        Routes->>Server: emit('sync_button_states', {device_key: new_state})
+        Server->>Socket: Receive 'sync_button_states'
+        Socket->>UI: Synchronize all device states
+        UI->>UI: Update all matching switches across pages
+        
+        Routes-->>Server: success response
+        Server->>Socket: emit('toggle_success', {device_id, state: new_state})
+        Socket-->>UI: Confirm toggle success
+        UI-->>User: Visual confirmation (switch toggled, no error)
+    end
+    
+    Note over User,AutoExec: Stan urządzenia zaktualizowany w bazie, cache, i UI wszystkich klientów

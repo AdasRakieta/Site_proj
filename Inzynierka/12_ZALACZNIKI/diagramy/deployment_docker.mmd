@@ -2,32 +2,61 @@
 config:
   theme: dark
 ---
-graph LR
-  A[User Browser] -->|HTTPS| Nginx
-  subgraph docker_network_public[Docker network: public]
-    Nginx[Nginx Container]
-  end
-
-  subgraph docker_network_app[Docker network: app]
-    App["Flask App Container<br/>app_db.py + Socket.IO"]
-    Redis[("Redis Container")]
-    Postgres[("PostgreSQL Container")]
-  end
-
-  Nginx -->|proxy_pass| App
-  App -->|SQL| Postgres
-  App -->|cache| Redis
-
-  subgraph volumes[Volumes]
-    v_static["/static/profile_pictures/"]
-    v_db["/var/lib/postgresql/data/"]
-  end
-
-  App --- v_static
-  Postgres --- v_db
-
-  App -.->|env vars| E[".env / secrets"]
-  Nginx -.->|conf| C["nginx/default.conf"]
-
-  classDef infra stroke:#77a,stroke-width:1px
-  class Nginx,App,Redis,Postgres infra
+graph TB
+    subgraph Docker_Host["Docker Host Environment"]
+        subgraph Network["Docker Network: bridge"]
+            
+            subgraph App_Container["🐳 smarthome_app"]
+                App["Flask Application<br/>:5000"]
+                SocketIO["Socket.IO Server<br/>WebSocket"]
+                Workers["Background Workers<br/>(Async Mail, Scheduler)"]
+            end
+            
+            subgraph Nginx_Container["🐳 smarthome_nginx"]
+                Nginx["Nginx Reverse Proxy<br/>:80/:443"]
+                SSL["SSL/TLS<br/>(Let's Encrypt)"]
+                Static["Static File Server"]
+            end
+            
+            subgraph Redis_External["External Container"]
+                Redis["🐳 smarthome_redis_standalone<br/>:6379"]
+            end
+        end
+        
+        subgraph Volumes["Docker Volumes"]
+            StaticVol["static_uploads<br/>(profile pictures)"]
+            SSLVol["/etc/ssl/tailscale<br/>(certificates)"]
+        end
+        
+        subgraph EnvConfig["Environment Variables"]
+            AppEnv["App Config:<br/>• SERVER_HOST=0.0.0.0<br/>• SERVER_PORT=5000<br/>• IMAGE_TAG=latest<br/>• DB_HOST/PORT/NAME<br/>• DB_USER/PASSWORD<br/>• SMTP_SERVER/PORT<br/>• SMTP_USERNAME/PASSWORD<br/>• FLASK_ENV=development<br/>• SECRET_KEY<br/>• REDIS_HOST=smarthome_redis_standalone<br/>• REDIS_PORT=6379<br/>• ASSET_VERSION (optional)"]
+        end
+    end
+    
+    subgraph External_Services["External Services"]
+        PostgreSQL[("PostgreSQL Database<br/>• users, homes, rooms<br/>• devices, automations<br/>• logs, history")]
+        SMTP["SMTP Server<br/>(Email)"]
+        Internet["Internet<br/>(Client Browsers)"]
+    end
+    
+    subgraph Registry["Container Registry"]
+        GHCR["GitHub Container Registry<br/>ghcr.io/adasrakieta/site_proj/<br/>• smarthome_app:TAG<br/>• smarthome_nginx:TAG"]
+    end
+    
+    Internet -->|HTTPS :443<br/>HTTP :80| Nginx
+    Nginx -->|proxy_pass| App
+    App -->|external_link| Redis
+    App -->|TCP :5432| PostgreSQL
+    App -->|SMTP :587| SMTP
+    
+    AppEnv -.->|inject| App_Container
+    StaticVol -->|mount /srv/static/profile_pictures| App_Container
+    StaticVol -->|mount :ro| Nginx_Container
+    SSLVol -->|mount :ro| Nginx_Container
+    
+    GHCR -.->|docker pull| App_Container
+    GHCR -.->|docker pull| Nginx_Container
+    
+    App -->|emit| SocketIO
+    SocketIO -.->|WSS| Internet
+  

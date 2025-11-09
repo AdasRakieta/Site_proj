@@ -1,0 +1,20 @@
+---
+config:
+  theme: dark
+---
+graph TB
+    Internet[Internet Clients]
+    Tailscale[Tailscale VPN]
+    Nginx[Nginx Container :80/:443]
+    App[Flask App Container :5000]
+    Redis[Redis Container :6379]
+    PostgreSQL[(PostgreSQL :5432)]
+    SMTP[SMTP Server :587]
+    
+    Internet -->|HTTPS| Tailscale
+    Tailscale -->|Encrypted| Nginx
+    Nginx -->|Proxy| App
+    App -->|Cache| Redis
+    App -->|Database| PostgreSQL
+    App -->|Email| SMTP
+    
