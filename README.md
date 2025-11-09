@@ -446,7 +446,6 @@ lsof -i :5000
 - **[QUICK_START.md](info/QUICK_START.md)**: Quick start guide (Polish)
 - **[DEPLOYMENT.md](info/DEPLOYMENT.md)**: Detailed deployment instructions
 - **[PORTAINER_DEPLOYMENT.md](info/PORTAINER_DEPLOYMENT.md)**: Portainer-specific deployment
-- **[PERFORMANCE_OPTIMIZATION.md](info/PERFORMANCE_OPTIMIZATION.md)**: Performance tuning guide
 - **[SECURITY.md](SECURITY.md)**: Security policy and vulnerability reporting
 
 ### 🤝 Contributing
@@ -921,7 +920,6 @@ lsof -i :5000
 - **[QUICK_START.md](info/QUICK_START.md)**: Przewodnik szybkiego startu (polski)
 - **[DEPLOYMENT.md](info/DEPLOYMENT.md)**: Szczegółowe instrukcje wdrożenia
 - **[PORTAINER_DEPLOYMENT.md](info/PORTAINER_DEPLOYMENT.md)**: Wdrożenie specyficzne dla Portainer
-- **[PERFORMANCE_OPTIMIZATION.md](info/PERFORMANCE_OPTIMIZATION.md)**: Przewodnik optymalizacji wydajności
 - **[SECURITY.md](SECURITY.md)**: Polityka bezpieczeństwa i zgłaszanie podatności
 
 ### 🤝 Współpraca
