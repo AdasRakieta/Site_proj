@@ -43,8 +43,8 @@ services:
       - static_uploads:/srv/static/profile_pictures:ro
       - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
       # Journey Planner frontend build (mount from host)
-      # You'll need to build Journey Planner and place files here
-      - /home/pi/journey-planner/client/dist:/srv/journey-planner:ro
+      # Uncomment this line when Journey Planner is built and ready
+      # - /home/pi/journey-planner/client/dist:/srv/journey-planner:ro
     ports:
       - "80:80"
       - "443:443"
