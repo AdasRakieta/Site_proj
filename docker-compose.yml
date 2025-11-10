@@ -47,17 +47,12 @@ services:
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
       - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
-      # Journey Planner runs on host port 5173 (Vite dev) or 5001 (API)
-      # No volume mount needed - nginx proxies to host ports
     ports:
       - "80:80"
       - "443:443"
     depends_on:
       - app
     restart: unless-stopped
-    # Allow nginx to access host machine services (Journey Planner)
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - default
       - journey-stack_journey-planner-net
