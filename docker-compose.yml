@@ -35,3 +35,8 @@ services:
     restart: unless-stopped
     external_links:
       - smarthome_redis_standalone:redis
+
+volumes:
+  static_uploads:
+    external: true
+    name: smarthome-stack_static_uploads
