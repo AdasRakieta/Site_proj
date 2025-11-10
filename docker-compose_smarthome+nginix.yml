@@ -3,41 +3,37 @@ services:
   app:
     image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
     container_name: smarthome_app
+    # Load .env file for local development
+    # Note: In production (Portainer), set environment variables directly in GUI
     environment:
-      # Server Configuration
       - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
       - SERVER_PORT=${SERVER_PORT:-5000}
       - IMAGE_TAG=${IMAGE_TAG:-latest}
-      
-      # Database Configuration (REQUIRED)
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      
-      # Email Configuration (REQUIRED)
       - SMTP_SERVER=${SMTP_SERVER}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
-      
-      # Flask Configuration (REQUIRED)
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
-      
+      # URL Prefixes for nginx routing (default: /smarthome for production)
+      # Note: API_PREFIX, STATIC_PREFIX, SOCKET_PREFIX will be automatically built from URL_PREFIX in app_db.py
+      # Only set them explicitly if you need different values
+      - URL_PREFIX=${URL_PREFIX:-/smarthome}
+      - API_PREFIX=${API_PREFIX:-}
+      - STATIC_PREFIX=${STATIC_PREFIX:-}
+      - SOCKET_PREFIX=${SOCKET_PREFIX:-}
       # Redis configuration (connect to external standalone Redis container)
       # Set REDIS_HOST to 'smarthome_redis_standalone' or your Redis container name
       - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      
-      # Asset versioning (auto-set by build, can override)
+      # Optionally override ASSET_VERSION to force cache-busting independent of image tag
       - ASSET_VERSION=${ASSET_VERSION:-}
-      
-      # Optional feature flags
-      - ENABLE_REGISTRATION=${ENABLE_REGISTRATION:-true}
-      - ENABLE_MULTI_HOME=${ENABLE_MULTI_HOME:-true}
     volumes:
       - static_uploads:/srv/static/profile_pictures
     ports:
@@ -52,11 +48,21 @@ services:
     container_name: smarthome_nginx
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
+      - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - app
     restart: unless-stopped
+    networks:
+      - default
+      - journey-stack_journey-planner-net
+
+networks:
+  journey-stack_journey-planner-net:
+    external: true
+    name: journey-stack_journey-planner-net
 
 volumes:
   static_uploads:
