@@ -53,6 +53,12 @@ class SmartHomeApp:
         self._configure_logging()
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
+        
+        # Configure URL prefix for Flask's url_for() to work correctly with nginx routing
+        url_prefix = os.getenv('URL_PREFIX', '/smarthome')
+        if url_prefix and url_prefix != '/':
+            self.app.config['APPLICATION_ROOT'] = url_prefix
+        
         # Cookie security and SameSite settings
         is_production = os.getenv('FLASK_ENV') == 'production' or os.getenv('ENV') == 'production' or os.getenv('APP_ENV') == 'production'
         self.app.config.update({

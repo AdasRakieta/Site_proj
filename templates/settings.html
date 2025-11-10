@@ -4,7 +4,7 @@
 {% block header %}Ustawienia{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/settings.css') }}?v={{ asset_version }}">
+<link rel="stylesheet" href="{{ URL_PREFIX }}{{ url_for('static', filename='css/settings.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
@@ -262,5 +262,5 @@
   document.head.appendChild(style);
 
 </script>
-<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/settings.js') }}"></script>
+<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

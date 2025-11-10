@@ -22,10 +22,10 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
       # URL Prefixes for nginx routing (default: /smarthome for production)
-      - URL_PREFIX=${URL_PREFIX:-/smarthome}
-      - API_PREFIX=${API_PREFIX:-/smarthome/api}
-      - STATIC_PREFIX=${STATIC_PREFIX:-/smarthome/static}
-      - SOCKET_PREFIX=${SOCKET_PREFIX:-/smarthome/socket.io}
+      - URL_PREFIX=${URL_PREFIX}
+      - API_PREFIX=${API_PREFIX}
+      - STATIC_PREFIX=${STATIC_PREFIX}
+      - SOCKET_PREFIX=${SOCKET_PREFIX}
       # Redis configuration (connect to external standalone Redis container)
       # Set REDIS_HOST to 'smarthome_redis_standalone' or your Redis container name
       - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
