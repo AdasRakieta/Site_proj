@@ -194,10 +194,11 @@ class SmartHomeApp:
             return f'{request.path}?{urlencode(args_dict)}'
         
         # Add URL prefix globals for easy environment switching
-        url_prefix = os.getenv('URL_PREFIX', '/smarthome')
-        api_prefix = os.getenv('API_PREFIX', f'{url_prefix}/api')
-        static_prefix = os.getenv('STATIC_PREFIX', f'{url_prefix}/static')
-        socket_prefix = os.getenv('SOCKET_PREFIX', f'{url_prefix}/socket.io')
+        # Empty string means root path (development), non-empty means subpath (production)
+        url_prefix = os.getenv('URL_PREFIX', '/smarthome') or ''
+        api_prefix = os.getenv('API_PREFIX') or f'{url_prefix}/api' if url_prefix else '/api'
+        static_prefix = os.getenv('STATIC_PREFIX') or f'{url_prefix}/static' if url_prefix else '/static'
+        socket_prefix = os.getenv('SOCKET_PREFIX') or f'{url_prefix}/socket.io' if url_prefix else '/socket.io'
         
         self.app.jinja_env.globals.update(
             URL_PREFIX=url_prefix,
