@@ -19,11 +19,11 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
-      # URL Prefixes for nginx routing (default: /smarthome for production)
-      - URL_PREFIX=${URL_PREFIX:-}
-      - API_PREFIX=${API_PREFIX:-}
-      - STATIC_PREFIX=${STATIC_PREFIX:-}
-      - SOCKET_PREFIX=${SOCKET_PREFIX:-}
+      # URL Prefixes - empty for root path deployment
+      - URL_PREFIX=
+      - API_PREFIX=
+      - STATIC_PREFIX=
+      - SOCKET_PREFIX=
       # Redis configuration
       - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
       - REDIS_PORT=${REDIS_PORT:-6379}

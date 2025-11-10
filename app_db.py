@@ -54,11 +54,6 @@ class SmartHomeApp:
         self.app = Flask(__name__)
         self.app.secret_key = os.urandom(24)
         
-        # Configure URL prefix for Flask's url_for() to work correctly with nginx routing
-        url_prefix = os.getenv('URL_PREFIX', '/smarthome')
-        if url_prefix and url_prefix != '/':
-            self.app.config['APPLICATION_ROOT'] = url_prefix
-        
         # Cookie security and SameSite settings
         is_production = os.getenv('FLASK_ENV') == 'production' or os.getenv('ENV') == 'production' or os.getenv('APP_ENV') == 'production'
         self.app.config.update({
@@ -194,11 +189,11 @@ class SmartHomeApp:
             return f'{request.path}?{urlencode(args_dict)}'
         
         # Add URL prefix globals for easy environment switching
-        # Empty string means root path (development), non-empty means subpath (production)
-        url_prefix = os.getenv('URL_PREFIX', '/smarthome') or ''
-        api_prefix = os.getenv('API_PREFIX') or f'{url_prefix}/api' if url_prefix else '/api'
-        static_prefix = os.getenv('STATIC_PREFIX') or f'{url_prefix}/static' if url_prefix else '/static'
-        socket_prefix = os.getenv('SOCKET_PREFIX') or f'{url_prefix}/socket.io' if url_prefix else '/socket.io'
+        # Empty string means root path deployment (no prefix)
+        url_prefix = os.getenv('URL_PREFIX') or ''
+        api_prefix = os.getenv('API_PREFIX') or '/api'
+        static_prefix = os.getenv('STATIC_PREFIX') or '/static'
+        socket_prefix = os.getenv('SOCKET_PREFIX') or '/socket.io'
         
         self.app.jinja_env.globals.update(
             URL_PREFIX=url_prefix,
@@ -206,7 +201,7 @@ class SmartHomeApp:
             STATIC_PREFIX=static_prefix,
             SOCKET_PREFIX=socket_prefix
         )
-        print(f"✓ URL prefixes configured: {url_prefix} (static: {static_prefix})")
+        print(f"✓ URL prefixes configured: URL={url_prefix or '/'}, API={api_prefix}, STATIC={static_prefix}, SOCKET={socket_prefix}")
     
     def setup_sys_admin(self):
         """Setup system administrator if in database mode"""
