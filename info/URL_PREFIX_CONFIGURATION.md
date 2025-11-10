@@ -26,6 +26,8 @@ SOCKET_PREFIX=/smarthome/socket.io
 
 ## Użycie w szablonach
 
+**WAŻNE:** Flask's `url_for('static', ...)` automatycznie dodaje `/static/` do ścieżki, więc używamy `URL_PREFIX`, a nie `STATIC_PREFIX`!
+
 Zamiast hardcoded ścieżek:
 
 ```html
@@ -38,9 +40,20 @@ Używaj zmiennych globalnych Jinja:
 
 ```html
 <!-- ✅ Dobre (konfigurowalne) -->
-<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/style.css') }}">
-<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/app.js') }}"></script>
+<link rel="stylesheet" href="{{ URL_PREFIX }}{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/app.js') }}">
+<img src="{{ URL_PREFIX }}{{ url_for('static', filename='icons/home.png') }}">
 ```
+
+**Uwaga:** Używamy `URL_PREFIX`, ponieważ `url_for('static', filename='...')` zwraca `/static/...`, więc:
+- `URL_PREFIX` = `/smarthome`
+- `url_for('static', filename='css/style.css')` = `/static/css/style.css`
+- **Wynik:** `/smarthome/static/css/style.css` ✅
+
+Jeśli użyjesz `STATIC_PREFIX`, otrzymasz podwójne `/static/`:
+- `STATIC_PREFIX` = `/smarthome/static`
+- `url_for('static', filename='css/style.css')` = `/static/css/style.css`
+- **Wynik:** `/smarthome/static/static/css/style.css` ❌
 
 ## Dostępne zmienne w szablonach
 
@@ -78,13 +91,17 @@ Aplikacja działa pod `https://malina.tail384b18.ts.net/smarthome/`
 ## Jak to działa
 
 1. Zmienne środowiskowe są ładowane przez `python-dotenv` w `app_db.py`
-2. W `setup_context_processors()` przekazujemy je do Jinja jako globals:
+2. Flask's `APPLICATION_ROOT` jest ustawione na podstawie `URL_PREFIX`, co sprawia, że `url_for()` i `redirect()` automatycznie dodają prefix
+3. W `setup_context_processors()` przekazujemy zmienne do Jinja jako globals:
    ```python
    url_prefix = os.getenv('URL_PREFIX', '/smarthome')
+   if url_prefix and url_prefix != '/':
+       self.app.config['APPLICATION_ROOT'] = url_prefix
    self.app.jinja_env.globals.update(URL_PREFIX=url_prefix, ...)
    ```
-3. Szablony używają `{{ STATIC_PREFIX }}{{ url_for('static', ...) }}`
-4. Zmiana wartości w `.env` → restart aplikacji → wszystkie ścieżki się aktualizują
+4. Szablony używają `{{ URL_PREFIX }}{{ url_for('static', ...) }}`
+5. Flask's `redirect(url_for('login'))` automatycznie dodaje `/smarthome/login` w produkcji
+6. Zmiana wartości w `.env` → restart aplikacji → wszystkie ścieżki się aktualizują
 
 ## Zalety
 
