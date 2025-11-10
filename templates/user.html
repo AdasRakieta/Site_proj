@@ -4,7 +4,7 @@
 {% block header %}Profil użytkownika{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
+<link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/user.css') }}?v={{ range(1, 99999) | random }}">
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
     <div class="profile-section">
         <div class="profile-picture-section">
             <div class="profile-picture-container">
-                <img id="profilePicture" src="{{ user_data.profile_picture if user_data.profile_picture else url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Zdjęcie profilowe" onerror="this.onerror=null; this.src='{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}';">
+                <img id="profilePicture" src="{{ user_data.profile_picture if user_data.profile_picture else '/smarthome' + url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Zdjęcie profilowe" onerror="this.onerror=null; this.src='/smarthome{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}';">
             </div>
             <div class="profile-picture-upload">
                 <label for="profilePictureInput" class="upload-btn">Zmień zdjęcie</label>
@@ -100,7 +100,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/user.js') }}?v={{ range(1, 99999) | random }}"></script>
+<script src="/smarthome{{ url_for('static', filename='js/user.js') }}?v={{ range(1, 99999) | random }}"></script>
 <script>
   // Bug report form handling
   const bugReportForm = document.getElementById('bug-report-form');
