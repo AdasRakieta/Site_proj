@@ -55,6 +55,9 @@ services:
     depends_on:
       - app
     restart: unless-stopped
+    # Allow nginx to access host machine services (Journey Planner)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - default
       - journey-stack_journey-planner-net
