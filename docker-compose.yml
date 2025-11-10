@@ -42,14 +42,22 @@ services:
     volumes:
       - static_uploads:/srv/static/profile_pictures:ro
       - /etc/ssl/tailscale:/etc/ssl/tailscale:ro
-      # Journey Planner frontend build (mounted from host)
-      - /home/pi/journey-planner/client/dist:/srv/journey-planner:ro
+      # Journey Planner runs on host port 5173 (Vite dev) or 5001 (API)
+      # No volume mount needed - nginx proxies to host ports
     ports:
       - "80:80"
       - "443:443"
     depends_on:
       - app
     restart: unless-stopped
+    networks:
+      - default
+      - journey-stack
+
+networks:
+  journey-stack:
+    external: true
+    name: journey-stack
 
 volumes:
   static_uploads:
