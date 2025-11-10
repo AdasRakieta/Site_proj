@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
     networks:
       - default
-      - journey-stack
+      - journey-stack_journey-planner-net
 
 networks:
   journey-stack_journey-planner-net:
