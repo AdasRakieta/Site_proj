@@ -3,7 +3,7 @@
 ## Obecna Sytuacja
 
 **SmartHome:** Działa na porcie 5000, dostępny przez Nginx na `/smarthome/`
-**Journey Planner:** Frontend port 5173, Backend port 5001
+**Journey Planner:** Frontend port 5173, Backend port 5001.
 **Problem:** 404 na `https://malina.tail384b18.ts.net/journey/`
 
 ## 🎯 Architektura Docelowa
@@ -86,18 +86,18 @@ server {
     location /smarthome/ {
         proxy_pass http://localhost:5000/;
         proxy_http_version 1.1;
-        
+      
         # WebSocket support
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
-        
+      
         # Standard headers
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+      
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
@@ -111,18 +111,18 @@ server {
         # Strip /journey prefix
         proxy_pass http://localhost:5173/;
         proxy_http_version 1.1;
-        
+      
         # Standard headers
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+      
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        
+      
         # Disable buffering
         proxy_buffering off;
     }
@@ -133,16 +133,16 @@ server {
     location /journey/api/ {
         # Rewrite /journey/api/xxx to /api/xxx
         rewrite ^/journey/api/(.*) /api/$1 break;
-        
+      
         proxy_pass http://localhost:5001;
         proxy_http_version 1.1;
-        
+      
         # Standard headers
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+      
         # Timeouts (longer for API)
         proxy_connect_timeout 90s;
         proxy_send_timeout 90s;
@@ -359,12 +359,15 @@ docker-compose restart
 ### CORS Errors
 
 Upewnij się w `nginix.env`:
+
 ```env
 CORS_ORIGIN=https://malina.tail384b18.ts.net
 ```
+
 (BEZ `/journey/`!)
 
 Przebuduj:
+
 ```bash
 cd ~/journey-planner
 docker-compose down
@@ -417,5 +420,6 @@ docker logs journey-planner-api --tail 50 -f
 ## 🎉 Success!
 
 Obydwa projekty działają pod jednym Nginx:
+
 - ✅ SmartHome: `/smarthome/`
 - ✅ Journey Planner: `/journey/`
