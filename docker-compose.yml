@@ -55,9 +55,9 @@ services:
       - journey-stack
 
 networks:
-  journey-stack:
+  journey-stack_journey-planner-net:
     external: true
-    name: journey-stack
+    name: journey-stack_journey-planner-net
 
 volumes:
   static_uploads:
