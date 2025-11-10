@@ -51,10 +51,10 @@
 {% endblock %}
 
 {% block scripts %}
-<link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/dragNdrop.css') }}?v={{ asset_version }}">
+<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/dragNdrop.css') }}?v={{ asset_version }}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
-<script src="/smarthome{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
-<script src="/smarthome{{ url_for('static', filename='js/controls.js') }}"></script>
+<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
+<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/controls.js') }}"></script>
 
 <!-- Preloaded Kanban data as JSON (avoids JS parser errors on Jinja) -->
 <script id="preloaded-kanban-data" type="application/json">

@@ -4,7 +4,7 @@
 {% block header %}Rejestracja{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/register.css') }}?v={{ range(1, 99999) | random }}">
+<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/register.css') }}?v={{ range(1, 99999) | random }}">
 {% endblock %}
 
 {% block content %}
@@ -67,5 +67,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/smarthome{{ url_for('static', filename='js/register.js') }}"></script>
+<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/register.js') }}"></script>
 {% endblock %}

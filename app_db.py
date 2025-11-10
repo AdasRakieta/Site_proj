@@ -186,6 +186,20 @@ class SmartHomeApp:
             # Convert MultiDict to regular dict for urlencode
             args_dict = {k: v for k, v in args.items()}
             return f'{request.path}?{urlencode(args_dict)}'
+        
+        # Add URL prefix globals for easy environment switching
+        url_prefix = os.getenv('URL_PREFIX', '/smarthome')
+        api_prefix = os.getenv('API_PREFIX', f'{url_prefix}/api')
+        static_prefix = os.getenv('STATIC_PREFIX', f'{url_prefix}/static')
+        socket_prefix = os.getenv('SOCKET_PREFIX', f'{url_prefix}/socket.io')
+        
+        self.app.jinja_env.globals.update(
+            URL_PREFIX=url_prefix,
+            API_PREFIX=api_prefix,
+            STATIC_PREFIX=static_prefix,
+            SOCKET_PREFIX=socket_prefix
+        )
+        print(f"✓ URL prefixes configured: {url_prefix} (static: {static_prefix})")
     
     def setup_sys_admin(self):
         """Setup system administrator if in database mode"""

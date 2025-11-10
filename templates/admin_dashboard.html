@@ -4,7 +4,7 @@
 {% block header %}Dashboard Administratora{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/dashboard.css') }}?v={{ asset_version }}">
+<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/dashboard.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
@@ -241,7 +241,7 @@
      style="display: none;"></div>
 
 <!-- Load dashboard JavaScript -->
-<script src="/smarthome{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
 <!-- Invite form submission handler -->
 <script>

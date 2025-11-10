@@ -3,7 +3,7 @@
 {% block title %}Zaakceptuj zaproszenie - SmartHome{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/invite.css') }}?v={{ asset_version }}">
+<link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/invite.css') }}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
@@ -173,3 +173,4 @@ if (codeInput) {
 }
 </script>
 {% endblock %}
+

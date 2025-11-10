@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SmartHome{% endblock %}</title>
-    <link rel="icon" href="/smarthome{{ url_for('static', filename='icons/site_icon.png') }}" type="image/x-icon">
+    <link rel="icon" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/site_icon.png') }}" type="image/x-icon">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""/>
@@ -17,10 +17,10 @@
         } catch(e) {}
       })();
     </script>
-    <link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
-    <link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/user_menu.css') }}?v={{ asset_version }}">
-    <link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/home.css') }}?v={{ asset_version }}">
-    <link rel="stylesheet" href="/smarthome{{ url_for('static', filename='css/mobile.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/user_menu.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/home.css') }}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{{ STATIC_PREFIX }}{{ url_for('static', filename='css/mobile.css') }}?v={{ asset_version }}">
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
@@ -29,7 +29,7 @@
     <header>
         {% if request.endpoint != 'login' and request.endpoint != 'register' and request.endpoint != 'forgot_password' %}
         <button class="close-btn" onclick="toggleMenu()">
-            <img id="menu-icon" src="/smarthome{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
+            <img id="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
         {% endif %}
         <h1>{% block header %}Strona Główna{% endblock %}</h1>
@@ -37,17 +37,17 @@
 
             {% if request.endpoint != 'login' and request.endpoint != 'register' and request.endpoint != 'forgot_password' %}
             <div class="menu-handle" id="user-menu-handle" onclick="toggleUserMenu()">
-                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else '/smarthome' + url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" onerror="this.src='/smarthome{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}'">
+                <img src="{{ user_data.profile_picture if user_data and user_data.profile_picture else STATIC_PREFIX + url_for('static', filename='profile_pictures/podstawowe.jpg') }}" alt="Profilowe" class="user-avatar" onerror="this.src='{{ STATIC_PREFIX }}{{ url_for('static', filename='profile_pictures/podstawowe.jpg') }}'">
             </div>
             <div class="main-menu" id="user-main-menu">
                 <div class="menu-wrap">
                     <a href="/user" class="menu-item" style="margin-right: -15px;">
-                        <img class="user-menu-icon" id="user-menu-user-icon" src="/smarthome{{ url_for('static', filename='icons/user_icon_light.png') }}" alt="Profil">
+                        <img class="user-menu-icon" id="user-menu-user-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/user_icon_light.png') }}" alt="Profil">
                     </a>
                     {% if multi_home_enabled and user_homes %}
                     <div class="menu-item home-selector-item">
                         <div class="current-home-display" onclick="toggleHomeSelector()">
-                            <img class="user-menu-icon" src="/smarthome{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
+                            <img class="user-menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
                             <span class="current-home-name">{{ current_home.name if current_home else 'Wybierz Dom' }}</span>
                             <span class="home-dropdown-arrow">▼</span>
                         </div>
@@ -74,10 +74,10 @@
                     </div>
                     {% endif %}
                     <a href="/settings" class="menu-item" style="margin-right: 15px;">
-                        <img class="user-menu-icon" id="user-menu-settings-icon" src="/smarthome{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Ustawienia">
+                        <img class="user-menu-icon" id="user-menu-settings-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/settings_icon_light.png') }}" alt="Ustawienia">
                     </a>
                         <a href="/logout" class="menu-item" style="margin-left: -30px;">
-                        <img class="user-menu-icon" id="user-menu-logout-icon" src="/smarthome{{ url_for('static', filename='icons/leave_icon.png') }}" alt="Wyloguj">
+                        <img class="user-menu-icon" id="user-menu-logout-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/leave_icon.png') }}" alt="Wyloguj">
                     </a>
                 </div>
             </div>
@@ -88,16 +88,16 @@
 
     <div id="sideMenu" class="side-menu">
         <button style="margin-top: 18px;" class="close-btn" onclick="toggleMenu()">
-            <img id="menu-icon-side" src="/smarthome{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
+            <img id="menu-icon-side" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/menu_icon_light.png') }}" alt="Menu Toggle" class="menu-toggle">
         </button>
         <nav style="margin-top: 55px;" class="menu">
             <ul>
-                <li><a href="/" class="menu-link"><img id="home-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home"> Strona Główna</a></li>
-                <li><a href="/lights" class="menu-link"><img id="lights-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/lights_icon_light.png') }}" alt="Lights"> Światła</a></li>
-                <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
+                <li><a href="/" class="menu-link"><img id="home-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home"> Strona Główna</a></li>
+                <li><a href="/lights" class="menu-link"><img id="lights-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/lights_icon_light.png') }}" alt="Lights"> Światła</a></li>
+                <li><a href="/temperature" class="menu-link"><img id="temperature-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/temperature_icon_light.png') }}" alt="Temperature"> Temperatura</a></li>
                 <li class="menu-item-with-submenu">
                     <a href="#" class="menu-link" onclick="toggleRoomsSubmenu(event)">
-                        <img id="rooms-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/rooms_icon_light.png') }}" alt="Rooms"> Pokoje
+                        <img id="rooms-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/rooms_icon_light.png') }}" alt="Rooms"> Pokoje
                         <span class="submenu-arrow">▶</span>
                     </a>
                     <ul class="submenu" id="rooms-submenu">
@@ -106,11 +106,11 @@
                         {% endfor %}
                     </ul>
                 </li>
-                <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
-                <li><a href="/automations" class="menu-link"><img id="automations-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/automations_icon_light.png') }}" alt="Automations"> Automatyzacje</a></li>
+                <li><a href="/security" class="menu-link"><img id="security-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/security_icon_light.png') }}" alt="Security"> Zabezpieczenia</a></li>
+                <li><a href="/automations" class="menu-link"><img id="automations-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/automations_icon_light.png') }}" alt="Automations"> Automatyzacje</a></li>
                 {% if has_admin_access %}
-                <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/dashboard_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
-                <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="/smarthome{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
+                <li><a href="/admin_dashboard" class="menu-link"><img id="dashboard-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/dashboard_icon_light.png') }}" alt="Dashboard"> Dashboard Admina</a></li>
+                <li><a href="/edit" class="menu-link"><img id="edit-icon" class="menu-icon" src="{{ STATIC_PREFIX }}{{ url_for('static', filename='icons/edit_icon_light.png') }}" alt="Edit"> Edycja Przycisków</a></li>
                 {% endif %}
             </ul>
         </nav>
@@ -132,11 +132,11 @@
             window.currentHomeId = null;
         }
     </script>
-    <script src="/smarthome{{ url_for('static', filename='js/common.js') }}?v={{ asset_version }}"></script>
-    <script src="/smarthome{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
-    <script src="/smarthome{{ url_for('static', filename='js/automations.js') }}?v={{ asset_version }}"></script>
-    <script src="/smarthome{{ url_for('static', filename='js/setup.js') }}?v={{ asset_version }}"></script>
-    <script src="/smarthome{{ url_for('static', filename='js/user_menu.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/common.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/automations.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/setup.js') }}?v={{ asset_version }}"></script>
+    <script src="{{ STATIC_PREFIX }}{{ url_for('static', filename='js/user_menu.js') }}?v={{ asset_version }}"></script>
     
     <script>
         // Home Selector JavaScript
