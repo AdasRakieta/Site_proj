@@ -24,8 +24,8 @@ services:
       # URL Prefixes for nginx routing (default: /smarthome for production)
       - URL_PREFIX=${URL_PREFIX}
       - API_PREFIX=${API_PREFIX}
-      - STATIC_PREFIX=${STATIC_PREFIX}
-      - SOCKET_PREFIX=${SOCKET_PREFIX}
+      - STATIC_PREFIX=${URL_PREFIX}
+      - SOCKET_PREFIX=${URL_PREFIX}
       # Redis configuration (connect to external standalone Redis container)
       # Set REDIS_HOST to 'smarthome_redis_standalone' or your Redis container name
       - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
