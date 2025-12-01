@@ -1,4 +1,12 @@
-version: '3.8'
+networks:
+  web:
+    external: true
+
+volumes:
+  static_uploads:
+    external: true
+    name: smarthome-stack_static_uploads
+
 services:
   app:
     image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
@@ -19,7 +27,7 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - FLASK_ENV=${FLASK_ENV:-production}
       - SECRET_KEY=${SECRET_KEY}
-      # URL Prefixes - empty for root path deployment
+      # URL Prefixes - empty for Traefik (Traefik adds /app1 prefix)
       - URL_PREFIX=
       - API_PREFIX=
       - STATIC_PREFIX=
@@ -30,13 +38,13 @@ services:
       - ASSET_VERSION=${ASSET_VERSION:-}
     volumes:
       - static_uploads:/srv/static/profile_pictures
-    ports:
-      - "5000:5000"
+    networks:
+      - web
+    # Traefik labels
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.smarthome.rule=PathPrefix(`/app1`)"
+      - "traefik.http.services.smarthome.loadbalancer.server.port=5000"
     restart: unless-stopped
     external_links:
       - smarthome_redis_standalone:redis
-
-volumes:
-  static_uploads:
-    external: true
-    name: smarthome-stack_static_uploads
