@@ -1,0 +1,23 @@
+networks:
+  web:
+    external: true
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: smarthome_redis_standalone
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_data:
+    driver: local
