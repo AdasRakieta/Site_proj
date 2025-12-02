@@ -1,5 +1,19 @@
 # SmartHome – System Zarządzania Domem Inteligentnym
 
+## 📚 Dokumentacja Deployment
+
+### Deployment Guides
+
+- **[Traefik Deployment](./TRAEFIK_DEPLOYMENT.md)** - ⭐ **ZALECANE** - Deployment z Traefik reverse proxy
+- [Quick Start](./QUICK_START.md) - Szybki start dla deweloperów
+- [Portainer Stack Setup](./PORTAINER_STACK_SETUP.md) - Deployment przez Portainer
+- [URL Prefix Configuration](./URL_PREFIX_CONFIGURATION.md) - Konfiguracja prefixów URL
+
+### Infrastructure Guides
+
+- [GitHub Container Registry](./GITHUB_CONTAINER_REGISTRY.md) - Budowanie i publikacja Docker images
+- [Portainer Deployment](./PORTAINER_DEPLOYMENT.md) - Ogólne zasady deployment w Portainer
+
 ## Przegląd
 
 SmartHome to aplikacja webowa budowana na Flasku z integracją Flask-SocketIO, która pozwala zarządzać oświetleniem, temperaturą i automatyzacjami w inteligentnym domu. Dane przechowywane są w bazie PostgreSQL poprzez warstwę `SmartHomeSystemDB`, a w trybie awaryjnym aplikacja potrafi przełączyć się na pierwotny backend plikowy JSON. Interfejs użytkownika powstaje w szablonach Jinja2, a aktualizacje stanu urządzeń są transmitowane na żywo przez WebSockety.
@@ -11,6 +25,7 @@ SmartHome to aplikacja webowa budowana na Flasku z integracją Flask-SocketIO, k
 - **Panel administratora** – zarządzanie użytkownikami, podgląd logów oraz statystyk urządzeń.
 - **Caching i kolejki** – `utils/cache_manager.py` obsługuje Redis/SimpleCache, a `utils/async_manager.py` odpowiada za wysyłkę maili w tle.
 - **Elastyczne logowanie** – wpisy administracyjne mogą trafiać do bazy (`DatabaseManagementLogger`) lub, w razie potrzeby, do pliku JSON.
+- **Multi-home support** - Obsługa wielu domów przez jednego użytkownika z różnymi rolami i uprawnieniami.
 
 ## Architektura systemu
 
@@ -20,6 +35,7 @@ SmartHome to aplikacja webowa budowana na Flasku z integracją Flask-SocketIO, k
 - `app/routes.py` – rejestracja tras HTTP i Socket.IO, obsługa logiki widoków, API oraz zarządzanie danymi.
 - `app/configure_db.py` – implementacja `SmartHomeSystemDB`, zapewniająca identyczny interfejs co wersja plikowa, ale oparty na PostgreSQL.
 - `utils/smart_home_db_manager.py` – niskopoziomowe operacje na bazie danych (użytkownicy, urządzenia, pokoje, automatyzacje, logi).
+- `utils/multi_home_db_manager.py` - Zarządzanie wieloma domami, użytkownikami, uprawnieniami i zaproszeniami.
 - `utils/cache_manager.py` – integracja z Redis/SimpleCache, statystyki, invalidacja danych oraz pamięć podręczna na poziomie sesji.
 - `app/mail_manager.py` + `utils/async_manager.py` – wysyłanie maili (synchronizacja i tryb asynchroniczny).
 

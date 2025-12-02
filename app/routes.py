@@ -752,6 +752,14 @@ class RoutesManager(MultiHomeHelpersMixin):
                     'error': str(e)
                 })
 
+        @self.app.route('/health', methods=['GET'])
+        def health_check():
+            """Health check endpoint for Docker healthcheck"""
+            return jsonify({
+                'status': 'healthy',
+                'timestamp': int(time.time())
+            }), 200
+
         @self.app.route('/api/status', methods=['GET'])
         def api_status():
             """Server status endpoint"""

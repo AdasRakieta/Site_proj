@@ -2,7 +2,7 @@
 
 ## Cel
 
-System SmartHome może działać zarówno pod rootem (`/`) jak i pod podścieżką (np. `/smarthome/`) – zależnie od konfiguracji nginx i środowiska (development/production).
+System SmartHome może działać zarówno pod rootem (`/`) jak i pod podścieżką (np. `/smarthome/`) – zależnie od konfiguracji reverse proxy i środowiska (development/production).
 
 Aby ułatwić przełączanie między środowiskami, wszystkie ścieżki URL (do statycznych zasobów, API, WebSocket) są konfigurowane poprzez zmienne środowiskowe.
 
@@ -11,18 +11,26 @@ Aby ułatwić przełączanie między środowiskami, wszystkie ścieżki URL (do 
 Dodaj do pliku `.env`:
 
 ```bash
-# Production (nginx /smarthome/ path):
-URL_PREFIX=/smarthome
-API_PREFIX=/smarthome/api
-STATIC_PREFIX=/smarthome/static
-SOCKET_PREFIX=/smarthome/socket.io
+# Traefik/Production (middleware stripprefix removes /smarthome):
+URL_PREFIX=
+API_PREFIX=
+STATIC_PREFIX=
+SOCKET_PREFIX=
 
-# Development (root path):
+# Nginx/Production (nginx passes /smarthome/ prefix to app):
+# URL_PREFIX=/smarthome
+# API_PREFIX=/smarthome/api
+# STATIC_PREFIX=/smarthome/static
+# SOCKET_PREFIX=/smarthome/socket.io
+
+# Development (root path, no reverse proxy):
 # URL_PREFIX=
 # API_PREFIX=/api
 # STATIC_PREFIX=/static
 # SOCKET_PREFIX=/socket.io
 ```
+
+**Uwaga dla Traefik:** Middleware `stripprefix` usuwa prefix `/smarthome` przed przekazaniem requestu do aplikacji, więc aplikacja widzi ścieżki bez prefixu. Wszystkie `*_PREFIX` powinny być puste!
 
 ## Użycie w szablonach
 
