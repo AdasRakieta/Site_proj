@@ -3,7 +3,13 @@ name: Build and Publish Docker images
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      build_nginx:
+        description: "Build and publish nginx image as well"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -47,6 +53,7 @@ jobs:
       - name: Extract metadata (nginx)
         id: meta_nginx
         uses: docker/metadata-action@v5
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_nginx == true }}
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.REPO_NAME }}/smarthome_nginx
@@ -68,6 +75,7 @@ jobs:
 
       - name: Build and push nginx image
         uses: docker/build-push-action@v6
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_nginx == true }}
         with:
           context: .
           file: Dockerfile.nginx
