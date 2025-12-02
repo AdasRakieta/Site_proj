@@ -1,22 +1,19 @@
-# SmartHome Stack - Home Automation Application
-# Deploy AFTER Traefik stack
-# Portainer Stack Name: smarthome
-# URL: https://malina.tail384b18.ts.net/smarthome
+# SmartHome Stack - Standalone nginx deployment
+# URL: https://malina.tail384b18.ts.net/app1
+
+version: '3.8'
 
 networks:
   web:
     external: true
 
-
 volumes:
   static_uploads:
-    driver: local
-  redis_data:
-    driver: local
+    external: true
+    name: smarthome-stack_static_uploads
 
-
-  # SmartHome Application
-  app:
+services:
+  smarthome_app:
     image: ghcr.io/adasrakieta/site_proj/smarthome_app:${IMAGE_TAG:-latest}
     container_name: smarthome_app
     
@@ -42,13 +39,13 @@ volumes:
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       
-      # URL Prefixes (empty for Traefik - Traefik adds /smarthome prefix)
+      # URL Prefixes (empty - nginx adds /app1 via proxy_pass)
       - URL_PREFIX=
       - API_PREFIX=
       - STATIC_PREFIX=
       - SOCKET_PREFIX=
       
-      # Redis Configuration (internal network)
+      # Redis Configuration
       - REDIS_HOST=${REDIS_HOST:-smarthome_redis_standalone}
       - REDIS_PORT=${REDIS_PORT:-6379}
       
@@ -63,28 +60,9 @@ volumes:
     
     restart: unless-stopped
     
-    depends_on:
-      redis:
-        condition: service_healthy
+    external_links:
+      - smarthome_redis_standalone:redis
     
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=web"
-      
-      # SmartHome App → https://malina.tail384b18.ts.net/smarthome
-      - "traefik.http.routers.smarthome.rule=Host(`malina.tail384b18.ts.net`) && PathPrefix(`/smarthome`)"
-      - "traefik.http.routers.smarthome.entrypoints=websecure"
-      - "traefik.http.routers.smarthome.tls=true"
-      - "traefik.http.routers.smarthome.priority=150"
-      - "traefik.http.services.smarthome.loadbalancer.server.port=5000"
-      
-      # Middleware: strip /smarthome prefix
-      - "traefik.http.middlewares.smarthome-strip.stripprefix.prefixes=/smarthome"
-      - "traefik.http.routers.smarthome.middlewares=smarthome-strip"
+    # Expose port for nginx (no public port mapping needed)
+    expose:
+      - "5000"
