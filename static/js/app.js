@@ -1,3 +1,32 @@
+// Tłumaczenie typów urządzeń na polski
+function translateDeviceType(type) {
+    const translations = {
+        'button': 'Przycisk',
+        'light': 'Światło',
+        'temperature_control': 'Termostat',
+        'thermostat': 'Termostat',
+        'sensor': 'Czujnik',
+        'switch': 'Przełącznik',
+        'dimmer': 'Ściemniacz',
+        'blind': 'Roleta',
+        'lock': 'Zamek',
+        'camera': 'Kamera',
+        'speaker': 'Głośnik',
+        'tv': 'Telewizor',
+        'fan': 'Wentylator',
+        'heater': 'Grzejnik',
+        'ac': 'Klimatyzacja',
+        'door': 'Drzwi',
+        'window': 'Okno',
+        'garage': 'Garaż',
+        'alarm': 'Alarm',
+        'motion_sensor': 'Czujnik ruchu',
+        'smoke_detector': 'Czujnik dymu',
+        'leak_detector': 'Czujnik zalania'
+    };
+    return translations[type] || type;
+}
+
 // Helpery do normalizacji danych pokoi niezależnie od formatu API
 function normalizeRoomsData(payload) {
     const source = payload && typeof payload === 'object' && Array.isArray(payload.data)

@@ -1382,15 +1382,16 @@ class MultiHomeDBManager:
                 }
             
             cursor.execute("""
-                INSERT INTO devices (room_id, name, device_type, state, temperature,
+                INSERT INTO devices (home_id, room_id, name, device_type, state, temperature,
                                    enabled, settings, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
+                target_home_id,
                 room_id,
                 name,
                 device_type,
-                kwargs.get('state', False if device_type == 'light' else None),
+                kwargs.get('state', False if device_type in ('light', 'button') else None),
                 kwargs.get('current_temperature', 20.0 if device_type == 'temperature_control' else None),
                 kwargs.get('enabled', True),
                 json.dumps(settings) if settings else None,
@@ -1413,7 +1414,7 @@ class MultiHomeDBManager:
             
         with self.get_cursor() as cursor:
             query = """
-                SELECT d.*, r.name as room_name, r.home_id
+                SELECT d.*, r.name as room_name, r.home_id as room_home_id
                 FROM devices d
                 LEFT JOIN rooms r ON d.room_id = r.id
                 WHERE (r.home_id = %s OR d.room_id IS NULL)
@@ -1438,22 +1439,28 @@ class MultiHomeDBManager:
             
             devices = []
             for row in cursor.fetchall():
+                # ACTUAL column order in database (verified via information_schema):
+                # row[0]=id, row[1]=home_id, row[2]=room_id, row[3]=name,
+                # row[4]=device_type, row[5]=state, row[6]=temperature,
+                # row[7]=min_temperature, row[8]=max_temperature, row[9]=display_order,
+                # row[10]=enabled, row[11]=created_at, row[12]=updated_at, row[13]=settings,
+                # row[14]=room_name (from JOIN), row[15]=room_home_id (from JOIN)
                 device = {
-                    'id': row[0],          # id
-                    'name': row[1],        # name  
-                    'room_id': row[2],     # room_id
-                    'type': row[3],        # device_type
-                    'state': row[4],       # state
-                    'temperature': row[5], # temperature (current)
-                    'min_temperature': row[6],  # min_temperature
-                    'max_temperature': row[7],  # max_temperature
-                    'display_order': row[8],    # display_order
-                    'enabled': row[9],     # enabled
-                    'settings': row[10],   # settings (JSONB)
-                    'created_at': row[11], # created_at
-                    'updated_at': row[12], # updated_at
-                    'room_name': row[13],  # room_name
-                    'home_id': row[14]     # home_id
+                    'id': row[0],               # id (UUID)
+                    'name': row[3],             # name (VARCHAR) - position 4 in table!
+                    'room_id': row[2],          # room_id (UUID)
+                    'type': row[4],             # device_type (VARCHAR)
+                    'state': row[5],            # state (BOOLEAN)
+                    'temperature': row[6],      # temperature (NUMERIC)
+                    'min_temperature': row[7],  # min_temperature (NUMERIC)
+                    'max_temperature': row[8],  # max_temperature (NUMERIC)
+                    'display_order': row[9],    # display_order (INTEGER)
+                    'enabled': row[10],         # enabled (BOOLEAN)
+                    'settings': row[13],        # settings (JSONB) - position 14!
+                    'created_at': row[11],      # created_at (TIMESTAMPTZ)
+                    'updated_at': row[12],      # updated_at (TIMESTAMPTZ)
+                    'room_name': row[14],       # room_name (from JOIN)
+                    'home_id': row[1]           # home_id (UUID) - position 2 in table!
                 }
                 devices.append(device)
             
@@ -1488,21 +1495,27 @@ class MultiHomeDBManager:
             
             devices = []
             for row in cursor.fetchall():
+                # ACTUAL column order in database (verified via information_schema):
+                # row[0]=id, row[1]=home_id, row[2]=room_id, row[3]=name,
+                # row[4]=device_type, row[5]=state, row[6]=temperature,
+                # row[7]=min_temperature, row[8]=max_temperature, row[9]=display_order,
+                # row[10]=enabled, row[11]=created_at, row[12]=updated_at, row[13]=settings
                 device = {
-                    'id': row[0],          # id
-                    'name': row[1],        # name
-                    'room_id': row[2],     # room_id
-                    'type': row[3],        # device_type
-                    'device_type': row[3], # alias for compatibility
-                    'state': row[4],       # state
-                    'temperature': row[5], # temperature
-                    'min_temperature': row[6],  # min_temperature
-                    'max_temperature': row[7],  # max_temperature
-                    'display_order': row[8],    # display_order
-                    'enabled': row[9],     # enabled
-                    'settings': row[10],   # settings
-                    'created_at': row[11], # created_at
-                    'updated_at': row[12]  # updated_at
+                    'id': row[0],               # id (UUID)
+                    'name': row[3],             # name (VARCHAR) - position 4 in table!
+                    'room_id': row[2],          # room_id (UUID)
+                    'home_id': row[1],          # home_id (UUID) - position 2 in table!
+                    'type': row[4],             # device_type (VARCHAR)
+                    'device_type': row[4],      # alias for compatibility
+                    'state': row[5],            # state (BOOLEAN)
+                    'temperature': row[6],      # temperature (NUMERIC)
+                    'min_temperature': row[7],  # min_temperature (NUMERIC)
+                    'max_temperature': row[8],  # max_temperature (NUMERIC)
+                    'display_order': row[9],    # display_order (INTEGER)
+                    'enabled': row[10],         # enabled (BOOLEAN)
+                    'settings': row[13],        # settings (JSONB) - position 14!
+                    'created_at': row[11],      # created_at (TIMESTAMPTZ)
+                    'updated_at': row[12]       # updated_at (TIMESTAMPTZ)
                 }
                 devices.append(device)
             

@@ -941,21 +941,22 @@ class SmartHomeDatabaseManager:
     # LOGGING METHODS
     # ========================================================================
     
-    def add_management_log(self, level: str, message: str, event_type: Optional[str] = None, 
+    def add_management_log(self, level: str, message: str, event_type: Optional[str] = None,
                           user_id: Optional[str] = None, username: Optional[str] = None, 
-                          ip_address: Optional[str] = None, details: Optional[Dict] = None) -> str:
+                          ip_address: Optional[str] = None, details: Optional[Dict] = None,
+                          home_id: Optional[str] = None) -> str:
         """Add management log entry"""
         log_id = str(uuid.uuid4())
         
         query = """
             INSERT INTO management_logs 
-            (id, level, message, event_type, user_id, username, ip_address, details)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (id, level, message, event_type, user_id, username, ip_address, details, home_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         self._execute_query(query, (
             log_id, level, message, event_type, user_id, username, 
-            ip_address, json.dumps(details or {})
+            ip_address, json.dumps(details or {}), home_id
         ))
         
         return log_id
