@@ -443,8 +443,6 @@ class SmartHomeApp:
                 print(f"⚠ Failed to register home settings routes: {e}")
                 import traceback
                 traceback.print_exc()
-                import traceback
-                traceback.print_exc()
             
             # Register encryption blueprint for security course application
             try:

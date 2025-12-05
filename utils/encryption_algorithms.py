@@ -160,11 +160,15 @@ class ClassicalCiphers:
             rails: Number of rails
         Returns:
             Encrypted text
+        Note:
+            Spaces are removed from the text before encryption as per traditional
+            Rail Fence cipher implementation. This is expected behavior.
         """
         if rails < 2:
             raise ValueError("Number of rails must be at least 2")
         
-        # Remove spaces for cleaner encryption
+        # Remove spaces for cleaner encryption (standard Rail Fence behavior)
+        # The decryption will return text without spaces
         text = text.replace(" ", "")
         fence = [[] for _ in range(rails)]
         rail = 0
@@ -187,7 +191,11 @@ class ClassicalCiphers:
             text: Encrypted text
             rails: Number of rails
         Returns:
-            Decrypted text
+            Decrypted text (without spaces - spaces are removed during encryption)
+        Note:
+            Since Rail Fence encryption removes spaces, the decrypted text will not
+            contain spaces even if the original text had them. This is standard
+            behavior for this cipher.
         """
         if rails < 2:
             raise ValueError("Number of rails must be at least 2")

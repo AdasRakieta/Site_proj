@@ -35,6 +35,7 @@ Zawiera implementacje klasycznych i nowoczesnych algorytmów szyfrowania, funkcj
 - **Metoda**: Tekst zapisywany jest w formie zygzaka na wielu "szynach"
 - **Parametry**: Liczba szyn (rails) od 2 do 10
 - **Przykład**: "HELLO" na 3 szynach → "HOELL"
+- **Uwaga**: Spacje są usuwane podczas szyfrowania (standardowe zachowanie tego szyfru)
 - **Bezpieczeństwo**: Niskie - łatwy do złamania przy znanej liczbie szyn
 
 ### 2. Szyfrowanie Nowoczesne (Modern Encryption)
