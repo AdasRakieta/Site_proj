@@ -1,0 +1,883 @@
+{% extends "base.html" %}
+
+{% block title %}Kryptografia i Szyfrowanie - SmartHome{% endblock %}
+{% block header %}Aplikacja Kryptograficzna{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .crypto-container {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    .crypto-header {
+        text-align: center;
+        margin-bottom: 30px;
+        color: var(--text-color);
+    }
+
+    .crypto-header h2 {
+        font-size: 2em;
+        margin-bottom: 10px;
+    }
+
+    .crypto-header p {
+        color: var(--text-secondary);
+        font-size: 1.1em;
+    }
+
+    .crypto-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+
+    .crypto-tab {
+        padding: 12px 24px;
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .crypto-tab:hover {
+        background: var(--hover-bg);
+        border-color: var(--primary-color);
+    }
+
+    .crypto-tab.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .crypto-section {
+        display: none;
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .crypto-section.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .crypto-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: var(--text-color);
+        font-size: 0.95em;
+    }
+
+    .form-group textarea,
+    .form-group input {
+        padding: 12px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        font-family: 'Courier New', monospace;
+        font-size: 0.95em;
+        transition: border-color 0.3s ease;
+    }
+
+    .form-group textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .crypto-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .crypto-btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 1em;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .crypto-btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .crypto-btn-primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .crypto-btn-secondary {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .crypto-btn-secondary:hover {
+        background: var(--secondary-hover);
+        transform: translateY(-2px);
+    }
+
+    .crypto-btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .crypto-btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .result-container {
+        margin-top: 20px;
+        padding: 20px;
+        background: var(--result-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        display: none;
+    }
+
+    .result-container.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .result-title {
+        font-weight: 600;
+        color: var(--text-color);
+        font-size: 1.1em;
+    }
+
+    .copy-btn {
+        padding: 8px 16px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.3s ease;
+    }
+
+    .copy-btn:hover {
+        background: var(--primary-hover);
+    }
+
+    .result-content {
+        padding: 15px;
+        background: var(--input-bg);
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        word-break: break-all;
+        color: var(--text-color);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .error-message {
+        padding: 15px;
+        background: #fee;
+        border: 2px solid #fcc;
+        border-radius: 8px;
+        color: #c33;
+        margin-top: 15px;
+        display: none;
+    }
+
+    .error-message.show {
+        display: block;
+    }
+
+    .info-box {
+        background: var(--info-bg);
+        border-left: 4px solid var(--primary-color);
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .info-box h4 {
+        margin-top: 0;
+        color: var(--primary-color);
+    }
+
+    .info-box p {
+        margin-bottom: 0;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .key-display {
+        background: var(--input-bg);
+        padding: 10px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85em;
+        word-break: break-all;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 10px;
+    }
+
+    .hash-results {
+        display: grid;
+        gap: 15px;
+    }
+
+    .hash-item {
+        padding: 15px;
+        background: var(--input-bg);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+    }
+
+    .hash-type {
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .hash-value {
+        font-family: 'Courier New', monospace;
+        word-break: break-all;
+        color: var(--text-color);
+        font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .crypto-tabs {
+            flex-direction: column;
+        }
+        
+        .crypto-tab {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crypto-container">
+    <div class="crypto-header">
+        <h2>🔐 Aplikacja Kryptograficzna</h2>
+        <p>Narzędzie edukacyjne do nauki algorytmów szyfrowania i funkcji kryptograficznych</p>
+    </div>
+
+    <div class="crypto-tabs">
+        <button class="crypto-tab active" onclick="switchTab('classical')">Szyfry Klasyczne</button>
+        <button class="crypto-tab" onclick="switchTab('modern')">Szyfrowanie Nowoczesne</button>
+        <button class="crypto-tab" onclick="switchTab('hashing')">Funkcje Haszujące</button>
+        <button class="crypto-tab" onclick="switchTab('encoding')">Kodowanie</button>
+    </div>
+
+    <!-- Classical Ciphers Section -->
+    <div id="classical-section" class="crypto-section active">
+        <div class="info-box">
+            <h4>Szyfry Klasyczne</h4>
+            <p>Historyczne metody szyfrowania używane przed erą komputerową. Obejmują szyfr Cezara, Vigenère'a, podstawieniowy i Rail Fence.</p>
+        </div>
+
+        <div class="crypto-form">
+            <div class="form-group">
+                <label>Wybierz Szyfr:</label>
+                <select id="classical-cipher-type" class="form-group input" style="padding: 12px;">
+                    <option value="caesar">Szyfr Cezara (Caesar)</option>
+                    <option value="vigenere">Szyfr Vigenère'a</option>
+                    <option value="substitution">Szyfr Podstawieniowy</option>
+                    <option value="railfence">Szyfr Rail Fence</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tekst do zaszyfrowania/odszyfrowania:</label>
+                <textarea id="classical-text" placeholder="Wpisz tekst..."></textarea>
+            </div>
+
+            <div id="caesar-params" class="form-group">
+                <label>Przesunięcie (Shift): <span id="caesar-shift-value">3</span></label>
+                <input type="range" id="caesar-shift" min="1" max="25" value="3" oninput="document.getElementById('caesar-shift-value').textContent = this.value">
+            </div>
+
+            <div id="vigenere-params" class="form-group" style="display: none;">
+                <label>Klucz (tylko litery):</label>
+                <input type="text" id="vigenere-key" placeholder="np. TAJNYKLUCZ">
+            </div>
+
+            <div id="substitution-params" class="form-group" style="display: none;">
+                <label>Klucz podstawieniowy (26 liter):</label>
+                <input type="text" id="substitution-key" placeholder="np. ZYXWVUTSRQPONMLKJIHGFEDCBA" maxlength="26">
+            </div>
+
+            <div id="railfence-params" class="form-group" style="display: none;">
+                <label>Liczba szyn (Rails): <span id="railfence-rails-value">3</span></label>
+                <input type="range" id="railfence-rails" min="2" max="10" value="3" oninput="document.getElementById('railfence-rails-value').textContent = this.value">
+            </div>
+
+            <div class="crypto-buttons">
+                <button class="crypto-btn crypto-btn-primary" onclick="performClassical('encrypt')">
+                    🔒 Zaszyfruj
+                </button>
+                <button class="crypto-btn crypto-btn-secondary" onclick="performClassical('decrypt')">
+                    🔓 Odszyfruj
+                </button>
+            </div>
+        </div>
+
+        <div id="classical-result" class="result-container">
+            <div class="result-header">
+                <span class="result-title">Wynik:</span>
+                <button class="copy-btn" onclick="copyResult('classical-result-text')">📋 Kopiuj</button>
+            </div>
+            <div id="classical-result-text" class="result-content"></div>
+        </div>
+
+        <div id="classical-error" class="error-message"></div>
+    </div>
+
+    <!-- Modern Encryption Section -->
+    <div id="modern-section" class="crypto-section">
+        <div class="info-box">
+            <h4>Szyfrowanie Nowoczesne</h4>
+            <p>Algorytmy kryptograficzne używane współcześnie: AES (Advanced Encryption Standard) i RSA (Rivest-Shamir-Adleman).</p>
+        </div>
+
+        <div class="crypto-form">
+            <div class="form-group">
+                <label>Wybierz Algorytm:</label>
+                <select id="modern-cipher-type" class="form-group input" style="padding: 12px;">
+                    <option value="aes">AES-256 (Szyfrowanie Symetryczne)</option>
+                    <option value="rsa">RSA (Szyfrowanie Asymetryczne)</option>
+                </select>
+            </div>
+
+            <!-- AES Section -->
+            <div id="aes-section">
+                <div class="form-group">
+                    <label>Tekst:</label>
+                    <textarea id="aes-text" placeholder="Wpisz tekst..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Klucz szyfrowania:</label>
+                    <input type="text" id="aes-key" placeholder="Wpisz klucz szyfrowania">
+                </div>
+
+                <div class="form-group" id="aes-iv-group" style="display: none;">
+                    <label>IV (Initialization Vector) - dla deszyfrowania:</label>
+                    <input type="text" id="aes-iv" placeholder="Wektor inicjalizacyjny z szyfrowania">
+                </div>
+
+                <div class="crypto-buttons">
+                    <button class="crypto-btn crypto-btn-primary" onclick="performAES('encrypt')">
+                        🔒 Zaszyfruj AES
+                    </button>
+                    <button class="crypto-btn crypto-btn-secondary" onclick="performAES('decrypt')">
+                        🔓 Odszyfruj AES
+                    </button>
+                </div>
+            </div>
+
+            <!-- RSA Section -->
+            <div id="rsa-section" style="display: none;">
+                <div class="form-group">
+                    <button class="crypto-btn crypto-btn-success" onclick="generateRSAKeys()">
+                        🔑 Generuj Parę Kluczy RSA
+                    </button>
+                </div>
+
+                <div id="rsa-keys-display" style="display: none;">
+                    <div class="form-group">
+                        <label>Klucz Publiczny:</label>
+                        <div class="key-display" id="rsa-public-key-display"></div>
+                        <textarea id="rsa-public-key" style="display: none;"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Klucz Prywatny (zachowaj w tajemnicy!):</label>
+                        <div class="key-display" id="rsa-private-key-display"></div>
+                        <textarea id="rsa-private-key" style="display: none;"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tekst:</label>
+                    <textarea id="rsa-text" placeholder="Wpisz tekst do zaszyfrowania/odszyfrowania..."></textarea>
+                </div>
+
+                <div class="crypto-buttons">
+                    <button class="crypto-btn crypto-btn-primary" onclick="performRSA('encrypt')">
+                        🔒 Zaszyfruj RSA (użyj klucza publicznego)
+                    </button>
+                    <button class="crypto-btn crypto-btn-secondary" onclick="performRSA('decrypt')">
+                        🔓 Odszyfruj RSA (użyj klucza prywatnego)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modern-result" class="result-container">
+            <div class="result-header">
+                <span class="result-title">Wynik:</span>
+                <button class="copy-btn" onclick="copyResult('modern-result-text')">📋 Kopiuj</button>
+            </div>
+            <div id="modern-result-text" class="result-content"></div>
+        </div>
+
+        <div id="modern-error" class="error-message"></div>
+    </div>
+
+    <!-- Hashing Section -->
+    <div id="hashing-section" class="crypto-section">
+        <div class="info-box">
+            <h4>Funkcje Haszujące</h4>
+            <p>Jednokierunkowe funkcje kryptograficzne tworzące unikalny "odcisk palca" danych. Nie można ich odwrócić.</p>
+        </div>
+
+        <div class="crypto-form">
+            <div class="form-group">
+                <label>Tekst do zahaszowania:</label>
+                <textarea id="hash-text" placeholder="Wpisz tekst..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Wybierz Algorytm Haszujący:</label>
+                <select id="hash-type" class="form-group input" style="padding: 12px;">
+                    <option value="all">Wszystkie (MD5, SHA-1, SHA-256, SHA-512)</option>
+                    <option value="md5">MD5</option>
+                    <option value="sha1">SHA-1</option>
+                    <option value="sha256">SHA-256</option>
+                    <option value="sha512">SHA-512</option>
+                </select>
+            </div>
+
+            <div class="crypto-buttons">
+                <button class="crypto-btn crypto-btn-primary" onclick="performHashing()">
+                    🔨 Oblicz Hash
+                </button>
+            </div>
+        </div>
+
+        <div id="hashing-result" class="result-container">
+            <div class="result-header">
+                <span class="result-title">Wyniki Haszowania:</span>
+            </div>
+            <div id="hashing-result-content" class="hash-results"></div>
+        </div>
+
+        <div id="hashing-error" class="error-message"></div>
+    </div>
+
+    <!-- Encoding Section -->
+    <div id="encoding-section" class="crypto-section">
+        <div class="info-box">
+            <h4>Kodowanie</h4>
+            <p>Metody reprezentacji danych w różnych formatach. Kodowanie NIE jest szyfrowaniem - nie zapewnia bezpieczeństwa.</p>
+        </div>
+
+        <div class="crypto-form">
+            <div class="form-group">
+                <label>Tekst:</label>
+                <textarea id="encode-text" placeholder="Wpisz tekst..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Metoda Kodowania:</label>
+                <select id="encoding-type" class="form-group input" style="padding: 12px;">
+                    <option value="base64">Base64</option>
+                    <option value="hex">Hexadecimal (Hex)</option>
+                </select>
+            </div>
+
+            <div class="crypto-buttons">
+                <button class="crypto-btn crypto-btn-primary" onclick="performEncoding('encode')">
+                    ➡️ Koduj
+                </button>
+                <button class="crypto-btn crypto-btn-secondary" onclick="performEncoding('decode')">
+                    ⬅️ Dekoduj
+                </button>
+            </div>
+        </div>
+
+        <div id="encoding-result" class="result-container">
+            <div class="result-header">
+                <span class="result-title">Wynik:</span>
+                <button class="copy-btn" onclick="copyResult('encoding-result-text')">📋 Kopiuj</button>
+            </div>
+            <div id="encoding-result-text" class="result-content"></div>
+        </div>
+
+        <div id="encoding-error" class="error-message"></div>
+    </div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(tab) {
+    // Hide all sections
+    document.querySelectorAll('.crypto-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Remove active from all tabs
+    document.querySelectorAll('.crypto-tab').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected section and mark tab as active
+    document.getElementById(tab + '-section').classList.add('active');
+    event.target.classList.add('active');
+}
+
+// Classical cipher type switching
+document.getElementById('classical-cipher-type').addEventListener('change', function() {
+    const type = this.value;
+    document.getElementById('caesar-params').style.display = type === 'caesar' ? 'block' : 'none';
+    document.getElementById('vigenere-params').style.display = type === 'vigenere' ? 'block' : 'none';
+    document.getElementById('substitution-params').style.display = type === 'substitution' ? 'block' : 'none';
+    document.getElementById('railfence-params').style.display = type === 'railfence' ? 'block' : 'none';
+});
+
+// Modern cipher type switching
+document.getElementById('modern-cipher-type').addEventListener('change', function() {
+    const type = this.value;
+    document.getElementById('aes-section').style.display = type === 'aes' ? 'block' : 'none';
+    document.getElementById('rsa-section').style.display = type === 'rsa' ? 'block' : 'none';
+});
+
+// Classical Ciphers
+async function performClassical(operation) {
+    const type = document.getElementById('classical-cipher-type').value;
+    const text = document.getElementById('classical-text').value;
+    
+    if (!text) {
+        showError('classical', 'Proszę wpisać tekst');
+        return;
+    }
+    
+    let endpoint = '';
+    let data = { text, operation };
+    
+    switch(type) {
+        case 'caesar':
+            endpoint = '/encryption/api/caesar';
+            data.shift = parseInt(document.getElementById('caesar-shift').value);
+            break;
+        case 'vigenere':
+            endpoint = '/encryption/api/vigenere';
+            data.key = document.getElementById('vigenere-key').value;
+            break;
+        case 'substitution':
+            endpoint = '/encryption/api/substitution';
+            data.key = document.getElementById('substitution-key').value;
+            break;
+        case 'railfence':
+            endpoint = '/encryption/api/railfence';
+            data.rails = parseInt(document.getElementById('railfence-rails').value);
+            break;
+    }
+    
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showResult('classical', result.result);
+        } else {
+            showError('classical', result.error);
+        }
+    } catch (error) {
+        showError('classical', 'Błąd: ' + error.message);
+    }
+}
+
+// AES Encryption
+async function performAES(operation) {
+    const text = document.getElementById('aes-text').value;
+    const key = document.getElementById('aes-key').value;
+    
+    if (!text || !key) {
+        showError('modern', 'Proszę wypełnić wszystkie pola');
+        return;
+    }
+    
+    const data = { text, key, operation };
+    
+    if (operation === 'decrypt') {
+        const iv = document.getElementById('aes-iv').value;
+        if (!iv) {
+            showError('modern', 'IV jest wymagany do deszyfrowania');
+            return;
+        }
+        data.iv = iv;
+    }
+    
+    try {
+        const response = await fetch('/encryption/api/aes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let output = result.result;
+            if (operation === 'encrypt') {
+                output += '\n\nIV (zapisz do deszyfrowania): ' + result.iv;
+                document.getElementById('aes-iv').value = result.iv;
+                document.getElementById('aes-iv-group').style.display = 'block';
+            }
+            showResult('modern', output);
+        } else {
+            showError('modern', result.error);
+        }
+    } catch (error) {
+        showError('modern', 'Błąd: ' + error.message);
+    }
+}
+
+// RSA Key Generation
+async function generateRSAKeys() {
+    try {
+        const response = await fetch('/encryption/api/rsa/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key_size: 2048 })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('rsa-public-key').value = result.public_key;
+            document.getElementById('rsa-private-key').value = result.private_key;
+            document.getElementById('rsa-public-key-display').textContent = result.public_key;
+            document.getElementById('rsa-private-key-display').textContent = result.private_key;
+            document.getElementById('rsa-keys-display').style.display = 'block';
+            showNotification('Klucze RSA zostały wygenerowane!', 'success');
+        } else {
+            showError('modern', result.error);
+        }
+    } catch (error) {
+        showError('modern', 'Błąd: ' + error.message);
+    }
+}
+
+// RSA Encryption/Decryption
+async function performRSA(operation) {
+    const text = document.getElementById('rsa-text').value;
+    
+    if (!text) {
+        showError('modern', 'Proszę wpisać tekst');
+        return;
+    }
+    
+    const data = { text, operation };
+    
+    if (operation === 'encrypt') {
+        const publicKey = document.getElementById('rsa-public-key').value;
+        if (!publicKey) {
+            showError('modern', 'Proszę najpierw wygenerować klucze lub wkleić klucz publiczny');
+            return;
+        }
+        data.public_key = publicKey;
+    } else {
+        const privateKey = document.getElementById('rsa-private-key').value;
+        if (!privateKey) {
+            showError('modern', 'Proszę najpierw wygenerować klucze lub wkleić klucz prywatny');
+            return;
+        }
+        data.private_key = privateKey;
+    }
+    
+    try {
+        const response = await fetch('/encryption/api/rsa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showResult('modern', result.result);
+        } else {
+            showError('modern', result.error);
+        }
+    } catch (error) {
+        showError('modern', 'Błąd: ' + error.message);
+    }
+}
+
+// Hashing
+async function performHashing() {
+    const text = document.getElementById('hash-text').value;
+    const hashType = document.getElementById('hash-type').value;
+    
+    if (!text) {
+        showError('hashing', 'Proszę wpisać tekst');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/encryption/api/hash', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, hash_type: hashType })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let html = '';
+            for (const [type, hash] of Object.entries(result.result)) {
+                html += `
+                    <div class="hash-item">
+                        <div class="hash-type">${type.toUpperCase()}</div>
+                        <div class="hash-value">${hash}</div>
+                    </div>
+                `;
+            }
+            document.getElementById('hashing-result-content').innerHTML = html;
+            document.getElementById('hashing-result').classList.add('show');
+            document.getElementById('hashing-error').classList.remove('show');
+        } else {
+            showError('hashing', result.error);
+        }
+    } catch (error) {
+        showError('hashing', 'Błąd: ' + error.message);
+    }
+}
+
+// Encoding/Decoding
+async function performEncoding(operation) {
+    const text = document.getElementById('encode-text').value;
+    const encodingType = document.getElementById('encoding-type').value;
+    
+    if (!text) {
+        showError('encoding', 'Proszę wpisać tekst');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/encryption/api/encode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, encoding_type: encodingType, operation })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showResult('encoding', result.result);
+        } else {
+            showError('encoding', result.error);
+        }
+    } catch (error) {
+        showError('encoding', 'Błąd: ' + error.message);
+    }
+}
+
+// Helper functions
+function showResult(section, result) {
+    const resultDiv = document.getElementById(section + '-result');
+    const resultText = document.getElementById(section + '-result-text');
+    const errorDiv = document.getElementById(section + '-error');
+    
+    resultText.textContent = result;
+    resultDiv.classList.add('show');
+    errorDiv.classList.remove('show');
+}
+
+function showError(section, error) {
+    const errorDiv = document.getElementById(section + '-error');
+    const resultDiv = document.getElementById(section + '-result');
+    
+    errorDiv.textContent = error;
+    errorDiv.classList.add('show');
+    resultDiv.classList.remove('show');
+}
+
+function copyResult(elementId) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Skopiowano do schowka!', 'success');
+    });
+}
+
+function showNotification(message, type) {
+    // Use existing notification system if available
+    if (typeof showNotificationMessage === 'function') {
+        showNotificationMessage(message, type);
+    } else {
+        alert(message);
+    }
+}
+</script>
+{% endblock %}
