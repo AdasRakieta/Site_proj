@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant FE as Frontend
+  participant BE as RoutesManager
+  participant Cache as CacheManager
+  participant DB as MultiHomeDBManager
+
+  FE->>BE: emit toggle_button({id, state})
+  BE->>DB: update_button_state(id, state)
+  DB-->>BE: ok
+  BE->>Cache: invalidate(buttons_list)
+  BE->>FE: socket emit update_button

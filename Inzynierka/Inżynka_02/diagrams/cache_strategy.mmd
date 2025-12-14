@@ -1,0 +1,15 @@
+
+flowchart TB
+  subgraph Cache[Cache Layer]
+    CM[CacheManager]
+    CM -->|get_timeout| T[Timeouts]
+    CM -->|invalidate| API[API endpoints]
+    CM -->|invalidate| UI[Web UI]
+  end
+
+  subgraph Backend[Backend]
+    SM[SmartHomeSystem] --> CM
+    DB[MultiHomeDBManager] --> CM
+  end
+
+  style CM fill:#f9f,stroke:#333,stroke-width:1px

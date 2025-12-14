@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant Client
+  participant SocketHandler as Socket Handler
+  participant Executor as AutomationExecutor
+  participant DB as MultiHomeDBManager
+
+  Client->>SocketHandler: event device_state_changed(device_id, new_state)
+  SocketHandler->>Executor: check_and_trigger(device_id, new_state)
+  Executor->>DB: evaluate_triggers(device_id, new_state)
+  DB-->>Executor: matched_automations
+  Executor->>Executor: execute_matched_automations()
+  Executor->>SocketHandler: emit updates

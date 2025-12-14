@@ -1,0 +1,34 @@
+```mermaid
+classDiagram
+  class Button {
+    +id
+    +name
+    +state
+    +room_id
+    +toggle()
+  }
+  class TemperatureControl {
+    +id
+    +name
+    +temperature
+    +set_temperature()
+  }
+  class Automation {
+    +id
+    +name
+    +trigger_config
+    +actions_config
+    +enabled
+  }
+  class Home {
+    +id
+    +name
+    +owner_id
+  }
+
+  Button --|> Home
+  TemperatureControl --|> Home
+  Automation --|> Home
+
+Alt: Diagram klas pokazujący podstawowe modele domenowe: Button, TemperatureControl, Automation i Home oraz ich atrybuty.
+```

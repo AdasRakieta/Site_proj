@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant Client as Frontend
+  participant Socket as Flask-SocketIO
+  participant App as SmartHomeApp
+  participant Cache as CacheManager
+  participant DB as MultiHomeDBManager
+
+  Client->>Socket: connect()
+  Note right of Socket: handshake + optional auth token
+  Socket->>App: handle_connect()
+  App->>DB: get_initial_state(user_id)
+  DB-->>App: initial_state
+  App->>Cache: set(initial_state)
+  App->>Client: emit initial_state (via Socket.IO)

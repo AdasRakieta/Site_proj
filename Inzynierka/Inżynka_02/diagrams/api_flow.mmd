@@ -1,0 +1,13 @@
+
+sequenceDiagram
+  participant FE as Frontend
+  participant BE as RoutesManager
+  participant DB as MultiHomeDBManager
+  participant Cache as CacheManager
+
+  FE->>BE: POST /api/button/toggle
+  BE->>Cache: invalidate(buttons_list)
+  BE->>DB: update_button_state()
+  DB-->>BE: ok
+  BE->>FE: emit update_button via Socket.IO
+  Note over FE,BE: UI updates in real-time

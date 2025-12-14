@@ -1,0 +1,17 @@
+flowchart LR
+  subgraph App[Application]
+    A[Flask Routes] -->|calls| B[RoutesManager]
+    B -->|uses| C[SmartHomeSystem]
+    B -->|multi-db| D[MultiHomeDBManager]
+  end
+
+  subgraph DB[Database Layer]
+    D --> E[homes table]
+    D --> F[home_automations]
+    D --> G[home_invitations]
+    C --> H[legacy JSON fallback]
+  end
+
+  E --- F
+  F --- G
+  C -.-> D

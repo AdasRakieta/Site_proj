@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant Scheduler as AutomationScheduler
+  participant Executor as AutomationExecutor
+  participant DB as MultiHomeDBManager
+  participant Socket as Flask-SocketIO
+
+  Scheduler->>Executor: run(automation_id)
+  Executor->>DB: record_execution_start(automation_id)
+  Executor->>DB: perform_actions(actions)
+  DB-->>Executor: results
+  Executor->>DB: record_execution_end(automation_id)
+  Executor->>Socket: emit automation_executed

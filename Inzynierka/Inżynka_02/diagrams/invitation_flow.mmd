@@ -1,0 +1,13 @@
+sequenceDiagram
+  participant Owner
+  participant App as RoutesManager
+  participant DB as MultiHomeDBManager
+  participant Mail as AsyncMailManager
+
+  Owner->>App: create_invitation(email, role)
+  App->>DB: insert_home_invitation(email, role)
+  App->>Mail: enqueue_invitation_email(email, invitation_code)
+  Mail-->>Owner: email_sent
+  Note right of Owner: Recipient clicks link -> accept
+  Recipient->>App: accept_invitation(code)
+  App->>DB: mark_invitation_accepted(code)
