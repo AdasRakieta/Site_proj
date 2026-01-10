@@ -23,33 +23,44 @@ from utils.smart_home_db_manager import SmartHomeDatabaseManager, DatabaseError
 from utils.weather_service import WeatherService
 
 class SmartHomeSystemDB:
-    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
-        """Get user by ID (compatible method)"""
-        return self.db.get_user_by_id(user_id)
     """
     SmartHome System with PostgreSQL Database Backend
     
     This class provides the same interface as the original SmartHomeSystem
     but uses PostgreSQL database for data persistence instead of JSON files.
+    Automatically falls back to JSON mode if database is unavailable.
     """
     
     def __init__(self, config_file=None, save_interval=3000):
         """
-        Initialize SmartHome system with database backend
+        Initialize SmartHome system with database backend or JSON fallback
         
         Args:
-            config_file: Ignored in database mode (kept for compatibility)
+            config_file: Configuration file for JSON mode (default: smart_home_config.json)
             save_interval: Auto-save interval in seconds (kept for compatibility)
         """
-        self.config_file = config_file  # Kept for compatibility
+        self.config_file = config_file or 'smart_home_config.json'
         self.save_interval = save_interval
         self.last_save_time = datetime.now()
+        self.json_fallback = None
+        self.db = None
         
-        # Database manager with JSON fallback
+        # Thread safety
+        self._save_lock = threading.Lock()
+        self._save_in_progress = False
+        
+        # Try to initialize database manager
         try:
             self.db = SmartHomeDatabaseManager()
-            self.json_fallback = None
-            print("✓ PostgreSQL database connected successfully")
+            # Check if database manager itself is in JSON fallback mode
+            if hasattr(self.db, 'json_fallback_mode') and self.db.json_fallback_mode:
+                print("✓ Database manager activated JSON fallback mode")
+                self.json_fallback = self.db.json_backup
+                self.db = None
+            else:
+                print("✓ PostgreSQL database connected successfully")
+                # Initialize default settings only if using database
+                self._initialize_default_settings()
         except (DatabaseError, Exception) as e:
             print(f"⚠ Failed to initialize database: {e}")
             print("⚠ Activating JSON backup fallback...")
@@ -66,14 +77,6 @@ class SmartHomeSystemDB:
                     "Both PostgreSQL and JSON backup systems failed to initialize. "
                     "Cannot start application."
                 )
-        
-        # Thread safety
-        self._save_lock = threading.Lock()
-        self._save_in_progress = False
-        
-        # Initialize default settings if they don't exist
-        if self.db:
-            self._initialize_default_settings()
         
         if self.db:
             print("SmartHome System initialized with PostgreSQL database backend")
@@ -104,72 +107,111 @@ class SmartHomeSystemDB:
     @property
     def users(self) -> Dict[str, Dict]:
         """Get users dict (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('users', {})
         return self.db.get_users()
     
     @users.setter
     def users(self, value: Dict[str, Dict]):
         """Set users dict (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to users property is discouraged in database mode")
-        # In database mode, use add_user, update_user_profile, delete_user methods instead
+        print("Warning: Direct assignment to users property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['users'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def rooms(self) -> List[str]:
         """Get rooms list (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('rooms', [])
         return self.db.get_rooms()
     
     @rooms.setter
     def rooms(self, value: List[str]):
         """Set rooms list (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to rooms property is discouraged in database mode")
-        # In database mode, use add_room, delete_room methods instead
+        print("Warning: Direct assignment to rooms property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['rooms'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def buttons(self) -> List[Dict]:
         """Get buttons list (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('buttons', [])
         return self.db.get_buttons()
     
     @buttons.setter
     def buttons(self, value: List[Dict]):
         """Set buttons list (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to buttons property is discouraged in database mode")
-        # In database mode, use add_button, update_device, delete_device methods instead
+        print("Warning: Direct assignment to buttons property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['buttons'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def temperature_controls(self) -> List[Dict]:
         """Get temperature controls list (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('temperature_controls', [])
         return self.db.get_temperature_controls()
     
     @temperature_controls.setter
     def temperature_controls(self, value: List[Dict]):
         """Set temperature controls list (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to temperature_controls property is discouraged in database mode")
-        # In database mode, use add_temperature_control, update_device, delete_device methods instead
+        print("Warning: Direct assignment to temperature_controls property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['temperature_controls'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def automations(self) -> List[Dict]:
         """Get automations list (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('automations', [])
         return self.db.get_automations()
     
     @automations.setter
     def automations(self, value: List[Dict]):
         """Set automations list (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to automations property is discouraged in database mode")
-        # In database mode, use add_automation, update_automation, delete_automation methods instead
+        print("Warning: Direct assignment to automations property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['automations'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def temperature_states(self) -> Dict[str, float]:
         """Get temperature states dict (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('temperature_states', {})
         return self.db.get_temperature_states()
     
     @temperature_states.setter
     def temperature_states(self, value: Dict[str, float]):
         """Set temperature states dict (for compatibility, but discouraged)"""
-        print("Warning: Direct assignment to temperature_states property is discouraged in database mode")
-        # In database mode, use set_room_temperature method instead
+        print("Warning: Direct assignment to temperature_states property is discouraged")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['temperature_states'] = value
+            self.json_fallback.save_config(config)
     
     @property
     def security_state(self) -> str:
         """Get security state (compatibility property)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get('security_state', 'Wyłączony')
         try:
             return self.db.get_security_state()
         except Exception:
@@ -179,18 +221,52 @@ class SmartHomeSystemDB:
     @security_state.setter
     def security_state(self, value: str):
         """Set security state (compatibility property)"""
-        try:
-            self.db.set_security_state(value)
-        except Exception as e:
-            # Gracefully handle system_settings table not existing
-            print(f"⚠ Warning: Could not set security state (multihouse migration): {e}")
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['security_state'] = value
+            self.json_fallback.save_config(config)
+        else:
+            try:
+                self.db.set_security_state(value)
+            except Exception as e:
+                # Gracefully handle system_settings table not existing
+                print(f"⚠ Warning: Could not set security state (multihouse migration): {e}")
     
     # ========================================================================
     # USER MANAGEMENT METHODS (compatible with original interface)
     # ========================================================================
     
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """Get user by ID (compatible method)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            users = config.get('users', {})
+            for username, user_data in users.items():
+                if user_data.get('id') == user_id or user_data.get('user_id') == user_id:
+                    return user_data
+            return None
+        return self.db.get_user_by_id(user_id)
+    
     def get_user_data(self, user_id: str) -> Dict:
         """Get user data without password (compatible method)"""
+        if self.json_fallback:
+            user = self.get_user_by_id(user_id)
+            if user:
+                return {
+                    'user_id': user.get('id') or user.get('user_id'),
+                    'name': user.get('name', ''),
+                    'email': user.get('email', ''),
+                    'role': user.get('role', 'user'),
+                    'profile_picture': user.get('profile_picture', '')
+                }
+            return {
+                'user_id': user_id,
+                'name': user_id,
+                'email': '',
+                'role': 'user',
+                'profile_picture': ''
+            }
+        
         user = self.db.get_user_by_id(user_id)
         if user:
             return {
@@ -211,10 +287,24 @@ class SmartHomeSystemDB:
     
     def get_user_by_login(self, login: str) -> Tuple[Optional[str], Optional[Dict]]:
         """Get user by login name (compatible method)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            users = config.get('users', {})
+            if login in users:
+                user_data = users[login]
+                user_id = user_data.get('id') or user_data.get('user_id')
+                return (user_id, user_data)
+            return (None, None)
         return self.db.get_user_by_login(login)
     
     def verify_password(self, user_id: str, password: str) -> bool:
         """Verify user password (compatible method)"""
+        if self.json_fallback:
+            user = self.get_user_by_id(user_id)
+            if user:
+                return check_password_hash(user['password'], password)
+            return False
+        
         user = self.db.get_user_by_id(user_id)
         if user:
             return check_password_hash(user['password'], password)
@@ -223,6 +313,32 @@ class SmartHomeSystemDB:
     def add_user(self, username: str, password: str, role: str = 'user', email: str = '') -> str:
         """Add new user (compatible method)"""
         hashed_password = generate_password_hash(password)
+        
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            users = config.get('users', {})
+            
+            # Check if user already exists
+            if username in users:
+                return None
+            
+            user_id = str(uuid.uuid4())
+            users[username] = {
+                'id': user_id,
+                'user_id': user_id,
+                'username': username,
+                'password': hashed_password,
+                'role': role,
+                'name': username,
+                'email': email,
+                'profile_picture': '',
+                'created_at': datetime.now().isoformat()
+            }
+            
+            config['users'] = users
+            self.json_fallback.save_config(config)
+            return user_id
+        
         return self.db.add_user(username, hashed_password, role, email)
     
     def update_user_profile(self, user_id: str, updates: Dict) -> Tuple[bool, str]:
@@ -231,15 +347,45 @@ class SmartHomeSystemDB:
         if 'password' in updates:
             updates['password'] = generate_password_hash(updates['password'])
         
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            users = config.get('users', {})
+            
+            # Find user by ID
+            for username, user_data in users.items():
+                if user_data.get('id') == user_id or user_data.get('user_id') == user_id:
+                    # Update user data
+                    for key, value in updates.items():
+                        user_data[key] = value
+                    
+                    config['users'] = users
+                    success = self.json_fallback.save_config(config)
+                    return (success, "Profile updated successfully" if success else "Failed to update profile")
+            
+            return (False, "User not found")
+        
         return self.db.update_user_profile(user_id, updates)
     
     def change_password(self, user_id: str, new_password: str) -> Tuple[bool, str]:
         """Change user password (compatible method)"""
         hashed_password = generate_password_hash(new_password)
-        return self.db.update_user_profile(user_id, {'password': hashed_password})
+        return self.update_user_profile(user_id, {'password': hashed_password})
     
     def delete_user(self, user_id: str) -> bool:
         """Delete user (compatible method)"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            users = config.get('users', {})
+            
+            # Find and delete user by ID
+            for username, user_data in list(users.items()):
+                if user_data.get('id') == user_id or user_data.get('user_id') == user_id:
+                    del users[username]
+                    config['users'] = users
+                    return self.json_fallback.save_config(config)
+            
+            return False
+        
         return self.db.delete_user(user_id)
     
     # ========================================================================
@@ -248,18 +394,56 @@ class SmartHomeSystemDB:
     
     def add_room(self, room_name: str) -> str:
         """Add new room"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            rooms = config.get('rooms', [])
+            if room_name not in rooms:
+                rooms.append(room_name)
+                config['rooms'] = rooms
+                self.json_fallback.save_config(config)
+            return room_name
         return self.db.add_room(room_name)
     
     def update_room(self, old_name: str, new_name: str) -> bool:
         """Update room name"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            rooms = config.get('rooms', [])
+            if old_name in rooms:
+                rooms[rooms.index(old_name)] = new_name
+                # Update room names in devices
+                for button in config.get('buttons', []):
+                    if button.get('room') == old_name:
+                        button['room'] = new_name
+                for control in config.get('temperature_controls', []):
+                    if control.get('room') == old_name:
+                        control['room'] = new_name
+                config['rooms'] = rooms
+                return self.json_fallback.save_config(config)
+            return False
         return self.db.update_room(old_name, new_name)
     
     def delete_room(self, room_name: str) -> bool:
         """Delete room"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            rooms = config.get('rooms', [])
+            if room_name in rooms:
+                rooms.remove(room_name)
+                # Remove devices in this room
+                config['buttons'] = [b for b in config.get('buttons', []) if b.get('room') != room_name]
+                config['temperature_controls'] = [t for t in config.get('temperature_controls', []) if t.get('room') != room_name]
+                config['rooms'] = rooms
+                return self.json_fallback.save_config(config)
+            return False
         return self.db.delete_room(room_name)
 
     def reorder_rooms(self, room_names: List[str]) -> bool:
-        """Reorder rooms based on provided list of room names (DB mode)"""
+        """Reorder rooms based on provided list of room names"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config['rooms'] = room_names
+            return self.json_fallback.save_config(config)
         try:
             return self.db.reorder_rooms(room_names)
         except Exception as e:
@@ -272,24 +456,88 @@ class SmartHomeSystemDB:
     
     def add_button(self, name: str, room_name: str, state: bool = False) -> str:
         """Add new button device"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            buttons = config.get('buttons', [])
+            device_id = str(uuid.uuid4())
+            buttons.append({
+                'id': device_id,
+                'name': name,
+                'room': room_name,
+                'state': state
+            })
+            config['buttons'] = buttons
+            self.json_fallback.save_config(config)
+            return device_id
         result = self.db.add_button(name, room_name, state)
         return result or ""
     
     def add_temperature_control(self, name: str, room_name: str, temperature: float = 22.0) -> str:
         """Add new temperature control device"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            controls = config.get('temperature_controls', [])
+            device_id = str(uuid.uuid4())
+            controls.append({
+                'id': device_id,
+                'name': name,
+                'room': room_name,
+                'temperature': temperature,
+                'enabled': True
+            })
+            config['temperature_controls'] = controls
+            self.json_fallback.save_config(config)
+            return device_id
         result = self.db.add_temperature_control(name, room_name, temperature)
         return result or ""
     
     def update_device(self, device_id: str, updates: Dict) -> bool:
         """Update device properties"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            # Update button
+            for button in config.get('buttons', []):
+                if button.get('id') == device_id:
+                    for key, value in updates.items():
+                        button[key] = value
+                    return self.json_fallback.save_config(config)
+            # Update temperature control
+            for control in config.get('temperature_controls', []):
+                if control.get('id') == device_id:
+                    for key, value in updates.items():
+                        control[key] = value
+                    return self.json_fallback.save_config(config)
+            return False
         return self.db.update_device(device_id, updates)
     
     def delete_device(self, device_id: str) -> bool:
         """Delete device"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            # Delete from buttons
+            original_len = len(config.get('buttons', []))
+            config['buttons'] = [b for b in config.get('buttons', []) if b.get('id') != device_id]
+            if len(config['buttons']) < original_len:
+                return self.json_fallback.save_config(config)
+            # Delete from temperature controls
+            original_len = len(config.get('temperature_controls', []))
+            config['temperature_controls'] = [t for t in config.get('temperature_controls', []) if t.get('id') != device_id]
+            if len(config['temperature_controls']) < original_len:
+                return self.json_fallback.save_config(config)
+            return False
         return self.db.delete_device(device_id)
     
     def get_device_by_id(self, device_id: str) -> Optional[Dict]:
         """Get device by ID"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            for button in config.get('buttons', []):
+                if button.get('id') == device_id:
+                    return button
+            for control in config.get('temperature_controls', []):
+                if control.get('id') == device_id:
+                    return control
+            return None
         return self.db.get_device_by_id(device_id)
     
     # ========================================================================
@@ -298,14 +546,44 @@ class SmartHomeSystemDB:
     
     def add_automation(self, name: str, trigger: Dict, actions: List[Dict], enabled: bool = True) -> str:
         """Add new automation"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            automations = config.get('automations', [])
+            automations.append({
+                'name': name,
+                'trigger': trigger,
+                'actions': actions,
+                'enabled': enabled
+            })
+            config['automations'] = automations
+            self.json_fallback.save_config(config)
+            return name
         return self.db.add_automation(name, trigger, actions, enabled)
     
     def update_automation(self, automation_name: str, updates: Dict) -> bool:
         """Update automation"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            automations = config.get('automations', [])
+            for auto in automations:
+                if auto.get('name') == automation_name:
+                    for key, value in updates.items():
+                        auto[key] = value
+                    config['automations'] = automations
+                    return self.json_fallback.save_config(config)
+            return False
         return self.db.update_automation(automation_name, updates)
     
     def delete_automation(self, automation_name: str) -> bool:
         """Delete automation"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            automations = config.get('automations', [])
+            original_len = len(automations)
+            config['automations'] = [a for a in automations if a.get('name') != automation_name]
+            if len(config['automations']) < original_len:
+                return self.json_fallback.save_config(config)
+            return False
         return self.db.delete_automation(automation_name)
     
     # ========================================================================
@@ -314,6 +592,12 @@ class SmartHomeSystemDB:
     
     def set_room_temperature(self, room_name: str, temperature: float) -> bool:
         """Set room temperature"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            temp_states = config.get('temperature_states', {})
+            temp_states[room_name] = temperature
+            config['temperature_states'] = temp_states
+            return self.json_fallback.save_config(config)
         return self.db.set_room_temperature(room_name, temperature)
     
     # ========================================================================
@@ -322,10 +606,17 @@ class SmartHomeSystemDB:
     
     def get_system_setting(self, key: str) -> Any:
         """Get system setting"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return config.get(key)
         return self.db.get_system_setting(key)
     
     def set_system_setting(self, key: str, value: Any, description: Optional[str] = None) -> bool:
         """Set system setting"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            config[key] = value
+            return self.json_fallback.save_config(config)
         return self.db.set_system_setting(key, value, description)
     
     # ========================================================================
@@ -336,15 +627,26 @@ class SmartHomeSystemDB:
                           user_id: Optional[str] = None, username: Optional[str] = None,
                           ip_address: Optional[str] = None, details: Optional[Dict] = None) -> str:
         """Add management log entry"""
+        if self.json_fallback:
+            # In JSON mode, we can't store logs persistently, just return empty string
+            # This is acceptable for fallback mode
+            print(f"[LOG] {level}: {message} (user: {username}, type: {event_type})")
+            return ""
         result = self.db.add_management_log(level, message, event_type, user_id, username, ip_address, details)
         return result or ""
     
     def get_management_logs(self, limit: int = 100, level: Optional[str] = None, event_type: Optional[str] = None) -> List[Dict]:
         """Get management logs"""
+        if self.json_fallback:
+            # In JSON mode, no logs are stored
+            return []
         return self.db.get_management_logs(limit, level, event_type)
     
     def clear_management_logs(self) -> bool:
         """Clear all management logs"""
+        if self.json_fallback:
+            # No logs to clear in JSON mode
+            return True
         return self.db.clear_management_logs()
     
     # ========================================================================
@@ -465,10 +767,23 @@ class SmartHomeSystemDB:
     
     def export_to_json(self) -> Dict:
         """Export all data to JSON format for backup"""
+        if self.json_fallback:
+            # Already in JSON format
+            return self.json_fallback.get_config()
         return self.db.export_to_json_format()
     
     def get_database_stats(self) -> Dict:
         """Get database statistics"""
+        if self.json_fallback:
+            config = self.json_fallback.get_config()
+            return {
+                'mode': 'JSON Backup',
+                'users': len(config.get('users', {})),
+                'rooms': len(config.get('rooms', [])),
+                'buttons': len(config.get('buttons', [])),
+                'temperature_controls': len(config.get('temperature_controls', [])),
+                'automations': len(config.get('automations', []))
+            }
         return self.db.get_stats()
     
     # ========================================================================
