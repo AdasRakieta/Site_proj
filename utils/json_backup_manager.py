@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import string
+import uuid
 from datetime import datetime
 from werkzeug.security import generate_password_hash
 from typing import Dict, Any, Optional
@@ -95,11 +96,17 @@ class JSONBackupManager:
         self.generated_password = self._generate_secure_password()
         hashed_password = generate_password_hash(self.generated_password)
         
+        # Generate admin user ID
+        admin_user_id = str(uuid.uuid4())
+        
+        # Create default home for admin user
+        default_home_id = str(uuid.uuid4())
+        
         # Create default configuration
         default_config = {
             'users': {
                 'sys-admin': {
-                    'id': 'sys-admin-uuid-' + secrets.token_hex(8),
+                    'id': admin_user_id,
                     'username': 'sys-admin',
                     'password': hashed_password,
                     'role': 'admin',
@@ -108,6 +115,31 @@ class JSONBackupManager:
                     'created_at': datetime.now().isoformat(),
                     'is_system_user': True
                 }
+            },
+            'homes': {
+                default_home_id: {
+                    'id': default_home_id,
+                    'name': 'My Home',
+                    'description': 'Default home created with system',
+                    'owner_id': admin_user_id,
+                    'created_at': datetime.now().isoformat(),
+                    'updated_at': datetime.now().isoformat()
+                }
+            },
+            'user_homes': {
+                # Mapping: {home_id: [{user_id, role, permissions, joined_at}]}
+                default_home_id: [
+                    {
+                        'user_id': admin_user_id,
+                        'role': 'admin',
+                        'permissions': ['read', 'write', 'admin'],
+                        'joined_at': datetime.now().isoformat()
+                    }
+                ]
+            },
+            'user_current_home': {
+                # Mapping: {user_id: home_id}
+                admin_user_id: default_home_id
             },
             'temperature_states': {},
             'security_state': 'Wyłączony',
@@ -227,6 +259,70 @@ class JSONBackupManager:
                 'password': self.generated_password
             }
         return None
+    
+    def get_user_homes(self, user_id: str) -> list:
+        """Get all homes a user has access to in JSON mode"""
+        config = self.get_config()
+        user_homes_data = config.get('user_homes', {})
+        homes_data = config.get('homes', {})
+        
+        result = []
+        for home_id, users_list in user_homes_data.items():
+            # Check if this user is in the users_list for this home
+            for user_entry in users_list:
+                if user_entry.get('user_id') == user_id:
+                    home_info = homes_data.get(home_id)
+                    if home_info:
+                        result.append({
+                            'id': home_id,
+                            'name': home_info.get('name', 'Unknown'),
+                            'description': home_info.get('description', ''),
+                            'owner_id': home_info.get('owner_id'),
+                            'role': user_entry.get('role'),
+                            'permissions': user_entry.get('permissions', []),
+                            'joined_at': user_entry.get('joined_at'),
+                            'is_owner': home_info.get('owner_id') == user_id
+                        })
+                    break
+        
+        return result
+    
+    def get_user_current_home(self, user_id: str) -> Optional[str]:
+        """Get the current home ID for a user in JSON mode"""
+        config = self.get_config()
+        user_current_home = config.get('user_current_home', {})
+        return user_current_home.get(user_id)
+    
+    def set_user_current_home(self, user_id: str, home_id: str) -> bool:
+        """Set the current home for a user in JSON mode"""
+        config = self.get_config()
+        if 'user_current_home' not in config:
+            config['user_current_home'] = {}
+        config['user_current_home'][user_id] = home_id
+        return self.save_config(config)
+    
+    def get_home_rooms(self, home_id: str) -> list:
+        """Get all rooms in a home in JSON mode"""
+        config = self.get_config()
+        rooms = config.get('rooms', [])
+        return [room for room in rooms if room.get('home_id') == home_id]
+    
+    def get_home_devices(self, home_id: str) -> list:
+        """Get all devices in a home in JSON mode"""
+        config = self.get_config()
+        devices = []
+        
+        # Get buttons for this home
+        for button in config.get('buttons', []):
+            if button.get('home_id') == home_id:
+                devices.append({**button, 'device_type': 'button'})
+        
+        # Get temperature controls for this home
+        for temp_control in config.get('temperature_controls', []):
+            if temp_control.get('home_id') == home_id:
+                devices.append({**temp_control, 'device_type': 'temperature_control'})
+        
+        return devices
     
     def reset_to_defaults(self) -> bool:
         """

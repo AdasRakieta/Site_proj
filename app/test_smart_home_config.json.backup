@@ -1,13 +1,13 @@
 {
     "users": {
         "sys-admin": {
-            "id": "sys-admin-uuid-72e2ddd4a9c887b7",
+            "id": "sys-admin-uuid-a2caf4384dddb577",
             "username": "sys-admin",
-            "password": "scrypt:32768:8:1$QpuZhaXaVptliEYJ$f30b1c55314c88b4e425c520faa1b75d155a0eaa737e6fc007788b6cdc2834b856aa12848f0317ac64ea097c6be6c22cdcf8dbe2194e8eb0b35e5d1e801db099",
+            "password": "scrypt:32768:8:1$jA7veWMzcwff9WIA$82cd3488538bdcaa4f4a72e49d64946d3df3891a59fd3f060a8c2f991a5577939ae0fb8137b88f41983c624eea63f97ab72175c07b05baa8615045fadc85fff1",
             "role": "admin",
             "name": "System Administrator",
             "email": "admin@localhost",
-            "created_at": "2026-01-10T20:59:41.311296",
+            "created_at": "2026-01-10T21:18:00.609299",
             "is_system_user": true
         }
     },
@@ -18,7 +18,7 @@
     "temperature_controls": [],
     "automations": [],
     "metadata": {
-        "created_at": "2026-01-10T20:59:41.311361",
+        "created_at": "2026-01-10T21:18:00.609348",
         "backup_mode": true,
         "version": "1.0"
     }

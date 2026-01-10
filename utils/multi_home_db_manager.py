@@ -388,7 +388,14 @@ class MultiHomeDBManager:
 
     def get_user_homes(self, user_id: str) -> List[Dict]:
         """Get all homes a user has access to. Users (including sys-admins) only see homes they are explicitly members of."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            return self.json_backup.get_user_homes(user_id)
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return []
+            
             # All users - only homes they're explicitly members of via user_homes
             cursor.execute("""
                 SELECT h.id, h.name, h.description, h.owner_id, 
@@ -543,7 +550,18 @@ class MultiHomeDBManager:
 
     def get_home_details(self, home_id: str, user_id: str) -> Optional[Dict]:
         """Get detailed information about a home if user has access."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            homes = self.json_backup.get_user_homes(user_id)
+            for home in homes:
+                if home['id'] == home_id:
+                    return home
+            return None
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return None
+            
             cursor.execute("""
                 SELECT h.id, h.name, h.description, h.owner_id, h.created_at,
                        uh.role, uh.permissions,
@@ -588,7 +606,15 @@ class MultiHomeDBManager:
 
     def user_has_home_access(self, user_id: str, home_id: str) -> bool:
         """Check if user has access to a specific home. Only users explicitly added to home have access."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            homes = self.json_backup.get_user_homes(user_id)
+            return any(home['id'] == home_id for home in homes)
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
+            
             cursor.execute("""
                 SELECT 1 FROM user_homes 
                 WHERE user_id = %s AND home_id = %s
@@ -628,7 +654,18 @@ class MultiHomeDBManager:
 
     def get_user_role_in_home(self, user_id: str, home_id: str) -> Optional[str]:
         """Get user's role in a specific home."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            homes = self.json_backup.get_user_homes(user_id)
+            for home in homes:
+                if home['id'] == home_id:
+                    return home.get('role')
+            return None
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return None
+            
             cursor.execute("""
                 SELECT role FROM user_homes 
                 WHERE user_id = %s AND home_id = %s
@@ -1100,10 +1137,22 @@ class MultiHomeDBManager:
 
     def get_home_rooms(self, home_id: str, user_id: str) -> List[Dict]:
         """Get all rooms in a home that user has access to."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            if not self.user_has_home_access(user_id, home_id):
+                return []
+            rooms = self.json_backup.get_home_rooms(home_id)
+            return [{'id': r.get('id'), 'name': r.get('name'), 'description': r.get('description'), 
+                    'display_order': r.get('display_order'), 'created_at': r.get('created_at'),
+                    'updated_at': r.get('updated_at'), 'home_id': home_id} for r in rooms]
+        
         if not self.user_has_home_access(user_id, home_id):
             return []
             
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return []
+            
             cursor.execute(
                 """
                 SELECT id, name, description, display_order, created_at, updated_at
@@ -1438,10 +1487,27 @@ class MultiHomeDBManager:
     def get_home_devices(self, home_id: str, user_id: str,
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a home, optionally filtered by type."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            if not self.user_has_home_access(user_id, home_id):
+                return []
+            devices = self.json_backup.get_home_devices(home_id)
+            if device_type:
+                devices = [d for d in devices if d.get('device_type') == device_type]
+            return [{'id': d.get('id'), 'name': d.get('name'), 'room_id': d.get('room_id'),
+                    'type': d.get('device_type'), 'state': d.get('state'), 'enabled': d.get('enabled'),
+                    'temperature': d.get('temperature'), 'min_temperature': d.get('min_temperature'),
+                    'max_temperature': d.get('max_temperature'), 'display_order': d.get('display_order'),
+                    'settings': d.get('settings'), 'created_at': d.get('created_at'),
+                    'updated_at': d.get('updated_at'), 'home_id': home_id} for d in devices]
+        
         if not self.user_has_home_access(user_id, home_id):
             return []
             
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return []
+            
             query = """
                 SELECT d.*, r.name as room_name, r.home_id as room_home_id
                 FROM devices d
@@ -1835,7 +1901,14 @@ class MultiHomeDBManager:
 
     def get_user_current_home(self, user_id: str) -> Optional[int]:
         """Get user's current home ID from session or default."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            return self.json_backup.get_user_current_home(user_id)
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return None
+            
             # First try to get from active session
             cursor.execute("""
                 SELECT current_home_id FROM session_tokens 
@@ -1857,10 +1930,17 @@ class MultiHomeDBManager:
 
     def set_user_current_home(self, user_id: str, home_id: str, session_token: Optional[str] = None) -> bool:
         """Set user's current home in session."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            return self.json_backup.set_user_current_home(user_id, home_id)
+        
         if not self.user_has_home_access(user_id, home_id):
             return False
             
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
+            
             if session_token:
                 cursor.execute("""
                     UPDATE session_tokens 

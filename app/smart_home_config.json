@@ -1,20 +1,52 @@
 {
     "users": {
-        "e83aa7a5-f5d9-4252-acc8-8adf55fdb448": {
-            "password": "scrypt:32768:8:1$rysvpum3XTqh1KeX$ccb000be57b24539105ad4c9eb4c0235182b3ffa7949f4448ed5bae5277bac71bed68e49e0dadc4bc42da819b89b209781e15a40a62845e583223819bce22cb0",
+        "sys-admin": {
+            "id": "35d8e76b-e1ad-47ef-94e2-3d525e42cc94",
+            "username": "sys-admin",
+            "password": "scrypt:32768:8:1$kRztDIKNugc0DtCT$603debbed02ea57144b9494c0186414576b001d828a86cdb0fa5ff3f01b8016ea70c2e7fb0c8d518ef6fb02177d984ab5f54de502242d333c2f78778c4aa9d04",
             "role": "admin",
-            "name": "admin"
-        },
-        "6bf2f9b8-bc39-454f-8d21-ce74402027f5": {
-            "password": "scrypt:32768:8:1$gaNuKYvLnJypTQ5L$e7575ab56e9d03d993468805d425a2020177a4dfcb52d9066fa65382f024b371caebd1b510732c49cb409bfdddaba74922a7ce8575069fee7da0524f28eef5d1",
-            "role": "user",
-            "name": "user"
+            "name": "System Administrator",
+            "email": "admin@localhost",
+            "created_at": "2026-01-10T21:34:00.183327",
+            "is_system_user": true
         }
+    },
+    "homes": {
+        "b310bf97-4e58-4b66-aa70-6243f522e960": {
+            "id": "b310bf97-4e58-4b66-aa70-6243f522e960",
+            "name": "My Home",
+            "description": "Default home created with system",
+            "owner_id": "35d8e76b-e1ad-47ef-94e2-3d525e42cc94",
+            "created_at": "2026-01-10T21:34:00.183367",
+            "updated_at": "2026-01-10T21:34:00.183368"
+        }
+    },
+    "user_homes": {
+        "b310bf97-4e58-4b66-aa70-6243f522e960": [
+            {
+                "user_id": "35d8e76b-e1ad-47ef-94e2-3d525e42cc94",
+                "role": "admin",
+                "permissions": [
+                    "read",
+                    "write",
+                    "admin"
+                ],
+                "joined_at": "2026-01-10T21:34:00.183371"
+            }
+        ]
+    },
+    "user_current_home": {
+        "35d8e76b-e1ad-47ef-94e2-3d525e42cc94": "b310bf97-4e58-4b66-aa70-6243f522e960"
     },
     "temperature_states": {},
     "security_state": "Wyłączony",
     "rooms": [],
     "buttons": [],
     "temperature_controls": [],
-    "automations": []
+    "automations": [],
+    "metadata": {
+        "created_at": "2026-01-10T21:34:00.183374",
+        "backup_mode": true,
+        "version": "1.0"
+    }
 }

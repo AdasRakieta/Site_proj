@@ -217,6 +217,143 @@ class SmartHomeApp:
         # Sys-admin setup will happen in setup_routes after multi_db is initialized
         pass
     
+    def _display_admin_credentials(self):
+        """Display admin credentials if in JSON fallback mode"""
+        try:
+            # Check if we have a JSON fallback with admin credentials
+            if (hasattr(self.smart_home, 'json_fallback') and 
+                self.smart_home.json_fallback is not None):
+                
+                # Try to get admin credentials from JSON fallback
+                json_mgr = self.smart_home.json_fallback
+                config = json_mgr.get_config()
+                users = config.get('users', {})
+                
+                # Look for sys-admin or any admin user
+                admin_user = None
+                admin_username = None
+                admin_password = None
+                
+                # First look for sys-admin
+                if 'sys-admin' in users:
+                    admin_user = users['sys-admin']
+                    admin_username = 'sys-admin'
+                
+                # If not found, look for any admin role
+                if not admin_user:
+                    for username, user_data in users.items():
+                        if user_data.get('role') == 'admin':
+                            admin_user = user_data
+                            admin_username = username
+                            break
+                
+                # Display credentials
+                if admin_user and admin_username:
+                    print("\n" + "="*70)
+                    print("🔐 ADMIN CREDENTIALS (JSON FALLBACK MODE)")
+                    print("="*70)
+                    print(f"\n   Username: {admin_username}")
+                    print(f"   Role: {admin_user.get('role', 'admin')}")
+                    print(f"   Email: {admin_user.get('email', 'Not set')}")
+                    print(f"\n⚠️  If you don't know the password, you can reset it:")
+                    print(f"   Run: python reset_admin_password.py")
+                    print("="*70 + "\n")
+        except Exception as e:
+            # Silent fail - not critical
+            pass
+    
+    def _display_system_configuration(self):
+        """Display system configuration information during startup"""
+        try:
+            # Display admin credentials if in JSON fallback mode
+            self._display_admin_credentials()
+            
+            print("\n" + "="*70)
+            print("📊 SYSTEM CONFIGURATION")
+            print("="*70)
+            
+            # Display users
+            users = self.smart_home.users
+            if users:
+                print(f"\n👥 Users ({len(users)}):")
+                # Handle both DB mode (key=username) and JSON fallback (key=ID, username in 'name')
+                for key, user_data in users.items():
+                    # Determine if key is username or ID
+                    if isinstance(user_data, dict):
+                        username = key  # DB mode - key is username
+                        user_id = user_data.get('id') or user_data.get('user_id', key)
+                    else:
+                        # Fallback - shouldn't happen but handle it
+                        username = key
+                        user_id = key
+                    
+                    role = user_data.get('role', 'user')
+                    email = user_data.get('email', '')
+                    is_system = user_data.get('is_system_user', False)
+                    
+                    system_marker = " 🔒 [SYSTEM]" if is_system else ""
+                    email_str = f" - {email}" if email else ""
+                    print(f"   • {username:<20} ({role:<6}){email_str}{system_marker}")
+            else:
+                print(f"\n👥 Users: None configured")
+            
+            # Display rooms
+            rooms = self.smart_home.rooms
+            room_count = len(rooms) if rooms else 0
+            print(f"\n🏠 Rooms ({room_count}):")
+            if rooms:
+                for room in rooms:
+                    print(f"   • {room}")
+            else:
+                print("   (no rooms configured)")
+            
+            # Display devices
+            buttons = self.smart_home.buttons
+            button_count = len(buttons) if buttons else 0
+            temp_controls = self.smart_home.temperature_controls
+            temp_count = len(temp_controls) if temp_controls else 0
+            
+            print(f"\n🔌 Devices ({button_count + temp_count}):")
+            print(f"   • Buttons: {button_count}")
+            if buttons:
+                for btn in buttons:
+                    btn_name = btn.get('name', 'Unknown')
+                    btn_room = btn.get('room', 'Unknown')
+                    btn_state = "ON" if btn.get('state') else "OFF"
+                    print(f"     - {btn_name:<20} (in {btn_room:<15}) [{btn_state}]")
+            print(f"   • Temperature Controls: {temp_count}")
+            if temp_controls:
+                for ctrl in temp_controls:
+                    ctrl_name = ctrl.get('name', 'Unknown')
+                    ctrl_room = ctrl.get('room', 'Unknown')
+                    ctrl_temp = ctrl.get('temperature', 'N/A')
+                    ctrl_enabled = "enabled" if ctrl.get('enabled', False) else "disabled"
+                    print(f"     - {ctrl_name:<20} (in {ctrl_room:<15}) [{ctrl_temp}°C, {ctrl_enabled}]")
+            
+            # Display automations
+            automations = self.smart_home.automations
+            auto_count = len(automations) if automations else 0
+            print(f"\n⚙️  Automations ({auto_count}):")
+            if automations and auto_count > 0:
+                for auto in automations:
+                    name = auto.get('name', 'Unknown')
+                    enabled = auto.get('enabled', False)
+                    status = "✓ ENABLED" if enabled else "✗ DISABLED"
+                    print(f"   • {name:<25} [{status}]")
+            else:
+                print("   (no automations configured)")
+            
+            # Display security state
+            security_state = self.smart_home.security_state
+            print(f"\n🔐 Security State: {security_state}")
+            
+            print("="*70 + "\n")
+            
+        except Exception as e:
+            # Don't fail startup if displaying configuration fails
+            print(f"⚠ Could not display system configuration: {e}\n")
+    
+    
     def initialize_components(self):
         """Initialize all application components"""
         try:
@@ -307,38 +444,61 @@ class SmartHomeApp:
             # Initialize cache with Redis if available, fallback to SimpleCache
             from flask_caching import Cache
             
-            # Try Redis first for better performance and persistence
-            redis_url = os.getenv('REDIS_URL', None)
-            redis_host = os.getenv('REDIS_HOST', None)
-            redis_port = os.getenv('REDIS_PORT', 6379)
+            # Check if we're in JSON fallback mode (database failed)
+            # If so, skip Redis as it's likely on the same unreachable server
+            in_json_fallback = (hasattr(self.smart_home, 'json_fallback') and 
+                               self.smart_home.json_fallback is not None)
             
-            if redis_url:
-                cache_config = {
-                    'CACHE_TYPE': 'RedisCache',
-                    'CACHE_REDIS_URL': redis_url,
-                    'CACHE_DEFAULT_TIMEOUT': 600
-                }
-                print("✓ Using Redis cache with URL")
-            elif redis_host:
-                cache_config = {
-                    'CACHE_TYPE': 'RedisCache',
-                    'CACHE_REDIS_HOST': redis_host,
-                    'CACHE_REDIS_PORT': int(redis_port),
-                    'CACHE_DEFAULT_TIMEOUT': 600
-                }
-                print("✓ Using Redis cache with host/port")
-            else:
-                # Fallback to SimpleCache with optimized timeout
+            if in_json_fallback:
+                print("⚠ Database in JSON fallback mode - skipping Redis, using SimpleCache")
                 cache_config = {
                     'CACHE_TYPE': 'SimpleCache',
-                    'CACHE_DEFAULT_TIMEOUT': 600,  # Increased from 300 to 600
-                    'CACHE_THRESHOLD': 500  # Increase threshold for better performance
+                    'CACHE_DEFAULT_TIMEOUT': 600,
+                    'CACHE_THRESHOLD': 500
                 }
-                print("✓ Using SimpleCache (in-memory)")
+            else:
+                # Try Redis first for better performance and persistence
+                redis_url = os.getenv('REDIS_URL', None)
+                redis_host = os.getenv('REDIS_HOST', None)
+                redis_port = os.getenv('REDIS_PORT', 6379)
+                
+                if redis_url:
+                    cache_config = {
+                        'CACHE_TYPE': 'RedisCache',
+                        'CACHE_REDIS_URL': redis_url,
+                        'CACHE_DEFAULT_TIMEOUT': 600,
+                        'CACHE_OPTIONS': {
+                            'socket_connect_timeout': 2,  # 2 second connection timeout
+                            'socket_timeout': 2,          # 2 second socket timeout
+                            'retry_on_timeout': False
+                        }
+                    }
+                    print("✓ Using Redis cache with URL")
+                elif redis_host:
+                    cache_config = {
+                        'CACHE_TYPE': 'RedisCache',
+                        'CACHE_REDIS_HOST': redis_host,
+                        'CACHE_REDIS_PORT': int(redis_port),
+                        'CACHE_DEFAULT_TIMEOUT': 600,
+                        'CACHE_OPTIONS': {
+                            'socket_connect_timeout': 2,  # 2 second connection timeout
+                            'socket_timeout': 2,          # 2 second socket timeout
+                            'retry_on_timeout': False
+                        }
+                    }
+                    print("✓ Using Redis cache with host/port")
+                else:
+                    # Fallback to SimpleCache with optimized timeout
+                    cache_config = {
+                        'CACHE_TYPE': 'SimpleCache',
+                        'CACHE_DEFAULT_TIMEOUT': 600,  # Increased from 300 to 600
+                        'CACHE_THRESHOLD': 500  # Increase threshold for better performance
+                    }
+                    print("✓ Using SimpleCache (in-memory)")
             
             try:
                 self.cache = Cache(self.app, config=cache_config)
-                # Test cache functionality
+                # Test cache functionality (with short timeout to avoid hanging)
                 self.cache.set('test_key', 'test_value', timeout=10)
                 if self.cache.get('test_key') == 'test_value':
                     print("✓ Cache functionality verified")
@@ -348,7 +508,7 @@ class SmartHomeApp:
             except Exception as e:
                 print(f"⚠ Cache initialization failed: {e}, using fallback")
                 # Ultra-safe fallback
-                cache_config = {'CACHE_TYPE': 'NullCache'}
+                cache_config = {'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600, 'CACHE_THRESHOLD': 500}
                 self.cache = Cache(self.app, config=cache_config)
             
             # Initialize cache manager
@@ -1196,6 +1356,9 @@ class SmartHomeApp:
                 print(f"📈 Database stats: {stats}")
             except:
                 print("📈 Database stats: Not available")
+        
+        # Display system configuration
+        self._display_system_configuration()
         
         print(f"🏠 Access your SmartHome at: http://{host}:{port}")
         print("-" * 60)

@@ -78,9 +78,16 @@ class AutomationScheduler:
         if not self.multi_db:
             return
         
+        # Skip if in JSON fallback mode (no database available)
+        if hasattr(self.multi_db, 'json_fallback_mode') and self.multi_db.json_fallback_mode:
+            return
+        
         try:
             # Get all enabled automations from all homes (use home_automations table)
             with self.multi_db.get_cursor() as cursor:
+                if not cursor:  # Safety check for None cursor
+                    return
+                    
                 cursor.execute("""
                     SELECT a.id, a.home_id, a.name, a.trigger_config, a.actions_config, a.enabled
                     FROM home_automations a
