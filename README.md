@@ -19,11 +19,38 @@ SmartHome Multi-Home is a comprehensive web-based smart home management system b
 - **👥 User Management**: Comprehensive user administration with invitation system
 - **🔐 Security**: Role-based permissions, secure authentication, and encrypted communications
 - **📊 Admin Dashboard**: Statistics, user management, device monitoring, and system logs
-- **💾 Database Flexibility**: PostgreSQL primary storage with JSON fallback for resilience
+- **💾 Database Flexibility**: PostgreSQL primary storage with **automatic JSON backup fallback**
+- **🔧 Auto-Configuration**: Automatic JSON config creation with secure sys-admin user generation
 - **⚡ Performance Optimized**: Redis caching, asset minification, and connection pooling
 - **📧 Email Notifications**: Asynchronous email delivery for alerts and invitations
 - **🐳 Docker Ready**: Complete containerization with Docker Compose support
 - **🌐 Mobile Responsive**: Fully responsive design for all device sizes
+
+### 🆕 Automatic JSON Backup System
+
+The system now includes a **comprehensive automatic backup to JSON** that ensures full functionality even when PostgreSQL is unavailable:
+
+- **🔄 Automatic Fallback**: Seamlessly switches to JSON when database connection fails
+- **👤 Auto-Generated Admin**: Creates `sys-admin` user with secure random password on first run
+- **🔐 Secure Credentials**: 16-character cryptographically secure password displayed in logs
+- **📝 Full Functionality**: All system features work identically in JSON mode
+- **💾 Zero Configuration**: No manual setup required - just run the application
+
+**First run without database:**
+```
+======================================================================
+🔧 JSON BACKUP MODE ACTIVATED
+======================================================================
+📄 Configuration file created: app/smart_home_config.json
+👤 Default admin user created:
+   Username: sys-admin
+   Password: xY9@kL2$pQ5!mN8z
+======================================================================
+⚠️  IMPORTANT: Save these credentials! They will not be shown again.
+======================================================================
+```
+
+For detailed information, see [JSON Backup System Documentation](info/JSON_BACKUP_SYSTEM.md).
 
 ### 🏗️ System Architecture
 
@@ -31,9 +58,11 @@ SmartHome Multi-Home is a comprehensive web-based smart home management system b
 
 - **`app_db.py`**: Main application entry point - initializes Flask, Socket.IO, database, cache, and routes
 - **`app/routes.py`**: HTTP routes and Socket.IO event handlers (RoutesManager class)
-- **`app/configure_db.py`**: Database-backed SmartHome system (`SmartHomeSystemDB`)
+- **`app/configure_db.py`**: Database-backed SmartHome system (`SmartHomeSystemDB`) with JSON fallback
+- **`app/configure.py`**: JSON-based SmartHome system with JSONBackupManager integration
 - **`utils/smart_home_db_manager.py`**: Low-level database operations for core entities
 - **`utils/multi_home_db_manager.py`**: Multi-home specific database operations
+- **`utils/json_backup_manager.py`**: **NEW** - Automatic JSON backup system with secure admin generation
 - **`utils/cache_manager.py`**: Redis/SimpleCache integration with automatic invalidation
 - **`utils/async_manager.py`**: Asynchronous email queue and background task management
 - **`app/mail_manager.py`**: SMTP email delivery service
@@ -493,11 +522,38 @@ SmartHome Multi-Home to kompleksowy system zarządzania inteligentnym domem opar
 - **👥 Zarządzanie Użytkownikami**: Kompleksowa administracja użytkownikami z systemem zaproszeń
 - **🔐 Bezpieczeństwo**: Uprawnienia oparte na rolach, bezpieczna autentykacja i szyfrowana komunikacja
 - **📊 Panel Administratora**: Statystyki, zarządzanie użytkownikami, monitoring urządzeń i logi systemowe
-- **💾 Elastyczność Bazy Danych**: Główne przechowywanie w PostgreSQL z awaryjnym przełączeniem na JSON
+- **💾 Elastyczność Bazy Danych**: Główne przechowywanie w PostgreSQL z **automatycznym backupem JSON**
+- **🔧 Auto-Konfiguracja**: Automatyczne tworzenie konfiguracji JSON z generowaniem bezpiecznego użytkownika sys-admin
 - **⚡ Zoptymalizowana Wydajność**: Cache Redis, minifikacja zasobów i pooling połączeń
 - **📧 Powiadomienia Email**: Asynchroniczna wysyłka emaili dla alertów i zaproszeń
 - **🐳 Gotowość Docker**: Pełna konteneryzacja ze wsparciem Docker Compose
 - **🌐 Responsywność Mobilna**: Pełny responsywny design dla wszystkich rozmiarów urządzeń
+
+### 🆕 Automatyczny System Backup do JSON
+
+System teraz zawiera **kompleksowy automatyczny backup do JSON**, który zapewnia pełną funkcjonalność nawet gdy PostgreSQL jest niedostępny:
+
+- **🔄 Automatyczne Przełączenie**: Płynne przejście na JSON gdy połączenie z bazą danych nie powiedzie się
+- **👤 Auto-Generowany Admin**: Tworzy użytkownika `sys-admin` z bezpiecznym losowym hasłem przy pierwszym uruchomieniu
+- **🔐 Bezpieczne Dane Logowania**: 16-znakowe kryptograficznie bezpieczne hasło wyświetlane w logach
+- **📝 Pełna Funkcjonalność**: Wszystkie funkcje systemu działają identycznie w trybie JSON
+- **💾 Zero Konfiguracji**: Nie wymaga ręcznej konfiguracji - po prostu uruchom aplikację
+
+**Pierwsze uruchomienie bez bazy danych:**
+```
+======================================================================
+🔧 JSON BACKUP MODE ACTIVATED
+======================================================================
+📄 Configuration file created: app/smart_home_config.json
+👤 Default admin user created:
+   Username: sys-admin
+   Password: xY9@kL2$pQ5!mN8z
+======================================================================
+⚠️  IMPORTANT: Save these credentials! They will not be shown again.
+======================================================================
+```
+
+Szczegółowe informacje: [Dokumentacja Systemu Backup JSON](info/JSON_BACKUP_SYSTEM.md)
 
 ### 🏗️ Architektura Systemu
 
@@ -505,9 +561,11 @@ SmartHome Multi-Home to kompleksowy system zarządzania inteligentnym domem opar
 
 - **`app_db.py`**: Główny punkt wejścia aplikacji - inicjalizuje Flask, Socket.IO, bazę danych, cache i trasy
 - **`app/routes.py`**: Trasy HTTP i obsługa zdarzeń Socket.IO (klasa RoutesManager)
-- **`app/configure_db.py`**: System SmartHome oparty na bazie danych (`SmartHomeSystemDB`)
+- **`app/configure_db.py`**: System SmartHome oparty na bazie danych (`SmartHomeSystemDB`) z fallback JSON
+- **`app/configure.py`**: System SmartHome oparty na JSON z integracją JSONBackupManager
 - **`utils/smart_home_db_manager.py`**: Niskopoziomowe operacje bazodanowe dla głównych encji
 - **`utils/multi_home_db_manager.py`**: Operacje bazodanowe specyficzne dla wielu domów
+- **`utils/json_backup_manager.py`**: **NOWY** - Automatyczny system backup JSON z generowaniem bezpiecznego admina
 - **`utils/cache_manager.py`**: Integracja Redis/SimpleCache z automatyczną invalidacją
 - **`utils/async_manager.py`**: Kolejka asynchronicznych emaili i zarządzanie zadaniami w tle
 - **`app/mail_manager.py`**: Serwis wysyłki emaili SMTP

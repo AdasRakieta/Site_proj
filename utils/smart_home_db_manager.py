@@ -48,14 +48,18 @@ class SmartHomeDatabaseManager:
             'password': os.getenv('DB_PASSWORD')
         }
         
+        # JSON fallback mode
+        self.json_fallback_mode = False
+        self.json_backup = None
+        
         # Validate required database configuration
         required_keys = ['host', 'dbname', 'user', 'password']
         missing_keys = [k for k in required_keys if not self.db_config.get(k)]
         if missing_keys:
-            raise ValueError(
-                f"Missing required database configuration: {', '.join(missing_keys)}. "
-                f"Please set these environment variables: {', '.join('DB_' + k.upper() for k in missing_keys)}"
-            )
+            print(f"⚠ Missing database config: {', '.join(missing_keys)}")
+            print("⚠ Activating JSON fallback mode")
+            self._activate_json_fallback()
+            return
         
         self.home_id = os.getenv('HOME_ID', str(uuid.uuid4()))
         self._connection_pool = None
@@ -64,13 +68,32 @@ class SmartHomeDatabaseManager:
         self._pool_maxconn = int(os.getenv('DB_POOL_MAX', '10'))  # Maximum connections
         
         # Initialize connection pool
-        self._initialize_connection_pool()
-        
-        # Test connection on initialization
-        self._test_connection()
+        try:
+            self._initialize_connection_pool()
+            # Test connection on initialization
+            self._test_connection()
+        except Exception as e:
+            print(f"⚠ Database connection failed: {e}")
+            print("⚠ Activating JSON fallback mode")
+            self._activate_json_fallback()
+    
+    def _activate_json_fallback(self):
+        """Activate JSON backup fallback mode"""
+        from utils.json_backup_manager import ensure_json_backup
+        try:
+            self.json_backup = ensure_json_backup()
+            self.json_fallback_mode = True
+            self._connection_pool = None
+            print("✓ Database manager: JSON fallback mode activated")
+        except Exception as e:
+            logger.error(f"Failed to activate JSON fallback: {e}")
+            raise DatabaseError("Both PostgreSQL and JSON backup failed to initialize")
     
     def _initialize_connection_pool(self):
         """Initialize PostgreSQL connection pool"""
+        if self.json_fallback_mode:
+            return  # Skip in JSON mode
+        
         try:
             # Only allow valid psycopg2 keys for connection
             allowed_keys = {'host', 'port', 'dbname', 'user', 'password', 'connect_timeout'}
@@ -99,12 +122,13 @@ class SmartHomeDatabaseManager:
             
         except Exception as e:
             logger.error(f"Failed to initialize connection pool: {e}")
-            # Fall back to single connection mode
-            self._connection_pool = None
-            logger.warning("⚠ Falling back to single connection mode")
+            raise  # Re-raise to trigger fallback
     
     def _test_connection(self):
         """Test database connection"""
+        if self.json_fallback_mode:
+            return  # Skip in JSON mode
+        
         try:
             conn = self._get_connection()
             conn.close()

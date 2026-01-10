@@ -28,25 +28,48 @@ class MultiHomeDBManager:
         self.database = database or os.getenv('DB_NAME')
         self.connection_timeout = connection_timeout
         
-        # Validate required database configuration
-        if not self.host:
-            raise ValueError("Missing DB_HOST environment variable")
-        if not self.user:
-            raise ValueError("Missing DB_USER environment variable")
-        if not self.password:
-            raise ValueError("Missing DB_PASSWORD environment variable")
-        if not self.database:
-            raise ValueError("Missing DB_NAME environment variable")
+        # JSON fallback mode flag
+        self.json_fallback_mode = False
+        self.json_backup = None
         
-        self._connection = None
-        self._ensure_connection()
-        self._ensure_security_state_table()
-        self._ensure_automation_table()
-        self._ensure_invitations_table()
+        # Validate required database configuration
+        if not self.host or not self.user or not self.password or not self.database:
+            print("⚠ Missing database configuration, activating JSON fallback mode")
+            self._activate_json_fallback()
+            return
+        
+        try:
+            self._connection = None
+            self._ensure_connection()
+            self._ensure_security_state_table()
+            self._ensure_automation_table()
+            self._ensure_invitations_table()
+            print("✓ Multi-home database manager initialized with PostgreSQL")
+        except Exception as e:
+            print(f"⚠ PostgreSQL connection failed: {e}")
+            print("⚠ Activating JSON fallback mode for multi-home manager")
+            self._activate_json_fallback()
+    
+    def _activate_json_fallback(self):
+        """Activate JSON backup fallback mode"""
+        from utils.json_backup_manager import ensure_json_backup
+        try:
+            self.json_backup = ensure_json_backup()
+            self.json_fallback_mode = True
+            self._connection = None
+            print("✓ Multi-home manager: JSON fallback mode activated")
+        except Exception as e:
+            logger.error(f"Failed to activate JSON fallback: {e}")
+            raise ValueError("Both PostgreSQL and JSON backup failed to initialize")
 
     @contextmanager
     def get_cursor(self):
         """Context manager for database cursor with automatic transaction handling."""
+        if self.json_fallback_mode:
+            # In JSON mode, yield a dummy cursor that does nothing
+            yield None
+            return
+        
         cursor = None
         try:
             self._ensure_connection()
@@ -65,6 +88,9 @@ class MultiHomeDBManager:
 
     def _ensure_connection(self):
         """Ensure database connection is active."""
+        if self.json_fallback_mode:
+            return  # Skip DB connection in JSON mode
+        
         if self._connection is None or self._connection.closed:
             try:
                 self._connection = psycopg2.connect(
@@ -82,6 +108,9 @@ class MultiHomeDBManager:
 
     def close_connection(self):
         """Close database connection."""
+        if self.json_fallback_mode:
+            return  # Nothing to close in JSON mode
+        
         if self._connection and not self._connection.closed:
             self._connection.close()
             logger.info("Database connection closed")

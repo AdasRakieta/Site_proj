@@ -33,8 +33,17 @@ try:
     print("✓ Using PostgreSQL database backend")
 except ImportError as e:
     print(f"⚠ Failed to import database backend: {e}")
-    print("⚠ Falling back to JSON file backend")
+    print("⚠ Falling back to JSON file backend with automatic configuration")
     from app.configure import SmartHomeSystem
+    from utils.json_backup_manager import ensure_json_backup
+    
+    # Ensure JSON backup is ready
+    try:
+        json_manager = ensure_json_backup()
+        print("✓ JSON backup system initialized")
+    except Exception as backup_error:
+        print(f"✗ Failed to initialize JSON backup: {backup_error}")
+    
     DATABASE_MODE = False
 
 # Import other components

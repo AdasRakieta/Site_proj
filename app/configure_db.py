@@ -45,23 +45,40 @@ class SmartHomeSystemDB:
         self.save_interval = save_interval
         self.last_save_time = datetime.now()
         
-        # Database manager
+        # Database manager with JSON fallback
         try:
             self.db = SmartHomeDatabaseManager()
-        except DatabaseError as e:
-            print(f"Failed to initialize database: {e}")
-            print("Falling back to JSON mode...")
-            # Could fall back to original JSON mode here if needed
-            raise
+            self.json_fallback = None
+            print("✓ PostgreSQL database connected successfully")
+        except (DatabaseError, Exception) as e:
+            print(f"⚠ Failed to initialize database: {e}")
+            print("⚠ Activating JSON backup fallback...")
+            
+            # Import and initialize JSON backup
+            from utils.json_backup_manager import ensure_json_backup
+            try:
+                self.json_fallback = ensure_json_backup()
+                self.db = None
+                print("✓ JSON backup mode activated - system fully operational")
+            except Exception as fallback_error:
+                print(f"✗ Critical: JSON backup initialization failed: {fallback_error}")
+                raise DatabaseError(
+                    "Both PostgreSQL and JSON backup systems failed to initialize. "
+                    "Cannot start application."
+                )
         
         # Thread safety
         self._save_lock = threading.Lock()
         self._save_in_progress = False
         
         # Initialize default settings if they don't exist
-        self._initialize_default_settings()
+        if self.db:
+            self._initialize_default_settings()
         
-        print("SmartHome System initialized with PostgreSQL database backend")
+        if self.db:
+            print("SmartHome System initialized with PostgreSQL database backend")
+        else:
+            print("SmartHome System initialized with JSON backup backend")
     
     def _initialize_default_settings(self):
         """Initialize default system settings if they don't exist"""

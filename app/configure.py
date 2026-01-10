@@ -7,12 +7,16 @@ import uuid
 import threading
 import time
 from utils.weather_service import WeatherService
+from utils.json_backup_manager import JSONBackupManager
 
 
 class SmartHomeSystem:
     """Główna klasa systemu SmartHome zarządzająca wszystkimi komponentami"""
     
     def __init__(self, config_file='smart_home_config.json', save_interval=3000):
+        # Initialize JSON backup manager first
+        self.json_backup = JSONBackupManager(config_file)
+        
         # Ustal katalog bazowy na podstawie lokalizacji tego pliku
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.config_file = os.path.join(self.base_dir, config_file)
