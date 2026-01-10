@@ -613,16 +613,6 @@ class SmartHomeApp:
                 import traceback
                 traceback.print_exc()
             
-            # Register encryption blueprint for security course application
-            try:
-                from app.encryption_routes import encryption_bp
-                self.app.register_blueprint(encryption_bp)
-                print("✓ Encryption/cryptography routes registered successfully")
-            except Exception as e:
-                print(f"⚠ Failed to register encryption routes: {e}")
-                import traceback
-                traceback.print_exc()
-            
             print("✓ Routes and API endpoints configured successfully")
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")

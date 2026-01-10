@@ -624,7 +624,18 @@ class MultiHomeDBManager:
             
     def is_sys_admin(self, user_id: str) -> bool:
         """Check if user has system administrator role."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {})
+            for user_entry in users.values():
+                if user_entry.get('id') == user_id:
+                    return user_entry.get('role') in ['sys-admin', 'admin']
+            return False
+
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
             cursor.execute("""
                 SELECT 1 FROM users 
                 WHERE id = %s AND role = 'sys-admin'
@@ -633,7 +644,23 @@ class MultiHomeDBManager:
 
     def user_has_home_permission(self, user_id: str, home_id: str, permission: str) -> bool:
         """Check if user has specific permission in a home."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            # Admin/owner/sys-admin have full permissions
+            role = self.get_user_role_in_home(user_id, home_id)
+            if role in ['admin', 'owner', 'sys-admin']:
+                return True
+            config = self.json_backup.get_config()
+            user_homes = config.get('user_homes', {})
+            for user_entry in user_homes.get(home_id, []):
+                if user_entry.get('user_id') == user_id:
+                    perms = user_entry.get('permissions', []) or []
+                    return permission in perms
+            return False
+
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
             cursor.execute("""
                 SELECT permissions, role FROM user_homes 
                 WHERE user_id = %s AND home_id = %s
@@ -1236,6 +1263,32 @@ class MultiHomeDBManager:
         normalized_name = (name or '').strip()
         if not normalized_name:
             raise ValueError("Room name is required")
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', [])
+            # Ensure uniqueness within home (case-insensitive)
+            for r in rooms:
+                if r.get('home_id') == home_id and str(r.get('name', '')).strip().lower() == normalized_name.lower():
+                    raise ValueError("Room with this name already exists in the selected home")
+            # Compute next display order
+            existing_orders = [int(r.get('display_order') or 0) for r in rooms if r.get('home_id') == home_id]
+            next_order = (max(existing_orders) + 1) if existing_orders else 1
+            room_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+            rooms.append({
+                'id': room_id,
+                'home_id': home_id,
+                'name': normalized_name,
+                'description': description,
+                'display_order': next_order,
+                'created_at': now,
+                'updated_at': now
+            })
+            config['rooms'] = rooms
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] Created room '{normalized_name}' with ID {room_id} in home {home_id}")
+            return room_id
 
         with self.get_cursor() as cursor:
             # Ensure uniqueness of room name within the home (case-insensitive)
@@ -1329,6 +1382,28 @@ class MultiHomeDBManager:
             raise PermissionError("User doesn't have access to this home")
 
         system_room_name = 'Nieprzypisane'
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', [])
+            for r in rooms:
+                if r.get('home_id') == normalized_home_id and str(r.get('name','')).strip().lower() == system_room_name.lower():
+                    return r.get('id')
+            # Create system room at order 0
+            room_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+            rooms.append({
+                'id': room_id,
+                'home_id': normalized_home_id,
+                'name': system_room_name,
+                'description': 'System room for unassigned devices',
+                'display_order': 0,
+                'created_at': now,
+                'updated_at': now
+            })
+            config['rooms'] = rooms
+            self.json_backup.save_config(config)
+            return room_id
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -1374,6 +1449,23 @@ class MultiHomeDBManager:
             normalized_id = room_id.strip()
             if not normalized_id:
                 return None
+        
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            for r in config.get('rooms', []):
+                if str(r.get('id')) == str(normalized_id):
+                    if not self.user_has_home_access(user_id, r.get('home_id')):
+                        return None
+                    return {
+                        'id': r.get('id'),
+                        'home_id': r.get('home_id'),
+                        'name': r.get('name'),
+                        'description': r.get('description'),
+                        'created_at': r.get('created_at'),
+                        'updated_at': r.get('updated_at')
+                    }
+            return None
 
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -1402,6 +1494,22 @@ class MultiHomeDBManager:
             return None
 
         if not self.user_has_home_access(user_id, home_id):
+            return None
+        
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = [r for r in config.get('rooms', []) if r.get('home_id') == home_id]
+            for r in rooms:
+                if str(r.get('name','')).strip().lower() == str(name).strip().lower():
+                    return {
+                        'id': r.get('id'),
+                        'home_id': home_id,
+                        'name': r.get('name'),
+                        'description': r.get('description'),
+                        'created_at': r.get('created_at'),
+                        'updated_at': r.get('updated_at')
+                    }
             return None
 
         with self.get_cursor() as cursor:
@@ -1438,17 +1546,23 @@ class MultiHomeDBManager:
             new_name = str(changes['name']).strip()
             if not new_name:
                 raise ValueError("Room name cannot be empty")
-
-            with self.get_cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT 1 FROM rooms
-                    WHERE home_id = %s AND LOWER(name) = LOWER(%s) AND id != %s
-                    """,
-                    (room['home_id'], new_name, room['id'])
-                )
-                if cursor.fetchone():
-                    raise ValueError("Another room with this name already exists")
+            # JSON fallback uniqueness check
+            if self.json_fallback_mode and self.json_backup:
+                config = self.json_backup.get_config()
+                for r in config.get('rooms', []):
+                    if r.get('home_id') == room['home_id'] and str(r.get('name','')).strip().lower() == new_name.lower() and str(r.get('id')) != str(room['id']):
+                        raise ValueError("Another room with this name already exists")
+            else:
+                with self.get_cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT 1 FROM rooms
+                        WHERE home_id = %s AND LOWER(name) = LOWER(%s) AND id != %s
+                        """,
+                        (room['home_id'], new_name, room['id'])
+                    )
+                    if cursor.fetchone():
+                        raise ValueError("Another room with this name already exists")
 
             allowed_fields['name'] = new_name
 
@@ -1463,6 +1577,20 @@ class MultiHomeDBManager:
 
         if not allowed_fields:
             return room
+
+        # JSON fallback update
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', [])
+            for r in rooms:
+                if str(r.get('id')) == str(room['id']):
+                    for column, value in allowed_fields.items():
+                        r[column] = value
+                    r['updated_at'] = datetime.now().isoformat()
+                    break
+            config['rooms'] = rooms
+            self.json_backup.save_config(config)
+            return self.get_room(room['id'], user_id)
 
         set_fragments = []
         values: List[Any] = []
@@ -1495,6 +1623,30 @@ class MultiHomeDBManager:
 
         if not self.user_has_home_permission(user_id, room['home_id'], 'manage_rooms'):
             raise PermissionError("User doesn't have permission to delete rooms")
+
+        # JSON fallback delete
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', [])
+            target_home_id = room['home_id']
+            # Unassign devices (buttons, temperature_controls)
+            buttons = config.get('buttons', [])
+            for b in buttons:
+                if b.get('home_id') == target_home_id and b.get('room_id') == room['id']:
+                    b['room_id'] = None
+                    b['updated_at'] = datetime.now().isoformat()
+            temp_controls = config.get('temperature_controls', [])
+            for t in temp_controls:
+                if t.get('home_id') == target_home_id and t.get('room_id') == room['id']:
+                    t['room_id'] = None
+                    t['updated_at'] = datetime.now().isoformat()
+            # Remove room entry
+            new_rooms = [r for r in rooms if str(r.get('id')) != str(room['id'])]
+            config['rooms'] = new_rooms
+            config['buttons'] = buttons
+            config['temperature_controls'] = temp_controls
+            self.json_backup.save_config(config)
+            return True
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -1541,6 +1693,21 @@ class MultiHomeDBManager:
         if not normalized_ids:
             return False
 
+        # JSON fallback reorder
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', [])
+            id_to_order = {str(rid): idx for idx, rid in enumerate(normalized_ids)}
+            for r in rooms:
+                if r.get('home_id') == home_id:
+                    rid = str(r.get('id'))
+                    if rid in id_to_order:
+                        r['display_order'] = id_to_order[rid]
+                        r['updated_at'] = datetime.now().isoformat()
+            config['rooms'] = rooms
+            self.json_backup.save_config(config)
+            return True
+
         with self.get_cursor() as cursor:
             for order_index, room_id in enumerate(normalized_ids):
                 cursor.execute(
@@ -1582,6 +1749,69 @@ class MultiHomeDBManager:
         if not self.user_has_home_permission(user_id, target_home_id, 'manage_devices'):
             raise PermissionError("User doesn't have permission to manage devices")
             
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            # Only support known JSON-backed device types
+            supported_types = {'button', 'temperature_control'}
+            if device_type not in supported_types:
+                raise NotImplementedError("Device type not supported in JSON mode")
+
+            config = self.json_backup.get_config()
+            # If room_id is provided, validate access and home consistency
+            target_home_id_check = target_home_id
+            if room_id is not None:
+                rooms = config.get('rooms', [])
+                match = next((r for r in rooms if str(r.get('id')) == str(room_id)), None)
+                if not match:
+                    raise ValueError("Room not found")
+                target_home_id_check = match.get('home_id')
+            # Create the device entry
+            device_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+            if device_type == 'button':
+                buttons = config.get('buttons', [])
+                buttons.append({
+                    'id': device_id,
+                    'home_id': target_home_id_check,
+                    'room_id': room_id,
+                    'name': name,
+                    'device_type': 'button',
+                    'state': kwargs.get('state', False),
+                    'enabled': kwargs.get('enabled', True),
+                    'display_order': kwargs.get('display_order'),
+                    'settings': {
+                        'action': kwargs.get('action', 'toggle'),
+                        'target_device_id': kwargs.get('target_device_id')
+                    },
+                    'created_at': now,
+                    'updated_at': now
+                })
+                config['buttons'] = buttons
+            elif device_type == 'temperature_control':
+                controls = config.get('temperature_controls', [])
+                controls.append({
+                    'id': device_id,
+                    'home_id': target_home_id_check,
+                    'room_id': room_id,
+                    'name': name,
+                    'device_type': 'temperature_control',
+                    'temperature': kwargs.get('current_temperature', 20.0),
+                    'min_temperature': kwargs.get('min_temperature'),
+                    'max_temperature': kwargs.get('max_temperature'),
+                    'enabled': kwargs.get('enabled', True),
+                    'display_order': kwargs.get('display_order'),
+                    'settings': {
+                        'target_temperature': kwargs.get('target_temperature', 21.0),
+                        'mode': kwargs.get('mode', 'auto')
+                    },
+                    'created_at': now,
+                    'updated_at': now
+                })
+                config['temperature_controls'] = controls
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] Created {device_type} '{name}' with ID {device_id} in home {target_home_id_check}")
+            return device_id
+
         with self.get_cursor() as cursor:
             # Create settings JSON from type-specific fields
             settings = {}
@@ -1763,6 +1993,55 @@ class MultiHomeDBManager:
         normalized_id = self._normalize_device_id(device_id)
         if normalized_id is None:
             raise ValueError("device_id is required for update")
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            # Find in buttons
+            found_list_key = None
+            for list_key in ('buttons', 'temperature_controls'):
+                for idx, dev in enumerate(config.get(list_key, [])):
+                    if str(dev.get('id')) == str(normalized_id):
+                        found_list_key = list_key
+                        target = dev
+                        target_idx = idx
+                        break
+                if found_list_key:
+                    break
+            if not found_list_key:
+                return False
+            # Permission: ensure user can control devices in home
+            home_id = target.get('home_id')
+            if not self.user_has_home_permission(user_id, home_id, 'control_devices'):
+                return False
+            # Apply allowed updates
+            allowed_fields = ['name', 'state', 'enabled', 'display_order', 'room_id']
+            settings_updates = {k: v for k, v in updates.items() if k in ('action','target_device_id','target_temperature','mode')}
+            for field, value in updates.items():
+                if field in allowed_fields:
+                    # room move: ensure room exists and same home
+                    if field == 'room_id' and value is not None:
+                        rooms = config.get('rooms', [])
+                        match = next((r for r in rooms if str(r.get('id')) == str(value)), None)
+                        if not match or match.get('home_id') != home_id:
+                            raise ValueError("Invalid room move")
+                    target[field] = value
+            if settings_updates:
+                settings = target.get('settings') or {}
+                if isinstance(settings, str):
+                    try:
+                        settings = json.loads(settings)
+                    except json.JSONDecodeError:
+                        settings = {}
+                settings.update(settings_updates)
+                target['settings'] = settings
+            target['updated_at'] = datetime.now().isoformat()
+            # Write back
+            items = config.get(found_list_key, [])
+            items[target_idx] = target
+            config[found_list_key] = items
+            self.json_backup.save_config(config)
+            return True
+
         # First verify user has access to this device
         with self.get_cursor() as cursor:
             cursor.execute("""
@@ -1960,6 +2239,23 @@ class MultiHomeDBManager:
             return False
 
         normalized_home_id = self._normalize_home_id(home_id)
+        
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            # Locate device and its home
+            for list_key in ('buttons','temperature_controls'):
+                items = config.get(list_key, [])
+                for idx, dev in enumerate(items):
+                    if str(dev.get('id')) == str(normalized_id):
+                        device_home_id = dev.get('home_id') or normalized_home_id
+                        if not device_home_id or not self.user_has_home_permission(user_id, device_home_id, 'manage_devices'):
+                            return False
+                        del items[idx]
+                        config[list_key] = items
+                        self.json_backup.save_config(config)
+                        return True
+            return False
 
         with self.get_cursor() as cursor:
             # First check if device exists and get its home context

@@ -97,6 +97,30 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "8ff8b124-7c63-4b11-a425-7fa6fc666455",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T22:50:11.874311",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "57c647f9-c900-4394-ad8e-b971fa3bf51c",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T22:55:19.537049",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
         }
     ]
 }

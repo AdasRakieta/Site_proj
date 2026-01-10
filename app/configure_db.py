@@ -704,7 +704,32 @@ class SmartHomeSystemDB:
             return WeatherService.get_weather_imgw_fallback()
         
         try:
+            # JSON fallback: pull location from JSON config when DB is unavailable
+            if getattr(multi_db, 'json_fallback_mode', False) and getattr(multi_db, 'json_backup', None):
+                config = multi_db.json_backup.get_config()
+                home_info = (config.get('homes', {}) or {}).get(home_id)
+                if not home_info:
+                    logger.warning(f"Home {home_id} not found in JSON config, using IMGW fallback")
+                    return WeatherService.get_weather_imgw_fallback()
+                home_data = {
+                    'id': home_id,
+                    'name': home_info.get('name'),
+                    'city': home_info.get('city'),
+                    'country': home_info.get('country'),
+                    'country_code': home_info.get('country_code'),
+                    'latitude': home_info.get('latitude'),
+                    'longitude': home_info.get('longitude'),
+                    'address': home_info.get('address')
+                }
+                logger.info(f"Fetching weather for home (JSON): {home_data.get('name', 'Unknown')} "
+                            f"in {home_data.get('city', 'Unknown')} "
+                            f"({home_data.get('latitude')}, {home_data.get('longitude')})")
+                return WeatherService.get_weather_for_home(home_data, multi_db)
+
             with multi_db.get_cursor() as cursor:
+                if cursor is None:
+                    logger.warning("No DB cursor available, using IMGW fallback")
+                    return WeatherService.get_weather_imgw_fallback()
                 cursor.execute("""
                     SELECT 
                         id, name, city, country, country_code,

@@ -6,6 +6,7 @@ Handles home selection, creation, and management.
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash, current_app
 from functools import wraps
 from utils.multi_home_db_manager import MultiHomeDBManager
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,12 @@ def home_select():
         
         # Add statistics to homes
         for home in homes:
+            # Normalize joined_at for templates expecting datetime
+            if isinstance(home.get('joined_at'), str):
+                try:
+                    home['joined_at'] = datetime.fromisoformat(home['joined_at'])
+                except Exception:
+                    home['joined_at'] = None
             try:
                 rooms = db_manager.get_home_rooms(home['id'], user_id)
                 devices = db_manager.get_home_devices(home['id'], user_id)
