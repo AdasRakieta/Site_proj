@@ -85,18 +85,6 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
-        },
-        {
-            "id": "c42713b1-5eea-4462-93d0-a1fe716a2dbf",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:46:08.061770",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
         }
     ]
 }

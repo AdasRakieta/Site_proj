@@ -823,8 +823,36 @@ class MultiHomeDBManager:
         # Check admin access
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
-            
+        
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            logs_data = config.get('management_logs', [])
+            # Filter by home_id and sort by timestamp desc
+            filtered = [log for log in logs_data if log.get('home_id') == home_id]
+            filtered.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+            # Respect limit
+            filtered = filtered[:limit]
+            # Normalize fields
+            result = []
+            for entry in filtered:
+                result.append({
+                    'id': entry.get('id'),
+                    'timestamp': entry.get('timestamp'),
+                    'level': entry.get('level'),
+                    'message': entry.get('message'),
+                    'event_type': entry.get('event_type'),
+                    'user_id': entry.get('user_id'),
+                    'username': entry.get('username'),
+                    'ip_address': entry.get('ip_address'),
+                    'details': entry.get('details', {})
+                })
+            return result
+
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return []
+            
             cursor.execute("""
                 SELECT id, timestamp, level, message, event_type, 
                        user_id, username, ip_address, details
@@ -871,7 +899,30 @@ class MultiHomeDBManager:
             True if log was added successfully
         """
         import json
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            logs_data = config.get('management_logs', [])
+            entry = {
+                'id': str(uuid.uuid4()),
+                'home_id': home_id,
+                'timestamp': datetime.now().isoformat(),
+                'level': level,
+                'message': message,
+                'event_type': event_type,
+                'user_id': user_id,
+                'username': username,
+                'ip_address': ip_address,
+                'details': details or {}
+            }
+            logs_data.append(entry)
+            config['management_logs'] = logs_data
+            self.json_backup.save_config(config)
+            return True
+
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
             cursor.execute("""
                 INSERT INTO management_logs 
                 (home_id, timestamp, level, message, event_type, user_id, username, ip_address, details)
@@ -897,8 +948,19 @@ class MultiHomeDBManager:
         # Check admin access
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
+        
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            logs_data = config.get('management_logs', [])
+            remaining = [log for log in logs_data if log.get('home_id') != home_id]
+            deleted_count = len(logs_data) - len(remaining)
+            config['management_logs'] = remaining
+            self.json_backup.save_config(config)
+            return deleted_count
             
         with self.get_cursor() as cursor:
+            if cursor is None:
+                return 0
             cursor.execute("""
                 DELETE FROM management_logs 
                 WHERE home_id = %s
@@ -924,6 +986,36 @@ class MultiHomeDBManager:
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
         
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            logs_data = config.get('management_logs', [])
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            # Inclusive end date
+            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1) if end_date else None
+            remaining = []
+            deleted = 0
+            for log in logs_data:
+                if log.get('home_id') != home_id:
+                    remaining.append(log)
+                    continue
+                try:
+                    ts = datetime.fromisoformat(log.get('timestamp'))
+                except Exception:
+                    ts = None
+                # Delete if timestamp falls within provided bounds
+                if ts is None:
+                    remaining.append(log)
+                    continue
+                within_start = (not start_dt) or ts >= start_dt
+                within_end = (not end_dt) or ts < end_dt
+                if within_start and within_end:
+                    deleted += 1
+                else:
+                    remaining.append(log)
+            config['management_logs'] = remaining
+            self.json_backup.save_config(config)
+            return deleted
+        
         # Build query based on provided dates
         query_parts = ["DELETE FROM management_logs WHERE home_id = %s"]
         params = [home_id]
@@ -940,6 +1032,8 @@ class MultiHomeDBManager:
         query = " ".join(query_parts)
         
         with self.get_cursor() as cursor:
+            if cursor is None:
+                return 0
             cursor.execute(query, tuple(params))
             return cursor.rowcount
 
@@ -959,7 +1053,31 @@ class MultiHomeDBManager:
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
         
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            logs_data = config.get('management_logs', [])
+            cutoff = datetime.now() - timedelta(days=days)
+            remaining = []
+            deleted = 0
+            for log in logs_data:
+                if log.get('home_id') != home_id:
+                    remaining.append(log)
+                    continue
+                try:
+                    ts = datetime.fromisoformat(log.get('timestamp'))
+                except Exception:
+                    ts = None
+                if ts and ts < cutoff:
+                    deleted += 1
+                else:
+                    remaining.append(log)
+            config['management_logs'] = remaining
+            self.json_backup.save_config(config)
+            return deleted
+        
         with self.get_cursor() as cursor:
+            if cursor is None:
+                return 0
             cursor.execute("""
                 DELETE FROM management_logs 
                 WHERE home_id = %s 
@@ -981,8 +1099,32 @@ class MultiHomeDBManager:
         # Check admin access
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
+        
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            user_homes = config.get('user_homes', [])
+            rooms = config.get('rooms', [])
+            devices = config.get('devices', [])
+            automations = config.get('automations', [])
+            logs_data = config.get('management_logs', [])
+
+            return {
+                'users_count': len([uh for uh in user_homes if uh.get('home_id') == home_id]),
+                'rooms_count': len([room for room in rooms if room.get('home_id') == home_id]),
+                'devices_count': len([dev for dev in devices if dev.get('home_id') == home_id]),
+                'automations_count': len([auto for auto in automations if auto.get('home_id') == home_id]),
+                'logs_count': len([log for log in logs_data if log.get('home_id') == home_id])
+            }
             
         with self.get_cursor() as cursor:
+            if cursor is None:
+                return {
+                    'users_count': 0,
+                    'rooms_count': 0,
+                    'devices_count': 0,
+                    'automations_count': 0,
+                    'logs_count': 0
+                }
             # Get basic counts
             cursor.execute("""
                 SELECT 
@@ -1005,11 +1147,11 @@ class MultiHomeDBManager:
                 }
             
             return {
-                'users_count': row[0] or 0,
-                'rooms_count': row[1] or 0, 
-                'devices_count': row[2] or 0,
-                'automations_count': row[3] or 0,
-                'logs_count': row[4] or 0
+                'users_count': row[0],
+                'rooms_count': row[1],
+                'devices_count': row[2],
+                'automations_count': row[3],
+                'logs_count': row[4]
             }
             
     def get_notification_recipients(self, home_id: str, admin_user_id: str) -> List[Dict]:
@@ -2014,7 +2156,37 @@ class MultiHomeDBManager:
 
     def get_all_users(self) -> List[Dict]:
         """Get all users in the system. For sys-admin use only."""
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {})
+            user_homes_data = config.get('user_homes', {})
+            
+            result = []
+            for username, user_data in users.items():
+                user_id = user_data.get('id')
+                
+                # Count homes for this user
+                home_count = 0
+                for home_id, users_list in user_homes_data.items():
+                    if any(u.get('user_id') == user_id for u in users_list):
+                        home_count += 1
+                
+                result.append({
+                    'id': str(user_id),
+                    'name': user_data.get('name', user_data.get('username')),
+                    'email': user_data.get('email', ''),
+                    'role': user_data.get('role', 'user'),
+                    'created_at': user_data.get('created_at'),
+                    'profile_picture': user_data.get('profile_picture', ''),
+                    'home_count': home_count
+                })
+            return result
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return []
+            
             cursor.execute("""
                 SELECT 
                     u.id, 
@@ -2430,7 +2602,34 @@ class MultiHomeDBManager:
             User dict with keys: id, name, email, password_hash, role, etc.
             Returns None if user not found
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {})
+            
+            # Search by email or username
+            for username, user_data in users.items():
+                if user_data.get('email') == identifier or user_data.get('username') == identifier or username == identifier:
+                    # Get default home from user_current_home
+                    user_current_home = config.get('user_current_home', {})
+                    default_home_id = user_current_home.get(user_data.get('id'))
+                    
+                    return {
+                        'id': str(user_data.get('id')),
+                        'name': user_data.get('name', user_data.get('username')),
+                        'email': user_data.get('email', ''),
+                        'password_hash': user_data.get('password', ''),
+                        'role': user_data.get('role', 'user'),
+                        'default_home_id': default_home_id,
+                        'created_at': user_data.get('created_at'),
+                        'updated_at': user_data.get('updated_at')
+                    }
+            return None
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return None
+            
             # First try by email
             cursor.execute("""
                 SELECT id, name, email, password_hash, role, default_home_id, 
@@ -2486,7 +2685,21 @@ class MultiHomeDBManager:
         Returns:
             True if password matches, False otherwise
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {})
+            
+            # Find user by ID
+            for username, user_data in users.items():
+                if user_data.get('id') == user_id:
+                    return user_data.get('password', '') == password_hash
+            return False
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return False
+            
             cursor.execute("""
                 SELECT password_hash FROM users WHERE id = %s
             """, (user_id,))
@@ -2566,7 +2779,34 @@ class MultiHomeDBManager:
         Returns:
             User dict or None if not found
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {})
+            user_current_home = config.get('user_current_home', {})
+            
+            # Find user by ID
+            for username, user_data in users.items():
+                if user_data.get('id') == user_id:
+                    return {
+                        'id': str(user_data.get('id')),
+                        'name': user_data.get('name', user_data.get('username')),
+                        'email': user_data.get('email', ''),
+                        'password_hash': user_data.get('password', ''),
+                        'role': user_data.get('role', 'user'),
+                        'default_home_id': user_current_home.get(user_id),
+                        'profile_picture': user_data.get('profile_picture', ''),
+                        'timezone': user_data.get('timezone', 'UTC'),
+                        'language': user_data.get('language', 'pl'),
+                        'created_at': user_data.get('created_at'),
+                        'updated_at': user_data.get('updated_at')
+                    }
+            return None
+        
         with self.get_cursor() as cursor:
+            if cursor is None:  # Safety check
+                return None
+            
             cursor.execute("""
                 SELECT id, name, email, password_hash, role, default_home_id,
                        profile_picture, timezone, language, created_at, updated_at
