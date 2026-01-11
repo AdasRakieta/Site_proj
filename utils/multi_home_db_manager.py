@@ -374,6 +374,40 @@ class MultiHomeDBManager:
 
     def create_home(self, name: str, owner_id: str, description: Optional[str] = None) -> int:
         """Create a new home and return its ID."""
+        if self.json_fallback_mode and self.json_backup:
+            home_id = str(uuid.uuid4())
+            now_iso = datetime.now().isoformat()
+            config = self.json_backup.get_config()
+
+            # Ensure core collections exist
+            homes = config.setdefault('homes', {})
+            user_homes = config.setdefault('user_homes', {})
+            user_current_home = config.setdefault('user_current_home', {})
+
+            homes[home_id] = {
+                'id': home_id,
+                'name': name,
+                'description': description,
+                'owner_id': owner_id,
+                'created_at': now_iso,
+                'updated_at': now_iso
+            }
+
+            user_homes.setdefault(home_id, [])
+            user_homes[home_id].append({
+                'user_id': owner_id,
+                'role': 'owner',
+                'permissions': ['read', 'write', 'admin'],
+                'joined_at': now_iso
+            })
+
+            # Set as current home for owner if none set yet
+            user_current_home.setdefault(owner_id, home_id)
+
+            self.json_backup.save_config(config)
+            logger.info(f"Created home '{name}' with ID {home_id} for owner {owner_id} in JSON mode")
+            return home_id
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 INSERT INTO homes (name, owner_id, description, created_at, updated_at)
@@ -442,6 +476,20 @@ class MultiHomeDBManager:
 
     def update_home_info(self, home_id: str, name: str, description: Optional[str] = None) -> bool:
         """Update basic home information (name and description)."""
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            homes = config.get('homes', {})
+            if home_id not in homes:
+                logger.warning(f"No home found with ID {home_id} to update (JSON mode)")
+                return False
+
+            homes[home_id]['name'] = name
+            homes[home_id]['description'] = description
+            homes[home_id]['updated_at'] = datetime.now().isoformat()
+            self.json_backup.save_config(config)
+            logger.info(f"Updated home info for home {home_id} in JSON mode: name='{name}'")
+            return True
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 UPDATE homes 
@@ -490,6 +538,30 @@ class MultiHomeDBManager:
         Returns:
             bool: True if update was successful, False otherwise
         """
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            homes = config.get('homes', {})
+            if home_id not in homes:
+                logger.warning(f"No home found with ID {home_id} to update location (JSON mode)")
+                return False
+
+            home_entry = homes[home_id]
+            home_entry.update({
+                'address': address,
+                'latitude': latitude,
+                'longitude': longitude,
+                'city': city,
+                'country': country,
+                'street': street,
+                'house_number': house_number,
+                'apartment_number': apartment_number,
+                'postal_code': postal_code,
+                'updated_at': datetime.now().isoformat()
+            })
+            self.json_backup.save_config(config)
+            logger.info(f"Updated location for home {home_id} in JSON mode: {city or 'Unknown'}, {country or 'Unknown'}")
+            return True
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 UPDATE homes 
@@ -544,6 +616,35 @@ class MultiHomeDBManager:
         Returns:
             bool: True if deletion was successful, False otherwise
         """
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            homes = config.get('homes', {})
+            user_homes = config.get('user_homes', {})
+            user_current_home = config.get('user_current_home', {})
+
+            if home_id not in homes:
+                logger.warning(f"No home found with ID {home_id} to delete (JSON mode)")
+                return False
+
+            homes.pop(home_id, None)
+            user_homes.pop(home_id, None)
+
+            # Clear current home pointers referencing the deleted home
+            for user_id, current_home in list(user_current_home.items()):
+                if str(current_home) == str(home_id):
+                    user_current_home.pop(user_id, None)
+
+            # Remove related entities tied to the home
+            for key in ['rooms', 'buttons', 'temperature_controls', 'automations', 'management_logs', 'invitations', 'notification_recipients']:
+                if key in config:
+                    items = config.get(key, [])
+                    if isinstance(items, list):
+                        config[key] = [item for item in items if str(item.get('home_id')) != str(home_id)]
+
+            self.json_backup.save_config(config)
+            logger.warning(f"Deleted home {home_id} and associated data in JSON mode")
+            return True
+
         with self.get_cursor() as cursor:
             # Delete the home - CASCADE will handle all related data
             cursor.execute("""

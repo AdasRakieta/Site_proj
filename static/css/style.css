@@ -351,6 +351,7 @@ footer {
     transition: background-color 0.3s ease, box-shadow 0.3s, transform 20s;
     text-decoration: none;
     margin: 0.5rem 0.5rem 0.5rem 0;
+    box-shadow: var(--box_shd);
 }
 
 .btn:hover {

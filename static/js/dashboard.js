@@ -460,6 +460,26 @@ function refreshDeviceStates() {
         .catch(error => console.error('Error refreshing device states:', error));
 }
 
+function formatTimestamp(ts) {
+    try {
+        if (!ts) return '';
+        const d = new Date(ts);
+        if (!isNaN(d)) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            return `${y}-${m}-${day} ${hh}:${mm}`;
+        }
+    } catch (e) {}
+    if (typeof ts === 'string') {
+        const m = ts.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        if (m) return `${m[1]} ${m[2]}`;
+    }
+    return String(ts);
+}
+
 function refreshLogs() {
     fetch('/api/admin/logs')
         .then(response => response.json())
@@ -471,7 +491,7 @@ function refreshLogs() {
                     const logEntry = document.createElement('div');
                     logEntry.className = 'log-entry';
                     logEntry.innerHTML = `
-                        <span class="log-timestamp">${log.timestamp}</span>
+                        <span class="log-timestamp">${formatTimestamp(log.timestamp)}</span>
                         <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
                         <span class="log-message">${log.message}</span>
                     `;
@@ -827,7 +847,7 @@ function updateLogsDisplay(data) {
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
         logEntry.innerHTML = `
-            <span class="log-timestamp">${log.timestamp}</span>
+            <span class="log-timestamp">${formatTimestamp(log.timestamp)}</span>
             <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
             <span class="log-message">${log.message}</span>
         `;

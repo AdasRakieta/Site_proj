@@ -211,6 +211,34 @@ class SmartHomeApp:
             SOCKET_PREFIX=socket_prefix
         )
         print(f"✓ URL prefixes configured: URL={url_prefix or '/'}, API={api_prefix}, STATIC={static_prefix}, SOCKET={socket_prefix}")
+
+        @self.app.template_filter('fmt_ts')
+        def fmt_ts(value):
+            """Format timestamps uniformly as 'YYYY-MM-DD HH:MM'. Accepts datetime or string.
+            - Truncates seconds and microseconds
+            - Supports ISO strings with 'T' and common space-separated formats
+            """
+            try:
+                from datetime import datetime
+                if value is None:
+                    return ''
+                # If already a datetime
+                if hasattr(value, 'strftime'):
+                    return value.strftime('%Y-%m-%d %H:%M')
+                s = str(value)
+                # Try known formats
+                for fmt in ('%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        dt = datetime.strptime(s, fmt)
+                        return dt.strftime('%Y-%m-%d %H:%M')
+                    except ValueError:
+                        pass
+                # Fallback: extract date and HH:MM
+                import re
+                m = re.match(r'^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})', s)
+                return f"{m.group(1)} {m.group(2)}" if m else s
+            except Exception:
+                return str(value)
     
     def setup_sys_admin(self):
         """Setup system administrator if in database mode"""

@@ -251,6 +251,7 @@
         flex: none;
         width: 100%;
         max-width: 300px;
+        box-shadow: var(--box_shd);
     }
         
     .home-header {

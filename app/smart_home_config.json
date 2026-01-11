@@ -45,23 +45,21 @@
     "temperature_controls": [],
     "automations": [
         {
-            "id": "edf255e2-aa02-4e0b-90c5-b28a5daec473",
+            "id": "674faef5-8114-49eb-a97e-76aa80ab23b4",
             "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "name": "123",
+            "name": "asdad",
             "trigger": {
                 "type": "time",
                 "time": "12:03",
-                "days": [
-                    "wed"
-                ]
+                "days": []
             },
             "actions": [],
-            "enabled": false,
+            "enabled": true,
             "execution_count": 0,
             "last_executed": null,
             "error_count": 0,
-            "created_at": "2026-01-11T11:41:44.707841",
-            "updated_at": "2026-01-11T11:41:44.707841"
+            "created_at": "2026-01-11T11:54:23.927996",
+            "updated_at": "2026-01-11T11:54:26.563181"
         }
     ],
     "metadata": {
@@ -84,6 +82,75 @@
                 "deleted_count": 3,
                 "action": "delete_logs"
             }
+        },
+        {
+            "id": "65e44ae2-f8f2-4447-9bd2-87ba9a84fced",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-11T11:54:19.454633",
+            "level": "info",
+            "message": "Usunięto automatyzację: 123",
+            "event_type": "automation_change",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "action": "delete",
+                "automation": "123"
+            }
+        },
+        {
+            "id": "5d602efa-3be1-4480-b506-f38382bebf93",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-11T11:54:23.933782",
+            "level": "info",
+            "message": "Dodano nową automatyzację: asdad",
+            "event_type": "automation_change",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "action": "add",
+                "automation": "asdad"
+            }
+        },
+        {
+            "id": "5376813e-df7d-490c-b4c5-a35e0d2266cb",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-11T11:54:26.569620",
+            "level": "info",
+            "message": "Zmodyfikowano automatyzację: asdad",
+            "event_type": "automation_change",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "action": "edit",
+                "automation": "asdad"
+            }
+        },
+        {
+            "id": "8af3ffee-3b71-46f5-bde5-6fe567c830c2",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-11T11:56:51.296928",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "60dc8ce3-e3bc-49dc-9978-af5c8b8ae754",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-11T12:08:46.351985",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
         }
     ],
     "invitations": [

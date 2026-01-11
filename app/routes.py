@@ -4817,38 +4817,69 @@ class APIManager(MultiHomeHelpersMixin):
                         self.app.logger.warning(f"DELETE user {user_id} REJECTED: home_role={home_role} not in ['owner', 'admin']")
                         return jsonify({'status': 'error', 'message': f'Brak uprawnień. Tylko właściciel lub administrator domu może usuwać użytkowników. Twoja rola: {home_role}'}), 403
                     
-                    # Sprawdź czy nie próbuje usunąć właściciela domu
-                    try:
-                        with self.multi_db.get_cursor() as cursor:
-                            cursor.execute("""
-                                SELECT uh.role, h.owner_id
-                                FROM user_homes uh
-                                JOIN homes h ON uh.home_id = h.id
-                                WHERE uh.user_id = %s AND uh.home_id = %s
-                            """, (user_id, current_home_id))
-                            result = cursor.fetchone()
-                            if result:
-                                target_role, owner_id = result
-                                if target_role == 'owner' or user_id == owner_id:
-                                    return jsonify({'status': 'error', 'message': 'Nie można usunąć właściciela domu'}), 403
-                            else:
+                    # JSON fallback branch: avoid DB cursor usage
+                    if getattr(self.multi_db, 'json_fallback_mode', False) and getattr(self.multi_db, 'json_backup', None):
+                        try:
+                            # Determine target user's role in this home
+                            target_role = self.multi_db.get_user_role_in_home(user_id, current_home_id)
+                            if not target_role:
                                 return jsonify({'status': 'error', 'message': 'Użytkownik nie należy do tego domu'}), 404
-                    except Exception as e:
-                        self.app.logger.error(f"Error checking user role in home: {e}")
-                        return jsonify({'status': 'error', 'message': 'Błąd sprawdzania roli użytkownika'}), 500
-                    
-                    # Usuń użytkownika z domu (nie z całego systemu)
-                    try:
-                        with self.multi_db.get_cursor() as cursor:
-                            cursor.execute("""
-                                DELETE FROM user_homes
-                                WHERE user_id = %s AND home_id = %s
-                            """, (user_id, current_home_id))
-                            # Commit is automatic in get_cursor context manager
-                    except Exception as e:
-                        # Rollback is automatic in get_cursor context manager
-                        self.app.logger.error(f"Error removing user from home: {e}")
-                        return jsonify({'status': 'error', 'message': 'Błąd usuwania użytkownika z domu'}), 500
+                            # Owner can never be removed
+                            if target_role == 'owner':
+                                return jsonify({'status': 'error', 'message': 'Nie można usunąć właściciela domu'}), 403
+                            # Also protect by explicit owner_id check
+                            home_details = self.multi_db.get_home_details(current_home_id, current_user_id) or {}
+                            owner_id = str(home_details.get('owner_id')) if home_details.get('owner_id') else None
+                            if owner_id and str(user_id) == owner_id:
+                                return jsonify({'status': 'error', 'message': 'Nie można usunąć właściciela domu'}), 403
+                            
+                            # Remove user association from JSON config
+                            cfg = self.multi_db.json_backup.get_config()
+                            user_homes = cfg.get('user_homes', {})
+                            entries = user_homes.get(str(current_home_id), [])
+                            new_entries = [e for e in entries if str(e.get('user_id')) != str(user_id)]
+                            if len(new_entries) == len(entries):
+                                return jsonify({'status': 'error', 'message': 'Użytkownik nie należy do tego domu'}), 404
+                            user_homes[str(current_home_id)] = new_entries
+                            cfg['user_homes'] = user_homes
+                            self.multi_db.json_backup.save_config(cfg)
+                        except Exception as e:
+                            self.app.logger.error(f"Error removing user from home (JSON): {e}")
+                            return jsonify({'status': 'error', 'message': 'Błąd usuwania użytkownika z domu'}), 500
+                    else:
+                        # DB mode: use SQL
+                        # Sprawdź czy nie próbuje usunąć właściciela domu
+                        try:
+                            with self.multi_db.get_cursor() as cursor:
+                                cursor.execute("""
+                                    SELECT uh.role, h.owner_id
+                                    FROM user_homes uh
+                                    JOIN homes h ON uh.home_id = h.id
+                                    WHERE uh.user_id = %s AND uh.home_id = %s
+                                """, (user_id, current_home_id))
+                                result = cursor.fetchone()
+                                if result:
+                                    target_role, owner_id = result
+                                    if target_role == 'owner' or str(user_id) == str(owner_id):
+                                        return jsonify({'status': 'error', 'message': 'Nie można usunąć właściciela domu'}), 403
+                                else:
+                                    return jsonify({'status': 'error', 'message': 'Użytkownik nie należy do tego domu'}), 404
+                        except Exception as e:
+                            self.app.logger.error(f"Error checking user role in home: {e}")
+                            return jsonify({'status': 'error', 'message': 'Błąd sprawdzania roli użytkownika'}), 500
+                        
+                        # Usuń użytkownika z domu (nie z całego systemu)
+                        try:
+                            with self.multi_db.get_cursor() as cursor:
+                                cursor.execute("""
+                                    DELETE FROM user_homes
+                                    WHERE user_id = %s AND home_id = %s
+                                """, (user_id, current_home_id))
+                                # Commit is automatic in get_cursor context manager
+                        except Exception as e:
+                            # Rollback is automatic in get_cursor context manager
+                            self.app.logger.error(f"Error removing user from home: {e}")
+                            return jsonify({'status': 'error', 'message': 'Błąd usuwania użytkownika z domu'}), 500
                     
                     # Log the deletion
                     try:

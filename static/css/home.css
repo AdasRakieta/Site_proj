@@ -405,6 +405,7 @@
     flex: 1;
     justify-content: center;
     box-sizing: border-box;
+    box-shadow: var(--box_shd);
 }
 
 .home-form-container .btn-primary,

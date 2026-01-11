@@ -119,7 +119,7 @@
         <div class="logs-container" id="logs-container">
             {% for log in management_logs %}
             <div class="log-entry">
-                <span class="log-timestamp">{{ log.timestamp }}</span>
+                <span class="log-timestamp">{{ log.timestamp|fmt_ts }}</span>
                 <span class="log-level {{ log.level }}">{{ log.level|upper }}</span>
                 <span class="log-message">{{ log.message }}</span>
             </div>
