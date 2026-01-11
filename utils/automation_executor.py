@@ -479,6 +479,42 @@ class AutomationExecutor:
         """Log automation execution to database"""
         try:
             import json
+            # JSON fallback: persist stats in backup config
+            if getattr(self.multi_db, 'json_fallback_mode', False) and getattr(self.multi_db, 'json_backup', None):
+                cfg = self.multi_db.json_backup.get_config()
+                autos = cfg.get('automations', [])
+                updated = False
+                for a in autos:
+                    if str(a.get('id')) == str(automation_id):
+                        a['execution_count'] = int(a.get('execution_count', 0)) + 1
+                        a['last_executed'] = datetime.now().isoformat()
+                        if execution_status == 'error':
+                            a['error_count'] = int(a.get('error_count', 0)) + 1
+                            a['last_error'] = error_message
+                            a['last_error_time'] = datetime.now().isoformat()
+                        updated = True
+                        break
+                if updated:
+                    cfg['automations'] = autos
+                    # Optionally append execution log entries (keep light-weight)
+                    execs = cfg.get('automation_executions', [])
+                    execs.append({
+                        'automation_id': automation_id,
+                        'status': execution_status,
+                        'trigger_data': trigger_data,
+                        'actions_executed': actions_executed,
+                        'error_message': error_message,
+                        'execution_time_ms': execution_time_ms,
+                        'executed_at': datetime.now().isoformat()
+                    })
+                    # Bound list size to avoid unbounded growth
+                    if len(execs) > 500:
+                        execs = execs[-500:]
+                    cfg['automation_executions'] = execs
+                    self.multi_db.json_backup.save_config(cfg)
+                return
+
+            # DB mode: write execution record and update stats
             with self.multi_db.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO automation_executions 
@@ -488,14 +524,13 @@ class AutomationExecutor:
                 """, (
                     automation_id,
                     execution_status,
-                    json.dumps(trigger_data),  # Convert dict to JSON string
-                    json.dumps(actions_executed),  # Convert list to JSON string
+                    json.dumps(trigger_data),
+                    json.dumps(actions_executed),
                     error_message,
                     execution_time_ms,
                     datetime.now()
                 ))
-                
-                # Update automation statistics (use home_automations table)
+
                 cursor.execute("""
                     UPDATE home_automations
                     SET execution_count = execution_count + 1,

@@ -43,7 +43,27 @@
     "rooms": [],
     "buttons": [],
     "temperature_controls": [],
-    "automations": [],
+    "automations": [
+        {
+            "id": "edf255e2-aa02-4e0b-90c5-b28a5daec473",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "name": "123",
+            "trigger": {
+                "type": "time",
+                "time": "12:03",
+                "days": [
+                    "wed"
+                ]
+            },
+            "actions": [],
+            "enabled": false,
+            "execution_count": 0,
+            "last_executed": null,
+            "error_count": 0,
+            "created_at": "2026-01-11T11:41:44.707841",
+            "updated_at": "2026-01-11T11:41:44.707841"
+        }
+    ],
     "metadata": {
         "created_at": "2026-01-10T21:52:14.205814",
         "backup_mode": true,
@@ -51,176 +71,19 @@
     },
     "management_logs": [
         {
-            "id": "95ac3c82-f680-49c4-94e7-1a4c93bb57c4",
+            "id": "a7f575be-7a0a-4b60-b08e-90c6810de118",
             "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:44:41.344426",
-            "level": "warning",
-            "message": "Nieudana próba logowania dla użytkownika sys-admin",
-            "event_type": "failed_login",
-            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
-            "username": "sys-admin",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "1c05a36f-3946-4bc3-b8dd-e42e8b163ff2",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:44:43.013814",
-            "level": "warning",
-            "message": "Nieudana próba logowania dla użytkownika sys-admin",
-            "event_type": "failed_login",
-            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
-            "username": "sys-admin",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "2f017d18-ad45-4495-97b0-da583fff7ce8",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:46:01.362534",
+            "timestamp": "2026-01-11T11:52:03.756061",
             "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
+            "message": "Administrator System Administrator: Usunięto 3 logów z okresu 2026-01-10 - 2026-01-11",
+            "event_type": "admin_action",
             "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "c42713b1-5eea-4462-93d0-a1fe716a2dbf",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:46:08.061770",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "8ff8b124-7c63-4b11-a425-7fa6fc666455",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:50:11.874311",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "57c647f9-c900-4394-ad8e-b971fa3bf51c",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T22:55:19.537049",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "36830b5c-8190-4e70-a7f0-fb15be205ae2",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:05:11.705682",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "62dfb9e9-efc6-40c6-92c6-a67ce0107fa1",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:05:21.660220",
-            "level": "info",
-            "message": "Utworzono nowy pokój \"sda\"",
-            "event_type": "room_creation",
-            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {
-                "room_id": "460b89fa-56c5-4917-bd9c-fc3e484789a6",
-                "room_name": "sda",
-                "description": ""
+                "deleted_count": 3,
+                "action": "delete_logs"
             }
-        },
-        {
-            "id": "d1bfc88b-7880-4836-b611-3e9a2162cd4d",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:05:29.695552",
-            "level": "info",
-            "message": "Utworzono nowe urządzenie przycisk \"asdasd\" w pokoju \"Nieprzypisane\"",
-            "event_type": "device_creation",
-            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {
-                "device_id": "0108d3fa-02f5-42bc-90ea-ce2182bd67c6",
-                "device_name": "asdasd",
-                "device_type": "button",
-                "room_id": null,
-                "room_name": "Nieprzypisane"
-            }
-        },
-        {
-            "id": "bfc0dc45-324a-458f-88e9-beca91688140",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:17:19.857810",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "541aacc2-4a44-4d76-9d75-b6a304ea64f6",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:18:02.151816",
-            "level": "info",
-            "message": "Utworzono nowe urządzenie przycisk \"dasd\" w pokoju \"Nieprzypisane\"",
-            "event_type": "device_creation",
-            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {
-                "device_id": "754f1da4-a15a-495f-92d7-c3b4af17dc0c",
-                "device_name": "dasd",
-                "device_type": "button",
-                "room_id": null,
-                "room_name": "Nieprzypisane"
-            }
-        },
-        {
-            "id": "84936af1-7a32-47af-9a36-5931fb0652c2",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-10T23:26:45.180430",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
-        },
-        {
-            "id": "d6dda722-4828-4db4-9415-f82679fa1d35",
-            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
-            "timestamp": "2026-01-11T11:09:16.821320",
-            "level": "info",
-            "message": "Użytkownik System Administrator zalogował się pomyślnie",
-            "event_type": "login",
-            "user_id": null,
-            "username": "System Administrator",
-            "ip_address": "127.0.0.1",
-            "details": {}
         }
     ],
     "invitations": [
@@ -233,8 +96,32 @@
             "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
             "expires_at": "2026-01-17T22:27:02.942883+00:00",
             "accepted_by": null,
-            "status": "pending",
+            "status": "rejected",
             "created_at": "2026-01-10T22:27:02.943471+00:00"
+        },
+        {
+            "id": "cf8955c8-a300-44da-95d2-0e390d7bcf3d",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "szymon.przybysz2003@gmail.com",
+            "role": "member",
+            "invitation_code": "7Q4N88EC",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-18T10:31:21.407109+00:00",
+            "accepted_by": null,
+            "status": "rejected",
+            "created_at": "2026-01-11T10:31:21.407626+00:00"
+        },
+        {
+            "id": "ce2d5826-a486-44ec-b80d-5a1bd37faa7f",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "szymon.przybysz2003@gmail.com",
+            "role": "member",
+            "invitation_code": "ULY4A3E8",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-18T10:39:47.727399+00:00",
+            "accepted_by": null,
+            "status": "rejected",
+            "created_at": "2026-01-11T10:39:47.727895+00:00"
         }
     ]
 }

@@ -767,8 +767,19 @@ class MultiHomeDBManager:
             users_map = config.get('users', {}) or {}
 
             def _find_user(user_id: str) -> Optional[Dict]:
+                # Support both dict keyed by username and dict keyed by id
                 if isinstance(users_map, dict):
-                    return users_map.get(user_id) or users_map.get(str(user_id))
+                    # Direct key lookup
+                    direct = users_map.get(user_id) or users_map.get(str(user_id))
+                    if direct:
+                        return direct
+                    # Scan values for matching id
+                    try:
+                        for u in users_map.values():
+                            if str(u.get('id')) == str(user_id):
+                                return u
+                    except Exception:
+                        pass
                 if isinstance(users_map, list):
                     return next((u for u in users_map if str(u.get('id')) == str(user_id)), None)
                 return None
@@ -1059,17 +1070,34 @@ class MultiHomeDBManager:
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
             logs_data = config.get('management_logs', [])
-            start_dt = datetime.fromisoformat(start_date) if start_date else None
-            # Inclusive end date
-            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1) if end_date else None
+            # Parse dates and make timezone-aware
+            start_dt = None
+            end_dt = None
+            if start_date:
+                start_dt = datetime.fromisoformat(start_date)
+                if start_dt.tzinfo is None:
+                    start_dt = start_dt.replace(tzinfo=timezone.utc)
+            if end_date:
+                # Inclusive end date - add 1 day to make it exclusive upper bound
+                end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+                if end_dt.tzinfo is None:
+                    end_dt = end_dt.replace(tzinfo=timezone.utc)
+            
             remaining = []
             deleted = 0
             for log in logs_data:
-                if log.get('home_id') != home_id:
+                if str(log.get('home_id')) != str(home_id):
                     remaining.append(log)
                     continue
                 try:
-                    ts = datetime.fromisoformat(log.get('timestamp'))
+                    ts_str = log.get('timestamp', '')
+                    if ts_str:
+                        ts = datetime.fromisoformat(ts_str)
+                        # Make timezone-aware if naive
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                    else:
+                        ts = None
                 except Exception:
                     ts = None
                 # Delete if timestamp falls within provided bounds
@@ -1084,6 +1112,7 @@ class MultiHomeDBManager:
                     remaining.append(log)
             config['management_logs'] = remaining
             self.json_backup.save_config(config)
+            logger.info(f"[JSON] Deleted {deleted} logs by date range for home {home_id}")
             return deleted
         
         # Build query based on provided dates
@@ -1126,23 +1155,34 @@ class MultiHomeDBManager:
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
             logs_data = config.get('management_logs', [])
-            cutoff = datetime.now() - timedelta(days=days)
+            # Use timezone-aware datetime for proper comparison
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             remaining = []
             deleted = 0
             for log in logs_data:
-                if log.get('home_id') != home_id:
+                if str(log.get('home_id')) != str(home_id):
                     remaining.append(log)
                     continue
                 try:
-                    ts = datetime.fromisoformat(log.get('timestamp'))
+                    ts_str = log.get('timestamp', '')
+                    # Parse timestamp (may or may not have timezone)
+                    if ts_str:
+                        ts = datetime.fromisoformat(ts_str)
+                        # Make timezone-aware if naive
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                    else:
+                        ts = None
                 except Exception:
                     ts = None
+                # Delete if timestamp exists and is older than cutoff
                 if ts and ts < cutoff:
                     deleted += 1
                 else:
                     remaining.append(log)
             config['management_logs'] = remaining
             self.json_backup.save_config(config)
+            logger.info(f"[JSON] Deleted {deleted} logs older than {days} days for home {home_id}")
             return deleted
         
         with self.get_cursor() as cursor:
@@ -2651,35 +2691,15 @@ class MultiHomeDBManager:
         # JSON fallback support
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
-            autos = []
-            for auto in config.get('automations', []):
-                if str(auto.get('home_id')) != str(normalized_home_id):
-                    continue
-                trigger_cfg = auto.get('trigger') or {}
-                actions_cfg = auto.get('actions') or []
-                if isinstance(trigger_cfg, str):
-                    try:
-                        trigger_cfg = json.loads(trigger_cfg)
-                    except json.JSONDecodeError:
-                        trigger_cfg = {}
-                if isinstance(actions_cfg, str):
-                    try:
-                        actions_cfg = json.loads(actions_cfg)
-                    except json.JSONDecodeError:
-                        actions_cfg = []
-                autos.append({
-                    'id': str(auto.get('id')) if auto.get('id') is not None else None,
-                    'home_id': normalized_home_id,
-                    'name': auto.get('name'),
-                    'trigger': trigger_cfg,
-                    'actions': actions_cfg,
-                    'enabled': bool(auto.get('enabled', True)),
-                    'execution_count': auto.get('execution_count', 0),
-                    'last_executed': auto.get('last_executed'),
-                    'error_count': auto.get('error_count', 0)
-                })
-            autos.sort(key=lambda a: (a.get('name') or '').casefold())
-            return autos
+            states = config.get('security_states', {})
+            state = states.get(str(normalized_home_id))
+            if state is None:
+                # initialize default state in JSON for consistency
+                states[str(normalized_home_id)] = default
+                config['security_states'] = states
+                self.json_backup.save_config(config)
+                return default
+            return str(state)
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -2754,6 +2774,39 @@ class MultiHomeDBManager:
 
         if not self.user_has_home_access(user_id, normalized_home_id):
             raise PermissionError("User doesn't have access to this home")
+
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            automations: List[Dict] = []
+            for auto in config.get('automations', []):
+                if str(auto.get('home_id')) != str(normalized_home_id):
+                    continue
+                trigger_cfg = auto.get('trigger') or {}
+                actions_cfg = auto.get('actions') or []
+                if isinstance(trigger_cfg, str):
+                    try:
+                        trigger_cfg = json.loads(trigger_cfg)
+                    except json.JSONDecodeError:
+                        trigger_cfg = {}
+                if isinstance(actions_cfg, str):
+                    try:
+                        actions_cfg = json.loads(actions_cfg)
+                    except json.JSONDecodeError:
+                        actions_cfg = []
+                automations.append({
+                    'id': str(auto.get('id')) if auto.get('id') is not None else None,
+                    'home_id': normalized_home_id,
+                    'name': auto.get('name'),
+                    'trigger': trigger_cfg,
+                    'actions': actions_cfg,
+                    'enabled': bool(auto.get('enabled', True)),
+                    'execution_count': auto.get('execution_count', 0),
+                    'last_executed': auto.get('last_executed'),
+                    'error_count': auto.get('error_count', 0)
+                })
+            automations.sort(key=lambda a: (a.get('name') or '').casefold())
+            return automations
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -3006,6 +3059,17 @@ class MultiHomeDBManager:
 
         if not self._can_manage_automations(user_id, normalized_home_id):
             raise PermissionError("User lacks permissions to manage automations in this home")
+
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            autos = config.get('automations', [])
+            new_autos = [a for a in autos if not (str(a.get('id')) == str(automation_id) and str(a.get('home_id')) == str(normalized_home_id))]
+            deleted = len(new_autos) != len(autos)
+            if deleted:
+                config['automations'] = new_autos
+                self.json_backup.save_config(config)
+            return deleted
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -3512,6 +3576,51 @@ class MultiHomeDBManager:
         Returns:
             Dictionary with invitation details or None if not found
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            invitations = config.get('invitations', []) or []
+            homes = config.get('homes', {}) or {}
+            users_map = config.get('users', {}) or {}
+            
+            def _user_name(user_id: str) -> Optional[str]:
+                if isinstance(users_map, dict):
+                    u = users_map.get(user_id) or users_map.get(str(user_id))
+                    if u:
+                        return u.get('name')
+                    # Scan values
+                    for user in users_map.values():
+                        if str(user.get('id')) == str(user_id):
+                            return user.get('name')
+                if isinstance(users_map, list):
+                    user = next((u for u in users_map if str(u.get('id')) == str(user_id)), None)
+                    return user.get('name') if user else None
+                return None
+            
+            for inv in invitations:
+                if str(inv.get('invitation_code', '')).upper() == str(invitation_code).upper():
+                    home_id = str(inv.get('home_id'))
+                    home_name = homes.get(home_id, {}).get('name', 'Unknown')
+                    inviter_name = _user_name(inv.get('invited_by'))
+                    existing_username = _user_name(inv.get('accepted_by')) if inv.get('accepted_by') else None
+                    
+                    return {
+                        'id': str(inv.get('id')),
+                        'home_id': home_id,
+                        'email': inv.get('email'),
+                        'role': inv.get('role'),
+                        'invitation_code': inv.get('invitation_code'),
+                        'invited_by': str(inv.get('invited_by')),
+                        'created_at': inv.get('created_at'),
+                        'expires_at': inv.get('expires_at'),
+                        'status': inv.get('status', 'pending'),
+                        'home_name': home_name,
+                        'inviter_name': inviter_name,
+                        'existing_user_id': str(inv.get('accepted_by')) if inv.get('accepted_by') else None,
+                        'existing_username': existing_username
+                    }
+            return None
+        
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT i.id, i.home_id, i.email, i.role, i.invitation_code, 
@@ -3705,6 +3814,38 @@ class MultiHomeDBManager:
         Returns:
             True if successful
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            invitations = config.get('invitations', []) or []
+            homes = config.get('homes', {}) or {}
+            user_homes = config.get('user_homes', {}) or {}
+            target = None
+            for inv in invitations:
+                if str(inv.get('id')) == str(invitation_id):
+                    target = inv
+                    break
+            if not target:
+                raise ValueError("Invitation not found")
+            home_id = str(target.get('home_id'))
+            # Admin check: owner or admin in user_homes
+            is_admin = False
+            if home_id in homes and str(homes[home_id].get('owner_id')) == str(admin_user_id):
+                is_admin = True
+            for entry in user_homes.get(home_id, []):
+                if str(entry.get('user_id')) == str(admin_user_id) and str(entry.get('role')) in ['admin']:
+                    is_admin = True
+                    break
+            if not is_admin:
+                raise PermissionError("User doesn't have admin access to this home")
+            status = target.get('status','pending')
+            if status != 'pending':
+                raise ValueError(f"Cannot cancel {status} invitation")
+            target['status'] = 'rejected'
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] Admin {admin_user_id} cancelled invitation {invitation_id}")
+            return True
+
         with self.get_cursor() as cursor:
             # Get invitation and check permissions
             cursor.execute("""
