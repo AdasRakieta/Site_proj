@@ -171,6 +171,17 @@ class MultiHomeDBManager:
                 details JSONB
             )
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            autos = config.get('automations', [])
+            new_autos = [a for a in autos if not (str(a.get('id')) == str(automation_id) and str(a.get('home_id')) == str(normalized_home_id))]
+            if len(new_autos) == len(autos):
+                return False
+            config['automations'] = new_autos
+            self.json_backup.save_config(config)
+            return True
+
         with self.get_cursor() as cursor:
             cursor.execute(create_sql)
 
@@ -748,7 +759,39 @@ class MultiHomeDBManager:
         # Check admin access
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
-            
+        
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            user_homes = config.get('user_homes', {}) or {}
+            users_map = config.get('users', {}) or {}
+
+            def _find_user(user_id: str) -> Optional[Dict]:
+                if isinstance(users_map, dict):
+                    return users_map.get(user_id) or users_map.get(str(user_id))
+                if isinstance(users_map, list):
+                    return next((u for u in users_map if str(u.get('id')) == str(user_id)), None)
+                return None
+
+            result: List[Dict] = []
+            for entry in user_homes.get(home_id, []):
+                uid = entry.get('user_id') or entry.get('id')
+                user_info = _find_user(uid) or {}
+                result.append({
+                    'user_id': str(uid) if uid is not None else None,
+                    'username': user_info.get('name') or user_info.get('username') or '',
+                    'email': user_info.get('email', ''),
+                    'global_role': user_info.get('role', 'member'),
+                    'home_role': entry.get('role', 'member'),
+                    'joined_at': entry.get('joined_at'),
+                    'last_access': entry.get('last_access'),
+                    'is_home_owner': entry.get('role') == 'owner'
+                })
+
+            role_order = {'owner': 3, 'admin': 2, 'member': 1, 'guest': 0}
+            result.sort(key=lambda u: (-(role_order.get(u.get('home_role'), 0)), (u.get('username') or '').casefold()))
+            return result
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT u.id, u.name, u.email, u.role as global_role,
@@ -1196,6 +1239,20 @@ class MultiHomeDBManager:
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
         
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            users = self.get_home_users(home_id, admin_user_id)
+            recipients = []
+            for user in users:
+                recipients.append({
+                    'user_id': user.get('user_id'),
+                    'user': user.get('username', ''),
+                    'email': user.get('email', ''),
+                    'role': user.get('home_role'),
+                    'enabled': True
+                })
+            return recipients
+
         with self.get_cursor() as cursor:
             # For now, return home users as potential recipients
             # In future, this could be a separate notification_recipients table
@@ -2130,6 +2187,22 @@ class MultiHomeDBManager:
         updated_devices = []
         failed_updates = []
 
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            for update_data in device_updates:
+                if not isinstance(update_data, dict) or 'id' not in update_data:
+                    failed_updates.append({'update': update_data, 'error': 'Missing device id'})
+                    continue
+                try:
+                    ok = self.update_device(update_data['id'], user_id, **{k: v for k, v in update_data.items() if k != 'id'})
+                    if ok:
+                        updated_devices.append(str(update_data['id']))
+                    else:
+                        failed_updates.append({'device_id': update_data['id'], 'error': 'Update failed'})
+                except Exception as e:
+                    failed_updates.append({'device_id': update_data['id'], 'error': str(e)})
+            return {'updated': updated_devices, 'failed': failed_updates}
+
         with self.get_cursor() as cursor:
             try:
                 # Start transaction
@@ -2286,6 +2359,46 @@ class MultiHomeDBManager:
         normalized_id = self._normalize_device_id(device_id)
         if normalized_id is None:
             return None
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            device = None
+            list_key = None
+            for key in ('buttons', 'temperature_controls'):
+                for dev in config.get(key, []):
+                    if str(dev.get('id')) == str(normalized_id):
+                        device = dev
+                        list_key = key
+                        break
+                if device:
+                    break
+            if not device:
+                return None
+            home_id = device.get('home_id')
+            if home_id and not self.user_has_home_access(user_id, home_id):
+                return None
+            room_name = None
+            if device.get('room_id') is not None:
+                room = next((r for r in config.get('rooms', []) if str(r.get('id')) == str(device.get('room_id'))), None)
+                room_name = room.get('name') if room else None
+            dtype = 'button' if list_key == 'buttons' else 'temperature_control'
+            return {
+                'id': device.get('id'),
+                'name': device.get('name'),
+                'room_id': device.get('room_id'),
+                'type': dtype,
+                'state': device.get('state'),
+                'temperature': device.get('temperature'),
+                'min_temperature': device.get('min_temperature'),
+                'max_temperature': device.get('max_temperature'),
+                'display_order': device.get('display_order'),
+                'enabled': device.get('enabled', True),
+                'settings': device.get('settings'),
+                'created_at': device.get('created_at'),
+                'updated_at': device.get('updated_at'),
+                'home_id': home_id,
+                'room_name': room_name
+            }
         with self.get_cursor() as cursor:
             # Query to find device in any home user has access to
             cursor.execute("""
@@ -2535,6 +2648,39 @@ class MultiHomeDBManager:
         if not self.user_has_home_access(user_id, normalized_home_id):
             raise PermissionError("User doesn't have access to this home")
 
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            autos = []
+            for auto in config.get('automations', []):
+                if str(auto.get('home_id')) != str(normalized_home_id):
+                    continue
+                trigger_cfg = auto.get('trigger') or {}
+                actions_cfg = auto.get('actions') or []
+                if isinstance(trigger_cfg, str):
+                    try:
+                        trigger_cfg = json.loads(trigger_cfg)
+                    except json.JSONDecodeError:
+                        trigger_cfg = {}
+                if isinstance(actions_cfg, str):
+                    try:
+                        actions_cfg = json.loads(actions_cfg)
+                    except json.JSONDecodeError:
+                        actions_cfg = []
+                autos.append({
+                    'id': str(auto.get('id')) if auto.get('id') is not None else None,
+                    'home_id': normalized_home_id,
+                    'name': auto.get('name'),
+                    'trigger': trigger_cfg,
+                    'actions': actions_cfg,
+                    'enabled': bool(auto.get('enabled', True)),
+                    'execution_count': auto.get('execution_count', 0),
+                    'last_executed': auto.get('last_executed'),
+                    'error_count': auto.get('error_count', 0)
+                })
+            autos.sort(key=lambda a: (a.get('name') or '').casefold())
+            return autos
+
         with self.get_cursor() as cursor:
             cursor.execute(
                 """
@@ -2685,6 +2831,42 @@ class MultiHomeDBManager:
 
         automation_id = str(uuid.uuid4())
 
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            autos = config.get('automations', [])
+            for a in autos:
+                if str(a.get('home_id')) == str(normalized_home_id) and (a.get('name') or '').casefold() == name_clean.casefold():
+                    raise ValueError("Automatyzacja o tej nazwie już istnieje w tym domu")
+            now = datetime.now().isoformat()
+            new_auto = {
+                'id': automation_id,
+                'home_id': normalized_home_id,
+                'name': name_clean,
+                'trigger': trigger_cfg,
+                'actions': actions_cfg,
+                'enabled': enabled,
+                'execution_count': 0,
+                'last_executed': None,
+                'error_count': 0,
+                'created_at': now,
+                'updated_at': now
+            }
+            autos.append(new_auto)
+            config['automations'] = autos
+            self.json_backup.save_config(config)
+            return {
+                'id': automation_id,
+                'home_id': normalized_home_id,
+                'name': name_clean,
+                'trigger': trigger_cfg,
+                'actions': actions_cfg,
+                'enabled': enabled,
+                'execution_count': 0,
+                'last_executed': None,
+                'error_count': 0
+            }
+
         try:
             with self.get_cursor() as cursor:
                 cursor.execute(
@@ -2734,6 +2916,37 @@ class MultiHomeDBManager:
 
         if not self._can_manage_automations(user_id, normalized_home_id):
             raise PermissionError("User lacks permissions to manage automations in this home")
+
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            autos = config.get('automations', [])
+            idx = None
+            for i, a in enumerate(autos):
+                if str(a.get('id')) == str(automation_id) and str(a.get('home_id')) == str(normalized_home_id):
+                    idx = i
+                    break
+            if idx is None:
+                return False
+            auto = autos[idx]
+            if 'name' in updates and updates.get('name'):
+                name_clean = self._normalize_automation_name(updates.get('name'))
+                for a in autos:
+                    if str(a.get('home_id')) == str(normalized_home_id) and str(a.get('id')) != str(automation_id):
+                        if (a.get('name') or '').casefold() == name_clean.casefold():
+                            raise ValueError("Automatyzacja o tej nazwie już istnieje w tym domu")
+                auto['name'] = name_clean
+            if 'trigger' in updates:
+                auto['trigger'] = updates.get('trigger') or {}
+            if 'actions' in updates:
+                auto['actions'] = updates.get('actions') or []
+            if 'enabled' in updates:
+                auto['enabled'] = bool(updates.get('enabled'))
+            auto['updated_at'] = datetime.now().isoformat()
+            autos[idx] = auto
+            config['automations'] = autos
+            self.json_backup.save_config(config)
+            return True
 
         set_clauses: List[str] = []
         params: List[Any] = []
@@ -3201,6 +3414,53 @@ class MultiHomeDBManager:
         # Set expiration (7 days from now)
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            invitations = config.get('invitations', []) or []
+            # Duplicate pending invitation check
+            for inv in invitations:
+                if str(inv.get('home_id')) == str(home_id) and inv.get('email', '').lower() == email.lower() and inv.get('status', 'pending') == 'pending':
+                    raise ValueError("An invitation for this email already exists for this home")
+
+            users_map = config.get('users', {}) or {}
+            existing_user = None
+            if isinstance(users_map, dict):
+                for u in users_map.values():
+                    if str(u.get('email', '')).lower() == email.lower():
+                        existing_user = u
+                        break
+            elif isinstance(users_map, list):
+                existing_user = next((u for u in users_map if str(u.get('email', '')).lower() == email.lower()), None)
+
+            existing_user_id = None
+            existing_username = None
+            user_homes = config.get('user_homes', {}) or {}
+            if existing_user:
+                existing_user_id = str(existing_user.get('id'))
+                existing_username = existing_user.get('name')
+                for entry in user_homes.get(home_id, []):
+                    if str(entry.get('user_id')) == existing_user_id:
+                        raise ValueError(f"Użytkownik {existing_username} już należy do tego domu")
+
+            invitation_id = str(uuid.uuid4())
+            invitations.append({
+                'id': invitation_id,
+                'home_id': home_id,
+                'email': email.lower(),
+                'role': role,
+                'invitation_code': invitation_code,
+                'invited_by': invited_by,
+                'expires_at': expires_at.isoformat(),
+                'accepted_by': existing_user_id,
+                'status': 'pending',
+                'created_at': datetime.now(timezone.utc).isoformat()
+            })
+            config['invitations'] = invitations
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] Created invitation {invitation_code} for {email} to home {home_id}")
+            return invitation_code
+
         with self.get_cursor() as cursor:
             # Check if there's already a pending invitation for this email in this home
             cursor.execute("""
@@ -3377,6 +3637,39 @@ class MultiHomeDBManager:
         if not self.has_admin_access(admin_user_id, home_id):
             raise PermissionError("User doesn't have admin access to this home")
         
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            invitations = []
+            inviter_lookup = config.get('users', {}) or {}
+
+            def _inviter_name(inviter_id: str) -> Optional[str]:
+                if isinstance(inviter_lookup, dict):
+                    user = inviter_lookup.get(inviter_id) or inviter_lookup.get(str(inviter_id))
+                    return user.get('name') if user else None
+                if isinstance(inviter_lookup, list):
+                    user = next((u for u in inviter_lookup if str(u.get('id')) == str(inviter_id)), None)
+                    return user.get('name') if user else None
+                return None
+
+            for inv in config.get('invitations', []) or []:
+                if str(inv.get('home_id')) != str(home_id):
+                    continue
+                if inv.get('status', 'pending') != 'pending':
+                    continue
+                invitations.append({
+                    'id': str(inv.get('id')),
+                    'email': inv.get('email'),
+                    'role': inv.get('role'),
+                    'invitation_code': inv.get('invitation_code'),
+                    'created_at': inv.get('created_at'),
+                    'expires_at': inv.get('expires_at'),
+                    'inviter_name': _inviter_name(inv.get('invited_by'))
+                })
+
+            invitations.sort(key=lambda i: i.get('created_at') or '', reverse=True)
+            return invitations
+
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT i.id, i.email, i.role, i.invitation_code, 

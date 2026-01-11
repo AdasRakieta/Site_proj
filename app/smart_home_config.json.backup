@@ -109,6 +109,120 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "57c647f9-c900-4394-ad8e-b971fa3bf51c",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T22:55:19.537049",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "36830b5c-8190-4e70-a7f0-fb15be205ae2",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:05:11.705682",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "62dfb9e9-efc6-40c6-92c6-a67ce0107fa1",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:05:21.660220",
+            "level": "info",
+            "message": "Utworzono nowy pokój \"sda\"",
+            "event_type": "room_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "room_id": "460b89fa-56c5-4917-bd9c-fc3e484789a6",
+                "room_name": "sda",
+                "description": ""
+            }
+        },
+        {
+            "id": "d1bfc88b-7880-4836-b611-3e9a2162cd4d",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:05:29.695552",
+            "level": "info",
+            "message": "Utworzono nowe urządzenie przycisk \"asdasd\" w pokoju \"Nieprzypisane\"",
+            "event_type": "device_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_id": "0108d3fa-02f5-42bc-90ea-ce2182bd67c6",
+                "device_name": "asdasd",
+                "device_type": "button",
+                "room_id": null,
+                "room_name": "Nieprzypisane"
+            }
+        },
+        {
+            "id": "bfc0dc45-324a-458f-88e9-beca91688140",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:17:19.857810",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "541aacc2-4a44-4d76-9d75-b6a304ea64f6",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:18:02.151816",
+            "level": "info",
+            "message": "Utworzono nowe urządzenie przycisk \"dasd\" w pokoju \"Nieprzypisane\"",
+            "event_type": "device_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_id": "754f1da4-a15a-495f-92d7-c3b4af17dc0c",
+                "device_name": "dasd",
+                "device_type": "button",
+                "room_id": null,
+                "room_name": "Nieprzypisane"
+            }
+        },
+        {
+            "id": "84936af1-7a32-47af-9a36-5931fb0652c2",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-10T23:26:45.180430",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        }
+    ],
+    "invitations": [
+        {
+            "id": "89964c3a-4b91-4ad4-b7a0-6df497428598",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "szymon.przybysz@op.pl",
+            "role": "member",
+            "invitation_code": "BZQN49AY",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-17T22:27:02.942883+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-10T22:27:02.943471+00:00"
         }
     ]
 }

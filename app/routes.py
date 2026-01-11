@@ -5418,10 +5418,7 @@ class APIManager(MultiHomeHelpersMixin):
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
-
-            if not DATABASE_MODE or not self.multi_db:
-                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
-
+            # In DB mode, use multi_db; in JSON fallback, operate via json_backup
             try:
                 data = request.json
                 email = data.get('email', '').strip().lower()
@@ -5436,22 +5433,97 @@ class APIManager(MultiHomeHelpersMixin):
                 if not re.match(email_pattern, email):
                     return jsonify({"success": False, "error": "Invalid email format"}), 400
 
-                # Create invitation
-                invitation_code = self.multi_db.create_invitation(
-                    home_id=home_id,
-                    email=email,
-                    role=role,
-                    invited_by=session.get('user_id')
-                )
+                inviter_id = session.get('user_id')
+                user_exists = False
+                existing_username = None
+                invitation_code = None
+                home = None
+                user_data = None
 
-                # Get invitation details to check if user exists
-                invitation_details = self.multi_db.get_invitation(invitation_code)
-                user_exists = invitation_details.get('existing_user_id') is not None
-                existing_username = invitation_details.get('existing_username')
+                if DATABASE_MODE and self.multi_db:
+                    # Create invitation via DB manager
+                    invitation_code = self.multi_db.create_invitation(
+                        home_id=home_id,
+                        email=email,
+                        role=role,
+                        invited_by=inviter_id
+                    )
 
-                # Get home and inviter details for email
-                home = self.multi_db.get_home_details(home_id, session.get('user_id'))
-                user_data = self.multi_db.get_user_data(session.get('user_id'))
+                    # Get invitation details to check if user exists
+                    invitation_details = self.multi_db.get_invitation(invitation_code)
+                    user_exists = invitation_details.get('existing_user_id') is not None
+                    existing_username = invitation_details.get('existing_username')
+
+                    # Get home and inviter details for email
+                    home = self.multi_db.get_home_details(home_id, inviter_id)
+                    user_data = self.multi_db.get_user_data(inviter_id)
+                else:
+                    # JSON fallback: use smart_home.json_backup
+                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    if not json_mgr:
+                        return jsonify({"success": False, "error": "JSON fallback not available"}), 400
+                    config = json_mgr.get_config()
+                    # Admin check: owner or role=admin in user_homes
+                    homes = config.get('homes', {}) or {}
+                    user_homes = config.get('user_homes', {}) or {}
+                    # Resolve admin access
+                    is_admin = False
+                    try:
+                        if home_id in homes and str(homes[home_id].get('owner_id')) == str(inviter_id):
+                            is_admin = True
+                        for entry in user_homes.get(home_id, []):
+                            if str(entry.get('user_id')) == str(inviter_id) and str(entry.get('role')) in ['admin']:
+                                is_admin = True
+                                break
+                    except Exception:
+                        pass
+                    if not is_admin:
+                        return jsonify({"success": False, "error": "Access denied"}), 403
+
+                    # Duplicate/presence checks
+                    existing_user = None
+                    for u in (config.get('users', {}) or {}).values():
+                        if str(u.get('email','')).lower() == email.lower():
+                            existing_user = u
+                            break
+                    existing_user_id = None
+                    if existing_user:
+                        existing_user_id = str(existing_user.get('id'))
+                        # Already member?
+                        for entry in user_homes.get(home_id, []):
+                            if str(entry.get('user_id')) == existing_user_id:
+                                return jsonify({"success": False, "error": f"Użytkownik {existing_user.get('name')} już należy do tego domu"}), 400
+                        user_exists = True
+                        existing_username = existing_user.get('name')
+
+                    # Generate invitation code and record
+                    import secrets, uuid
+                    invitation_code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
+                    from datetime import datetime, timezone, timedelta
+                    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+                    invitations = config.get('invitations', []) or []
+                    # Prevent duplicate pending
+                    for inv in invitations:
+                        if str(inv.get('home_id')) == str(home_id) and inv.get('email','').lower() == email.lower() and inv.get('status','pending') == 'pending':
+                            return jsonify({"success": False, "error": "Zaproszenie dla tego e-maila już istnieje"}), 400
+                    invitations.append({
+                        'id': str(uuid.uuid4()),
+                        'home_id': home_id,
+                        'email': email.lower(),
+                        'role': role,
+                        'invitation_code': invitation_code,
+                        'invited_by': inviter_id,
+                        'expires_at': expires_at.isoformat(),
+                        'accepted_by': existing_user_id,
+                        'status': 'pending',
+                        'created_at': datetime.now(timezone.utc).isoformat()
+                    })
+                    config['invitations'] = invitations
+                    json_mgr.save_config(config)
+
+                    # Populate home/user info for email/logging
+                    home = homes.get(home_id, { 'name': 'Unknown' })
+                    user_data = self.smart_home.get_user_data(inviter_id)
 
                 # Send invitation email
                 base_url = request.url_root.rstrip('/')
@@ -5459,7 +5531,7 @@ class APIManager(MultiHomeHelpersMixin):
                     email=email,
                     invitation_code=invitation_code,
                     home_name=home.get('name', 'Unknown'),
-                    inviter_name=user_data.get('name', 'Unknown'),
+                    inviter_name=user_data.get('name', 'Unknown') if isinstance(user_data, dict) else 'Unknown',
                     role=role,
                     base_url=base_url
                 )
@@ -5469,12 +5541,16 @@ class APIManager(MultiHomeHelpersMixin):
                     log_message = f'Wysłano zaproszenie do {email} (rola: {role})'
                     if user_exists:
                         log_message += f' - użytkownik {existing_username} już istnieje w systemie'
-                    
+                    inviter_name = None
+                    try:
+                        inviter_name = user_data.get('name') if isinstance(user_data, dict) else None
+                    except Exception:
+                        inviter_name = None
                     self.management_logger.log_event(
                         level='info',
                         message=log_message,
                         event_type='invitation_sent',
-                        user=user_data.get('name', 'Unknown'),
+                        user=inviter_name or session.get('username', 'Unknown'),
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
                         details={'email': email, 'role': role, 'code': invitation_code, 'user_exists': user_exists},
                         home_id=home_id
@@ -5511,15 +5587,55 @@ class APIManager(MultiHomeHelpersMixin):
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
-
-            if not DATABASE_MODE or not self.multi_db:
-                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
-
+            # DB path uses multi_db; JSON fallback reads from json_backup
             try:
-                invitations = self.multi_db.get_pending_invitations(
-                    home_id=home_id,
-                    admin_user_id=session.get('user_id')
-                )
+                if DATABASE_MODE and self.multi_db:
+                    invitations = self.multi_db.get_pending_invitations(
+                        home_id=home_id,
+                        admin_user_id=session.get('user_id')
+                    )
+                else:
+                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    if not json_mgr:
+                        return jsonify({"success": False, "error": "JSON fallback not available"}), 400
+                    config = json_mgr.get_config()
+                    # Admin check
+                    homes = config.get('homes', {}) or {}
+                    user_homes = config.get('user_homes', {}) or {}
+                    inviter_id = session.get('user_id')
+                    is_admin = False
+                    if home_id in homes and str(homes[home_id].get('owner_id')) == str(inviter_id):
+                        is_admin = True
+                    for entry in user_homes.get(home_id, []):
+                        if str(entry.get('user_id')) == str(inviter_id) and str(entry.get('role')) in ['admin']:
+                            is_admin = True
+                            break
+                    if not is_admin:
+                        return jsonify({"success": False, "error": "Access denied"}), 403
+                    # Build list
+                    users_map = config.get('users', {}) or {}
+                    def _name(uid):
+                        try:
+                            user = users_map.get(uid) or users_map.get(str(uid))
+                            return user.get('name') if user else None
+                        except Exception:
+                            return None
+                    invitations = []
+                    for inv in (config.get('invitations', []) or []):
+                        if str(inv.get('home_id')) != str(home_id):
+                            continue
+                        if (inv.get('status','pending')) != 'pending':
+                            continue
+                        invitations.append({
+                            'id': str(inv.get('id')),
+                            'email': inv.get('email'),
+                            'role': inv.get('role'),
+                            'invitation_code': inv.get('invitation_code'),
+                            'created_at': inv.get('created_at'),
+                            'expires_at': inv.get('expires_at'),
+                            'inviter_name': _name(inv.get('invited_by'))
+                        })
+                    invitations.sort(key=lambda i: i.get('created_at') or '', reverse=True)
 
                 return jsonify({
                     "success": True,
@@ -5543,24 +5659,63 @@ class APIManager(MultiHomeHelpersMixin):
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
-
-            if not DATABASE_MODE or not self.multi_db:
-                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
-
+            # Support JSON fallback
             try:
-                self.multi_db.cancel_invitation(
-                    invitation_id=invitation_id,
-                    admin_user_id=session.get('user_id')
-                )
+                if DATABASE_MODE and self.multi_db:
+                    self.multi_db.cancel_invitation(
+                        invitation_id=invitation_id,
+                        admin_user_id=session.get('user_id')
+                    )
+                else:
+                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    if not json_mgr:
+                        return jsonify({"success": False, "error": "JSON fallback not available"}), 400
+                    config = json_mgr.get_config()
+                    homes = config.get('homes', {}) or {}
+                    user_homes = config.get('user_homes', {}) or {}
+                    admin_id = session.get('user_id')
+                    # Admin check
+                    is_admin = False
+                    if home_id in homes and str(homes[home_id].get('owner_id')) == str(admin_id):
+                        is_admin = True
+                    for entry in user_homes.get(home_id, []):
+                        if str(entry.get('user_id')) == str(admin_id) and str(entry.get('role')) in ['admin']:
+                            is_admin = True
+                            break
+                    if not is_admin:
+                        return jsonify({"success": False, "error": "Access denied"}), 403
+                    # Find and cancel
+                    found = False
+                    for inv in (config.get('invitations', []) or []):
+                        if str(inv.get('id')) == str(invitation_id):
+                            # verify home
+                            if str(inv.get('home_id')) != str(home_id):
+                                return jsonify({"success": False, "error": "Invitation belongs to different home"}), 400
+                            status = inv.get('status','pending')
+                            if status != 'pending':
+                                return jsonify({"success": False, "error": f"Cannot cancel {status} invitation"}), 400
+                            inv['status'] = 'rejected'
+                            found = True
+                            break
+                    if not found:
+                        return jsonify({"success": False, "error": "Invitation not found"}), 404
+                    json_mgr.save_config(config)
 
                 # Log the action
                 if hasattr(self.management_logger, 'log_event'):
-                    user_data = self.multi_db.get_user_data(session.get('user_id'))
+                    user_data = None
+                    try:
+                        if DATABASE_MODE and self.multi_db:
+                            user_data = self.multi_db.get_user_data(session.get('user_id'))
+                        else:
+                            user_data = self.smart_home.get_user_data(session.get('user_id'))
+                    except Exception:
+                        user_data = None
                     self.management_logger.log_event(
                         level='info',
                         message=f'Anulowano zaproszenie',
                         event_type='invitation_cancelled',
-                        user=user_data.get('name', 'Unknown'),
+                        user=(user_data.get('name') if isinstance(user_data, dict) else session.get('username', 'Unknown')),
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
                         details={'invitation_id': invitation_id},
                         home_id=home_id
@@ -5583,9 +5738,7 @@ class APIManager(MultiHomeHelpersMixin):
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
-
-            if not DATABASE_MODE or not self.multi_db:
-                return "Multi-home mode not enabled", 400
+            # Allow JSON fallback
 
             code = request.args.get('code', '').strip().upper()
             invitation = None
@@ -5594,7 +5747,36 @@ class APIManager(MultiHomeHelpersMixin):
             if code and session.get('user_id'):
                 user_id = session.get('user_id')
                 # User is logged in and has a code - show invitation details
-                invitation = self.multi_db.get_invitation(code)
+                if DATABASE_MODE and self.multi_db:
+                    invitation = self.multi_db.get_invitation(code)
+                else:
+                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    if json_mgr:
+                        config = json_mgr.get_config()
+                        for inv in (config.get('invitations', []) or []):
+                            if str(inv.get('invitation_code','')).upper() == code:
+                                # Parse expires_at to datetime for template check compatibility
+                                exp = inv.get('expires_at')
+                                exp_dt = None
+                                try:
+                                    from datetime import datetime
+                                    exp_dt = datetime.fromisoformat(exp) if isinstance(exp, str) and exp else None
+                                except Exception:
+                                    exp_dt = None
+                                invitation = {
+                                    'id': str(inv.get('id')),
+                                    'home_id': str(inv.get('home_id')),
+                                    'email': inv.get('email'),
+                                    'role': inv.get('role'),
+                                    'invitation_code': inv.get('invitation_code'),
+                                    'invited_by': str(inv.get('invited_by')),
+                                    'created_at': inv.get('created_at'),
+                                    'expires_at': exp_dt if exp_dt else inv.get('expires_at'),
+                                    'status': inv.get('status','pending'),
+                                    'existing_user_id': inv.get('accepted_by'),
+                                    'existing_username': None
+                                }
+                                break
                 if invitation and invitation['status'] != 'pending':
                     flash(f'Zaproszenie jest {invitation["status"]}', 'error')
                     invitation = None
@@ -5603,7 +5785,10 @@ class APIManager(MultiHomeHelpersMixin):
                     invitation = None
                 
                 # Get full user data including profile picture
-                user_data = self.multi_db.get_user_by_id(user_id)
+                if DATABASE_MODE and self.multi_db:
+                    user_data = self.multi_db.get_user_by_id(user_id)
+                else:
+                    user_data = self.smart_home.get_user_by_id(user_id)
                 if not user_data:
                     user_data = {
                         'id': user_id,
@@ -5626,35 +5811,92 @@ class APIManager(MultiHomeHelpersMixin):
                 from app_db import DATABASE_MODE
             except ImportError:
                 DATABASE_MODE = False
-
-            if not DATABASE_MODE or not self.multi_db:
-                return jsonify({"success": False, "error": "Multi-home mode not enabled"}), 400
-
+            # DB path or JSON fallback
             try:
                 data = request.json
                 invitation_code = data.get('invitation_code', '').strip().upper()
 
                 if not invitation_code:
                     return jsonify({"success": False, "error": "Invitation code is required"}), 400
-
-                # Accept invitation
-                self.multi_db.accept_invitation(
-                    invitation_code=invitation_code,
-                    user_id=session.get('user_id')
-                )
-
-                # Get invitation details for broadcasting
-                invitation = self.multi_db.get_invitation(invitation_code)
-                home_id = invitation.get('home_id') if invitation else None
+                home_id = None
+                if DATABASE_MODE and self.multi_db:
+                    # Accept via DB
+                    self.multi_db.accept_invitation(
+                        invitation_code=invitation_code,
+                        user_id=session.get('user_id')
+                    )
+                    invitation = self.multi_db.get_invitation(invitation_code)
+                    home_id = invitation.get('home_id') if invitation else None
+                else:
+                    # JSON fallback
+                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    if not json_mgr:
+                        return jsonify({"success": False, "error": "JSON fallback not available"}), 400
+                    config = json_mgr.get_config()
+                    user_id = session.get('user_id')
+                    # Find invitation
+                    target = None
+                    for inv in (config.get('invitations', []) or []):
+                        if str(inv.get('invitation_code','')).upper() == invitation_code:
+                            target = inv
+                            break
+                    if not target:
+                        return jsonify({"success": False, "error": "Invalid invitation code"}), 400
+                    # Status and expiration
+                    from datetime import datetime, timezone
+                    status = target.get('status','pending')
+                    if status != 'pending':
+                        return jsonify({"success": False, "error": f"Invitation is {status}"}), 400
+                    try:
+                        exp_iso = target.get('expires_at')
+                        if exp_iso and datetime.now(timezone.utc) > datetime.fromisoformat(exp_iso):
+                            target['status'] = 'expired'
+                            json_mgr.save_config(config)
+                            return jsonify({"success": False, "error": "Invitation has expired"}), 400
+                    except Exception:
+                        pass
+                    # Verify email matches logged in user
+                    user_data = self.smart_home.get_user_by_id(user_id)
+                    if not user_data or str(user_data.get('email','')).lower() != str(target.get('email','')).lower():
+                        return jsonify({"success": False, "error": "To zaproszenie jest dla innego adresu e-mail"}), 400
+                    home_id = str(target.get('home_id'))
+                    role = str(target.get('role','member'))
+                    # If already member, mark accepted
+                    user_homes = config.get('user_homes', {}) or {}
+                    already = False
+                    for entry in user_homes.get(home_id, []):
+                        if str(entry.get('user_id')) == str(user_id):
+                            already = True
+                            break
+                    if not already:
+                        user_homes.setdefault(home_id, []).append({
+                            'user_id': str(user_id),
+                            'role': role,
+                            'permissions': ['read','write'] if role != 'guest' else ['read'],
+                            'joined_at': datetime.now(timezone.utc).isoformat()
+                        })
+                        config['user_homes'] = user_homes
+                    # Mark invitation accepted
+                    target['status'] = 'accepted'
+                    target['accepted_by'] = str(user_id)
+                    target['accepted_at'] = datetime.now(timezone.utc).isoformat()
+                    json_mgr.save_config(config)
 
                 # Log the action
                 if hasattr(self.management_logger, 'log_event'):
-                    user_data = self.multi_db.get_user_data(session.get('user_id'))
+                    user_data = None
+                    try:
+                        if DATABASE_MODE and self.multi_db:
+                            user_data = self.multi_db.get_user_data(session.get('user_id'))
+                        else:
+                            user_data = self.smart_home.get_user_data(session.get('user_id'))
+                    except Exception:
+                        user_data = None
                     self.management_logger.log_event(
                         level='info',
-                        message=f'{user_data.get("name")} zaakceptował zaproszenie do domu',
+                        message=f'{(user_data.get("name") if isinstance(user_data, dict) else session.get("username","Użytkownik"))} zaakceptował zaproszenie do domu',
                         event_type='invitation_accepted',
-                        user=user_data.get('name', 'Unknown'),
+                        user=(user_data.get('name') if isinstance(user_data, dict) else session.get('username','Unknown')),
                         ip_address=request.environ.get('REMOTE_ADDR', ''),
                         details={'code': invitation_code},
                         home_id=home_id
