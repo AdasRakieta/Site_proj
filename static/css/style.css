@@ -732,6 +732,7 @@ input:checked+.slider:before {
     gap: 8px;
     width: 100%;
     max-width: 600px;
+    margin: auto;
 }
 
 /* Styl dla przycisków w lights.html - układ poziomy z separatorami */
@@ -753,6 +754,7 @@ input:checked+.slider:before {
     border-radius: 10px;
     min-width: 140px;
     transition: all 0.2s ease;
+    box-shadow: var(--box_shd);
 }
 
 .lights-container .light-button-item:hover {
