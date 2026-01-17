@@ -19,6 +19,14 @@
             "owner_id": "c1c512f1-5183-4117-b54c-f4439932673d",
             "created_at": "2026-01-10T21:52:14.205802",
             "updated_at": "2026-01-10T21:52:14.205805"
+        },
+        "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0": {
+            "id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "name": "asdasda",
+            "description": null,
+            "owner_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "created_at": "2026-01-17T18:18:06.992644",
+            "updated_at": "2026-01-17T18:18:06.992644"
         }
     },
     "user_homes": {
@@ -33,16 +41,117 @@
                 ],
                 "joined_at": "2026-01-10T21:52:14.205809"
             }
+        ],
+        "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0": [
+            {
+                "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+                "role": "owner",
+                "permissions": [
+                    "read",
+                    "write",
+                    "admin"
+                ],
+                "joined_at": "2026-01-17T18:18:06.992644"
+            }
         ]
     },
     "user_current_home": {
-        "c1c512f1-5183-4117-b54c-f4439932673d": "99d4cb8f-98b2-4f97-b336-c365ca586ff8"
+        "c1c512f1-5183-4117-b54c-f4439932673d": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0"
     },
     "temperature_states": {},
     "security_state": "Wyłączony",
-    "rooms": [],
-    "buttons": [],
-    "temperature_controls": [],
+    "rooms": [
+        {
+            "id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "name": "test edycja",
+            "description": null,
+            "display_order": 1,
+            "created_at": "2026-01-17T18:29:33.552236",
+            "updated_at": "2026-01-17T18:30:51.551402"
+        },
+        {
+            "id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "name": "tst",
+            "description": null,
+            "display_order": 2,
+            "created_at": "2026-01-17T18:29:41.526803",
+            "updated_at": "2026-01-17T18:29:41.526803"
+        }
+    ],
+    "buttons": [
+        {
+            "id": "07e3fe0b-318a-4a86-922f-d67567109b19",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+            "name": "test swiatlo edytcja",
+            "device_type": "button",
+            "state": true,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-01-17T18:29:52.057541",
+            "updated_at": "2026-01-17T19:03:12.038287"
+        },
+        {
+            "id": "8a828668-93d8-4e4f-a5d6-2bb8cd318911",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+            "name": "atest swiatlo 2",
+            "device_type": "button",
+            "state": true,
+            "enabled": true,
+            "display_order": 0,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-01-17T18:30:02.905636",
+            "updated_at": "2026-01-17T19:03:12.037809"
+        }
+    ],
+    "temperature_controls": [
+        {
+            "id": "d729409a-7bce-4046-8819-ac65182ef825",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+            "name": "test termo 1 edycja",
+            "device_type": "temperature_control",
+            "temperature": 20.0,
+            "min_temperature": null,
+            "max_temperature": null,
+            "enabled": true,
+            "display_order": 0,
+            "settings": {
+                "target_temperature": 21.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-01-17T18:30:13.974232",
+            "updated_at": "2026-01-17T19:23:59.231822"
+        },
+        {
+            "id": "899f3f55-5580-41ef-88f4-70b5c1741fcf",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+            "name": "test termo 2",
+            "device_type": "temperature_control",
+            "temperature": 20.0,
+            "min_temperature": null,
+            "max_temperature": null,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "target_temperature": 21.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-01-17T18:30:21.623310",
+            "updated_at": "2026-01-17T19:17:49.889950"
+        }
+    ],
     "automations": [
         {
             "id": "674faef5-8114-49eb-a97e-76aa80ab23b4",
@@ -151,6 +260,158 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "08a8235c-5da2-4201-961b-1462e028786f",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "timestamp": "2026-01-17T18:17:53.618992",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "8c00020c-b8f0-44f0-b6b1-de82b3229da5",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:28:55.792448",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "2d16ddbe-b63d-4f78-acc8-03d21a7f8646",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:29:33.561562",
+            "level": "info",
+            "message": "Utworzono nowy pokój \"test\"",
+            "event_type": "room_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+                "room_name": "test",
+                "description": ""
+            }
+        },
+        {
+            "id": "24220bed-601a-4785-a0b7-256173073d97",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:29:41.533990",
+            "level": "info",
+            "message": "Utworzono nowy pokój \"tst\"",
+            "event_type": "room_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+                "room_name": "tst",
+                "description": ""
+            }
+        },
+        {
+            "id": "252fd0d8-5df2-4f61-836f-6ae54171f36a",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:29:52.064390",
+            "level": "info",
+            "message": "Utworzono nowe urządzenie przycisk \"test swiatlo\" w pokoju \"test\"",
+            "event_type": "device_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_id": "07e3fe0b-318a-4a86-922f-d67567109b19",
+                "device_name": "test swiatlo",
+                "device_type": "button",
+                "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+                "room_name": "test"
+            }
+        },
+        {
+            "id": "8c86ad21-ae29-44d8-ac08-dbabf7e89097",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:30:02.912177",
+            "level": "info",
+            "message": "Utworzono nowe urządzenie przycisk \"test swiatlo 2\" w pokoju \"tst\"",
+            "event_type": "device_creation",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_id": "8a828668-93d8-4e4f-a5d6-2bb8cd318911",
+                "device_name": "test swiatlo 2",
+                "device_type": "button",
+                "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+                "room_name": "tst"
+            }
+        },
+        {
+            "id": "4d31a5fd-f775-4369-b218-1309658d156d",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:37:10.263737",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "1095d718-9f85-46a2-b47b-0c1b443ebb54",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T18:53:10.929500",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "b72f8770-3d76-4008-9665-a0a5d947fe2d",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T19:02:56.669713",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "f1d0e708-635b-4cd7-8843-b20a0a0d1c4e",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T19:22:38.533561",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "1728b45c-ffb8-48ce-947c-bfbfa0afd4d5",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T19:31:10.246390",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
         }
     ],
     "invitations": [
@@ -190,5 +451,16 @@
             "status": "rejected",
             "created_at": "2026-01-11T10:39:47.727895+00:00"
         }
-    ]
+    ],
+    "security_states": {
+        "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0": {
+            "state": "Załączony",
+            "last_changed": "2026-01-17T17:29:07.632769+00:00",
+            "changed_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "details": {
+                "source": "socket",
+                "timestamp": "2026-01-17T17:29:07.631343"
+            }
+        }
+    }
 }

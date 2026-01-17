@@ -171,15 +171,13 @@ class MultiHomeDBManager:
                 details JSONB
             )
         """
-        # JSON fallback support
+        # JSON fallback support: ensure section exists in backup config
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
-            autos = config.get('automations', [])
-            new_autos = [a for a in autos if not (str(a.get('id')) == str(automation_id) and str(a.get('home_id')) == str(normalized_home_id))]
-            if len(new_autos) == len(autos):
-                return False
-            config['automations'] = new_autos
-            self.json_backup.save_config(config)
+            # Create a dedicated map for per-home security states if missing
+            if 'security_states' not in config or not isinstance(config.get('security_states'), dict):
+                config['security_states'] = {}
+                self.json_backup.save_config(config)
             return True
 
         with self.get_cursor() as cursor:
@@ -2061,15 +2059,49 @@ class MultiHomeDBManager:
         if self.json_fallback_mode and self.json_backup:
             if not self.user_has_home_access(user_id, home_id):
                 return []
+
+            # Map room IDs to names for quick lookup
+            rooms_map: Dict[str, Any] = {}
+            try:
+                rooms = self.json_backup.get_home_rooms(home_id)
+                rooms_map = {str(r.get('id')): r.get('name') for r in rooms if r is not None}
+            except Exception:
+                rooms_map = {}
+
             devices = self.json_backup.get_home_devices(home_id)
             if device_type:
                 devices = [d for d in devices if d.get('device_type') == device_type]
-            return [{'id': d.get('id'), 'name': d.get('name'), 'room_id': d.get('room_id'),
-                    'type': d.get('device_type'), 'state': d.get('state'), 'enabled': d.get('enabled'),
-                    'temperature': d.get('temperature'), 'min_temperature': d.get('min_temperature'),
-                    'max_temperature': d.get('max_temperature'), 'display_order': d.get('display_order'),
-                    'settings': d.get('settings'), 'created_at': d.get('created_at'),
-                    'updated_at': d.get('updated_at'), 'home_id': home_id} for d in devices]
+
+            normalized_devices = []
+            for d in devices:
+                room_id = d.get('room_id')
+                room_name = rooms_map.get(str(room_id)) if room_id is not None else None
+                normalized_devices.append({
+                    'id': d.get('id'),
+                    'name': d.get('name'),
+                    'room_id': room_id,
+                    'room_name': room_name,
+                    'type': d.get('device_type'),
+                    'state': d.get('state'),
+                    'enabled': d.get('enabled'),
+                    'temperature': d.get('temperature'),
+                    'min_temperature': d.get('min_temperature'),
+                    'max_temperature': d.get('max_temperature'),
+                    'display_order': d.get('display_order', 0),
+                    'settings': d.get('settings'),
+                    'created_at': d.get('created_at'),
+                    'updated_at': d.get('updated_at'),
+                    'home_id': home_id
+                })
+
+            # Sort by room_name, then by device_type (buttons first), then by display_order
+            normalized_devices.sort(key=lambda x: (
+                x['room_name'] or 'zzz_unassigned',  # Unassigned devices last
+                0 if x['type'] in ('button', 'light') else 1,  # Buttons before temperature_controls
+                x['display_order'] or 0
+            ))
+
+            return normalized_devices
         
         if not self.user_has_home_access(user_id, home_id):
             return []
@@ -2327,21 +2359,128 @@ class MultiHomeDBManager:
 
         updated_devices = []
         failed_updates = []
+        
+        logger.info(f"[BATCH_UPDATE] Processing {len(device_updates)} devices in JSON fallback mode")
+        logger.info(f"[BATCH_UPDATE] Payload: {device_updates}")
 
         # JSON fallback support
         if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            buttons = config.get('buttons', [])
+            controls = config.get('temperature_controls', [])
+            
+            logger.info(f"[BATCH_UPDATE] Config has {len(buttons)} buttons, {len(controls)} temperature controls")
+            
+            # Group updates by list type (use 'type' from payload if available)
+            button_updates = {}
+            control_updates = {}
+            
             for update_data in device_updates:
                 if not isinstance(update_data, dict) or 'id' not in update_data:
                     failed_updates.append({'update': update_data, 'error': 'Missing device id'})
                     continue
-                try:
-                    ok = self.update_device(update_data['id'], user_id, **{k: v for k, v in update_data.items() if k != 'id'})
-                    if ok:
-                        updated_devices.append(str(update_data['id']))
+                
+                device_id = str(update_data['id'])
+                device_type = update_data.get('type', '').lower()
+                
+                logger.debug(f"[BATCH_UPDATE] Processing device {device_id}, type={device_type}")
+                
+                # Use type hint from payload if available
+                if device_type in ('button', 'light'):
+                    found_idx = next((i for i, b in enumerate(buttons) if str(b.get('id')) == device_id), None)
+                    if found_idx is not None:
+                        button_updates[device_id] = (found_idx, update_data)
+                        logger.debug(f"[BATCH_UPDATE] Found button at index {found_idx}")
                     else:
-                        failed_updates.append({'device_id': update_data['id'], 'error': 'Update failed'})
-                except Exception as e:
-                    failed_updates.append({'device_id': update_data['id'], 'error': str(e)})
+                        failed_updates.append({'device_id': device_id, 'error': 'Device not found in buttons'})
+                        logger.warning(f"[BATCH_UPDATE] Button {device_id} not found")
+                elif device_type in ('temperature_control', 'thermostat'):
+                    found_idx = next((i for i, c in enumerate(controls) if str(c.get('id')) == device_id), None)
+                    if found_idx is not None:
+                        control_updates[device_id] = (found_idx, update_data)
+                        logger.debug(f"[BATCH_UPDATE] Found temperature_control at index {found_idx}")
+                    else:
+                        failed_updates.append({'device_id': device_id, 'error': 'Device not found in temperature_controls'})
+                        logger.warning(f"[BATCH_UPDATE] Temperature control {device_id} not found")
+                else:
+                    # Type not specified, search both lists
+                    found_in_buttons = next((i for i, b in enumerate(buttons) if str(b.get('id')) == device_id), None)
+                    found_in_controls = next((i for i, c in enumerate(controls) if str(c.get('id')) == device_id), None)
+                    
+                    if found_in_buttons is not None:
+                        button_updates[device_id] = (found_in_buttons, update_data)
+                        logger.debug(f"[BATCH_UPDATE] Found button (by search) at index {found_in_buttons}")
+                    elif found_in_controls is not None:
+                        control_updates[device_id] = (found_in_controls, update_data)
+                        logger.debug(f"[BATCH_UPDATE] Found temperature_control (by search) at index {found_in_controls}")
+                    else:
+                        failed_updates.append({'device_id': device_id, 'error': 'Device not found'})
+                        logger.warning(f"[BATCH_UPDATE] Device {device_id} not found anywhere")
+            
+            logger.info(f"[BATCH_UPDATE] Grouped {len(button_updates)} button updates, {len(control_updates)} control updates")
+            
+            # Apply updates atomically per list
+            try:
+                # Update buttons
+                for device_id, (idx, update_data) in button_updates.items():
+                    try:
+                        device = buttons[idx]
+                        home_id = device.get('home_id')
+                        if not self.user_has_home_permission(user_id, home_id, 'control_devices'):
+                            failed_updates.append({'device_id': device_id, 'error': 'No permission'})
+                            logger.warning(f"[BATCH_UPDATE] No permission to update button {device_id}")
+                            continue
+                        
+                        # Apply allowed updates
+                        logger.debug(f"[BATCH_UPDATE] Updating button {device_id}: {update_data}")
+                        for field in ['name', 'state', 'enabled', 'display_order', 'room_id']:
+                            if field in update_data:
+                                old_val = device.get(field)
+                                device[field] = update_data[field]
+                                logger.debug(f"  {field}: {old_val} -> {update_data[field]}")
+                        device['updated_at'] = datetime.now().isoformat()
+                        buttons[idx] = device
+                        updated_devices.append(device_id)
+                    except Exception as e:
+                        failed_updates.append({'device_id': device_id, 'error': str(e)})
+                        logger.error(f"[BATCH_UPDATE] Error updating button {device_id}: {e}")
+                
+                # Update temperature controls
+                for device_id, (idx, update_data) in control_updates.items():
+                    try:
+                        device = controls[idx]
+                        home_id = device.get('home_id')
+                        if not self.user_has_home_permission(user_id, home_id, 'control_devices'):
+                            failed_updates.append({'device_id': device_id, 'error': 'No permission'})
+                            logger.warning(f"[BATCH_UPDATE] No permission to update control {device_id}")
+                            continue
+                        
+                        # Apply allowed updates
+                        logger.debug(f"[BATCH_UPDATE] Updating temperature_control {device_id}: {update_data}")
+                        for field in ['name', 'state', 'enabled', 'display_order', 'room_id']:
+                            if field in update_data:
+                                old_val = device.get(field)
+                                device[field] = update_data[field]
+                                logger.debug(f"  {field}: {old_val} -> {update_data[field]}")
+                        device['updated_at'] = datetime.now().isoformat()
+                        controls[idx] = device
+                        updated_devices.append(device_id)
+                    except Exception as e:
+                        failed_updates.append({'device_id': device_id, 'error': str(e)})
+                        logger.error(f"[BATCH_UPDATE] Error updating temperature_control {device_id}: {e}")
+                
+                # Write back to config atomically
+                logger.info(f"[BATCH_UPDATE] Writing back config with {len(updated_devices)} updated devices")
+                config['buttons'] = buttons
+                config['temperature_controls'] = controls
+                self.json_backup.save_config(config)
+                logger.info(f"[BATCH_UPDATE] Config saved successfully")
+                
+            except Exception as e:
+                logger.error(f"[BATCH_UPDATE] Batch update failed: {e}")
+                return {'updated': [], 'failed': [{'error': f'Batch update failed: {str(e)}'}]}
+            
+            logger.info(f"[BATCH_UPDATE] Batch update completed: {len(updated_devices)} updated, {len(failed_updates)} failed")
             return {'updated': updated_devices, 'failed': failed_updates}
 
         with self.get_cursor() as cursor:
@@ -2793,14 +2932,24 @@ class MultiHomeDBManager:
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
             states = config.get('security_states', {})
-            state = states.get(str(normalized_home_id))
-            if state is None:
+            state_entry = states.get(str(normalized_home_id))
+            if state_entry is None:
                 # initialize default state in JSON for consistency
-                states[str(normalized_home_id)] = default
+                states[str(normalized_home_id)] = {
+                    'state': default,
+                    'last_changed': datetime.now(timezone.utc).isoformat(),
+                    'changed_by': None,
+                    'details': None,
+                }
                 config['security_states'] = states
                 self.json_backup.save_config(config)
                 return default
-            return str(state)
+            # Backward compatibility: entry may be a plain string
+            if isinstance(state_entry, str):
+                return state_entry
+            if isinstance(state_entry, dict):
+                return str(state_entry.get('state', default))
+            return default
 
         with self.get_cursor() as cursor:
             cursor.execute(
@@ -2841,6 +2990,20 @@ class MultiHomeDBManager:
 
         if not self._user_can_control_security(user_id, normalized_home_id):
             return False
+
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            states = config.get('security_states', {})
+            states[str(normalized_home_id)] = {
+                'state': state,
+                'last_changed': datetime.now(timezone.utc).isoformat(),
+                'changed_by': str(user_id) if user_id else None,
+                'details': details or None,
+            }
+            config['security_states'] = states
+            self.json_backup.save_config(config)
+            return True
 
         payload_details = json.dumps(details) if details else None
 

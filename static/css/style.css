@@ -670,23 +670,37 @@ input:checked+.slider:before {
 .light-control {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    padding: 10px;
-    min-height: 34px;
+    justify-content: space-between;
+    padding: 15px 20px;
+    min-height: 44px;
+    background: var(--background-secondary, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-color, rgba(200, 200, 200, 0.2));
     box-shadow: var(--box_shd);
-    border-radius: 10px;
-    margin: 10px 0;
+    border-radius: 12px;
+    margin: 12px 0;
+    transition: all 0.2s ease;
+}
 
-
+.light-control:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--accent-color, #4CAF50);
 }
 
 .light-control label {
     font-size: 1rem;
     color: var(--text);
     white-space: nowrap;
-    margin: 0 10px;
+    margin: 0;
     display: flex;
     align-items: center;
+}
+
+.light-control .room-lable {
+    flex: 1;
+    font-weight: 500;
+    font-size: 1.05rem;
+    color: var(--text-primary, var(--text));
 }
 
 .light-button-label {
@@ -713,9 +727,38 @@ input:checked+.slider:before {
 
 .center-container {
     display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    max-width: 600px;
+}
+
+/* Styl dla przycisków w lights.html - układ poziomy z separatorami */
+.lights-container .center-container {
     flex-direction: row;
-    justify-content: center;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.lights-container .light-button-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--background-secondary, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-color, rgba(200, 200, 200, 0.2));
+    border-radius: 10px;
+    min-width: 140px;
+    transition: all 0.2s ease;
+}
+
+.lights-container .light-button-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--accent-color, #4CAF50);
 }
 
 .grid-container {

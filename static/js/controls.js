@@ -261,9 +261,13 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
     });
 
     // Najpierw dodaj stały kontener "Nieprzypisane" (także te z nieistniejącymi już nazwami pokoi)
+    // Sortuj urządzenia po display_order
+    const sortedUnassignedButtons = (unassignedButtons || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const sortedUnassignedControls = (unassignedControls || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    
     const unassignedColumn = createKanbanColumn('Nieprzypisane', 
-        unassignedButtons, 
-        unassignedControls,
+        sortedUnassignedButtons, 
+        sortedUnassignedControls,
         true
     );
     columnsWrapper.appendChild(unassignedColumn);
@@ -275,20 +279,26 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
         if (typeof room === 'string') {
             roomObj = { name: room, id: room };
         }
+        
+        // Filtruj i sortuj urządzenia dla tego pokoju po display_order
+        const roomButtons = assignedButtons.filter(button => {
+            const buttonRoomName = button.room_name || button.room;
+            const buttonRoomId = button.room_id;
+            return (buttonRoomName && buttonRoomName === roomObj.name) ||
+                   (buttonRoomId != null && roomObj.id != null && String(buttonRoomId) === String(roomObj.id));
+        }).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        
+        const roomControls = assignedControls.filter(control => {
+            const controlRoomName = control.room_name || control.room;
+            const controlRoomId = control.room_id;
+            return (controlRoomName && controlRoomName === roomObj.name) ||
+                   (controlRoomId != null && roomObj.id != null && String(controlRoomId) === String(roomObj.id));
+        }).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        
         const column = createKanbanColumn(
             roomObj,
-            assignedButtons.filter(button => {
-                const buttonRoomName = button.room_name || button.room;
-                const buttonRoomId = button.room_id;
-                return (buttonRoomName && buttonRoomName === roomObj.name) ||
-                       (buttonRoomId != null && roomObj.id != null && String(buttonRoomId) === String(roomObj.id));
-            }),
-            assignedControls.filter(control => {
-                const controlRoomName = control.room_name || control.room;
-                const controlRoomId = control.room_id;
-                return (controlRoomName && controlRoomName === roomObj.name) ||
-                       (controlRoomId != null && roomObj.id != null && String(controlRoomId) === String(roomObj.id));
-            })
+            roomButtons,
+            roomControls
         );
         columnsWrapper.appendChild(column);
     });

@@ -812,10 +812,16 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
             if (key) {
                 matchedButtonKeys.add(key);
             }
+            
+            // Kontener dla pojedynczego przycisku z labelem i switch
+            const buttonItem = document.createElement("div");
+            buttonItem.className = "light-button-item";
+            
             const buttonName = document.createElement("div");
             buttonName.textContent = button.name;
             buttonName.className = "light-button-label";
-            buttonsContainer.appendChild(buttonName);
+            buttonItem.appendChild(buttonName);
+            
             const switchLabel = document.createElement("label");
             switchLabel.classList.add("switch");
             const switchInput = document.createElement("input");
@@ -831,7 +837,9 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
             switchSlider.classList.add("slider");
             switchLabel.appendChild(switchInput);
             switchLabel.appendChild(switchSlider);
-            buttonsContainer.appendChild(switchLabel);
+            buttonItem.appendChild(switchLabel);
+            
+            buttonsContainer.appendChild(buttonItem);
         });
         roomContainer.appendChild(buttonsContainer);
         container.appendChild(roomContainer);
@@ -852,10 +860,14 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
         buttonsContainer.classList.add("center-container");
 
         unassignedButtons.forEach(button => {
+            // Kontener dla pojedynczego przycisku z labelem i switch
+            const buttonItem = document.createElement("div");
+            buttonItem.className = "light-button-item";
+            
             const buttonName = document.createElement("div");
             buttonName.textContent = button.name;
             buttonName.className = "light-button-label";
-            buttonsContainer.appendChild(buttonName);
+            buttonItem.appendChild(buttonName);
 
             const switchLabel = document.createElement("label");
             switchLabel.classList.add("switch");
@@ -872,7 +884,9 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
             switchSlider.classList.add("slider");
             switchLabel.appendChild(switchInput);
             switchLabel.appendChild(switchSlider);
-            buttonsContainer.appendChild(switchLabel);
+            buttonItem.appendChild(switchLabel);
+            
+            buttonsContainer.appendChild(buttonItem);
         });
 
         roomContainer.appendChild(buttonsContainer);

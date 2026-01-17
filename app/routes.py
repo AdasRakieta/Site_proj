@@ -208,7 +208,8 @@ class MultiHomeHelpersMixin:
                     'min_temperature': min_temperature,
                     'max_temperature': max_temperature,
                     'enabled': control.get('enabled', True),
-                    'type': control.get('type', 'temperature_control')
+                    'type': control.get('type', 'temperature_control'),
+                    'display_order': control.get('display_order', 0)
                 })
             return normalized
         except Exception as exc:
@@ -2337,15 +2338,17 @@ class APIManager(MultiHomeHelpersMixin):
             if current_home_id:
                 # Get buttons from multi-home system
                 buttons_data = self.multi_db.get_buttons(current_home_id, user_id)
-                # Convert to old format for compatibility
+                # Convert to old format for compatibility, preserving display_order
                 buttons = []
                 for button in buttons_data:
                     buttons.append({
                         'id': button['id'],
                         'name': button['name'],
                         'room': button['room_name'],
+                        'room_id': button.get('room_id'),
                         'state': button['state'],
-                        'type': button['type']
+                        'type': button['type'],
+                        'display_order': button.get('display_order', 0)
                     })
                 return buttons
             else:

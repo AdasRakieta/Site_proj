@@ -31,6 +31,7 @@
                 <div class="control-item">
                     <div class="control-header">
                         <span>{{ control.name }}:</span>
+                        <span class="temp-display-value" id="tempDisplay{{ control.name.replace(' ', '') }}"> {{ control.temperature }}°C</span>
                         <label class="switch temp-switch">
                             <input type="checkbox" id="{{ control.name.replace(' ', '_') }}EnabledSwitch" 
                                    {% if control.enabled %}checked{% endif %}>
@@ -86,11 +87,17 @@
                 const controlItem = this.closest('.control-item');
                 const controlName = controlItem.querySelector('.control-header span').textContent.replace(':', '').trim();
                 const tempInput = document.getElementById(`temp${controlName.replace(/\s+/g, '')}`);
+                const tempDisplay = document.getElementById(`tempDisplay${controlName.replace(/\s+/g, '')}`);
                 const tempValue = parseInt(tempInput.value, 10);
 
                 if (isNaN(tempValue) || tempValue < 16 || tempValue > 30) {
                     alert('Proszę wprowadzić poprawną temperaturę (16-30).');
                     return;
+                }
+
+                // Aktualizuj wskaźnik temperatury
+                if (tempDisplay) {
+                    tempDisplay.textContent = ` ${tempValue}°C`;
                 }
 
                 if (app.socket && app.socket.connected) {
@@ -173,6 +180,14 @@
                     controlContent.classList.add('disabled');
                 }
             }
+        });
+
+        // Nasłuchuj synchronizacji temperatury
+        app.socket.on('sync_temperature', function(data) {
+            const input = document.getElementById(`temp${data.name.replace(/\s+/g, '')}`);
+            const display = document.getElementById(`tempDisplay${data.name.replace(/\s+/g, '')}`);
+            if (input) input.value = data.temperature;
+            if (display) display.textContent = ` ${data.temperature}°C`;
         });
 
         // Nasłuchuj na aktualizacje kontrolek temperatury
@@ -369,8 +384,12 @@
             if (result.status === 'success') {
                 // Update the UI manually since we're not using WebSocket
                 const input = document.getElementById(`temp${controlName.replace(/\s+/g, '')}`);
+                const display = document.getElementById(`tempDisplay${controlName.replace(/\s+/g, '')}`);
                 if (input) {
                     input.value = temperature;
+                }
+                if (display) {
+                    display.textContent = ` ${temperature}°C`;
                 }
                 
                 if (window.showNotification) {

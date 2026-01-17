@@ -12,6 +12,42 @@ let pendingChanges = {
     columnMovesRaw: null
 };
 
+// Zbuduj spójny payload kolejności urządzeń z aktualnego DOM (per typ urządzenia)
+function buildDevicesOrderPayload() {
+    const lists = document.querySelectorAll('.kanban-column .kanban-list');
+    const seenIds = new Set();
+    const payload = [];
+
+    lists.forEach(list => {
+        const column = list.closest('.kanban-column');
+        const roomId = column ? column.getAttribute('data-room-id') || null : null;
+
+        // Grupuj po typie, aby każdemu typowi nadać osobny display_order
+        const byType = new Map();
+        Array.from(list.querySelectorAll('.kanban-card')).forEach(card => {
+            const type = card.getAttribute('data-type') || 'light';
+            if (!byType.has(type)) byType.set(type, []);
+            byType.get(type).push(card);
+        });
+
+        byType.forEach((cards, type) => {
+            cards.forEach((card, idx) => {
+                const id = card.getAttribute('data-id');
+                if (!id || seenIds.has(id)) return;
+                seenIds.add(id);
+                payload.push({
+                    id,
+                    room_id: roomId,
+                    display_order: idx,
+                    type
+                });
+            });
+        });
+    });
+
+    return payload;
+}
+
 // Dynamic Kanban Dragula initialization for room columns
 window.initDynamicKanbanDragula = function(onDropHandler) {
     console.log('dragNdrop.js - initDynamicKanbanDragula start');
@@ -214,42 +250,18 @@ window.saveChanges = async function() {
     }
 
     // Save device moves using batch API for optimal performance
-    const deviceMoves = Object.values(pendingChanges.deviceMoves);
-    if (deviceMoves.length > 0) {
+    const devicePayload = buildDevicesOrderPayload();
+    if (devicePayload.length > 0) {
         try {
-            console.log('Preparing batch update for', deviceMoves.length, 'devices');
+            console.log('Preparing batch update for', devicePayload.length, 'devices');
+            console.log('Batch update payload:', devicePayload);
             
-            // Prepare devices array with display_order based on current DOM position
-            // Calculate display_order separately for each device type
-            const devicesWithOrder = deviceMoves.map(move => {
-                let displayOrder = 0;
-                if (move.target && move.target.children) {
-                    const children = Array.from(move.target.children);
-                    const deviceElement = children.find(child => child.getAttribute('data-id') === move.id);
-                    if (deviceElement) {
-                        // Get device type to calculate proper order
-                        const deviceType = deviceElement.getAttribute('data-type');
-                        
-                        // Filter children to only include devices of the same type
-                        const sameTypeDevices = children.filter(child => 
-                            child.getAttribute('data-type') === deviceType
-                        );
-                        
-                        // Find position within devices of the same type
-                        displayOrder = sameTypeDevices.indexOf(deviceElement);
-                        
-                        console.log(`Device ${move.id} (${deviceType}): position ${displayOrder} among ${sameTypeDevices.length} devices of same type`);
-                    }
-                }
-                
-                return {
-                    id: move.id,
-                    room_id: move.newRoomId || null,
-                    display_order: displayOrder
-                };
-            });
-            
-            console.log('Batch update payload:', devicesWithOrder);
+            // Normalize type names for backend (light -> button, thermostat -> temperature_control)
+            const normalizedPayload = devicePayload.map(device => ({
+                ...device,
+                type: device.type === 'light' ? 'button' : (device.type === 'thermostat' ? 'temperature_control' : device.type)
+            }));
+            console.log('Normalized payload:', normalizedPayload);
             
             const response = await fetch('/api/devices/batch-update', {
                 method: 'POST',
@@ -257,7 +269,7 @@ window.saveChanges = async function() {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': window.getCSRFToken()
                 },
-                body: JSON.stringify({ devices: devicesWithOrder })
+                body: JSON.stringify({ devices: normalizedPayload })
             });
             
             const result = await response.json();
@@ -269,16 +281,16 @@ window.saveChanges = async function() {
                 console.error('Batch update failed:', result);
                 // Fallback to individual updates if batch fails
                 console.log('Falling back to individual updates...');
-                for (const move of deviceMoves) {
+                for (const move of devicePayload) {
                     try {
-                        const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
+                        const endpoint = move.type === 'temperature_control' || move.type === 'thermostat' ? `/api/temperature_controls/${move.id}` : `/api/buttons/${move.id}`;
                         await fetch(endpoint, {
                             method: 'PUT',
                             headers: { 
                                 'Content-Type': 'application/json',
                                 'X-CSRFToken': window.getCSRFToken()
                             },
-                            body: JSON.stringify({ room: move.newRoom, room_id: move.newRoomId || null })
+                            body: JSON.stringify({ room_id: move.room_id || null, display_order: move.display_order })
                         });
                     } catch (error) {
                         console.error('Error in fallback device update:', error);
@@ -288,7 +300,7 @@ window.saveChanges = async function() {
         } catch (error) {
             console.error('Error in batch device update:', error);
             // Fallback to individual updates
-            for (const move of deviceMoves) {
+            for (const move of Object.values(pendingChanges.deviceMoves)) {
                 try {
                     const endpoint = move.type === 'light' ? `/api/buttons/${move.id}` : `/api/temperature_controls/${move.id}`;
                     await fetch(endpoint, {
