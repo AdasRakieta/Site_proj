@@ -2466,24 +2466,41 @@ class APIManager(MultiHomeHelpersMixin):
                 multi_db = current_app.config.get('MULTI_DB_MANAGER')
                 
                 if multi_db:
-                    with multi_db.get_cursor() as cursor:
-                        cursor.execute("""
-                            SELECT id, name, city, country, latitude, longitude, address
-                            FROM homes
-                            WHERE id = %s
-                        """, (current_home_id,))
-                        home = cursor.fetchone()
-                        
-                        if home:
+                    # JSON fallback branch: read location directly from JSON config
+                    if getattr(multi_db, 'json_fallback_mode', False) and getattr(multi_db, 'json_backup', None):
+                        config = multi_db.json_backup.get_config()
+                        home_info = (config.get('homes', {}) or {}).get(current_home_id)
+                        if home_info:
                             return jsonify({
-                                "id": str(home[0]),
-                                "name": home[1],
-                                "city": home[2],
-                                "country": home[3],
-                                "latitude": float(home[4]) if home[4] else None,
-                                "longitude": float(home[5]) if home[5] else None,
-                                "address": home[6]
+                                "id": current_home_id,
+                                "name": home_info.get('name'),
+                                "city": home_info.get('city'),
+                                "country": home_info.get('country'),
+                                "latitude": home_info.get('latitude'),
+                                "longitude": home_info.get('longitude'),
+                                "address": home_info.get('address')
                             })
+                    else:
+                        with multi_db.get_cursor() as cursor:
+                            if cursor is None:
+                                return jsonify({"error": "Brak połączenia z bazą"}), 503
+                            cursor.execute("""
+                                SELECT id, name, city, country, latitude, longitude, address
+                                FROM homes
+                                WHERE id = %s
+                            """, (current_home_id,))
+                            home = cursor.fetchone()
+                            
+                            if home:
+                                return jsonify({
+                                    "id": str(home[0]),
+                                    "name": home[1],
+                                    "city": home[2],
+                                    "country": home[3],
+                                    "latitude": float(home[4]) if home[4] else None,
+                                    "longitude": float(home[5]) if home[5] else None,
+                                    "address": home[6]
+                                })
                 
                 return jsonify({"error": "Nie znaleziono danych domu"}), 404
                 
@@ -5814,9 +5831,27 @@ class APIManager(MultiHomeHelpersMixin):
                 if invitation and invitation['status'] != 'pending':
                     flash(f'Zaproszenie jest {invitation["status"]}', 'error')
                     invitation = None
-                elif invitation and datetime.now(timezone.utc) > invitation['expires_at']:
-                    flash('Zaproszenie wygasło', 'error')
-                    invitation = None
+                elif invitation:
+                    from datetime import datetime, timezone
+                    exp = invitation.get('expires_at')
+                    exp_dt = None
+                    if isinstance(exp, str):
+                        try:
+                            exp_dt = datetime.fromisoformat(exp)
+                        except Exception:
+                            exp_dt = None
+                    elif isinstance(exp, datetime):
+                        exp_dt = exp
+                    if exp_dt and exp_dt.tzinfo is None:
+                        exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                    if exp_dt:
+                        invitation['expires_at'] = exp_dt
+                        invitation['expires_at_display'] = exp_dt.strftime('%Y-%m-%d %H:%M')
+                        if datetime.now(timezone.utc) > exp_dt:
+                            flash('Zaproszenie wygasło', 'error')
+                            invitation = None
+                    else:
+                        invitation['expires_at_display'] = None
                 
                 # Get full user data including profile picture
                 if DATABASE_MODE and self.multi_db:
@@ -5853,7 +5888,8 @@ class APIManager(MultiHomeHelpersMixin):
                 if not invitation_code:
                     return jsonify({"success": False, "error": "Invitation code is required"}), 400
                 home_id = None
-                if DATABASE_MODE and self.multi_db:
+                use_json_fallback = (not DATABASE_MODE) or (self.multi_db and getattr(self.multi_db, 'json_fallback_mode', False))
+                if DATABASE_MODE and self.multi_db and not use_json_fallback:
                     # Accept via DB
                     self.multi_db.accept_invitation(
                         invitation_code=invitation_code,

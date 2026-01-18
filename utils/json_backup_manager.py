@@ -281,7 +281,20 @@ class JSONBackupManager:
                             'role': user_entry.get('role'),
                             'permissions': user_entry.get('permissions', []),
                             'joined_at': user_entry.get('joined_at'),
-                            'is_owner': home_info.get('owner_id') == user_id
+                            'is_owner': home_info.get('owner_id') == user_id,
+                            # Location fields so the settings form is prefilled after refresh
+                            'address': home_info.get('address'),
+                            'city': home_info.get('city'),
+                            'country': home_info.get('country'),
+                            'country_code': home_info.get('country_code'),
+                            'street': home_info.get('street'),
+                            'house_number': home_info.get('house_number'),
+                            'apartment_number': home_info.get('apartment_number'),
+                            'postal_code': home_info.get('postal_code'),
+                            'latitude': home_info.get('latitude'),
+                            'longitude': home_info.get('longitude'),
+                            'created_at': home_info.get('created_at'),
+                            'updated_at': home_info.get('updated_at')
                         })
                     break
         

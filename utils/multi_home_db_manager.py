@@ -2166,6 +2166,27 @@ class MultiHomeDBManager:
     def get_room_devices(self, room_id: int, user_id: str, 
                         device_type: Optional[str] = None) -> List[Dict]:
         """Get all devices in a room, optionally filtered by type."""
+        # JSON fallback path
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            rooms = config.get('rooms', {}) or {}
+            room_entry = None
+            if isinstance(rooms, dict):
+                room_entry = rooms.get(str(room_id)) or rooms.get(room_id)
+            elif isinstance(rooms, list):
+                room_entry = next((r for r in rooms if str(r.get('id')) == str(room_id)), None)
+            if not room_entry:
+                return []
+            if not isinstance(room_entry, dict):
+                return []
+            home_id = room_entry.get('home_id')
+            # Reuse existing getter that normalizes devices and respects display_order
+            devices = self.get_home_devices(home_id, user_id)
+            filtered = [d for d in devices if str(d.get('room_id')) == str(room_id)]
+            if device_type:
+                filtered = [d for d in filtered if d.get('type') == device_type or d.get('device_type') == device_type]
+            return filtered
+
         room = self.get_room(room_id, user_id)
         if not room:
             return []
@@ -3367,6 +3388,99 @@ class MultiHomeDBManager:
         Raises:
             ValueError: If username or email already exists
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {}) or {}
+            homes = config.get('homes', {}) or {}
+            user_homes = config.get('user_homes', {}) or {}
+            
+            # Check if username exists
+            if isinstance(users, dict):
+                for user in users.values():
+                    if user.get('username') == username:
+                        raise ValueError("Użytkownik o tej nazwie już istnieje")
+                    if user.get('email', '').lower() == email.lower():
+                        raise ValueError("Adres email jest już używany")
+            elif isinstance(users, list):
+                if any(u.get('username') == username for u in users):
+                    raise ValueError("Użytkownik o tej nazwie już istnieje")
+                if any(u.get('email', '').lower() == email.lower() for u in users):
+                    raise ValueError("Adres email jest już używany")
+            
+            # Create user
+            user_id = str(uuid.uuid4())
+            new_user = {
+                'id': user_id,
+                'username': username,
+                'email': email,
+                'password': password_hash,
+                'role': role,
+                'name': username,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'is_system_user': False
+            }
+            
+            if isinstance(users, dict):
+                users[username] = new_user
+            else:
+                users.append(new_user)
+            config['users'] = users
+            
+            home_id = None
+            if create_default_home:
+                home_name = f"{username} Home"
+                # Ensure unique home name in their homes
+                counter = 1
+                original_name = home_name
+                existing_home_names = set()
+                if isinstance(homes, dict):
+                    for h in homes.values():
+                        if h.get('owner_id') == user_id:
+                            existing_home_names.add(h.get('name'))
+                elif isinstance(homes, list):
+                    for h in homes:
+                        if h.get('owner_id') == user_id:
+                            existing_home_names.add(h.get('name'))
+                
+                while home_name in existing_home_names:
+                    counter += 1
+                    home_name = f"{original_name} {counter}"
+                
+                # Create the home
+                home_id = str(uuid.uuid4())
+                new_home = {
+                    'id': home_id,
+                    'name': home_name,
+                    'owner_id': user_id,
+                    'description': f"Domyślny dom użytkownika {username}",
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
+                
+                if isinstance(homes, dict):
+                    homes[home_id] = new_home
+                else:
+                    homes.append(new_home)
+                config['homes'] = homes
+                
+                # Add user to home with owner role
+                user_homes.setdefault(home_id, []).append({
+                    'user_id': user_id,
+                    'role': 'owner',
+                    'permissions': ['full_control'],
+                    'joined_at': datetime.now(timezone.utc).isoformat()
+                })
+                config['user_homes'] = user_homes
+            
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] Created user '{username}' with ID {user_id}" + 
+                      (f" and default home {home_id}" if home_id else ""))
+            
+            return user_id, home_id
+        
+        # PostgreSQL path
         with self.get_cursor() as cursor:
             try:
                 # Check if username already exists
@@ -3696,17 +3810,47 @@ class MultiHomeDBManager:
         Returns:
             True if user exists, False otherwise
         """
-        with self.get_cursor() as cursor:
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            users = config.get('users', {}) or {}
+            
             if username:
-                cursor.execute("SELECT 1 FROM users WHERE name = %s", (username,))
-                if cursor.fetchone():
-                    return True
+                if isinstance(users, dict):
+                    for user in users.values():
+                        if user.get('username') == username:
+                            return True
+                elif isinstance(users, list):
+                    if any(u.get('username') == username for u in users):
+                        return True
             
             if email:
-                cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
-                if cursor.fetchone():
-                    return True
-                    
+                if isinstance(users, dict):
+                    for user in users.values():
+                        if user.get('email', '').lower() == email.lower():
+                            return True
+                elif isinstance(users, list):
+                    if any(u.get('email', '').lower() == email.lower() for u in users):
+                        return True
+            
+            return False
+        
+        # PostgreSQL path
+        try:
+            with self.get_cursor() as cursor:
+                if username:
+                    cursor.execute("SELECT 1 FROM users WHERE name = %s", (username,))
+                    if cursor.fetchone():
+                        return True
+                
+                if email:
+                    cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
+                    if cursor.fetchone():
+                        return True
+                        
+                return False
+        except Exception as e:
+            logger.warning(f"Error checking user existence: {e}")
             return False
 
     # ============================================================================
@@ -3929,6 +4073,74 @@ class MultiHomeDBManager:
         Returns:
             True if successful
         """
+        # JSON fallback support
+        if self.json_fallback_mode and self.json_backup:
+            config = self.json_backup.get_config()
+            invitations = config.get('invitations', []) or []
+            user_homes = config.get('user_homes', {}) or {}
+            users_map = config.get('users', {}) or {}
+
+            def _find_user(uid: str) -> Optional[Dict]:
+                if isinstance(users_map, dict):
+                    # Don't try to get by uid directly - users are keyed by username
+                    # Scan all values to find by ID
+                    for user in users_map.values():
+                        if str(user.get('id')) == str(uid):
+                            return user
+                if isinstance(users_map, list):
+                    return next((u for u in users_map if str(u.get('id')) == str(uid)), None)
+                return None
+
+            target = next((inv for inv in invitations if str(inv.get('invitation_code', '')).upper() == str(invitation_code).upper()), None)
+            if not target:
+                raise ValueError("Invalid invitation code")
+
+            status = target.get('status', 'pending')
+            if status != 'pending':
+                raise ValueError(f"Invitation is {status}")
+
+            # Expiration check
+            try:
+                exp_iso = target.get('expires_at')
+                if exp_iso:
+                    exp_dt = datetime.fromisoformat(exp_iso)
+                    if exp_dt.tzinfo is None:
+                        exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                    if datetime.now(timezone.utc) > exp_dt:
+                        target['status'] = 'expired'
+                        self.json_backup.save_config(config)
+                        raise ValueError("Invitation has expired")
+            except ValueError:
+                raise
+            except Exception:
+                pass
+
+            user_data = _find_user(user_id)
+            if not user_data:
+                raise ValueError("User not found")
+            if str(user_data.get('email', '')).lower() != str(target.get('email', '')).lower():
+                raise ValueError("This invitation is for a different email address")
+
+            home_id = str(target.get('home_id'))
+            role = str(target.get('role', 'member'))
+
+            already = any(str(entry.get('user_id')) == str(user_id) for entry in user_homes.get(home_id, []))
+            if not already:
+                user_homes.setdefault(home_id, []).append({
+                    'user_id': str(user_id),
+                    'role': role,
+                    'permissions': ['read', 'write'] if role != 'guest' else ['read'],
+                    'joined_at': datetime.now(timezone.utc).isoformat()
+                })
+                config['user_homes'] = user_homes
+
+            target['status'] = 'accepted'
+            target['accepted_by'] = str(user_id)
+            target['accepted_at'] = datetime.now(timezone.utc).isoformat()
+            self.json_backup.save_config(config)
+            logger.info(f"[JSON] User {user_id} accepted invitation {invitation_code} to home {home_id}")
+            return True
+
         with self.get_cursor() as cursor:
             # Get invitation with user check
             cursor.execute("""

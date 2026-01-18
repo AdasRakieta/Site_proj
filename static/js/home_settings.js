@@ -361,8 +361,9 @@ function initLocationHandlers(homeId) {
             .then(result => {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
-                
-                if (result.success) {
+
+                const ok = result && (result.success === true || result.status === 'success');
+                if (ok) {
                     // Update coordinates in form if geocoding was used
                     if (result.data && result.data.geocoding_used) {
                         if (result.data.latitude) {
@@ -372,11 +373,11 @@ function initLocationHandlers(homeId) {
                             document.getElementById('homeLongitude').value = result.data.longitude.toFixed(6);
                         }
                         showNotification('Lokalizacja zapisana (współrzędne określone automatycznie)', 'success');
-                    } else {
-                        showNotification('Lokalizacja domu została zaktualizowana', 'success');
                     }
+                    // Always confirm success, even if geocoding not used
+                    showNotification('Lokalizacja domu została zapisana', 'success');
                 } else {
-                    showNotification(result.error || 'Wystąpił błąd podczas aktualizacji lokalizacji', 'error');
+                    showNotification(result?.error || 'Wystąpił błąd podczas aktualizacji lokalizacji', 'error');
                 }
             })
             .catch(error => {

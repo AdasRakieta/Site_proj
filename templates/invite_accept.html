@@ -63,7 +63,9 @@
         </div>
         <div class="invite-detail-row">
             <span class="invite-detail-label">Ważne do:</span>
-            <span class="invite-detail-value">{{ invitation.expires_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="invite-detail-value">
+                {{ invitation.expires_at_display or invitation.expires_at or 'brak daty' }}
+            </span>
         </div>
     </div>
 

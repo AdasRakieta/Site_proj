@@ -265,37 +265,60 @@ def api_search_cities():
         limit = min(int(request.args.get('limit', 50)), 200)  # Max 200 results
         
         cities = []
-        
-        with multi_db.get_cursor() as cursor:
-            if search_term:
-                # Search by city name
-                cursor.execute("""
-                    SELECT city, latitude, longitude, admin_name, population
-                    FROM polish_cities
-                    WHERE LOWER(city) LIKE LOWER(%s)
-                       OR LOWER(admin_name) LIKE LOWER(%s)
-                    ORDER BY population DESC NULLS LAST, city
-                    LIMIT %s
-                """, (f"{search_term}%", f"{search_term}%", limit))
-            else:
-                # Return largest cities if no search term
-                cursor.execute("""
-                    SELECT city, latitude, longitude, admin_name, population
-                    FROM polish_cities
-                    ORDER BY population DESC NULLS LAST
-                    LIMIT %s
-                """, (limit,))
-            
-            for row in cursor.fetchall():
+
+        # JSON fallback: use IMGW station list as a lightweight city suggestion source
+        if getattr(multi_db, 'json_fallback_mode', False):
+            from utils.weather_service import WeatherService
+            stations = WeatherService.IMGW_STATIONS
+            term = search_term.lower()
+            for slug, info in stations.items():
+                name = info.get('name')
+                if term and term not in name.lower():
+                    continue
                 cities.append({
-                    'name': row[0],
-                    'latitude': float(row[1]) if row[1] else None,
-                    'longitude': float(row[2]) if row[2] else None,
-                    'admin_name': row[3],
-                    'population': row[4],
+                    'name': name,
+                    'latitude': info.get('lat'),
+                    'longitude': info.get('lon'),
+                    'admin_name': None,
+                    'population': None,
                     'country': 'Poland',
                     'country_code': 'PL'
                 })
+                if len(cities) >= limit:
+                    break
+        else:
+            with multi_db.get_cursor() as cursor:
+                if cursor is None:
+                    return jsonify({"success": False, "error": "Database not available"}), 503
+                if search_term:
+                    # Search by city name
+                    cursor.execute("""
+                        SELECT city, latitude, longitude, admin_name, population
+                        FROM polish_cities
+                        WHERE LOWER(city) LIKE LOWER(%s)
+                           OR LOWER(admin_name) LIKE LOWER(%s)
+                        ORDER BY population DESC NULLS LAST, city
+                        LIMIT %s
+                    """, (f"{search_term}%", f"{search_term}%", limit))
+                else:
+                    # Return largest cities if no search term
+                    cursor.execute("""
+                        SELECT city, latitude, longitude, admin_name, population
+                        FROM polish_cities
+                        ORDER BY population DESC NULLS LAST
+                        LIMIT %s
+                    """, (limit,))
+                
+                for row in cursor.fetchall():
+                    cities.append({
+                        'name': row[0],
+                        'latitude': float(row[1]) if row[1] else None,
+                        'longitude': float(row[2]) if row[2] else None,
+                        'admin_name': row[3],
+                        'population': row[4],
+                        'country': 'Poland',
+                        'country_code': 'PL'
+                    })
         
         return jsonify({
             "success": True,

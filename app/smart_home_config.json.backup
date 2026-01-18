@@ -9,6 +9,149 @@
             "email": "admin@localhost",
             "created_at": "2026-01-10T21:52:14.205722",
             "is_system_user": true
+        },
+        "testuser123": {
+            "id": "48bd285e-9c8f-43b6-af75-fbb23696f730",
+            "username": "testuser123",
+            "email": "testuser@example.com",
+            "password": "scrypt:32768:8:1$vVgsPAFLBPcqXveN$4158542dd2d520e8b2f1092ca6fa098088748461505297ad4708db757e11a78c2dab937da85ef0daf3d476a641320497255aa8b98f4fb87f33144eb77d59aa05",
+            "role": "user",
+            "name": "testuser123",
+            "created_at": "2026-01-18T09:28:52.311188+00:00",
+            "updated_at": "2026-01-18T09:28:52.311219+00:00",
+            "is_system_user": false
+        },
+        "jsontest1": {
+            "id": "c1c4c4f0-1a04-4564-866c-4dab879a33a7",
+            "username": "jsontest1",
+            "email": "jsontest1@example.com",
+            "password": "scrypt:32768:8:1$xXvqi4KhnPemwxqA$c751083948dd5df507b312023b8439e6c972e35ecbed735419ad02b3e1ade6b5ebbc468f03d0428bb484bdd3eaafc201d0dcb208e529ba9bec6f6ee45e23950e",
+            "role": "user",
+            "name": "jsontest1",
+            "created_at": "2026-01-18T09:29:11.223289+00:00",
+            "updated_at": "2026-01-18T09:29:11.223317+00:00",
+            "is_system_user": false
+        },
+        "debugtest": {
+            "id": "9105e2d8-62d9-46cd-bf52-71c171263d94",
+            "username": "debugtest",
+            "email": "debugtest@example.com",
+            "password": "scrypt:32768:8:1$Y7lCou9KIfY6DIHq$93d6dbbb10ad72031f340e9cb5d6b3db552af6ac07fcfe61902b32d00553fc3ce654a511389eba21bfc94a653c23acce3103b72039159958573e7b555fbc987f",
+            "role": "user",
+            "name": "debugtest",
+            "created_at": "2026-01-18T09:29:50.427649+00:00",
+            "updated_at": "2026-01-18T09:29:50.427669+00:00",
+            "is_system_user": false
+        },
+        "jsontest44646": {
+            "id": "7664278c-fab3-4cb7-a855-ab1d4087263e",
+            "username": "jsontest44646",
+            "email": "jsontest44646@example.com",
+            "password": "scrypt:32768:8:1$Npsze8kToMRKQWDF$ea900a985fc32c81b8e389e81f2784ad595d01661f986110c08bd21f307626de990aabae7f0ac53a2f34bfbe8f15df1de7d394ccde50386d8c30f21514ded8c0",
+            "role": "user",
+            "name": "jsontest44646",
+            "created_at": "2026-01-18T09:30:44.838339+00:00",
+            "updated_at": "2026-01-18T09:30:44.838360+00:00",
+            "is_system_user": false
+        },
+        "debuginvite": {
+            "id": "8ebbc3af-f0e3-4ebd-b284-fe87ec0a3cac",
+            "username": "debuginvite",
+            "email": "debuginvite@example.com",
+            "password": "scrypt:32768:8:1$U95LZnXU7yTAN2jt$d7b894caa223bd59d02f5c242bb3e85a1b0ec5a816170a4a31d7b0889ccd34a88a9a12458ce8ce300c695d5342ba0c3bad5502437e02ac1623d3cd213c35fb25",
+            "role": "user",
+            "name": "debuginvite",
+            "created_at": "2026-01-18T09:30:58.434190+00:00",
+            "updated_at": "2026-01-18T09:30:58.434211+00:00",
+            "is_system_user": false
+        },
+        "jsontest84041": {
+            "id": "4337c3f3-f8e6-43a7-a4c1-b8116229d253",
+            "username": "jsontest84041",
+            "email": "jsontest84041@example.com",
+            "password": "scrypt:32768:8:1$xYzQkrGqOBb6TMnE$411d5e113f16bce271a322c53301188fabc03d4d795fa981ddc021185173bcec4669d77e34a56e7ed10280c2fdbf96291675090c7f8e748455e1253070d2fef4",
+            "role": "user",
+            "name": "jsontest84041",
+            "created_at": "2026-01-18T09:33:04.242991+00:00",
+            "updated_at": "2026-01-18T09:33:04.243022+00:00",
+            "is_system_user": false
+        },
+        "jsontest40915": {
+            "id": "43c9cb49-d436-40f8-aa7b-531a77a950d2",
+            "username": "jsontest40915",
+            "email": "jsontest40915@example.com",
+            "password": "scrypt:32768:8:1$6pUEj3BEqTbYBXNt$2bd18dc65312b5a00bae7e6f25992037e60eca1599ac760a6e44ed6bd04455bd4dbf8f0e6ca4e3f812501b166432891cf6ee0059b58aefd3a382e9a88f82c58c",
+            "role": "user",
+            "name": "jsontest40915",
+            "created_at": "2026-01-18T09:34:01.107531+00:00",
+            "updated_at": "2026-01-18T09:34:01.107554+00:00",
+            "is_system_user": false
+        },
+        "jsontest68035": {
+            "id": "9dd2fc3d-5b30-4fcb-bd07-5c05b86b9d57",
+            "username": "jsontest68035",
+            "email": "jsontest68035@example.com",
+            "password": "scrypt:32768:8:1$lyGST27C7rVIjzww$08189d921ba243beb857d33f7e414c3a6416a91efc7ec7e6f1f9e27c578ed1a1bc2a2b6ec167bd47224d60edcc1f3fad25e42cb3471447d2e0c896b62ea14e49",
+            "role": "user",
+            "name": "jsontest68035",
+            "created_at": "2026-01-18T09:34:28.247012+00:00",
+            "updated_at": "2026-01-18T09:34:28.247035+00:00",
+            "is_system_user": false
+        },
+        "jsontest12786": {
+            "id": "2a97ea64-9182-422d-a9da-e453f63ca907",
+            "username": "jsontest12786",
+            "email": "jsontest12786@example.com",
+            "password": "scrypt:32768:8:1$3k0SLCHiSdzp2XJL$aca0c93179eba97d0d1df3750ea5cef48609468f08a0c231c6bda41bc3d2897e546426551679ef3b0d0dde83f76ecfd11e40b4d27c05ed0371f757817f2cb07e",
+            "role": "user",
+            "name": "jsontest12786",
+            "created_at": "2026-01-18T09:35:12.978978+00:00",
+            "updated_at": "2026-01-18T09:35:12.979003+00:00",
+            "is_system_user": false
+        },
+        "jsontest45280": {
+            "id": "8b4a4b53-72fe-43ff-ad64-61c193861217",
+            "username": "jsontest45280",
+            "email": "jsontest45280@example.com",
+            "password": "scrypt:32768:8:1$1MiGxHktrWoLAq29$dc11ed568c66fcb5d9aaac3a9c891313f317de5b0fb59e2408cecc37b29c81cf7603b86b60145e19c315e5213bef3d296d7f2e4540d189bc935bae422fde9016",
+            "role": "user",
+            "name": "jsontest45280",
+            "created_at": "2026-01-18T09:35:45.494322+00:00",
+            "updated_at": "2026-01-18T09:35:45.494345+00:00",
+            "is_system_user": false
+        },
+        "invitetest45918": {
+            "id": "667c5283-fc0b-4b57-a874-cfefc84cd292",
+            "username": "invitetest45918",
+            "email": "invitetest45918@example.com",
+            "password": "scrypt:32768:8:1$o1klf4cWra4IB2vE$9357f9226385e97dd2b3a9267bc7b75a0a77ae47826201ed23290bc56d1c0069fd000ced56e399a34d9f48ba1d36600a4a01e581b6811eca08ae4a6ce29f2970",
+            "role": "user",
+            "name": "invitetest45918",
+            "created_at": "2026-01-18T09:35:46.116477+00:00",
+            "updated_at": "2026-01-18T09:35:46.116494+00:00",
+            "is_system_user": false
+        },
+        "jsontest55334": {
+            "id": "9bcac410-2960-404b-8c5c-29d76416c6ec",
+            "username": "jsontest55334",
+            "email": "jsontest55334@example.com",
+            "password": "scrypt:32768:8:1$li0fyulZWXz5LBWr$f97c2b46a6c1956aa64b77b4a4a90ccd1bb3d8e2e98fc3a7b1916e651d50fbecdef00a6f011b3b20efd697cd86ccafee8ff522b4af58b088e42db6c79a4cd20b",
+            "role": "user",
+            "name": "jsontest55334",
+            "created_at": "2026-01-18T09:35:55.529414+00:00",
+            "updated_at": "2026-01-18T09:35:55.529438+00:00",
+            "is_system_user": false
+        },
+        "invitetest55918": {
+            "id": "48768b4e-f5d8-45ca-9bfe-edb07b0855d6",
+            "username": "invitetest55918",
+            "email": "invitetest55918@example.com",
+            "password": "scrypt:32768:8:1$d1JosLiJK1r4nAMD$9c1c1d51afb354c718cac3e4c905d632f2223d80aab8e62808ceb1394e461ddb26138e79057a1cc56eca7a5b4447adb1d512d0e48a7338364cf020ba774bb1b2",
+            "role": "user",
+            "name": "invitetest55918",
+            "created_at": "2026-01-18T09:35:56.109410+00:00",
+            "updated_at": "2026-01-18T09:35:56.109431+00:00",
+            "is_system_user": false
         }
     },
     "homes": {
@@ -26,7 +169,88 @@
             "description": null,
             "owner_id": "c1c512f1-5183-4117-b54c-f4439932673d",
             "created_at": "2026-01-17T18:18:06.992644",
-            "updated_at": "2026-01-17T18:18:06.992644"
+            "updated_at": "2026-01-17T21:30:00.942508",
+            "address": "Poznań",
+            "latitude": 52.4064,
+            "longitude": 16.9252,
+            "city": "Poznań",
+            "country": "Poland",
+            "street": null,
+            "house_number": null,
+            "apartment_number": null,
+            "postal_code": null
+        },
+        "dd3650fe-f138-46ba-be55-993a660af889": {
+            "id": "dd3650fe-f138-46ba-be55-993a660af889",
+            "name": "testuser123 Home",
+            "owner_id": "48bd285e-9c8f-43b6-af75-fbb23696f730",
+            "description": "Domyślny dom użytkownika testuser123",
+            "created_at": "2026-01-18T09:28:52.311254+00:00",
+            "updated_at": "2026-01-18T09:28:52.311261+00:00"
+        },
+        "2adab5c6-e57b-4ba1-8186-761aa1f4cb8a": {
+            "id": "2adab5c6-e57b-4ba1-8186-761aa1f4cb8a",
+            "name": "jsontest1 Home",
+            "owner_id": "c1c4c4f0-1a04-4564-866c-4dab879a33a7",
+            "description": "Domyślny dom użytkownika jsontest1",
+            "created_at": "2026-01-18T09:29:11.223347+00:00",
+            "updated_at": "2026-01-18T09:29:11.223351+00:00"
+        },
+        "8bb5817a-96f5-4b1d-b806-aca07108fe84": {
+            "id": "8bb5817a-96f5-4b1d-b806-aca07108fe84",
+            "name": "jsontest44646 Home",
+            "owner_id": "7664278c-fab3-4cb7-a855-ab1d4087263e",
+            "description": "Domyślny dom użytkownika jsontest44646",
+            "created_at": "2026-01-18T09:30:44.838382+00:00",
+            "updated_at": "2026-01-18T09:30:44.838385+00:00"
+        },
+        "81cfde28-1b9d-413b-b24d-a2d34de239f1": {
+            "id": "81cfde28-1b9d-413b-b24d-a2d34de239f1",
+            "name": "jsontest84041 Home",
+            "owner_id": "4337c3f3-f8e6-43a7-a4c1-b8116229d253",
+            "description": "Domyślny dom użytkownika jsontest84041",
+            "created_at": "2026-01-18T09:33:04.243052+00:00",
+            "updated_at": "2026-01-18T09:33:04.243057+00:00"
+        },
+        "74d634f0-219f-487f-919b-820e4699cf25": {
+            "id": "74d634f0-219f-487f-919b-820e4699cf25",
+            "name": "jsontest40915 Home",
+            "owner_id": "43c9cb49-d436-40f8-aa7b-531a77a950d2",
+            "description": "Domyślny dom użytkownika jsontest40915",
+            "created_at": "2026-01-18T09:34:01.107575+00:00",
+            "updated_at": "2026-01-18T09:34:01.107578+00:00"
+        },
+        "a75dd94e-c59b-4ee3-9e7a-486c5f2c145e": {
+            "id": "a75dd94e-c59b-4ee3-9e7a-486c5f2c145e",
+            "name": "jsontest68035 Home",
+            "owner_id": "9dd2fc3d-5b30-4fcb-bd07-5c05b86b9d57",
+            "description": "Domyślny dom użytkownika jsontest68035",
+            "created_at": "2026-01-18T09:34:28.247058+00:00",
+            "updated_at": "2026-01-18T09:34:28.247061+00:00"
+        },
+        "9aefa6a2-9426-4bd5-9a74-c98b1d4f6973": {
+            "id": "9aefa6a2-9426-4bd5-9a74-c98b1d4f6973",
+            "name": "jsontest12786 Home",
+            "owner_id": "2a97ea64-9182-422d-a9da-e453f63ca907",
+            "description": "Domyślny dom użytkownika jsontest12786",
+            "created_at": "2026-01-18T09:35:12.979028+00:00",
+            "updated_at": "2026-01-18T09:35:12.979031+00:00"
+        },
+        "b8121559-a637-4bef-855d-7bba4e76a1c9": {
+            "id": "b8121559-a637-4bef-855d-7bba4e76a1c9",
+            "name": "jsontest45280 Home",
+            "owner_id": "8b4a4b53-72fe-43ff-ad64-61c193861217",
+            "description": "Domyślny dom użytkownika jsontest45280",
+            "created_at": "2026-01-18T09:35:45.494373+00:00",
+            "updated_at": "2026-01-18T09:35:45.494377+00:00"
+        },
+        "5f597f8d-8706-4de5-9a61-48aae11e8591": {
+            "id": "5f597f8d-8706-4de5-9a61-48aae11e8591",
+            "name": "jsontest55334 Home",
+            "owner_id": "9bcac410-2960-404b-8c5c-29d76416c6ec",
+            "description": "Domyślny dom użytkownika jsontest55334",
+            "created_at": "2026-01-18T09:35:55.529489+00:00",
+            "updated_at": "2026-01-18T09:35:55.529493+00:00"
         }
     },
     "user_homes": {
@@ -40,6 +264,15 @@
                     "admin"
                 ],
                 "joined_at": "2026-01-10T21:52:14.205809"
+            },
+            {
+                "user_id": "667c5283-fc0b-4b57-a874-cfefc84cd292",
+                "role": "member",
+                "permissions": [
+                    "read",
+                    "write"
+                ],
+                "joined_at": "2026-01-18T09:35:46.138182+00:00"
             }
         ],
         "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0": [
@@ -52,6 +285,96 @@
                     "admin"
                 ],
                 "joined_at": "2026-01-17T18:18:06.992644"
+            }
+        ],
+        "dd3650fe-f138-46ba-be55-993a660af889": [
+            {
+                "user_id": "48bd285e-9c8f-43b6-af75-fbb23696f730",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:28:52.311269+00:00"
+            }
+        ],
+        "2adab5c6-e57b-4ba1-8186-761aa1f4cb8a": [
+            {
+                "user_id": "c1c4c4f0-1a04-4564-866c-4dab879a33a7",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:29:11.223359+00:00"
+            }
+        ],
+        "8bb5817a-96f5-4b1d-b806-aca07108fe84": [
+            {
+                "user_id": "7664278c-fab3-4cb7-a855-ab1d4087263e",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:30:44.838391+00:00"
+            }
+        ],
+        "81cfde28-1b9d-413b-b24d-a2d34de239f1": [
+            {
+                "user_id": "4337c3f3-f8e6-43a7-a4c1-b8116229d253",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:33:04.243065+00:00"
+            }
+        ],
+        "74d634f0-219f-487f-919b-820e4699cf25": [
+            {
+                "user_id": "43c9cb49-d436-40f8-aa7b-531a77a950d2",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:34:01.107584+00:00"
+            }
+        ],
+        "a75dd94e-c59b-4ee3-9e7a-486c5f2c145e": [
+            {
+                "user_id": "9dd2fc3d-5b30-4fcb-bd07-5c05b86b9d57",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:34:28.247066+00:00"
+            }
+        ],
+        "9aefa6a2-9426-4bd5-9a74-c98b1d4f6973": [
+            {
+                "user_id": "2a97ea64-9182-422d-a9da-e453f63ca907",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:35:12.979037+00:00"
+            }
+        ],
+        "b8121559-a637-4bef-855d-7bba4e76a1c9": [
+            {
+                "user_id": "8b4a4b53-72fe-43ff-ad64-61c193861217",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:35:45.494385+00:00"
+            }
+        ],
+        "5f597f8d-8706-4de5-9a61-48aae11e8591": [
+            {
+                "user_id": "9bcac410-2960-404b-8c5c-29d76416c6ec",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:35:55.529500+00:00"
             }
         ]
     },
@@ -400,6 +723,114 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "1728b45c-ffb8-48ce-947c-bfbfa0afd4d5",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T19:31:10.246390",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "b938ca09-c498-46ab-b12a-f5a1ce86e050",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T21:21:35.256434",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "21d2e871-f008-4d64-bef5-17dc28cfdda1",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T09:47:46.791630",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "c4c9485e-5857-408f-a972-5042ea24ccf7",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T09:48:32.090059",
+            "level": "info",
+            "message": "Wysłano zaproszenie do szymon.przybysz2003@gmail.com (rola: admin)",
+            "event_type": "invitation_sent",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "email": "szymon.przybysz2003@gmail.com",
+                "role": "admin",
+                "code": "N8FG9949",
+                "user_exists": false
+            }
+        },
+        {
+            "id": "225ed3a1-3908-407f-ab50-cc137b1ff7fe",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T09:53:27.582267",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "f4ad3180-ab8e-45c6-ae5f-9b2992293151",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T10:08:27.426509",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "e90bb2ae-e50b-425b-a932-bd1505319d19",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T10:08:48.404545",
+            "level": "info",
+            "message": "Anulowano zaproszenie",
+            "event_type": "invitation_cancelled",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "invitation_id": "d27a3db4-e5a1-4491-b883-a575914ebb96"
+            }
+        },
+        {
+            "id": "530e36f9-13d1-4ccf-9a03-99ec0db3236c",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T10:09:01.339303",
+            "level": "info",
+            "message": "Wysłano zaproszenie do szymon.przybysz2003@gmail.com (rola: admin)",
+            "event_type": "invitation_sent",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "email": "szymon.przybysz2003@gmail.com",
+                "role": "admin",
+                "code": "DZS2C323",
+                "user_exists": false
+            }
         }
     ],
     "invitations": [
@@ -438,6 +869,127 @@
             "accepted_by": null,
             "status": "rejected",
             "created_at": "2026-01-11T10:39:47.727895+00:00"
+        },
+        {
+            "id": "d27a3db4-e5a1-4491-b883-a575914ebb96",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "email": "szymon.przybysz2003@gmail.com",
+            "role": "admin",
+            "invitation_code": "N8FG9949",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T08:48:29.673985+00:00",
+            "accepted_by": null,
+            "status": "rejected",
+            "created_at": "2026-01-18T08:48:29.674501+00:00"
+        },
+        {
+            "id": "12cb4e38-3715-409a-b2dd-52dc95e5e540",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "email": "szymon.przybysz2003@gmail.com",
+            "role": "admin",
+            "invitation_code": "DZS2C323",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:08:54.340676+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:08:54.341276+00:00"
+        },
+        {
+            "id": "4355320b-e2e5-4f76-b642-448a962b51ee",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest1@example.com",
+            "role": "member",
+            "invitation_code": "TEST1234",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:29:11.821867+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:29:11.821893+00:00"
+        },
+        {
+            "id": "e4770ec9-9421-4340-a0df-ce081853bc3b",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest45238@example.com",
+            "role": "member",
+            "invitation_code": "TEST45238",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:30:45.442216+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:30:45.442243+00:00"
+        },
+        {
+            "id": "6910ebe6-0159-4b2d-873f-b1fdecf46176",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest84645@example.com",
+            "role": "member",
+            "invitation_code": "TEST84645",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:33:04.850441+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:33:04.850464+00:00"
+        },
+        {
+            "id": "fa7bb320-37ea-4636-a790-678f12e63c87",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest41536@example.com",
+            "role": "member",
+            "invitation_code": "TEST41536",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:34:01.757264+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:34:01.757305+00:00"
+        },
+        {
+            "id": "ea85ce20-c544-416f-bf87-72018176574d",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest68641@example.com",
+            "role": "member",
+            "invitation_code": "TEST68641",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:34:28.846608+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:34:28.846637+00:00"
+        },
+        {
+            "id": "f6c493bc-1556-4ebe-89b6-40d34704c197",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest13366@example.com",
+            "role": "member",
+            "invitation_code": "TEST13366",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:35:13.588894+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:35:13.588932+00:00"
+        },
+        {
+            "id": "2ded853d-d252-44ef-9bf2-31a3e605902a",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest45918@example.com",
+            "role": "member",
+            "invitation_code": "TEST45918",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:35:46.126091+00:00",
+            "accepted_by": "667c5283-fc0b-4b57-a874-cfefc84cd292",
+            "status": "accepted",
+            "created_at": "2026-01-18T09:35:46.126115+00:00",
+            "accepted_at": "2026-01-18T09:35:46.138196+00:00"
+        },
+        {
+            "id": "f06fca16-2777-4947-af7b-cdc47738347b",
+            "home_id": "99d4cb8f-98b2-4f97-b336-c365ca586ff8",
+            "email": "invitetest55918@example.com",
+            "role": "member",
+            "invitation_code": "TEST55918",
+            "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "expires_at": "2026-01-25T09:35:56.117779+00:00",
+            "accepted_by": null,
+            "status": "pending",
+            "created_at": "2026-01-18T09:35:56.117798+00:00"
         }
     ],
     "security_states": {
