@@ -24,6 +24,16 @@
     {% block additional_styles %}{% endblock %}
 </head>
 <body>
+    <script>
+        window.toggleMenu = window.toggleMenu || function() {
+            var sideMenu = document.getElementById('sideMenu');
+            if (!sideMenu) {
+                console.warn('Menu boczne nie zostalo znalezione');
+                return;
+            }
+            sideMenu.classList.toggle('is-open');
+        };
+    </script>
     <div id="notifications-container"></div>
     
     <header>

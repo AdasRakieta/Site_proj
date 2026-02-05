@@ -362,6 +362,12 @@ class SecurityTests(BaseTestCase):
         """Test Content Security Policy header is set"""
         response = self.client.get('/')
         self.assertIn('Content-Security-Policy', response.headers)
+
+    def test_content_security_policy_allows_leaflet(self):
+        """Test CSP allows Leaflet CDN assets"""
+        response = self.client.get('/')
+        csp = response.headers.get('Content-Security-Policy', '')
+        self.assertIn('https://unpkg.com', csp)
     
     def test_session_cookie_httponly(self):
         """Test session cookie is HTTPOnly"""
@@ -377,6 +383,19 @@ class ErrorHandlingTests(BaseTestCase):
         """Test 404 error page"""
         response = self.client.get('/nonexistent-page')
         self.assertIn(response.status_code, [404, 302])
+
+
+class FrontendSmokeTests(BaseTestCase):
+    """Basic checks for key front-end hooks"""
+
+    def test_home_page_has_side_menu_toggle(self):
+        """Ensure side menu markup and toggle hook exist"""
+        self.force_login()
+        response = self.client.get('/')
+        self.assertIn(response.status_code, [200, 302])
+        if response.status_code == 200:
+            self.assertIn(b'id="sideMenu"', response.data)
+            self.assertIn(b'onclick="toggleMenu()"', response.data)
     
     def test_429_rate_limit_returns_json_for_api(self):
         """Test 429 error returns JSON for API requests"""

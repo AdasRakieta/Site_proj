@@ -207,17 +207,23 @@ footer {
 .side-menu {
     overflow-y: auto;
     position: fixed;
-    left: -250px;
+    left: 0;
     top: 0;
     width: 250px;
     height: 100%;
     background-color: var(--secondary);
-    transition: left 0.3s ease-in-out;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
     padding-top: 2rem;
     z-index: 9999;
     border-right: 4px solid #dde6ed9a;
     border-radius: 2px;
     scrollbar-width: none;
+    box-shadow: none;
+}
+
+.side-menu.is-open {
+    transform: translateX(0);
     box-shadow: 0 0 16px 0 rgba(0,0,0,0.12);
 }
 

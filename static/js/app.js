@@ -81,6 +81,23 @@ function extractRoomNames(payload) {
 window.normalizeRoomsData = normalizeRoomsData;
 window.extractRoomNames = extractRoomNames;
 
+function toggleSideMenuFallback() {
+    const sideMenu = document.getElementById('sideMenu');
+    if (!sideMenu) {
+        console.warn('Menu boczne nie zostało znalezione');
+        return;
+    }
+    sideMenu.classList.toggle('is-open');
+}
+
+window.toggleMenu = function() {
+    if (window.app && window.app.toggleMenu) {
+        window.app.toggleMenu();
+        return;
+    }
+    toggleSideMenuFallback();
+};
+
 // Aplikacja SmartHomeApp
 
 class SmartHomeApp {
@@ -329,8 +346,7 @@ class SmartHomeApp {
     initMenu() {
         this.sideMenu = document.getElementById('sideMenu');
         if (this.sideMenu) {
-            this.sideMenu.style.left = '-260px';
-            this.sideMenu.style.transition = 'left 0.3s ease-in-out';
+            this.sideMenu.classList.remove('is-open');
         }
     }
 
@@ -349,8 +365,7 @@ class SmartHomeApp {
             console.warn('Menu boczne nie zostało znalezione');
             return;
         }
-        const isVisible = this.sideMenu.style.left === '0px';
-        this.sideMenu.style.left = isVisible ? '-260px' : '0px';
+        this.sideMenu.classList.toggle('is-open');
     }
 
     bindSocketEvents() {
@@ -929,23 +944,9 @@ window.updateRoomsAndButtonsList = function(rooms, buttons) {
 };
 
 function initializeApp() {
-    if (typeof io === 'undefined') {
-        console.warn('Socket.IO nie jest załadowany - ponawianie próby...');
-        setTimeout(initializeApp, 100);
-        return;
-    }
     try {
         window.app = new SmartHomeApp();
         console.log('Aplikacja zainicjalizowana:', window.app);
-
-        // Export toggleMenu as global function for onclick handlers in base.html
-        window.toggleMenu = function() {
-            if (window.app && window.app.toggleMenu) {
-                window.app.toggleMenu();
-            } else {
-                console.warn('App not initialized or toggleMenu not available');
-            }
-        };
 
         window.addEventListener('beforeunload', () => {
             if (window.app) {
