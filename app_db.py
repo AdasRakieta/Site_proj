@@ -132,8 +132,8 @@ class SmartHomeApp:
             # SECURITY: Add security headers (MEDIUM FIX)
             response.headers['Content-Security-Policy'] = (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' https://unpkg.com; "
-                "script-src-elem 'self' 'unsafe-inline' https://unpkg.com; "
+                "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.socket.io; "
+                "script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.socket.io; "
                 "style-src 'self' 'unsafe-inline' https://unpkg.com; "
                 "style-src-elem 'self' 'unsafe-inline' https://unpkg.com; "
                 "img-src 'self' data: https:; "

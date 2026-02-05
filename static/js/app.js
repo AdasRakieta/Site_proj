@@ -351,9 +351,6 @@ class SmartHomeApp {
     }
 
     bindMenuEvents() {
-        document.querySelectorAll('.close-btn').forEach(button => {
-            button.addEventListener('click', () => this.toggleMenu());
-        });
         const toggleMapBtn = document.getElementById('toggleMap');
         if (toggleMapBtn) {
             toggleMapBtn.addEventListener('click', () => this.toggleMap());

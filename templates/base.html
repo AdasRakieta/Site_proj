@@ -168,6 +168,8 @@
             // Show loading state
             const currentHomeName = document.querySelector('.current-home-name');
             const originalText = currentHomeName ? currentHomeName.textContent : '';
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             
             if (currentHomeName) {
                 currentHomeName.textContent = 'Przełączanie...';
@@ -178,6 +180,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
                 },
                 body: JSON.stringify({ home_id: homeId })
             })
