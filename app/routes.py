@@ -690,7 +690,7 @@ class RoutesManager(MultiHomeHelpersMixin):
         def api_ping():
             """Simple ping endpoint to test connectivity"""
             return jsonify({
-                'status': 'success',
+                'status': 'ok',
                 'message': 'SmartHome server is running',
                 'timestamp': int(time.time()),
                 'version': '1.0'

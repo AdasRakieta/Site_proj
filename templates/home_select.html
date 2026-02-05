@@ -116,10 +116,16 @@ function selectHome(homeId) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': window.getCSRFToken()
         },
         body: JSON.stringify({ home_id: homeId })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Redirect to dashboard or previous page

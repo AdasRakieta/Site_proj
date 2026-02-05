@@ -938,6 +938,15 @@ function initializeApp() {
         window.app = new SmartHomeApp();
         console.log('Aplikacja zainicjalizowana:', window.app);
 
+        // Export toggleMenu as global function for onclick handlers in base.html
+        window.toggleMenu = function() {
+            if (window.app && window.app.toggleMenu) {
+                window.app.toggleMenu();
+            } else {
+                console.warn('App not initialized or toggleMenu not available');
+            }
+        };
+
         window.addEventListener('beforeunload', () => {
             if (window.app) {
                 window.app.disconnect();

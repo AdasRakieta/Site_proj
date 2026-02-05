@@ -123,9 +123,11 @@
     <footer>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.7.1/socket.io.min.js" crossorigin="anonymous"></script>
+    <!-- Leaflet for maps -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+    <!-- Home ID context -->
     <script>
         window.currentHomeId = "{{ current_home_id or '' }}";
         if (!window.currentHomeId) {

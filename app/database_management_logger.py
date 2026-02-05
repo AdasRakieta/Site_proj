@@ -101,7 +101,8 @@ class DatabaseManagementLogger:
                             details=details or {}
                         )
                     else:
-                        print(f"[ERROR] Cannot log to multi-home system: no home_id available for user {user}")
+                        print(f"[WARNING] Cannot log to multi-home system: no home_id available for user {user}. Skipping log.")
+                        # Don't fail - just skip logging for users without homes (e.g., during password reset before first login)
                 else:
                     # Fallback to single-home logging
                     self.db.add_management_log(

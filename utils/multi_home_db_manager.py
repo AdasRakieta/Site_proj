@@ -115,6 +115,20 @@ class MultiHomeDBManager:
             self._connection.close()
             logger.info("Database connection closed")
 
+    def test_connection(self) -> bool:
+        """Verify database connectivity by executing a simple query."""
+        if self.json_fallback_mode:
+            return False
+        try:
+            self._ensure_connection()
+            with self.get_cursor() as cursor:
+                if cursor is None:
+                    return False
+                cursor.execute("SELECT 1")
+                return cursor.fetchone() is not None
+        except Exception:
+            return False
+
     @staticmethod
     def _normalize_device_id(device_id: Any) -> Optional[Any]:
         """Normalize device identifier, allowing UUID strings alongside integers."""
@@ -3439,6 +3453,10 @@ class MultiHomeDBManager:
             User dict with keys: id, name, email, password_hash, role, etc.
             Returns None if user not found
         """
+        # Alias 'sys-admin' to 'sysadmin' for backward compatibility
+        if identifier == 'sys-admin':
+            identifier = 'sysadmin'
+        
         # JSON fallback support
         if self.json_fallback_mode and self.json_backup:
             config = self.json_backup.get_config()
