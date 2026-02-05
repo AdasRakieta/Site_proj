@@ -63,7 +63,7 @@ class SimpleAuthManager:
                     
                     # No admin access found
                     print(f"[DEBUG] Admin access denied for user {user_id}")
-                    return redirect(url_for('dashboard'))
+                    return redirect(url_for('home'))
                     
                 except Exception as e:
                     # Fallback to old system on error
@@ -72,14 +72,14 @@ class SimpleAuthManager:
             # Fallback to old system
             user = self.smart_home.get_user_by_id(user_id)
             if not user:
-                return redirect(url_for('dashboard'))
+                return redirect(url_for('home'))
                 
             user_role = user.get('role')
             # Sys-admin has global access
             if user_role == 'sys-admin':
                 return f(*args, **kwargs)
             elif user_role not in ['admin', 'user']:  # Keep backward compatibility
-                return redirect(url_for('dashboard'))
+                return redirect(url_for('home'))
             
             return f(*args, **kwargs)
         return decorated_function

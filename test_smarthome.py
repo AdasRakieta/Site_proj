@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 
@@ -25,6 +26,9 @@ os.environ.setdefault('SECRET_KEY', 'test_secret_key_for_testing_only_1234567890
 os.environ.setdefault('FLASK_ENV', 'testing')
 os.environ.setdefault('DATABASE_MODE', 'false')  # Force JSON fallback for unit tests
 os.environ.setdefault('DISABLE_RATE_LIMITING', 'true')
+
+# Fixed test UUID for consistent testing
+TEST_USER_ID = str(uuid.UUID('12345678-1234-5678-1234-567812345678'))
 
 from app_db import SmartHomeApp
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -54,7 +58,7 @@ class BaseTestCase(unittest.TestCase):
     def force_login(self, username='admin', role='admin'):
         """Helper to simulate authenticated session"""
         with self.client.session_transaction() as sess:
-            sess['user_id'] = 'test-user-id'
+            sess['user_id'] = TEST_USER_ID
             sess['username'] = username
             sess['role'] = role
             sess['global_role'] = role
@@ -66,8 +70,11 @@ class BaseTestCase(unittest.TestCase):
                 'username': username,
                 'password': password
             }, follow_redirects=True)
-        self.force_login(username=username, role='admin')
-        return None
+        else:
+            self.force_login(username=username, role='admin')
+            # Return a mock response with headers for testing
+            response = self.client.get('/')
+            return response
     
     def logout(self):
         """Helper to log out"""

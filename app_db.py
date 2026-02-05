@@ -104,7 +104,8 @@ class SmartHomeApp:
             'SESSION_COOKIE_HTTPONLY': True,
             'SESSION_COOKIE_SECURE': bool(is_production),
         })
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        # Use threading async_mode to avoid deprecated Eventlet
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='threading')
         
         # SECURITY: Enable CSRF protection (CRITICAL FIX)
         try:
@@ -567,7 +568,7 @@ class SmartHomeApp:
                         'CACHE_OPTIONS': {
                             'socket_connect_timeout': 2,  # 2 second connection timeout
                             'socket_timeout': 2,          # 2 second socket timeout
-                            'retry_on_timeout': False
+                            # retry_on_timeout removed (deprecated since Redis 6.0.0, TimeoutError is included by default)
                         }
                     }
                     print("✓ Using Redis cache with URL")
@@ -580,7 +581,7 @@ class SmartHomeApp:
                         'CACHE_OPTIONS': {
                             'socket_connect_timeout': 2,  # 2 second connection timeout
                             'socket_timeout': 2,          # 2 second socket timeout
-                            'retry_on_timeout': False
+                            # retry_on_timeout removed (deprecated since Redis 6.0.0, TimeoutError is included by default)
                         }
                     }
                     print("✓ Using Redis cache with host/port")

@@ -158,21 +158,21 @@ def api_home_select():
     db_manager = get_multi_db()
     if not db_manager:
         logger.error("Multi-home DB not available")
-        return jsonify({"success": False, "error": "Multi-home functionality not available"})
+        return jsonify({"success": False, "error": "Multi-home functionality not available"}), 503
     
     try:
         data = request.get_json()
         logger.info(f"📥 Received data: {data}")
-        home_id = data.get('home_id')
+        home_id = data.get('home_id') if data else None
         
         if not home_id:
             logger.error("No home_id provided")
-            return jsonify({"success": False, "error": "Home ID required"})
+            return jsonify({"success": False, "error": "Home ID required"}), 400
         
         user = get_current_user()
         if not user:
             logger.error("No current user found")
-            return jsonify({"success": False, "error": "Authentication required"})
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         
         user_id = user['id']
         logger.info(f"👤 User ID: {user_id}, switching to home: {home_id}")
@@ -182,7 +182,7 @@ def api_home_select():
         logger.info(f"🔑 User has access to home {home_id}: {has_access}")
         
         if not has_access:
-            return jsonify({"success": False, "error": "Access denied to this home"})
+            return jsonify({"success": False, "error": "Access denied to this home"}), 403
         
         # Set current home in session and database
         session_token = session.get('session_token')
@@ -199,16 +199,16 @@ def api_home_select():
                 session['role'] = user_role_in_home  # Update role to home-specific role
             
             logger.info(f"✅ Successfully switched to home {home_id} with role {user_role_in_home}")
-            return jsonify({"success": True})
+            return jsonify({"success": True}), 200
         else:
             logger.error(f"❌ Failed to set current home in database")
-            return jsonify({"success": False, "error": "Failed to switch home"})
+            return jsonify({"success": False, "error": "Failed to switch home"}), 500
     
     except Exception as e:
         logger.error(f"💥 Error switching home: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"success": False, "error": "Internal server error"})
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 @multi_home_bp.route('/home/create')
 @login_required
