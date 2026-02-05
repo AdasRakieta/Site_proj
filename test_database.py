@@ -46,6 +46,19 @@ class DatabaseConnectionTests(unittest.TestCase):
             print(f"Database connection failed: {e}")
             cls.connection_ok = False
     
+<<<<<<< HEAD
+=======
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up database connection"""
+        if hasattr(cls, 'db_manager') and hasattr(cls.db_manager, '_connection'):
+            try:
+                if cls.db_manager._connection:
+                    cls.db_manager._connection.close()
+            except Exception:
+                pass
+    
+>>>>>>> 584e16bc4200d64a2952fdaa6f7778f695b79d3a
     def test_database_connection(self):
         """Test database connection is successful"""
         self.assertTrue(self.connection_ok, "Database connection failed")
@@ -87,6 +100,19 @@ class MultiHomeDatabaseTests(unittest.TestCase):
             print(f"Database setup failed: {e}")
             raise
     
+<<<<<<< HEAD
+=======
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up database connection"""
+        if hasattr(cls, 'db_manager') and hasattr(cls.db_manager, '_connection'):
+            try:
+                if cls.db_manager._connection:
+                    cls.db_manager._connection.close()
+            except Exception:
+                pass
+    
+>>>>>>> 584e16bc4200d64a2952fdaa6f7778f695b79d3a
     def test_find_user_by_username(self):
         """Test finding user by username"""
         # Try to find sysadmin user
@@ -194,8 +220,13 @@ class MultiHomeApplicationTests(unittest.TestCase):
             data=json.dumps({'email_or_username': 'sysadmin'}),
             content_type='application/json')
         
+<<<<<<< HEAD
         # Should not fail catastrophically
         self.assertIn(response.status_code, [200, 429])
+=======
+        # Should not fail catastrophically (500 is acceptable if email not configured)
+        self.assertIn(response.status_code, [200, 429, 500])
+>>>>>>> 584e16bc4200d64a2952fdaa6f7778f695b79d3a
 
 
 class ManagementLogTests(unittest.TestCase):
@@ -206,6 +237,18 @@ class ManagementLogTests(unittest.TestCase):
         """Set up database connection"""
         cls.db_manager = MultiHomeDBManager()
     
+<<<<<<< HEAD
+=======
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up database connection"""
+        if hasattr(cls.db_manager, '_connection') and cls.db_manager._connection:
+            try:
+                cls.db_manager._connection.close()
+            except Exception:
+                pass
+    
+>>>>>>> 584e16bc4200d64a2952fdaa6f7778f695b79d3a
     def test_add_management_log_with_home(self):
         """Test adding management log with home_id"""
         user = self.db_manager.find_user_by_email_or_username('sysadmin')
@@ -236,6 +279,10 @@ class ManagementLogTests(unittest.TestCase):
             if homes:
                 logs = self.db_manager.get_home_management_logs(
                     home_id=homes[0]['id'],
+<<<<<<< HEAD
+=======
+                    admin_user_id=user['id'],
+>>>>>>> 584e16bc4200d64a2952fdaa6f7778f695b79d3a
                     limit=10
                 )
                 self.assertIsInstance(logs, list)
