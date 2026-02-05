@@ -140,6 +140,71 @@ class MultiHomeDatabaseTests(unittest.TestCase):
             if homes:
                 has_access = self.db_manager.user_has_home_access(user['id'], homes[0]['id'])
                 self.assertTrue(has_access)
+    
+    def test_get_home_users(self):
+        """Test getting list of users in a home - CRITICAL: tests SQL schema compatibility"""
+        user = self.db_manager.find_user_by_email_or_username('sysadmin')
+        if user:
+            homes = self.db_manager.get_user_homes(user['id'])
+            if homes:
+                try:
+                    users = self.db_manager.get_home_users(homes[0]['id'], user['id'])
+                    self.assertIsInstance(users, list, "get_home_users should return a list")
+                    if len(users) > 0:
+                        # Verify returned fields match actual DB schema
+                        first_user = users[0]
+                        self.assertIn('user_id', first_user)
+                        self.assertIn('username', first_user)
+                        self.assertIn('email', first_user)
+                        self.assertIn('home_role', first_user)
+                        self.assertIn('joined_at', first_user)
+                except Exception as e:
+                    self.fail(f"get_home_users failed with: {e}")
+    
+    def test_get_home_info(self):
+        """Test getting home statistics - CRITICAL: tests SQL schema compatibility"""
+        user = self.db_manager.find_user_by_email_or_username('sysadmin')
+        if user:
+            homes = self.db_manager.get_user_homes(user['id'])
+            if homes:
+                try:
+                    info = self.db_manager.get_home_info(homes[0]['id'], user['id'])
+                    self.assertIsInstance(info, dict, "get_home_info should return a dict")
+                    # Verify all expected count fields exist
+                    self.assertIn('users_count', info)
+                    self.assertIn('rooms_count', info)
+                    self.assertIn('devices_count', info)
+                    self.assertIn('automations_count', info)
+                    self.assertIn('logs_count', info)
+                except Exception as e:
+                    self.fail(f"get_home_info failed with: {e}")
+    
+    def test_get_home_devices(self):
+        """Test getting devices in a home - CRITICAL: tests device filtering by home_id"""
+        user = self.db_manager.find_user_by_email_or_username('sysadmin')
+        if user:
+            homes = self.db_manager.get_user_homes(user['id'])
+            if homes and len(homes) >= 2:
+                try:
+                    # Get devices from first home
+                    devices_home1 = self.db_manager.get_home_devices(homes[0]['id'], user['id'])
+                    # Get devices from second home
+                    devices_home2 = self.db_manager.get_home_devices(homes[1]['id'], user['id'])
+                    
+                    self.assertIsInstance(devices_home1, list)
+                    self.assertIsInstance(devices_home2, list)
+                    
+                    # Verify all devices in home1 have correct home_id
+                    for device in devices_home1:
+                        self.assertEqual(str(device.get('home_id')), str(homes[0]['id']), 
+                                       f"Device {device.get('name')} has wrong home_id")
+                    
+                    # Verify all devices in home2 have correct home_id
+                    for device in devices_home2:
+                        self.assertEqual(str(device.get('home_id')), str(homes[1]['id']), 
+                                       f"Device {device.get('name')} has wrong home_id")
+                except Exception as e:
+                    self.fail(f"get_home_devices failed with: {e}")
 
 
 class MultiHomeApplicationTests(unittest.TestCase):

@@ -908,7 +908,6 @@ class MultiHomeDBManager:
                     'global_role': user_info.get('role', 'member'),
                     'home_role': entry.get('role', 'member'),
                     'joined_at': entry.get('joined_at'),
-                    'last_access': entry.get('last_access'),
                     'is_home_owner': entry.get('role') == 'owner'
                 })
 
@@ -919,7 +918,7 @@ class MultiHomeDBManager:
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT u.id, u.name, u.email, u.role as global_role,
-                       uh.role as home_role, uh.joined_at, uh.last_access,
+                       uh.role as home_role, uh.joined_at,
                        (h.owner_id = u.id) as is_home_owner
                 FROM users u
                 JOIN user_homes uh ON u.id = uh.user_id  
@@ -937,8 +936,7 @@ class MultiHomeDBManager:
                     'global_role': row[3],
                     'home_role': row[4],
                     'joined_at': row[5],
-                    'last_access': row[6],
-                    'is_home_owner': row[7]
+                    'is_home_owner': row[6]
                 })
             
             return users
@@ -1353,8 +1351,8 @@ class MultiHomeDBManager:
                 SELECT 
                     (SELECT COUNT(*) FROM user_homes WHERE home_id = %s) as users_count,
                     (SELECT COUNT(*) FROM rooms WHERE home_id = %s) as rooms_count,
-                    (SELECT COUNT(*) FROM devices d JOIN rooms r ON d.room_id = r.id WHERE r.home_id = %s) as devices_count,
-                    (SELECT COUNT(*) FROM automations WHERE home_id = %s) as automations_count,
+                    (SELECT COUNT(*) FROM devices WHERE home_id = %s) as devices_count,
+                    (SELECT COUNT(*) FROM home_automations WHERE home_id = %s) as automations_count,
                     (SELECT COUNT(*) FROM management_logs WHERE home_id = %s) as logs_count
             """, (home_id, home_id, home_id, home_id, home_id))
             
@@ -1376,6 +1374,21 @@ class MultiHomeDBManager:
                 'automations_count': row[3],
                 'logs_count': row[4]
             }
+    
+    def get_home_info(self, home_id: str, user_id: str) -> Dict:
+        """
+        Get home information and statistics.
+        
+        Alias for get_home_stats with user_id parameter for consistency.
+        
+        Args:
+            home_id: ID of the home
+            user_id: ID of the user requesting info (must have admin access)
+            
+        Returns:
+            Dictionary with home statistics and info
+        """
+        return self.get_home_stats(home_id, user_id)
             
     def get_notification_recipients(self, home_id: str, admin_user_id: str) -> List[Dict]:
         """
@@ -2128,7 +2141,7 @@ class MultiHomeDBManager:
                 SELECT d.*, r.name as room_name, r.home_id as room_home_id
                 FROM devices d
                 LEFT JOIN rooms r ON d.room_id = r.id
-                WHERE (r.home_id = %s OR d.room_id IS NULL)
+                WHERE d.home_id = %s
             """
             params: List[Any] = [home_id]
             
@@ -2183,10 +2196,12 @@ class MultiHomeDBManager:
         room = self.get_room(room_id, user_id)
         if not room:
             return []
+        
+        room_home_id = room.get('home_id')
             
         with self.get_cursor() as cursor:
-            query = "SELECT * FROM devices WHERE room_id = %s"
-            params: List[Any] = [room_id]
+            query = "SELECT * FROM devices WHERE room_id = %s AND home_id = %s"
+            params: List[Any] = [room_id, room_home_id]
             
             if device_type:
                 query += " AND device_type = %s"
@@ -2710,12 +2725,12 @@ class MultiHomeDBManager:
                     d.settings,
                     d.created_at,
                     d.updated_at,
-                    r.home_id,
+                    d.home_id,
                     r.name AS room_name
                 FROM devices d
                 LEFT JOIN rooms r ON d.room_id = r.id
-                LEFT JOIN user_homes uh ON r.home_id = uh.home_id
-                WHERE d.id = %s AND (uh.user_id = %s OR r.home_id IS NULL)
+                JOIN user_homes uh ON d.home_id = uh.home_id
+                WHERE d.id = %s AND uh.user_id = %s
             """, (normalized_id, user_id))
             
             row = cursor.fetchone()

@@ -828,11 +828,9 @@ class RoutesManager(MultiHomeHelpersMixin):
                     'display_order': idx
                 } for idx, name in enumerate(legacy_rooms or [])]
 
-            if not buttons:
-                buttons = self.cached_data.get_buttons() if self.cached_data else getattr(self.smart_home, 'buttons', [])
-
-            if not temperature_controls:
-                temperature_controls = self.cached_data.get_temperature_controls() if self.cached_data else getattr(self.smart_home, 'temperature_controls', [])
+            # Removed legacy cache/smart_home fallbacks - they don't respect home_id
+            # If multi_db returned empty results, it means no devices in this home
+            # Don't fallback to global cache which mixes data from all homes
 
             print(f"[DEBUG] /edit route - Buttons data for template: {buttons}")
 

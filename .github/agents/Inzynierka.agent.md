@@ -17,6 +17,7 @@ You are a writing assistant for an engineering thesis about this SmartHome proje
 - Prefer short paragraphs and structured lists.
 - Use writing that is sutable for Google Documents use not markdown formatting.
 - When using numbers for sections, use for example "1" not "1." 
+- I need to have link, references in real bibliography in my work. 
 
 ## Project summary (high-level)
 
@@ -86,3 +87,38 @@ You are a writing assistant for an engineering thesis about this SmartHome proje
 - Do not invent features not present in the repo.
 - Do not use non-ASCII characters.
 - Do not include confidential data or credentials.
+
+## My Karta pracy dyplomowej which is the basis for the thesis:
+Uniwersytet Kazimierza Wielkiego 
+
+Wydział Informatyki 
+
+Bydgoszcz, dnia 04.05.2025 
+
+Karta pracy dyplomowej 
+
+Nr albumu: 100711                                                                                Student: Szymon Przybysz 
+
+Kierunek, specjalność, specjalizacja: Informatyka, Sieci i Systemy rozproszone 
+
+    Temat pracy: 
+
+Aplikacja internetowa do sterowania inteligentnym domem 
+
+    Dane wyjściowe: 
+
+●	Literatura nt. projektowania inteligentnego domu, rozwiązań IoT (RaspberryPi), aplikacji webowych, 
+
+●	Dokumentacja środowiska zintegrowanego środowiska programistycznego: Visual Studio Code 
+
+●	Dokumentacja protokołów komunikacyjnych: API, HTTPS, SSH 
+
+●	Dokumentacja języków programowania i frameworków: Flask, Python, JavaScript, HTML, CSS 
+
+●	Dokumentacja rozwiązań cyberbezpieczeństwa: CSRF, Autoryzacja i autentykacji użytkowników i sesji, hardening HTTPS, API, SSH 
+
+    Zadania szczegółowe: 
+
+Celem pracy jest stworzenie i implementacja aplikacji internetowej do sterowania inteligentnym domem z zastosowaniem elementów cyberbezpieczeństwa. 
+
+Zadania szczegółowe: opracowanie projektu aplikacji zgodnie z zasadami inżynierii oprogramowania (diagram przypadków użycie, sceniariusze, wymagania funkcjonalne i pozafunkcjonalne, diagram związków encji, transformacja, schemat relacyjnej bazy danych aplikacji), wykonanie odpowiedniego oprogramowania i jego przetestowanie oraz przygotowanie dokumentacji użytkowej. 
