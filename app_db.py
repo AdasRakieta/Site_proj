@@ -26,14 +26,12 @@ load_dotenv(override=False)  # Don't override existing environment variables
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the new database-backed SmartHome system
+env_db_mode = os.getenv('DATABASE_MODE')
+force_db_mode = env_db_mode and env_db_mode.lower() in ('1', 'true', 'yes', 'on')
+force_json_mode = env_db_mode and env_db_mode.lower() in ('0', 'false', 'no', 'off')
 
-try:
-    from app.configure_db import SmartHomeSystemDB as SmartHomeSystem
-    DATABASE_MODE = True
-    print("✓ Using PostgreSQL database backend")
-except ImportError as e:
-    print(f"⚠ Failed to import database backend: {e}")
-    print("⚠ Falling back to JSON file backend with automatic configuration")
+if force_json_mode:
+    print("ℹ DATABASE_MODE=false - forcing JSON backend")
     from app.configure import SmartHomeSystem
     from utils.json_backup_manager import ensure_json_backup
     
@@ -45,6 +43,27 @@ except ImportError as e:
         print(f"✗ Failed to initialize JSON backup: {backup_error}")
     
     DATABASE_MODE = False
+else:
+    try:
+        from app.configure_db import SmartHomeSystemDB as SmartHomeSystem
+        DATABASE_MODE = True
+        print("✓ Using PostgreSQL database backend")
+    except ImportError as e:
+        print(f"⚠ Failed to import database backend: {e}")
+        if force_db_mode:
+            print("⚠ DATABASE_MODE=true requested but DB backend import failed")
+        print("⚠ Falling back to JSON file backend with automatic configuration")
+        from app.configure import SmartHomeSystem
+        from utils.json_backup_manager import ensure_json_backup
+        
+        # Ensure JSON backup is ready
+        try:
+            json_manager = ensure_json_backup()
+            print("✓ JSON backup system initialized")
+        except Exception as backup_error:
+            print(f"✗ Failed to initialize JSON backup: {backup_error}")
+        
+        DATABASE_MODE = False
 
 # Import other components
 from app.routes import RoutesManager
@@ -593,40 +612,44 @@ class SmartHomeApp:
             self.cache_manager = CacheManager(self.cache, self.smart_home)
             
             # SECURITY: Initialize rate limiter (HIGH PRIORITY FIX)
-            try:
-                from flask_limiter import Limiter
-                from flask_limiter.util import get_remote_address
-                
-                # Use Redis for distributed rate limiting if available, otherwise memory
-                redis_url = os.getenv('REDIS_URL')
-                redis_host = os.getenv('REDIS_HOST')
-                
-                if redis_url and not in_json_fallback:
-                    limiter_storage = redis_url
-                    print("✓ Using Redis for distributed rate limiting")
-                elif redis_host and not in_json_fallback:
-                    redis_port = os.getenv('REDIS_PORT', 6379)
-                    limiter_storage = f"redis://{redis_host}:{redis_port}"
-                    print("✓ Using Redis for distributed rate limiting")
-                else:
-                    limiter_storage = "memory://"
-                    print("✓ Using in-memory rate limiting")
-                
-                self.limiter = Limiter(
-                    app=self.app,
-                    key_func=get_remote_address,
-                    default_limits=["200 per day", "50 per hour"],
-                    storage_uri=limiter_storage,
-                    strategy="fixed-window"
-                )
-                print("✓ Rate limiter initialized")
-            except ImportError:
-                print("⚠ Flask-Limiter not installed. Run: pip install Flask-Limiter")
-                print("⚠ Rate limiting is DISABLED - this is a HIGH security risk!")
+            if os.getenv('FLASK_ENV') == 'testing' or os.getenv('DISABLE_RATE_LIMITING', '').lower() in ('1', 'true', 'yes', 'on'):
+                print("ℹ Rate limiting disabled for testing")
                 self.limiter = None
-            except Exception as e:
-                print(f"⚠ Failed to initialize rate limiter: {e}")
-                self.limiter = None
+            else:
+                try:
+                    from flask_limiter import Limiter
+                    from flask_limiter.util import get_remote_address
+                    
+                    # Use Redis for distributed rate limiting if available, otherwise memory
+                    redis_url = os.getenv('REDIS_URL')
+                    redis_host = os.getenv('REDIS_HOST')
+                    
+                    if redis_url and not in_json_fallback:
+                        limiter_storage = redis_url
+                        print("✓ Using Redis for distributed rate limiting")
+                    elif redis_host and not in_json_fallback:
+                        redis_port = os.getenv('REDIS_PORT', 6379)
+                        limiter_storage = f"redis://{redis_host}:{redis_port}"
+                        print("✓ Using Redis for distributed rate limiting")
+                    else:
+                        limiter_storage = "memory://"
+                        print("✓ Using in-memory rate limiting")
+                    
+                    self.limiter = Limiter(
+                        app=self.app,
+                        key_func=get_remote_address,
+                        default_limits=["200 per day", "50 per hour"],
+                        storage_uri=limiter_storage,
+                        strategy="fixed-window"
+                    )
+                    print("✓ Rate limiter initialized")
+                except ImportError:
+                    print("⚠ Flask-Limiter not installed. Run: pip install Flask-Limiter")
+                    print("⚠ Rate limiting is DISABLED - this is a HIGH security risk!")
+                    self.limiter = None
+                except Exception as e:
+                    print(f"⚠ Failed to initialize rate limiter: {e}")
+                    self.limiter = None
             
             # Setup caching for SmartHome system
             setup_smart_home_caching(self.smart_home, self.cache_manager)
@@ -748,12 +771,12 @@ class SmartHomeApp:
                 }), 429
             
             # For HTML requests on login page, return JSON anyway (handled by JavaScript)
-            if request.endpoint == 'login' and request.method == 'POST':
+            if request.endpoint in ['login', 'forgot_password', 'reset_password'] and request.method == 'POST':
                 return jsonify({
                     'status': 'error',
                     'error': 'rate_limit',
-                    'message': 'Zbyt wiele prób logowania. Spróbuj ponownie za chwilę.',
-                    'retry_after': 60
+                    'message': 'Zbyt wiele prób. Spróbuj ponownie za chwilę.',
+                    'retry_after': 3600  # 1 hour
                 }), 429
             
             # For other HTML requests, render error template
