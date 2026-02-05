@@ -27,6 +27,7 @@ function initHomeSettings() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
                 },
                 body: JSON.stringify(data)
             })
@@ -88,6 +89,7 @@ function initHomeSettings() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
                 },
                 body: JSON.stringify(data)
             })
@@ -130,6 +132,7 @@ function confirmDeleteHome(event) {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
             }
         })
         .then(response => response.json())
@@ -354,6 +357,7 @@ function initLocationHandlers(homeId) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
                 },
                 body: JSON.stringify(data)
             })
@@ -424,7 +428,8 @@ function initLocationHandlers(homeId) {
                         const response = await fetch('/api/geocode/reverse', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
                             },
                             body: JSON.stringify({ latitude: lat, longitude: lon })
                         });
@@ -535,7 +540,8 @@ function initLocationHandlers(homeId) {
                 fetch('/api/geocode/address', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
                     },
                     body: JSON.stringify(geocodeData)
                 })

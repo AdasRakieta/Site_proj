@@ -3,15 +3,26 @@ console.log('controls.js loaded');
 // --- Kontrolki do zarządzania pokojami, przyciskami i sterownikami temperatury ---
 
 function getCSRFToken() {
+    // Użyj globalnej funkcji jeśli istnieje
+    if (window.getCSRFToken && window.getCSRFToken !== getCSRFToken) {
+        return window.getCSRFToken();
+    }
+    
     let token = null;
     // Najpierw sprawdź meta tag
     const meta = document.querySelector('meta[name="csrf-token"]');
     if (meta) token = meta.getAttribute('content');
     
-    // Potem sprawdź hidden input
+    // Potem sprawdź hidden input (nowa nazwa)
     if (!token) {
-        const input = document.querySelector('input[name="_csrf_token"]');
+        const input = document.querySelector('input[name="csrf_token"]');
         if (input) token = input.value;
+    }
+    
+    // Fallback do starej nazwy
+    if (!token) {
+        const oldInput = document.querySelector('input[name="_csrf_token"]');
+        if (oldInput) token = oldInput.value;
     }
     
     // Na końcu sprawdź zmienną globalną

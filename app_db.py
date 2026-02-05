@@ -220,8 +220,9 @@ class SmartHomeApp:
         @self.app.context_processor
         def inject_csrf_token():
             """Inject CSRF token into templates"""
-            import secrets
-            return dict(csrf_token=lambda: secrets.token_hex(16))
+            # Flask-WTF automatically provides csrf_token() function
+            # We don't need to override it, just return empty dict
+            return {}
         
         # Add multi-home context processor
         try:

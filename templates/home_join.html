@@ -13,6 +13,7 @@
         </div>
 
         <form id="joinHomeForm" method="POST" action="/api/home/join">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="invitation_code">Kod Zaproszenia *</label>
                 <input type="text" 
@@ -70,6 +71,7 @@ document.getElementById('joinHomeForm').addEventListener('submit', function(e) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
         },
         body: JSON.stringify(data)
     })

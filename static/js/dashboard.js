@@ -16,14 +16,31 @@ function showMessage(elementId, message, isError = false) {
 
 // Helper function to get CSRF token
 function getCSRFToken() {
-    let csrfToken = null;
-    const input = document.querySelector('input[name="_csrf_token"]');
-    if (input) csrfToken = input.value;
-    if (!csrfToken) {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) csrfToken = meta.getAttribute('content');
+    // Użyj globalnej funkcji jeśli istnieje
+    if (window.getCSRFToken && window.getCSRFToken !== getCSRFToken) {
+        return window.getCSRFToken();
     }
+    
+    let csrfToken = null;
+    // Najpierw meta tag
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) csrfToken = meta.getAttribute('content');
+    
+    // Potem ukryte pole (nowa nazwa)
+    if (!csrfToken) {
+        const input = document.querySelector('input[name="csrf_token"]');
+        if (input) csrfToken = input.value;
+    }
+    
+    // Fallback do starej nazwy
+    if (!csrfToken) {
+        const oldInput = document.querySelector('input[name="_csrf_token"]');
+        if (oldInput) csrfToken = oldInput.value;
+    }
+    
+    // Zmienna globalna
     if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+    
     return csrfToken;
 }
 

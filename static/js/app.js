@@ -736,14 +736,26 @@ class SmartHomeApp {
 }
 
 function getCSRFToken() {
-    // Pobierz token CSRF z ciasteczka lub z meta-tag (jeśli dodasz do base.html)
-    // Tu pobieramy z sesji przez szablon lub z inputa, jeśli jest na stronie
-    let token = null;
-    const input = document.querySelector('input[name="_csrf_token"]');
-    if (input) token = input.value;
-    if (!token && window.csrf_token) token = window.csrf_token;
-    return token;
+    // Najpierw sprawdź meta tag (zawłaszcza dla stron bez formularzy)
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    
+    // Potem sprawdź ukryte pole w formularzu
+    const input = document.querySelector('input[name="csrf_token"]');
+    if (input) return input.value;
+    
+    // Fallback do starej nazwy dla kompatybilności wstecznej
+    const oldInput = document.querySelector('input[name="_csrf_token"]');
+    if (oldInput) return oldInput.value;
+    
+    // Fallback do zmiennej globalnej
+    if (window.csrf_token) return window.csrf_token;
+    
+    return null;
 }
+
+// Eksportuj jako globalną funkcję
+window.getCSRFToken = getCSRFToken;
 
 function showNotification(message, type = 'info') {
     const container = document.getElementById('notifications-container') || document.body;
