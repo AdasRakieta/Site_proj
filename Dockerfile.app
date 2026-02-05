@@ -30,6 +30,19 @@ COPY templates/ /srv/templates/
 COPY static/ /srv/static/
 COPY app_db.py /srv/app_db.py
 
+# SECURITY: Create non-root user for running the application (MEDIUM FIX)
+RUN groupadd -r smarthome && useradd -r -g smarthome smarthome
+
+# Set ownership of application files to non-root user
+RUN chown -R smarthome:smarthome /srv
+
+# Create upload directory with proper permissions
+RUN mkdir -p /srv/static/profile_pictures && \
+    chown -R smarthome:smarthome /srv/static/profile_pictures
+
+# Switch to non-root user
+USER smarthome
+
 EXPOSE 5000
 
 # Run the main entrypoint from /srv so imports `import app...` resolve correctly.

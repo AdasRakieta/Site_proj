@@ -630,9 +630,20 @@ class SmartHomeApp {
         const container = document.getElementById('notifications-container') || document.body;
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.innerHTML = `<span>${message}</span><button class="notification-close" title="Zamknij">&times;</button>`;
+        
+        // SECURITY FIX: Use textContent instead of innerHTML to prevent XSS
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;  // Auto-escapes HTML
+        
+        const closeButton = document.createElement('button');
+        closeButton.className = 'notification-close';
+        closeButton.title = 'Zamknij';
+        closeButton.textContent = '×';
+        closeButton.onclick = () => notification.remove();
+        
+        notification.appendChild(messageSpan);
+        notification.appendChild(closeButton);
         notification.style.opacity = '0';
-        notification.querySelector('.notification-close').onclick = () => notification.remove();
         container.appendChild(notification);
         // Animacja pojawiania się
         setTimeout(() => {
@@ -738,9 +749,20 @@ function showNotification(message, type = 'info') {
     const container = document.getElementById('notifications-container') || document.body;
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.innerHTML = `<span>${message}</span><button class="notification-close" title="Zamknij">&times;</button>`;
+    
+    // SECURITY FIX: Use textContent instead of innerHTML to prevent XSS
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;  // Auto-escapes HTML
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'notification-close';
+    closeButton.title = 'Zamknij';
+    closeButton.textContent = '×';
+    closeButton.onclick = () => notification.remove();
+    
+    notification.appendChild(messageSpan);
+    notification.appendChild(closeButton);
     notification.style.opacity = '0';
-    notification.querySelector('.notification-close').onclick = () => notification.remove();
     container.appendChild(notification);
     // Animacja pojawiania się
     setTimeout(() => {
