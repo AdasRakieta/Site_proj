@@ -140,6 +140,9 @@ class SmartHomeApp:
         self.setup_routes()
         self.setup_socket_events()
         
+        # Setup error handlers
+        self.setup_error_handlers()
+        
         print(f"SmartHome Application initialized (Database mode: {DATABASE_MODE})")
     
     def _warm_up_cache(self):
@@ -729,6 +732,35 @@ class SmartHomeApp:
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
             raise
+    
+    def setup_error_handlers(self):
+        """Setup custom error handlers"""
+        @self.app.errorhandler(429)
+        def ratelimit_handler(e):
+            """Handle rate limit errors with custom response"""
+            # Check if request wants JSON (AJAX)
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'rate_limit',
+                    'message': 'Zbyt wiele prób. Spróbuj ponownie za chwilę.',
+                    'retry_after': getattr(e, 'description', 60)  # seconds
+                }), 429
+            
+            # For HTML requests on login page, return JSON anyway (handled by JavaScript)
+            if request.endpoint == 'login' and request.method == 'POST':
+                return jsonify({
+                    'status': 'error',
+                    'error': 'rate_limit',
+                    'message': 'Zbyt wiele prób logowania. Spróbuj ponownie za chwilę.',
+                    'retry_after': 60
+                }), 429
+            
+            # For other HTML requests, render error template
+            return render_template('error.html',
+                error_title='Zbyt wiele żądań',
+                error_message='Przekroczono limit żądań. Spróbuj ponownie za chwilę.'
+            ), 429
     
     def setup_socket_events(self):
         """Setup SocketIO events"""

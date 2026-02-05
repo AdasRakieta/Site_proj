@@ -1642,10 +1642,15 @@ class RoutesManager(MultiHomeHelpersMixin):
                         
                         # Return appropriate response based on request type
                         if request.is_json:
+                            # Check for next parameter (for redirects)
+                            next_url = request.args.get('next') or request.json.get('next')
+                            redirect_url = next_url if next_url and next_url.startswith('/') else url_for('home')
+                            
                             # Prepare response data
                             response_data = {
                                 "status": "success",
                                 "message": "Login successful",
+                                "redirect": redirect_url,
                                 "data": {
                                     "status": "success",
                                     "message": "Login successful", 
