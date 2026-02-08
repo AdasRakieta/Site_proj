@@ -59,8 +59,8 @@ class AutomationScheduler:
                     last_minute = current_minute
                     self._check_time_automations(now)
                 
-                # Sleep for 30 seconds before next check
-                time.sleep(30)
+                # Sleep for 60 seconds before next check
+                time.sleep(60)
                 
             except Exception as e:
                 logger.error(f"[SCHEDULER] Error in scheduler loop: {e}")
