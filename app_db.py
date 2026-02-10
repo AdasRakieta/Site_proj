@@ -252,7 +252,8 @@ class SmartHomeApp:
             'geventwebsocket.handler',
             'engineio.server',
             'socketio.server',
-            'werkzeug'
+            'werkzeug',
+            'flask-limiter'  # Reduce rate limit spam in logs
         ]
         for logger_name in noisy_loggers:
             logging.getLogger(logger_name).setLevel(logging.WARNING)
@@ -640,6 +641,17 @@ class SmartHomeApp:
                     from flask_limiter import Limiter
                     from flask_limiter.util import get_remote_address
                     
+                    # Smart key function: use user_id for authenticated users, IP for anonymous
+                    def get_rate_limit_key():
+                        """Rate limit by user_id if logged in, otherwise by IP address"""
+                        from flask import session
+                        if 'user_id' in session and session.get('username'):
+                            # Authenticated user - rate limit by user_id
+                            return f"user:{session.get('user_id')}"
+                        else:
+                            # Anonymous - rate limit by IP
+                            return f"ip:{get_remote_address()}"
+                    
                     # Use Redis for distributed rate limiting if available, otherwise memory
                     redis_url = os.getenv('REDIS_URL')
                     redis_host = os.getenv('REDIS_HOST')
@@ -657,12 +669,12 @@ class SmartHomeApp:
                     
                     self.limiter = Limiter(
                         app=self.app,
-                        key_func=get_remote_address,
-                        default_limits=["1000 per day", "500 per hour"],  # Increased for normal usage
+                        key_func=get_rate_limit_key,  # Smart key function
+                        default_limits=["10000 per day", "5000 per hour"],  # Higher limits for authenticated users
                         storage_uri=limiter_storage,
                         strategy="fixed-window"
                     )
-                    print("✓ Rate limiter initialized")
+                    print("✓ Rate limiter initialized with per-user tracking for authenticated users")
                 except ImportError:
                     print("⚠ Flask-Limiter not installed. Run: pip install Flask-Limiter")
                     print("⚠ Rate limiting is DISABLED - this is a HIGH security risk!")

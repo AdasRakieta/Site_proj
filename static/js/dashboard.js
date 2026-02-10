@@ -1107,11 +1107,12 @@ function initAdminDashboard() {
         initDashboardPage();
     }
     
-    // Auto-refresh every 30 seconds (force refresh to get latest data)
+    // Auto-refresh every 60 seconds (reduced from 30s to prevent rate limiting)
+    // With Socket.IO real-time updates, less frequent polling is sufficient
     setInterval(() => {
         refreshDeviceStates(true);
         refreshLogs(true);
-    }, 30000);
+    }, 60000);  // Changed from 30000 to 60000 (60 seconds)
     
     // Load pending invitations
     loadPendingInvitations();
