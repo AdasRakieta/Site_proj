@@ -691,6 +691,10 @@ class RoutesManager(MultiHomeHelpersMixin):
                 'version': '1.0'
             })
         
+        # Exempt ping endpoint from rate limiting (mobile app connectivity checks)
+        if self.limiter:
+            self.limiter.exempt(api_ping)
+        
         # Cache monitoring endpoint
         @self.app.route('/api/cache/stats', methods=['GET'])
         @self.auth_manager.login_required
@@ -756,6 +760,10 @@ class RoutesManager(MultiHomeHelpersMixin):
                 'status': 'healthy',
                 'timestamp': int(time.time())
             }), 200
+        
+        # Exempt health check from rate limiting (called frequently by Grafana/Docker)
+        if self.limiter:
+            self.limiter.exempt(health_check)
 
         @self.app.route('/api/status', methods=['GET'])
         def api_status():
@@ -770,6 +778,10 @@ class RoutesManager(MultiHomeHelpersMixin):
                 'database_mode': DATABASE_MODE,
                 'timestamp': int(time.time())
             })
+        
+        # Exempt status endpoint from rate limiting
+        if self.limiter:
+            self.limiter.exempt(api_status)
 
         @self.app.route('/api/config', methods=['GET'])
         def api_config():
