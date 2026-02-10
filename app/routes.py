@@ -585,17 +585,13 @@ class RoutesManager(MultiHomeHelpersMixin):
 
         @self.app.route('/')
         def home():
-            print(f"[DEBUG] Session on /: {dict(session)}")
             if 'username' not in session:
-                print("[DEBUG] Brak username w sesji, redirect na login")
                 return redirect(url_for('login'))
             user_data = self.get_cached_user_data(session.get('user_id'), session.get('user_id'))
-            print(f"[DEBUG] user_id in session: {session.get('user_id')}, user_data: {user_data}")
             
             # Get rooms from current home or fallback to main database
             user_id = session.get('user_id')
             rooms = self.get_current_home_rooms(user_id)
-            print(f"[DEBUG] Pre-loading {len(rooms)} rooms for home page (current home)")
             
             # Get current home info with statistics for the header
             current_home = None
@@ -610,9 +606,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                             home_devices = self.multi_db.get_home_devices(current_home_id, user_id)
                             current_home['room_count'] = len(home_rooms)
                             current_home['device_count'] = len(home_devices)
-                            print(f"[DEBUG] Current home stats: {current_home['name']} - {current_home['room_count']} rooms, {current_home['device_count']} devices")
                 except Exception as e:
-                    print(f"[DEBUG] Error getting current home info: {e}")
+                    print(f"[ERROR] Failed to get current home info: {e}")
             
             return render_template('index.html', user_data=user_data, rooms=rooms, current_home=current_home)
 
@@ -1517,8 +1512,8 @@ class RoutesManager(MultiHomeHelpersMixin):
                 return jsonify({"status": "error", "message": "Błąd serwera podczas przesyłania zdjęcia"}), 500
 
         # SECURITY: Rate limit login attempts to prevent brute force
-        login_limiter_1 = self.limiter.limit("5 per minute") if self.limiter else lambda f: f
-        login_limiter_2 = self.limiter.limit("20 per hour") if self.limiter else lambda f: f
+        login_limiter_1 = self.limiter.limit("10 per minute") if self.limiter else lambda f: f
+        login_limiter_2 = self.limiter.limit("100 per hour") if self.limiter else lambda f: f
         
         @self.app.route('/login', methods=['GET', 'POST'])
         @login_limiter_1

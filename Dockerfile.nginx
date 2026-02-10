@@ -7,5 +7,5 @@ COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 # W obrazie produkcyjnym statyczne pliki kopiujemy, aby nginx mógł je serwować bez wolumenu
 COPY static/ /srv/static/
 
-EXPOSE 80
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]

@@ -98,11 +98,28 @@ class SmartHomeApp:
         # SECURITY: Verify DEBUG is disabled in production
         if is_production and os.getenv('DEBUG', 'False').lower() == 'true':
             raise ValueError("DEBUG mode cannot be enabled in production environment!")
+        
+        # CRITICAL: Enable ProxyFix for nginx reverse proxy (fixes SESSION_COOKIE_SECURE)
+        # This allows Flask to see the original HTTPS scheme from X-Forwarded-Proto header
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        self.app.wsgi_app = ProxyFix(
+            self.app.wsgi_app, 
+            x_for=1,      # Trust X-Forwarded-For with 1 proxy
+            x_proto=1,    # Trust X-Forwarded-Proto (HTTP/HTTPS)
+            x_host=1,     # Trust X-Forwarded-Host
+            x_prefix=1    # Trust X-Forwarded-Prefix  
+        )
+        print("✓ ProxyFix middleware enabled for reverse proxy support")
+        
         self.app.config.update({
-            # Lax is recommended for session cookies; use Secure only in production/HTTPS
+            # Session cookie configuration
+            'SESSION_COOKIE_NAME': 'smarthome_session',
             'SESSION_COOKIE_SAMESITE': 'Lax',
             'SESSION_COOKIE_HTTPONLY': True,
-            'SESSION_COOKIE_SECURE': bool(is_production),
+            'SESSION_COOKIE_SECURE': bool(is_production),  # Now works correctly with ProxyFix
+            'SESSION_COOKIE_PATH': '/',
+            # Increase session lifetime to 7 days
+            'PERMANENT_SESSION_LIFETIME': 604800,  # 7 days in seconds
         })
         # Use eventlet async_mode for production compatibility with Gunicorn
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
@@ -641,7 +658,7 @@ class SmartHomeApp:
                     self.limiter = Limiter(
                         app=self.app,
                         key_func=get_remote_address,
-                        default_limits=["200 per day", "50 per hour"],
+                        default_limits=["1000 per day", "500 per hour"],  # Increased for normal usage
                         storage_uri=limiter_storage,
                         strategy="fixed-window"
                     )

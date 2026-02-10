@@ -1,0 +1,100 @@
+#!/bin/bash
+# Skrypt aktualizacji nginx na malinie
+# Uruchom po skopiowaniu pliku default.conf do /tmp/
+
+set -e  # Zatrzymaj przy błędzie
+
+echo "🔧 Aktualizacja konfiguracji Nginx dla SmartHome"
+echo "================================================"
+
+# Kolory
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Sprawdź czy plik istnieje
+if [ ! -f "/tmp/default.conf" ]; then
+    echo -e "${RED}❌ Błąd: Nie znaleziono /tmp/default.conf${NC}"
+    echo "Najpierw skopiuj plik używając:"
+    echo "scp nginx-standalone/conf.d/default.conf adas.rakieta@192.168.1.218:/tmp/default.conf"
+    exit 1
+fi
+
+# Sprawdź czy katalog docelowy istnieje
+if [ ! -d "/opt/nginx/conf.d" ]; then
+    echo -e "${RED}❌ Błąd: Katalog /opt/nginx/conf.d nie istnieje${NC}"
+    exit 1
+fi
+
+# Utwórz backup z datą
+BACKUP_FILE="/opt/nginx/conf.d/default.conf.backup.$(date +%Y%m%d_%H%M%S)"
+echo -e "${YELLOW}📦 Tworzę backup: $BACKUP_FILE${NC}"
+sudo cp /opt/nginx/conf.d/default.conf "$BACKUP_FILE"
+echo -e "${GREEN}✓ Backup utworzony${NC}"
+
+# Skopiuj nowy plik
+echo -e "${YELLOW}📄 Kopiuję nową konfigurację...${NC}"
+sudo mv /tmp/default.conf /opt/nginx/conf.d/default.conf
+sudo chown root:root /opt/nginx/conf.d/default.conf
+sudo chmod 644 /opt/nginx/conf.d/default.conf
+echo -e "${GREEN}✓ Plik skopiowany${NC}"
+
+# Sprawdź składnię nginx
+echo -e "${YELLOW}🔍 Sprawdzam składnię nginx...${NC}"
+if docker exec nginx-proxy nginx -t 2>&1; then
+    echo -e "${GREEN}✓ Składnia poprawna${NC}"
+else
+    echo -e "${RED}❌ Błąd składni! Przywracam backup...${NC}"
+    sudo cp "$BACKUP_FILE" /opt/nginx/conf.d/default.conf
+    echo -e "${YELLOW}Backup przywrócony${NC}"
+    exit 1
+fi
+
+# Przeładuj nginx
+echo -e "${YELLOW}🔄 Przeładowuję nginx...${NC}"
+if docker exec nginx-proxy nginx -s reload; then
+    echo -e "${GREEN}✓ Nginx przeładowany${NC}"
+else
+    echo -e "${YELLOW}⚠️  Reload nie zadziałał, restartuję kontener...${NC}"
+    docker restart nginx-proxy
+    echo -e "${GREEN}✓ Kontener zrestartowany${NC}"
+fi
+
+# Restart SmartHome
+echo -e "${YELLOW}🔄 Restartuję SmartHome...${NC}"
+if docker restart smarthome_app; then
+    echo -e "${GREEN}✓ SmartHome zrestartowany${NC}"
+else
+    echo -e "${RED}❌ Nie udało się zrestartować SmartHome${NC}"
+    echo "Sprawdź czy kontener nazywa się 'smarthome_app' używając: docker ps -a"
+fi
+
+# Wyświetl status
+echo ""
+echo "================================================"
+echo -e "${GREEN}✅ Aktualizacja zakończona!${NC}"
+echo ""
+echo "📋 Kolejne kroki:"
+echo "1. Wyczyść cookies w przeglądarce dla malina.tail384b18.ts.net"
+echo "2. Zaloguj się ponownie do SmartHome"
+echo "3. Sprawdź logi jeśli coś nie działa:"
+echo "   - docker logs smarthome_app --tail 50"
+echo "   - docker logs nginx-proxy --tail 50"
+echo ""
+echo "📦 Backup zapisany w: $BACKUP_FILE"
+echo "================================================"
+
+# Sprawdź czy ProxyFix jest włączony
+echo ""
+echo "🔍 Weryfikacja ProxyFix w SmartHome..."
+if docker logs smarthome_app 2>&1 | grep -q "ProxyFix middleware enabled"; then
+    echo -e "${GREEN}✓ ProxyFix middleware jest włączony${NC}"
+else
+    echo -e "${YELLOW}⚠️  ProxyFix middleware nie znaleziony w logach${NC}"
+    echo "To może oznaczać że kontener używa starego obrazu."
+    echo "Przebuduj obraz SmartHome i uruchom ponownie."
+fi
+
+echo ""
+echo "🌐 Otwórz w przeglądarce: https://malina.tail384b18.ts.net/"
