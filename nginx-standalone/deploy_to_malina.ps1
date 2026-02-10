@@ -3,7 +3,6 @@
 
 $MALINA_HOST = "192.168.1.218"
 $MALINA_USER = "adas.rakieta"
-$MALINA_PASSWORD = "Qwuizzy123"
 
 Write-Host "[*] Deployment nginx configuration to Malina" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
@@ -20,8 +19,18 @@ if (-not (Test-Path "nginx-standalone/update_nginx.sh")) {
     exit 1
 }
 
+if (-not (Test-Path "nginx-standalone/diagnose_nginx.sh")) {
+    Write-Host "[X] Blad: Nie znaleziono nginx-standalone/diagnose_nginx.sh" -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path "nginx-standalone/fix_docker_compose.sh")) {
+    Write-Host "[X] Blad: Nie znaleziono nginx-standalone/fix_docker_compose.sh" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host ""
-Write-Host "[1/4] Kopiuje pliki na maline..." -ForegroundColor Yellow
+Write-Host "[1/6] Kopiuje pliki na maline..." -ForegroundColor Yellow
 
 # SCP - konfiguracja nginx
 Write-Host "  -> Kopiuje default.conf..." -ForegroundColor Gray
@@ -31,25 +40,47 @@ scp nginx-standalone/conf.d/default.conf ${MALINA_USER}@${MALINA_HOST}:/tmp/defa
 Write-Host "  -> Kopiuje update_nginx.sh..." -ForegroundColor Gray
 scp nginx-standalone/update_nginx.sh ${MALINA_USER}@${MALINA_HOST}:/tmp/update_nginx.sh
 
+# SCP - skrypt diagnostyczny
+Write-Host "  -> Kopiuje diagnose_nginx.sh..." -ForegroundColor Gray
+scp nginx-standalone/diagnose_nginx.sh ${MALINA_USER}@${MALINA_HOST}:/tmp/diagnose_nginx.sh
+
+# SCP - skrypt naprawy docker-compose
+Write-Host "  -> Kopiuje fix_docker_compose.sh..." -ForegroundColor Gray
+scp nginx-standalone/fix_docker_compose.sh ${MALINA_USER}@${MALINA_HOST}:/tmp/fix_docker_compose.sh
+
 Write-Host "[OK] Pliki skopiowane" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[2/4] Ustawiam uprawnienia skryptu..." -ForegroundColor Yellow
+Write-Host "[2/6] Ustawiam uprawnienia skryptow..." -ForegroundColor Yellow
 
-# Ustaw uprawnienia wykonywania dla skryptu
-ssh ${MALINA_USER}@${MALINA_HOST} "chmod +x /tmp/update_nginx.sh"
+# Ustaw uprawnienia wykonywania dla skryptów
+ssh ${MALINA_USER}@${MALINA_HOST} "chmod +x /tmp/update_nginx.sh /tmp/diagnose_nginx.sh /tmp/fix_docker_compose.sh"
 Write-Host "[OK] Uprawnienia ustawione" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[3/4] Uruchamiam skrypt aktualizacji..." -ForegroundColor Yellow
+Write-Host "[3/6] Naprawiam docker-compose.yml (dodaje conf.d volume)..." -ForegroundColor Yellow
+Write-Host ""
+
+# Napraw docker-compose
+ssh ${MALINA_USER}@${MALINA_HOST} "/tmp/fix_docker_compose.sh"
+
+Write-Host ""
+Write-Host "[4/6] Uruchamiam diagnostyke nginx..." -ForegroundColor Yellow
+Write-Host ""
+
+# Uruchom diagnostykę
+ssh ${MALINA_USER}@${MALINA_HOST} "/tmp/diagnose_nginx.sh"
+
+Write-Host ""
+Write-Host "[5/6] Uruchamiam aktualizacje konfiguracji..." -ForegroundColor Yellow
 Write-Host ""
 
 # Uruchom skrypt na malinie
 ssh ${MALINA_USER}@${MALINA_HOST} "/tmp/update_nginx.sh"
 
 Write-Host ""
-Write-Host "[4/4] Czyszcze pliki tymczasowe..." -ForegroundColor Yellow
-ssh ${MALINA_USER}@${MALINA_HOST} "rm /tmp/update_nginx.sh"
+Write-Host "[6/6] Czyszcze pliki tymczasowe..." -ForegroundColor Yellow
+ssh ${MALINA_USER}@${MALINA_HOST} "rm /tmp/update_nginx.sh /tmp/diagnose_nginx.sh /tmp/fix_docker_compose.sh"
 Write-Host "[OK] Pliki tymczasowe usuniete" -ForegroundColor Green
 
 Write-Host ""

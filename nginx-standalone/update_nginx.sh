@@ -21,23 +21,41 @@ if [ ! -f "/tmp/default.conf" ]; then
     exit 1
 fi
 
-# Sprawdź czy katalog docelowy istnieje
-if [ ! -d "/opt/nginx/conf.d" ]; then
-    echo -e "${RED}❌ Błąd: Katalog /opt/nginx/conf.d nie istnieje${NC}"
+# Sprawdź możliwe lokalizacje konfiguracji nginx
+NGINX_CONFIG_DIR=""
+if [ -d "/opt/nginx/conf.d" ]; then
+    NGINX_CONFIG_DIR="/opt/nginx/conf.d"
+elif [ -d "/opt/nginx" ]; then
+    # Katalog /opt/nginx istnieje, ale brak conf.d - utwórz
+    echo -e "${YELLOW}📁 Tworzę katalog /opt/nginx/conf.d...${NC}"
+    sudo mkdir -p /opt/nginx/conf.d
+    NGINX_CONFIG_DIR="/opt/nginx/conf.d"
+elif [ -d "/etc/nginx/conf.d" ]; then
+    # Używaj systemowego katalogu nginx
+    NGINX_CONFIG_DIR="/etc/nginx/conf.d"
+else
+    echo -e "${RED}❌ Błąd: Nie znaleziono katalogu konfiguracji nginx${NC}"
+    echo "Sprawdź gdzie jest nginx używając: docker exec nginx-proxy ls -la /etc/nginx/"
     exit 1
 fi
 
+echo -e "${GREEN}✓ Znaleziono katalog konfiguracji: $NGINX_CONFIG_DIR${NC}"
+
 # Utwórz backup z datą
-BACKUP_FILE="/opt/nginx/conf.d/default.conf.backup.$(date +%Y%m%d_%H%M%S)"
-echo -e "${YELLOW}📦 Tworzę backup: $BACKUP_FILE${NC}"
-sudo cp /opt/nginx/conf.d/default.conf "$BACKUP_FILE"
-echo -e "${GREEN}✓ Backup utworzony${NC}"
+BACKUP_FILE="$NGINX_CONFIG_DIR/default.conf.backup.$(date +%Y%m%d_%H%M%S)"
+if [ -f "$NGINX_CONFIG_DIR/default.conf" ]; then
+    echo -e "${YELLOW}📦 Tworzę backup: $BACKUP_FILE${NC}"
+    sudo cp "$NGINX_CONFIG_DIR/default.conf" "$BACKUP_FILE"
+    echo -e "${GREEN}✓ Backup utworzony${NC}"
+else
+    echo -e "${YELLOW}⚠️  Plik default.conf nie istnieje, tworzę nowy${NC}"
+fi
 
 # Skopiuj nowy plik
 echo -e "${YELLOW}📄 Kopiuję nową konfigurację...${NC}"
-sudo mv /tmp/default.conf /opt/nginx/conf.d/default.conf
-sudo chown root:root /opt/nginx/conf.d/default.conf
-sudo chmod 644 /opt/nginx/conf.d/default.conf
+sudo mv /tmp/default.conf "$NGINX_CONFIG_DIR/default.conf"
+sudo chown root:root "$NGINX_CONFIG_DIR/default.conf"
+sudo chmod 644 "$NGINX_CONFIG_DIR/default.conf"
 echo -e "${GREEN}✓ Plik skopiowany${NC}"
 
 # Sprawdź składnię nginx
@@ -46,8 +64,10 @@ if docker exec nginx-proxy nginx -t 2>&1; then
     echo -e "${GREEN}✓ Składnia poprawna${NC}"
 else
     echo -e "${RED}❌ Błąd składni! Przywracam backup...${NC}"
-    sudo cp "$BACKUP_FILE" /opt/nginx/conf.d/default.conf
-    echo -e "${YELLOW}Backup przywrócony${NC}"
+    if [ -f "$BACKUP_FILE" ]; then
+        sudo cp "$BACKUP_FILE" "$NGINX_CONFIG_DIR/default.conf"
+        echo -e "${YELLOW}Backup przywrócony${NC}"
+    fi
     exit 1
 fi
 
@@ -80,7 +100,10 @@ echo "1. Wyczyść cookies w przeglądarce dla malina.tail384b18.ts.net"
 echo "2. Zaloguj się ponownie do SmartHome"
 echo "3. Sprawdź logi jeśli coś nie działa:"
 echo "   - docker logs smarthome_app --tail 50"
-echo "   - docker logs nginx-proxy --tail 50"
+if [ -f "$BACKUP_FILE" ]; then
+    echo "📦 Backup zapisany w: $BACKUP_FILE"
+fi
+echo "📁 Konfiguracja w: $NGINX_CONFIG_DIR/default.confl 50"
 echo ""
 echo "📦 Backup zapisany w: $BACKUP_FILE"
 echo "================================================"
