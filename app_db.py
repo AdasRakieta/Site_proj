@@ -674,7 +674,15 @@ class SmartHomeApp:
                         storage_uri=limiter_storage,
                         strategy="fixed-window"
                     )
+                    
+                    # Exempt monitoring/health endpoints from rate limiting
+                    # These are called frequently by Grafana, Docker, and other monitoring tools
+                    self.limiter.exempt('health_check')
+                    self.limiter.exempt('api_status')
+                    self.limiter.exempt('api_ping')
+                    
                     print("✓ Rate limiter initialized with per-user tracking for authenticated users")
+                    print("✓ Health check and status endpoints exempted from rate limiting")
                 except ImportError:
                     print("⚠ Flask-Limiter not installed. Run: pip install Flask-Limiter")
                     print("⚠ Rate limiting is DISABLED - this is a HIGH security risk!")
