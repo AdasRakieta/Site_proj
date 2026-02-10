@@ -104,8 +104,8 @@ class SmartHomeApp:
             'SESSION_COOKIE_HTTPONLY': True,
             'SESSION_COOKIE_SECURE': bool(is_production),
         })
-        # Use threading async_mode to avoid deprecated Eventlet
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='threading')
+        # Use eventlet async_mode for production compatibility with Gunicorn
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
         
         # SECURITY: Enable CSRF protection (CRITICAL FIX)
         try:
@@ -659,6 +659,15 @@ class SmartHomeApp:
             
             # Warm up cache with critical data
             self._warm_up_cache()
+            
+            # Start background scheduler for periodic tasks
+            try:
+                from utils.background_scheduler import scheduler
+                if not scheduler.running:
+                    scheduler.start()
+                    print("✅ Background scheduler started (City cache updates: Mondays at 22:00)")
+            except Exception as e:
+                print(f"⚠️  Warning: Failed to start background scheduler: {e}")
             
             # Initialize automation scheduler for time-based automations (database mode only)
             self.automation_scheduler = None
@@ -1542,8 +1551,18 @@ def create_app():
     smart_home_app = SmartHomeApp()
     return smart_home_app.app, smart_home_app.socketio
 
+# Create app instance for Gunicorn
+app_instance = SmartHomeApp()
+app = app_instance.app
+socketio = app_instance.socketio
+
 def main():
-    """Main entry point"""
+    """
+    Main entry point for local development (python app_db.py)
+    
+    Note: In production with Gunicorn, this function is NOT called.
+    The app instance is created at module level above.
+    """
     try:
         # Environment variables are already loaded at the top of the file
         # Priority: 1) System environment variables (Portainer GUI)
@@ -1553,18 +1572,9 @@ def main():
         server_host = os.getenv('SERVER_HOST', '0.0.0.0')
         server_port = int(os.getenv('SERVER_PORT', 5000))
         
-        # Start background scheduler for periodic tasks
-        try:
-            from utils.background_scheduler import scheduler
-            scheduler.start()
-            print("✅ Background scheduler started (City cache updates: Mondays at 22:00)")
-        except Exception as e:
-            print(f"⚠️  Warning: Failed to start background scheduler: {e}")
-        
-        # Create and run the application
-        smart_home_app = SmartHomeApp()
-        # Use configuration from environment variables
-        smart_home_app.run(host=server_host, port=server_port, debug=False)
+        # Use the existing app instance (created at module level for Gunicorn)
+        # Run with eventlet for development
+        app_instance.run(host=server_host, port=server_port, debug=False)
         
     except Exception as e:
         print(f"💥 Failed to start SmartHome Application: {e}")

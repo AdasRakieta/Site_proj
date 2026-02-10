@@ -45,5 +45,5 @@ USER smarthome
 
 EXPOSE 5000
 
-# Run the main entrypoint from /srv so imports `import app...` resolve correctly.
-CMD ["python", "/srv/app_db.py"]
+# Run with Gunicorn for production (eventlet worker for Socket.IO compatibility)
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "--timeout", "120", "--log-level", "info", "app_db:app"]
