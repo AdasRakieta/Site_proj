@@ -57,7 +57,7 @@
                     {% if multi_home_enabled and user_homes %}
                     <div class="menu-item home-selector-item">
                         <div class="current-home-display" onclick="toggleHomeSelector()">
-                            <img class="user-menu-icon" src="{{ URL_PREFIX }}{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
+                            <img class="user-menu-icon" id="user-menu-home-icon" src="{{ URL_PREFIX }}{{ url_for('static', filename='icons/home_icon_light.png') }}" alt="Home">
                             <span class="current-home-name">{{ current_home.name if current_home else 'Wybierz Dom' }}</span>
                             <span class="home-dropdown-arrow">▼</span>
                         </div>

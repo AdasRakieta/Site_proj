@@ -289,6 +289,7 @@ class SmartHomeApp {
             'edit-icon': 'edit_icon',
             'user-menu-settings-icon': 'settings_icon',
             'user-menu-user-icon': 'user_icon',
+            'user-menu-home-icon': 'home_icon',
             'rooms-icon': 'rooms_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
@@ -331,6 +332,7 @@ class SmartHomeApp {
             'edit-icon': 'edit_icon',
             'user-menu-settings-icon': 'settings_icon',
             'user-menu-user-icon': 'user_icon',
+            'user-menu-home-icon': 'home_icon',
             'rooms-icon': 'rooms_icon'
         };
         Object.entries(iconMap).forEach(([id, name]) => {
