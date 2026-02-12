@@ -94,7 +94,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/\"}",
+          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/health\"}",
           "refId": "A"
         }
       ],
@@ -181,7 +181,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_duration_seconds{instance=\"https://malina.tail384b18.ts.net/\"}",
+          "expr": "probe_duration_seconds{instance=\"https://malina.tail384b18.ts.net/health\"}",
           "legendFormat": "Czas odpowiedzi HTTP",
           "refId": "A"
         }
@@ -249,7 +249,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "(probe_ssl_earliest_cert_expiry{instance=\"https://malina.tail384b18.ts.net/\"} - time()) / 86400",
+          "expr": "(probe_ssl_earliest_cert_expiry{instance=\"https://malina.tail384b18.ts.net/health\"} - time()) / 86400",
           "refId": "A"
         }
       ],
@@ -379,7 +379,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 16,
         "x": 0,
         "y": 4
       },
@@ -403,7 +403,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/\"}",
+          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/health\"}",
           "legendFormat": "Dostępność",
           "refId": "A"
         }
@@ -486,6 +486,73 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 300000000
+              },
+              {
+                "color": "red",
+                "value": 500000000
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(container_memory_usage_bytes{container_label_com_docker_compose_service=~\".*smarthome.*app.*|.*app.*\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "RAM SmartHome App",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "palette-classic"
           },
           "custom": {
@@ -558,8 +625,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, rate(container_cpu_usage_seconds_total{name!=\"\"}[5m]) * 100)",
-          "legendFormat": "{{name}}",
+          "expr": "topk(5, rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m]) * 100)",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
           "refId": "A"
         }
       ],
@@ -646,8 +713,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, container_memory_usage_bytes{name!=\"\"})",
-          "legendFormat": "{{name}}",
+          "expr": "topk(5, container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"})",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
           "refId": "A"
         }
       ],
@@ -752,7 +819,13 @@
           ],
           "show": false
         },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "RAM"
+          }
+        ]
       },
       "pluginVersion": "10.4.2",
       "targets": [
@@ -761,7 +834,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "container_memory_usage_bytes{name!=\"\"}",
+          "expr": "sum(container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"}) by (container_label_com_docker_compose_service)",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -771,7 +844,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(container_cpu_usage_seconds_total{name!=\"\"}[5m]) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m])) by (container_label_com_docker_compose_service) * 100",
           "format": "table",
           "instant": true,
           "refId": "B"
@@ -794,14 +867,14 @@
               "job": true
             },
             "indexByName": {
-              "name": 0,
-              "Value #A": 2,
-              "Value #B": 1
+              "container_label_com_docker_compose_service": 0,
+              "Value #B": 1,
+              "Value #A": 2
             },
             "renameByName": {
               "Value #A": "RAM",
               "Value #B": "CPU %",
-              "name": "Kontener"
+              "container_label_com_docker_compose_service": "Kontener"
             }
           }
         }
@@ -815,7 +888,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 24
       },
@@ -837,12 +910,306 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "{container=~\".*smarthome.*|.*nginx.*|.*app.*\"} |~ \"(?i)(error|exception|fail|critical)\"",
+          "expr": "{container_name=~\".*smarthome.*app.*|.*app.*\"}",
           "refId": "A"
         }
       ],
-      "title": "Logi Błędów (SmartHome, Nginx, App)",
+      "title": "Logi SmartHome App",
       "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "lastNotNull", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "100 * (1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|vfat\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|vfat\"})",
+          "legendFormat": "{{mountpoint}} ({{fstype}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Wykorzystanie Dysku (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Wykorzystane %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rozmiar"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Użyte"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Dostępne"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "node_filesystem_size_bytes{fstype=~\"ext4|xfs|vfat\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "node_filesystem_avail_bytes{fstype=~\"ext4|xfs|vfat\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "node_filesystem_size_bytes{fstype=~\"ext4|xfs|vfat\"} - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|vfat\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Partycje Dysku - Szczegóły",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "device": false,
+              "fstype": false,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "device": 0,
+              "mountpoint": 1,
+              "fstype": 2,
+              "Value #A": 3,
+              "Value #C": 4,
+              "Value #B": 5
+            },
+            "renameByName": {
+              "Value #A": "Rozmiar",
+              "Value #B": "Dostępne",
+              "Value #C": "Użyte",
+              "device": "Urządzenie",
+              "fstype": "System plików",
+              "mountpoint": "Punkt montowania"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Wykorzystane %",
+            "binary": {
+              "left": "Użyte",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "Rozmiar"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "10s",
