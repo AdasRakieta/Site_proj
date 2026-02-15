@@ -5899,7 +5899,9 @@ class APIManager(MultiHomeHelpersMixin):
                     home_id = invitation.get('home_id') if invitation else None
                 else:
                     # JSON fallback
-                    json_mgr = getattr(self.smart_home, 'json_backup', None)
+                    json_mgr = None
+                    if self.multi_db and hasattr(self.multi_db, 'json_backup'):
+                        json_mgr = self.multi_db.json_backup
                     if not json_mgr:
                         return jsonify({"success": False, "error": "JSON fallback not available"}), 400
                     config = json_mgr.get_config()
@@ -5926,7 +5928,16 @@ class APIManager(MultiHomeHelpersMixin):
                     except Exception:
                         pass
                     # Verify email matches logged in user
-                    user_data = self.smart_home.get_user_by_id(user_id)
+                    user_data = None
+                    users = config.get('users', {})
+                    if isinstance(users, dict):
+                        for user in users.values():
+                            if str(user.get('id')) == str(user_id):
+                                user_data = user
+                                break
+                    elif isinstance(users, list):
+                        user_data = next((u for u in users if str(u.get('id')) == str(user_id)), None)
+                    
                     if not user_data or str(user_data.get('email','')).lower() != str(target.get('email','')).lower():
                         return jsonify({"success": False, "error": "To zaproszenie jest dla innego adresu e-mail"}), 400
                     home_id = str(target.get('home_id'))

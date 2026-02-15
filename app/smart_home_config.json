@@ -152,6 +152,28 @@
             "created_at": "2026-01-18T09:35:56.109410+00:00",
             "updated_at": "2026-01-18T09:35:56.109431+00:00",
             "is_system_user": false
+        },
+        "testowy": {
+            "id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "email": "szymon.przybysz2003@gmail.com",
+            "password": "scrypt:32768:8:1$oZ2n5xmolquUIsPv$267e70459430c06d97ef6fa64baa2041fb316a1a4435cf42f4d5f55895da659228360590a548f3347ac953c78e8c852da7c8bae8c4c27a6cc57665581babaaca",
+            "role": "user",
+            "name": "testowy",
+            "created_at": "2026-01-18T09:46:12.501726+00:00",
+            "updated_at": "2026-01-18T09:46:12.501740+00:00",
+            "is_system_user": false
+        },
+        "testowy1": {
+            "id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "email": "szymon.przybysz@op.pl",
+            "password": "scrypt:32768:8:1$MylDzx63b1aWhbwG$5eb75e0d3e33fcaa8c879ee6bc40f5b2da23a65f9bb1f88ae0132363269ecdf670d689b2bc2a8cce386fa98c06ef5498ce1abc1194e497297ddce0cca5f98a75",
+            "role": "user",
+            "name": "testowy1",
+            "created_at": "2026-02-15T07:39:52.214182+00:00",
+            "updated_at": "2026-02-15T07:39:52.214194+00:00",
+            "is_system_user": false
         }
     },
     "homes": {
@@ -251,6 +273,31 @@
             "description": "Domyślny dom użytkownika jsontest55334",
             "created_at": "2026-01-18T09:35:55.529489+00:00",
             "updated_at": "2026-01-18T09:35:55.529493+00:00"
+        },
+        "72495c1d-bcbc-4f9f-99fc-106cac872372": {
+            "id": "72495c1d-bcbc-4f9f-99fc-106cac872372",
+            "name": "testowy Home",
+            "owner_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "description": "Domyślny dom użytkownika testowy",
+            "created_at": "2026-01-18T09:46:12.501761+00:00",
+            "updated_at": "2026-01-27T11:28:47.212028",
+            "address": "Poznań",
+            "latitude": 52.4064,
+            "longitude": 16.9252,
+            "city": "Poznań",
+            "country": "Poland",
+            "street": null,
+            "house_number": null,
+            "apartment_number": null,
+            "postal_code": null
+        },
+        "525efa50-c34b-4431-9482-164bdb1db428": {
+            "id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "name": "testowy1 Home",
+            "owner_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "description": "Domyślny dom użytkownika testowy1",
+            "created_at": "2026-02-15T07:39:52.214210+00:00",
+            "updated_at": "2026-02-15T07:39:52.214212+00:00"
         }
     },
     "user_homes": {
@@ -294,6 +341,15 @@
                     "admin"
                 ],
                 "joined_at": "2026-01-17T18:18:06.992644"
+            },
+            {
+                "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+                "role": "admin",
+                "permissions": [
+                    "read",
+                    "write"
+                ],
+                "joined_at": "2026-01-18T10:00:07.905288+00:00"
             }
         ],
         "dd3650fe-f138-46ba-be55-993a660af889": [
@@ -385,10 +441,32 @@
                 ],
                 "joined_at": "2026-01-18T09:35:55.529500+00:00"
             }
+        ],
+        "72495c1d-bcbc-4f9f-99fc-106cac872372": [
+            {
+                "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-01-18T09:46:12.501769+00:00"
+            }
+        ],
+        "525efa50-c34b-4431-9482-164bdb1db428": [
+            {
+                "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+                "role": "owner",
+                "permissions": [
+                    "full_control"
+                ],
+                "joined_at": "2026-02-15T07:39:52.214215+00:00"
+            }
         ]
     },
     "user_current_home": {
-        "c1c512f1-5183-4117-b54c-f4439932673d": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0"
+        "c1c512f1-5183-4117-b54c-f4439932673d": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+        "8268a02a-9800-4e48-833b-4be299f5c22e": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+        "7db70794-c282-4203-959e-d41d07e978e8": "525efa50-c34b-4431-9482-164bdb1db428"
     },
     "temperature_states": {},
     "security_state": "Wyłączony",
@@ -410,30 +488,55 @@
             "display_order": 2,
             "created_at": "2026-01-17T18:29:41.526803",
             "updated_at": "2026-01-17T18:29:41.526803"
+        },
+        {
+            "id": "43129288-ceeb-4b33-870d-7923b85eafdd",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "name": "tst1",
+            "description": null,
+            "display_order": 1,
+            "created_at": "2026-02-15T08:41:35.342955",
+            "updated_at": "2026-02-15T08:41:35.342955"
         }
     ],
     "buttons": [
         {
             "id": "07e3fe0b-318a-4a86-922f-d67567109b19",
             "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
-            "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
+            "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
             "name": "test swiatlo edytcja",
             "device_type": "button",
-            "state": true,
+            "state": false,
             "enabled": true,
-            "display_order": 1,
+            "display_order": 0,
             "settings": {
                 "action": "toggle",
                 "target_device_id": null
             },
             "created_at": "2026-01-17T18:29:52.057541",
-            "updated_at": "2026-01-17T19:03:12.038287"
+            "updated_at": "2026-01-27T11:28:01.041003"
         },
         {
             "id": "8a828668-93d8-4e4f-a5d6-2bb8cd318911",
             "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
             "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
             "name": "atest swiatlo 2",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 0,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-01-17T18:30:02.905636",
+            "updated_at": "2026-01-27T11:28:01.040042"
+        },
+        {
+            "id": "0f8b5e78-5abd-400f-ae40-ec3a78b84004",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "room_id": "43129288-ceeb-4b33-870d-7923b85eafdd",
+            "name": "tst2",
             "device_type": "button",
             "state": true,
             "enabled": true,
@@ -442,8 +545,8 @@
                 "action": "toggle",
                 "target_device_id": null
             },
-            "created_at": "2026-01-17T18:30:02.905636",
-            "updated_at": "2026-01-17T19:03:12.037809"
+            "created_at": "2026-02-15T08:41:42.065826",
+            "updated_at": "2026-02-15T08:42:07.684754"
         }
     ],
     "temperature_controls": [
@@ -463,25 +566,25 @@
                 "mode": "auto"
             },
             "created_at": "2026-01-17T18:30:13.974232",
-            "updated_at": "2026-01-17T19:23:59.231822"
+            "updated_at": "2026-01-27T11:28:01.043538"
         },
         {
             "id": "899f3f55-5580-41ef-88f4-70b5c1741fcf",
             "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
-            "room_id": "45e23b4c-cb50-45de-ae7a-de430fc04202",
+            "room_id": "d7ffc7cc-8fa3-4c50-b0e2-225a1f917268",
             "name": "test termo 2",
             "device_type": "temperature_control",
             "temperature": 20.0,
             "min_temperature": null,
             "max_temperature": null,
             "enabled": true,
-            "display_order": 1,
+            "display_order": 0,
             "settings": {
                 "target_temperature": 21.0,
                 "mode": "auto"
             },
             "created_at": "2026-01-17T18:30:21.623310",
-            "updated_at": "2026-01-17T19:17:49.889950"
+            "updated_at": "2026-01-27T11:28:01.041889"
         }
     ],
     "automations": [
@@ -840,6 +943,295 @@
                 "code": "DZS2C323",
                 "user_exists": false
             }
+        },
+        {
+            "id": "c0d52fd6-0c8f-41bd-bcbb-96d2376c9498",
+            "home_id": "72495c1d-bcbc-4f9f-99fc-106cac872372",
+            "timestamp": "2026-01-18T10:46:31.651742",
+            "level": "info",
+            "message": "Użytkownik testowy zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "166c65c3-6f4c-40d4-8933-5682dbe37a0b",
+            "home_id": "72495c1d-bcbc-4f9f-99fc-106cac872372",
+            "timestamp": "2026-01-18T11:00:05.992311",
+            "level": "info",
+            "message": "Użytkownik testowy zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "f129e716-6c0f-4951-8902-0072e03678bf",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-18T11:00:07.923727",
+            "level": "info",
+            "message": "testowy zaakceptował zaproszenie do domu",
+            "event_type": "invitation_accepted",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "code": "DZS2C323"
+            }
+        },
+        {
+            "id": "0d528d07-1211-4606-88b7-73f7e1dfbfdb",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:26:00.871018",
+            "level": "info",
+            "message": "Użytkownik testowy zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "0a923a4e-d3f1-43da-9c79-786a70033ce2",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:26:06.823536",
+            "level": "info",
+            "message": "testowy wykonał akcję \"toggle\" na urządzeniu \"atest swiatlo 2\" w pokoju \"test edycja\". Nowy stan: False",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "atest swiatlo 2",
+                "room": "test edycja",
+                "action": "toggle",
+                "new_state": false
+            }
+        },
+        {
+            "id": "7bfe221b-cb98-4a35-a0cd-ac2498ec812a",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:26:07.507591",
+            "level": "info",
+            "message": "testowy wykonał akcję \"toggle\" na urządzeniu \"test swiatlo edytcja\" w pokoju \"test edycja\". Nowy stan: False",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "test swiatlo edytcja",
+                "room": "test edycja",
+                "action": "toggle",
+                "new_state": false
+            }
+        },
+        {
+            "id": "44be8431-2c01-431e-ae87-d231395e5834",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:26:24.110230",
+            "level": "info",
+            "message": "testowy wykonał akcję \"toggle_temperature_enabled\" na urządzeniu \"test termo 1 edycja\" w pokoju \"tst\". Nowy stan: False",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "test termo 1 edycja",
+                "room": "tst",
+                "action": "toggle_temperature_enabled",
+                "new_state": false
+            }
+        },
+        {
+            "id": "d834f938-9873-4cd6-936d-b2c29db9761d",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:26:29.763472",
+            "level": "info",
+            "message": "testowy wykonał akcję \"toggle_temperature_enabled\" na urządzeniu \"test termo 1 edycja\" w pokoju \"tst\". Nowy stan: True",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "test termo 1 edycja",
+                "room": "tst",
+                "action": "toggle_temperature_enabled",
+                "new_state": true
+            }
+        },
+        {
+            "id": "b88e9b7a-b94c-4a25-b700-aa16a7745ae1",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:27:31.206091",
+            "level": "info",
+            "message": "testowy wykonał akcję \"set_security_state\" na urządzeniu \"Security System\" w pokoju \"System\". Nowy stan: {'state': 'Wyłączony', 'home_id': '2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0'}",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "Security System",
+                "room": "System",
+                "action": "set_security_state",
+                "new_state": {
+                    "state": "Wyłączony",
+                    "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0"
+                }
+            }
+        },
+        {
+            "id": "bcaa880a-b1b3-4911-adc1-b394c9bc296c",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-27T11:27:32.310664",
+            "level": "info",
+            "message": "testowy wykonał akcję \"set_security_state\" na urządzeniu \"Security System\" w pokoju \"System\". Nowy stan: {'state': 'Załączony', 'home_id': '2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0'}",
+            "event_type": "device_action",
+            "user_id": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "username": "testowy",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "Security System",
+                "room": "System",
+                "action": "set_security_state",
+                "new_state": {
+                    "state": "Załączony",
+                    "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0"
+                }
+            }
+        },
+        {
+            "id": "b6e53b0b-9d3a-47ec-85fb-43d0dc1776dc",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:40:01.554318",
+            "level": "info",
+            "message": "Użytkownik testowy1 zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "0778b724-5721-456e-a66f-01a67f999f82",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:41:35.359901",
+            "level": "info",
+            "message": "Utworzono nowy pokój \"tst1\"",
+            "event_type": "room_creation",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "room_id": "43129288-ceeb-4b33-870d-7923b85eafdd",
+                "room_name": "tst1",
+                "description": ""
+            }
+        },
+        {
+            "id": "f7c8e481-fa49-4e8f-9c00-63625d8664a6",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:41:42.078437",
+            "level": "info",
+            "message": "Utworzono nowe urządzenie przycisk \"tst2\" w pokoju \"Nieprzypisane\"",
+            "event_type": "device_creation",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_id": "0f8b5e78-5abd-400f-ae40-ec3a78b84004",
+                "device_name": "tst2",
+                "device_type": "button",
+                "room_id": null,
+                "room_name": "Nieprzypisane"
+            }
+        },
+        {
+            "id": "02b018dc-bf54-4424-8d90-195115b1e9a8",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:42:04.935950",
+            "level": "info",
+            "message": "testowy1 wykonał akcję \"toggle\" na urządzeniu \"tst2\" w pokoju \"tst1\". Nowy stan: True",
+            "event_type": "device_action",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "tst2",
+                "room": "tst1",
+                "action": "toggle",
+                "new_state": true
+            }
+        },
+        {
+            "id": "cc4a83f4-b341-454d-a2c3-e5e27cc071d0",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:42:05.220352",
+            "level": "info",
+            "message": "testowy1 wykonał akcję \"toggle\" na urządzeniu \"tst2\" w pokoju \"tst1\". Nowy stan: False",
+            "event_type": "device_action",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "tst2",
+                "room": "tst1",
+                "action": "toggle",
+                "new_state": false
+            }
+        },
+        {
+            "id": "38c96bef-d818-4308-8397-e908963d6368",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:42:05.532977",
+            "level": "info",
+            "message": "testowy1 wykonał akcję \"toggle\" na urządzeniu \"tst2\" w pokoju \"tst1\". Nowy stan: True",
+            "event_type": "device_action",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "tst2",
+                "room": "tst1",
+                "action": "toggle",
+                "new_state": true
+            }
+        },
+        {
+            "id": "c5e893c8-b78f-4373-b978-f64785319531",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:42:05.990407",
+            "level": "info",
+            "message": "testowy1 wykonał akcję \"toggle\" na urządzeniu \"tst2\" w pokoju \"tst1\". Nowy stan: False",
+            "event_type": "device_action",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "tst2",
+                "room": "tst1",
+                "action": "toggle",
+                "new_state": false
+            }
+        },
+        {
+            "id": "0bef0f0d-a4e8-4026-b191-d76e2e7e1169",
+            "home_id": "525efa50-c34b-4431-9482-164bdb1db428",
+            "timestamp": "2026-02-15T08:42:07.707016",
+            "level": "info",
+            "message": "testowy1 wykonał akcję \"toggle\" na urządzeniu \"tst2\" w pokoju \"tst1\". Nowy stan: True",
+            "event_type": "device_action",
+            "user_id": "7db70794-c282-4203-959e-d41d07e978e8",
+            "username": "testowy1",
+            "ip_address": "127.0.0.1",
+            "details": {
+                "device_name": "tst2",
+                "room": "tst1",
+                "action": "toggle",
+                "new_state": true
+            }
         }
     ],
     "invitations": [
@@ -899,9 +1291,10 @@
             "invitation_code": "DZS2C323",
             "invited_by": "c1c512f1-5183-4117-b54c-f4439932673d",
             "expires_at": "2026-01-25T09:08:54.340676+00:00",
-            "accepted_by": null,
-            "status": "pending",
-            "created_at": "2026-01-18T09:08:54.341276+00:00"
+            "accepted_by": "8268a02a-9800-4e48-833b-4be299f5c22e",
+            "status": "accepted",
+            "created_at": "2026-01-18T09:08:54.341276+00:00",
+            "accepted_at": "2026-01-18T10:00:07.905312+00:00"
         },
         {
             "id": "4355320b-e2e5-4f76-b642-448a962b51ee",
@@ -1005,11 +1398,11 @@
     "security_states": {
         "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0": {
             "state": "Załączony",
-            "last_changed": "2026-01-17T17:29:07.632769+00:00",
-            "changed_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "last_changed": "2026-01-27T10:27:32.297038+00:00",
+            "changed_by": "8268a02a-9800-4e48-833b-4be299f5c22e",
             "details": {
                 "source": "socket",
-                "timestamp": "2026-01-17T17:29:07.631343"
+                "timestamp": "2026-01-27T10:27:32.292731"
             }
         }
     }
