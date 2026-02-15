@@ -244,8 +244,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM loaded - initializing security page');
         
-        // Initialize with server-side state if available
-        const serverState = '{{ security_state|safe }}';
+        // SECURITY FIX: Use tojson filter instead of |safe to prevent XSS
+        const serverState = {{ security_state|tojson|safe }};
         console.log('Server-side security state:', serverState);
         if (serverState && serverState !== 'None' && serverState !== '') {
             updateSecurityStatus(serverState);

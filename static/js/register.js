@@ -27,14 +27,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function getCSRFToken() {
-        let csrfToken = null;
-        const input = document.querySelector('input[name="_csrf_token"]');
-        if (input) csrfToken = input.value;
-        if (!csrfToken) {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            if (meta) csrfToken = meta.getAttribute('content');
-        }
-        return csrfToken;
+        // Użyj globalnej funkcji jeśli istnieje
+        if (window.getCSRFToken) return window.getCSRFToken();
+        
+        // Fallback - sprawdź meta tag
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute('content');
+        
+        // Sprawdź ukryte pole w formularzu
+        const input = document.querySelector('input[name="csrf_token"]');
+        if (input) return input.value;
+        
+        return null;
     }
     
     function showStep2() {

@@ -272,7 +272,7 @@ class MultiHomeHelpersMixin:
 
 
 class RoutesManager(MultiHomeHelpersMixin):
-    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None, multi_db=None):
+    def __init__(self, app, smart_home, auth_manager, mail_manager, async_mail_manager=None, cache=None, cached_data_access=None, management_logger=None, socketio=None, multi_db=None, limiter=None):
         self.app = app
         self.smart_home = smart_home
         self.auth_manager = auth_manager
@@ -280,6 +280,7 @@ class RoutesManager(MultiHomeHelpersMixin):
         self.async_mail_manager = async_mail_manager or mail_manager  # Fallback to sync
         self.cache = cache
         self.multi_db = multi_db
+        self.limiter = limiter  # SECURITY: Rate limiter for protecting endpoints
         print(f"[DEBUG] RoutesManager init - cache: {cache}, cached_data_access: {cached_data_access}")
         # Use injected cached_data_access if provided, else fallback
         self.cached_data = cached_data_access or (CachedDataAccess(cache, smart_home) if cache else None)
@@ -1517,7 +1518,13 @@ class RoutesManager(MultiHomeHelpersMixin):
                 logger.error(f"Profile picture upload error: {e}", exc_info=True)
                 return jsonify({"status": "error", "message": "Błąd serwera podczas przesyłania zdjęcia"}), 500
 
+        # SECURITY: Rate limit login attempts to prevent brute force
+        login_limiter_1 = self.limiter.limit("5 per minute") if self.limiter else lambda f: f
+        login_limiter_2 = self.limiter.limit("20 per hour") if self.limiter else lambda f: f
+        
         @self.app.route('/login', methods=['GET', 'POST'])
+        @login_limiter_1
+        @login_limiter_2
         def login():
             """Login route for user authentication"""
             if request.method == 'POST':
@@ -1635,10 +1642,15 @@ class RoutesManager(MultiHomeHelpersMixin):
                         
                         # Return appropriate response based on request type
                         if request.is_json:
+                            # Check for next parameter (for redirects)
+                            next_url = request.args.get('next') or request.json.get('next')
+                            redirect_url = next_url if next_url and next_url.startswith('/') else url_for('home')
+                            
                             # Prepare response data
                             response_data = {
                                 "status": "success",
                                 "message": "Login successful",
+                                "redirect": redirect_url,
                                 "data": {
                                     "status": "success",
                                     "message": "Login successful", 
@@ -1805,7 +1817,13 @@ class RoutesManager(MultiHomeHelpersMixin):
                 logger.error(f"Error getting user homes for {user_id}: {e}")
                 return jsonify({'status': 'error', 'message': 'Failed to get user homes'}), 500
 
+        # SECURITY: Rate limit registration to prevent spam
+        register_limiter_1 = self.limiter.limit("3 per hour") if self.limiter else lambda f: f
+        register_limiter_2 = self.limiter.limit("10 per day") if self.limiter else lambda f: f
+        
         @self.app.route('/register', methods=['GET', 'POST'])
+        @register_limiter_1
+        @register_limiter_2
         def register():
             if request.method == 'POST':
                 data = request.get_json()
@@ -1824,7 +1842,13 @@ class RoutesManager(MultiHomeHelpersMixin):
             next_url = request.args.get('next', '')
             return render_template('register.html', next=next_url)
 
+        # SECURITY: Rate limit password reset to prevent abuse
+        forgot_password_limiter_1 = self.limiter.limit("3 per hour") if self.limiter else lambda f: f
+        forgot_password_limiter_2 = self.limiter.limit("10 per day") if self.limiter else lambda f: f
+        
         @self.app.route('/forgot_password', methods=['GET', 'POST'])
+        @forgot_password_limiter_1
+        @forgot_password_limiter_2
         def forgot_password():
             if request.method == 'POST':
                 data = request.get_json()

@@ -6,7 +6,15 @@
 {% block content %}
     
     <div class="login-container">
-        <form class="login-form" method="POST" action="{{ url_for('login') }}">
+        <div id="rate-limit-warning" class="rate-limit-warning" style="display: none;">
+            <div class="warning-icon">⏱️</div>
+            <div class="warning-content">
+                <h3>Zbyt wiele prób logowania</h3>
+                <p id="rate-limit-message">Przekroczono limit prób logowania. Spróbuj ponownie za <span id="retry-countdown">60</span> sekund.</p>
+            </div>
+        </div>
+        <form class="login-form" method="POST" action="{{ url_for('login') }}" id="loginForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             {% if next %}
             <input type="hidden" name="next" value="{{ next }}">
             {% endif %}
@@ -100,18 +108,221 @@
         // Załaduj zapamiętane dane użytkownika
         loadUserData();
 
-        // Obsługa formularza logowania
-        const loginForm = document.querySelector('.login-form');
+        // Obsługa formularza logowania z AJAX
+        const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
                 const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
                 const rememberMe = document.getElementById('remember_me').checked;
+                const nextUrl = document.querySelector('input[name="next"]')?.value || '';
+                const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
                 
                 // Zapisz dane użytkownika jeśli checkbox jest zaznaczony
                 saveUserData(username, rememberMe);
+                
+                // Disable form
+                const submitBtn = loginForm.querySelector('.login-btn');
+                const originalBtnText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Logowanie...';
+                
+                // Send AJAX request with JSON
+                fetch('{{ url_for("login") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        remember_me: rememberMe
+                    })
+                })
+                .then(response => {
+                    if (response.status === 429) {
+                        // Rate limit error
+                        return response.json().then(data => {
+                            throw { status: 429, data: data };
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Check response
+                    if (data.status === 'success') {
+                        // Redirect on success
+                        window.location.href = data.redirect || nextUrl || '/';
+                    } else {
+                        // Show error message
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalBtnText;
+                        if (window.showNotification) {
+                            window.showNotification(data.message || 'Błąd logowania', 'error');
+                        }
+                    }
+                })
+                .catch(error => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    
+                    if (error.status === 429) {
+                        // Show rate limit warning
+                        handleRateLimitError(error.data);
+                    } else {
+                        console.error('Login error:', error);
+                        if (window.showNotification) {
+                            window.showNotification('Wystąpił błąd podczas logowania', 'error');
+                        }
+                    }
+                });
             });
         }
     });
+    
+    function handleRateLimitError(data) {
+        const warningDiv = document.getElementById('rate-limit-warning');
+        const messageSpan = document.getElementById('rate-limit-message');
+        const countdownSpan = document.getElementById('retry-countdown');
+        const loginForm = document.getElementById('loginForm');
+        
+        // Show warning
+        warningDiv.style.display = 'flex';
+        
+        // Disable form fields
+        const inputs = loginForm.querySelectorAll('input:not([type="hidden"]), button');
+        inputs.forEach(input => {
+            input.disabled = true;
+            input.style.opacity = '0.5';
+            input.style.cursor = 'not-allowed';
+        });
+        
+        // Set countdown
+        let retryAfter = data.retry_after || 60;
+        countdownSpan.textContent = retryAfter;
+        
+        // Start countdown
+        const countdownInterval = setInterval(() => {
+            retryAfter--;
+            countdownSpan.textContent = retryAfter;
+            
+            if (retryAfter <= 0) {
+                clearInterval(countdownInterval);
+                
+                // Re-enable form
+                inputs.forEach(input => {
+                    input.disabled = false;
+                    input.style.opacity = '1';
+                    input.style.cursor = '';
+                });
+                
+                // Hide warning
+                warningDiv.style.display = 'none';
+                
+                // Show notification
+                if (window.showNotification) {
+                    window.showNotification('Możesz teraz spróbować ponownie', 'success');
+                }
+            }
+        }, 1000);
+    }
 
 </script>
+<style>
+    .rate-limit-warning {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+        animation: slideIn 0.4s ease-out;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .rate-limit-warning .warning-icon {
+        font-size: 52px;
+        line-height: 1;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+    }
+    
+    .rate-limit-warning .warning-content {
+        flex: 1;
+    }
+    
+    .rate-limit-warning .warning-content h3 {
+        margin: 0 0 8px 0;
+        font-size: 20px;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .rate-limit-warning .warning-content p {
+        margin: 0;
+        font-size: 15px;
+        opacity: 0.95;
+        line-height: 1.5;
+    }
+    
+    .rate-limit-warning #retry-countdown {
+        font-weight: 900;
+        font-size: 20px;
+        background: rgba(255, 255, 255, 0.25);
+        padding: 4px 12px;
+        border-radius: 6px;
+        display: inline-block;
+        min-width: 40px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .login-form input:disabled,
+    .login-form button:disabled {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        background-color: #e8e8e8 !important;
+        color: #999 !important;
+        pointer-events: none;
+    }
+    
+    .login-form input:disabled::placeholder {
+        color: #bbb !important;
+    }
+    
+    /* Animacja dla wyłączonych przycisków */
+    .login-btn:disabled {
+        background: linear-gradient(135deg, #999 0%, #777 100%) !important;
+    }
+    
+    .register-btn:disabled {
+        background: linear-gradient(135deg, #999 0%, #777 100%) !important;
+    }
+</style>
 {% endblock %}

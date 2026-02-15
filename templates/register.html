@@ -15,6 +15,7 @@
     <div id="step1" class="registration-step">
         <h2>Dane użytkownika</h2>
         <form id="registerProfileForm" class="profile-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group-register">
                 <label for="registerName">Nazwa użytkownika</label>
                 <input type="text" id="registerName" name="registerName" required>
@@ -45,6 +46,7 @@
         <p><strong>Sprawdź swoją skrzynkę odbiorczą i wprowadź 6-cyfrowy kod poniżej:</strong></p>
         
         <form id="verificationForm" class="profile-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group-register">
                 <label for="verificationCode">Kod weryfikacyjny</label>
                 <input type="text" id="verificationCode" name="verificationCode" maxlength="6" placeholder="123456" required>

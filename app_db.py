@@ -61,10 +61,24 @@ class SmartHomeApp:
         """Initialize the SmartHome application"""
         self._configure_logging()
         self.app = Flask(__name__)
-        self.app.secret_key = os.urandom(24)
+        
+        # SECURITY: Use SECRET_KEY from environment (CRITICAL FIX)
+        SECRET_KEY = os.getenv('SECRET_KEY')
+        if not SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY must be set in .env file! "
+                "Generate with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+        if len(SECRET_KEY) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long for security")
+        self.app.secret_key = SECRET_KEY
         
         # Cookie security and SameSite settings
         is_production = os.getenv('FLASK_ENV') == 'production' or os.getenv('ENV') == 'production' or os.getenv('APP_ENV') == 'production'
+        
+        # SECURITY: Verify DEBUG is disabled in production
+        if is_production and os.getenv('DEBUG', 'False').lower() == 'true':
+            raise ValueError("DEBUG mode cannot be enabled in production environment!")
         self.app.config.update({
             # Lax is recommended for session cookies; use Secure only in production/HTTPS
             'SESSION_COOKIE_SAMESITE': 'Lax',
@@ -73,12 +87,44 @@ class SmartHomeApp:
         })
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         
+        # SECURITY: Enable CSRF protection (CRITICAL FIX)
+        try:
+            from flask_wtf.csrf import CSRFProtect
+            csrf = CSRFProtect(self.app)
+            # Exempt public API endpoints from CSRF (they use other auth methods)
+            csrf.exempt('api_ping')
+            csrf.exempt('health_check')
+            csrf.exempt('api_status')
+            print("✓ CSRF protection enabled")
+        except ImportError:
+            print("⚠ Flask-WTF not installed. Run: pip install Flask-WTF")
+            print("⚠ CSRF protection is DISABLED - this is a CRITICAL security risk!")
+        except Exception as e:
+            print(f"⚠ Failed to enable CSRF protection: {e}")
+        
         # Add CORS headers for mobile app
         @self.app.after_request
         def after_request(response):
             response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-CSRFToken')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            
+            # SECURITY: Add security headers (MEDIUM FIX)
+            response.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self'; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none';"
+            )
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['X-Frame-Options'] = 'DENY'
+            response.headers['X-XSS-Protection'] = '1; mode=block'
+            if is_production:
+                response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+            
             return response
         
         # Add context processors
@@ -93,6 +139,9 @@ class SmartHomeApp:
         # Setup routes and socket events
         self.setup_routes()
         self.setup_socket_events()
+        
+        # Setup error handlers
+        self.setup_error_handlers()
         
         print(f"SmartHome Application initialized (Database mode: {DATABASE_MODE})")
     
@@ -174,8 +223,9 @@ class SmartHomeApp:
         @self.app.context_processor
         def inject_csrf_token():
             """Inject CSRF token into templates"""
-            import secrets
-            return dict(csrf_token=lambda: secrets.token_hex(16))
+            # Flask-WTF automatically provides csrf_token() function
+            # We don't need to override it, just return empty dict
+            return {}
         
         # Add multi-home context processor
         try:
@@ -250,11 +300,11 @@ class SmartHomeApp:
         try:
             # Check if we have a JSON fallback with admin credentials
             if (hasattr(self.smart_home, 'json_fallback') and 
-                self.smart_home.json_fallback is not None):
+                getattr(self.smart_home, 'json_fallback', None) is not None):
                 
                 # Try to get admin credentials from JSON fallback
-                json_mgr = self.smart_home.json_fallback
-                config = json_mgr.get_config()
+                json_mgr = getattr(self.smart_home, 'json_fallback', None)
+                config = json_mgr.get_config() if json_mgr else {}
                 users = config.get('users', {})
                 
                 # Look for sys-admin or any admin user
@@ -475,7 +525,7 @@ class SmartHomeApp:
             # Check if we're in JSON fallback mode (database failed)
             # If so, skip Redis as it's likely on the same unreachable server
             in_json_fallback = (hasattr(self.smart_home, 'json_fallback') and 
-                               self.smart_home.json_fallback is not None)
+                               getattr(self.smart_home, 'json_fallback', None) is not None)
             
             if in_json_fallback:
                 print("⚠ Database in JSON fallback mode - skipping Redis, using SimpleCache")
@@ -542,6 +592,42 @@ class SmartHomeApp:
             # Initialize cache manager
             self.cache_manager = CacheManager(self.cache, self.smart_home)
             
+            # SECURITY: Initialize rate limiter (HIGH PRIORITY FIX)
+            try:
+                from flask_limiter import Limiter
+                from flask_limiter.util import get_remote_address
+                
+                # Use Redis for distributed rate limiting if available, otherwise memory
+                redis_url = os.getenv('REDIS_URL')
+                redis_host = os.getenv('REDIS_HOST')
+                
+                if redis_url and not in_json_fallback:
+                    limiter_storage = redis_url
+                    print("✓ Using Redis for distributed rate limiting")
+                elif redis_host and not in_json_fallback:
+                    redis_port = os.getenv('REDIS_PORT', 6379)
+                    limiter_storage = f"redis://{redis_host}:{redis_port}"
+                    print("✓ Using Redis for distributed rate limiting")
+                else:
+                    limiter_storage = "memory://"
+                    print("✓ Using in-memory rate limiting")
+                
+                self.limiter = Limiter(
+                    app=self.app,
+                    key_func=get_remote_address,
+                    default_limits=["200 per day", "50 per hour"],
+                    storage_uri=limiter_storage,
+                    strategy="fixed-window"
+                )
+                print("✓ Rate limiter initialized")
+            except ImportError:
+                print("⚠ Flask-Limiter not installed. Run: pip install Flask-Limiter")
+                print("⚠ Rate limiting is DISABLED - this is a HIGH security risk!")
+                self.limiter = None
+            except Exception as e:
+                print(f"⚠ Failed to initialize rate limiter: {e}")
+                self.limiter = None
+            
             # Setup caching for SmartHome system
             setup_smart_home_caching(self.smart_home, self.cache_manager)
             
@@ -592,7 +678,8 @@ class SmartHomeApp:
                 cache=self.cache,  # Pass the Flask cache object, not the cache_manager
                 management_logger=self.management_logger,
                 socketio=self.socketio,  # Add socketio parameter
-                multi_db=self.multi_db  # Add multi_db parameter
+                multi_db=self.multi_db,  # Add multi_db parameter
+                limiter=self.limiter  # Add limiter parameter for rate limiting
             )
             # Register API endpoints (including /api/automations etc.)
             # Be resilient to different APIManager signatures across deployments
@@ -645,6 +732,35 @@ class SmartHomeApp:
         except Exception as e:
             print(f"✗ Failed to setup routes: {e}")
             raise
+    
+    def setup_error_handlers(self):
+        """Setup custom error handlers"""
+        @self.app.errorhandler(429)
+        def ratelimit_handler(e):
+            """Handle rate limit errors with custom response"""
+            # Check if request wants JSON (AJAX)
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'rate_limit',
+                    'message': 'Zbyt wiele prób. Spróbuj ponownie za chwilę.',
+                    'retry_after': getattr(e, 'description', 60)  # seconds
+                }), 429
+            
+            # For HTML requests on login page, return JSON anyway (handled by JavaScript)
+            if request.endpoint == 'login' and request.method == 'POST':
+                return jsonify({
+                    'status': 'error',
+                    'error': 'rate_limit',
+                    'message': 'Zbyt wiele prób logowania. Spróbuj ponownie za chwilę.',
+                    'retry_after': 60
+                }), 429
+            
+            # For other HTML requests, render error template
+            return render_template('error.html',
+                error_title='Zbyt wiele żądań',
+                error_message='Przekroczono limit żądań. Spróbuj ponownie za chwilę.'
+            ), 429
     
     def setup_socket_events(self):
         """Setup SocketIO events"""

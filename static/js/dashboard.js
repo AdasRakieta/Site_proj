@@ -16,14 +16,31 @@ function showMessage(elementId, message, isError = false) {
 
 // Helper function to get CSRF token
 function getCSRFToken() {
-    let csrfToken = null;
-    const input = document.querySelector('input[name="_csrf_token"]');
-    if (input) csrfToken = input.value;
-    if (!csrfToken) {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) csrfToken = meta.getAttribute('content');
+    // Użyj globalnej funkcji jeśli istnieje
+    if (window.getCSRFToken && window.getCSRFToken !== getCSRFToken) {
+        return window.getCSRFToken();
     }
+    
+    let csrfToken = null;
+    // Najpierw meta tag
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) csrfToken = meta.getAttribute('content');
+    
+    // Potem ukryte pole (nowa nazwa)
+    if (!csrfToken) {
+        const input = document.querySelector('input[name="csrf_token"]');
+        if (input) csrfToken = input.value;
+    }
+    
+    // Fallback do starej nazwy
+    if (!csrfToken) {
+        const oldInput = document.querySelector('input[name="_csrf_token"]');
+        if (oldInput) csrfToken = oldInput.value;
+    }
+    
+    // Zmienna globalna
     if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+    
     return csrfToken;
 }
 
@@ -105,16 +122,22 @@ function updateUsersTable(users) {
         row.dataset.userId = user.user_id;
         row.dataset.editing = 'false';
         
-        // Username
+        // Username - SECURITY FIX: Use textContent to prevent XSS
         const usernameCell = document.createElement('td');
         usernameCell.className = 'username-cell';
-        usernameCell.innerHTML = `<span class="display-value">${user.username}</span>`;
+        const usernameSpan = document.createElement('span');
+        usernameSpan.className = 'display-value';
+        usernameSpan.textContent = user.username;  // Auto-escapes HTML
+        usernameCell.appendChild(usernameSpan);
         row.appendChild(usernameCell);
 
-        // Email
+        // Email - SECURITY FIX: Use textContent to prevent XSS
         const emailCell = document.createElement('td');
         emailCell.className = 'email-cell';
-        emailCell.innerHTML = `<span class="display-value">${user.email || ''}</span>`;
+        const emailSpan = document.createElement('span');
+        emailSpan.className = 'display-value';
+        emailSpan.textContent = user.email || '';  // Auto-escapes HTML
+        emailCell.appendChild(emailSpan);
         row.appendChild(emailCell);
 
         // Role - display proper role names

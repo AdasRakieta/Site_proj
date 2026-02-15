@@ -82,15 +82,29 @@ async function toggleLightViaAPI(room, buttonName, state, attempt = 0) {
 
 // Helper function to get CSRF token
 function getCSRFToken() {
+    // Użyj globalnej funkcji jeśli istnieje
+    if (window.getCSRFToken && typeof window.getCSRFToken === 'function') {
+        // Unikaj rekursji - sprawdź czy to nie ta sama funkcja
+        if (window.getCSRFToken !== getCSRFToken) {
+            return window.getCSRFToken();
+        }
+    }
+    
     let token = null;
     // Check meta tag first
     const meta = document.querySelector('meta[name="csrf-token"]');
     if (meta) token = meta.getAttribute('content');
     
-    // Then check hidden input
+    // Then check hidden input (nowa nazwa)
     if (!token) {
-        const input = document.querySelector('input[name="_csrf_token"]');
+        const input = document.querySelector('input[name="csrf_token"]');
         if (input) token = input.value;
+    }
+    
+    // Fallback do starej nazwy
+    if (!token) {
+        const oldInput = document.querySelector('input[name="_csrf_token"]');
+        if (oldInput) token = oldInput.value;
     }
     
     // Finally check global variable
