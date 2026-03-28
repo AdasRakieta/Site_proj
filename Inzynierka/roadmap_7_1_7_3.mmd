@@ -1,0 +1,27 @@
+---
+id: 7bb5706f-5e69-41df-9f81-15729b2c1635
+---
+%% Roadmapa 7.1: Oś czasu (Q1–Q4) — bez konkretnych dat i bez oznaczania postępu
+graph LR
+    classDef box fill:#f8f9fa,stroke:#333,stroke-width:1px,rx:6,ry:6
+
+    Q1["Q1 — Integracja MQTT i GPIO\n(MQTT driver, GPIO driver, PoC real-time)"]:::box
+    Q2["Q2 — Guest QR codes + Start aplikacji mobilnej\n(system zaproszeń, API v2 dla mobilnych)"]:::box
+    Q3["Q3 — Wydanie aplikacji mobilnej\n(beta release, testy użytkowników)"]:::box
+    Q4["Q4 — Automatyzacje ML i asystenci głosowi\n(modele predykcyjne, integracje Alexa/Google/Siri)"]:::box
+
+    Q1 --> Q2 --> Q3 --> Q4
+
+    %% Szczegóły (opcjonalne, tylko opisowe) — bez oznaczania bieżącego postępu
+    Q1 --> MQTT["MQTT (paho-mqtt)"]:::box
+    Q1 --> GPIO["GPIO (RPi.GPIO)"]:::box
+
+    Q2 --> Invites["System zaproszeń (email + token)"]:::box
+    Q2 --> MobileStart["Start prac nad aplikacją mobilną"]:::box
+
+    Q3 --> MobileRelease["Wydanie aplikacji mobilnej — wersja produkcyjna"]:::box
+
+    Q4 --> ML["Automatyzacje ML (analiza danych, modele)"]:::box
+    Q4 --> Voice["Integracja z asystentami głosowymi"]:::box
+
+    %% Uwaga: diagram przedstawia planowaną oś czasu podziału na kwartały.

@@ -1,0 +1,29 @@
+---
+config:
+  look: neo
+  theme: default
+---
+sequenceDiagram
+    autonumber
+    participant UA as "Użytkownik A (klient WebSocket)"
+    participant FA as "Flask App (handler toggle_button)"
+    participant MDB as "MultiHomeDBManager"
+    participant PG as "PostgreSQL"
+    participant SO as "Socket.IO (broadcast)"
+    participant UB as "Użytkownik B"
+    participant UC as "Użytkownik C"
+
+    UA->>FA: emit 'toggle_button' (room, name, state)
+    Note right of FA: Handler odczytuje session&ﬂ°°59¶ß user_id, current_home_id<br/>waliduje przycisk i przygotowuje update
+    FA->>MDB: update_device(button_id, user_id, state)
+    MDB->>PG: UPDATE device/state, INSERT device_state_history
+    PG-->>MDB: OK (zapisane)
+    MDB-->>FA: success
+    Note right of FA: Wywołanie broadcastu&ﬂ°°59¶ß socketio.emit('update_button', {...})
+    FA->>SO: emit 'update_button' {device_id, room, name, state}
+    SO->>UA: 'update_button' (otrzymuje update)
+    SO->>UB: 'update_button' (otrzymuje update)
+    SO->>UC: 'update_button' (otrzymuje update)
+
+    %% Uwaga: obecna implementacja emituje bez parametru room — broadcast do wszystkich klientów.
+    %% Preferowane ograniczenie: emit(..., room=f"home_{current_home_id}") aby trafiać tylko do użytkowników tego samego domu.
