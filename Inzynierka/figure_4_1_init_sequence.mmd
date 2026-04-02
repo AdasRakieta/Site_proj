@@ -1,0 +1,61 @@
+    %%{init: { 'theme': 'default' } }%%
+    sequenceDiagram
+    autonumber
+    participant App as Aplikacja
+    participant ENV as Środowisko
+    participant CSRF as Ochrona_CSRF
+    participant HTTP as Warstwa_HTTP
+    participant DB as Baza_Danych
+    participant JSON as Fallback_JSON
+    participant Socket as Socket_IO
+    participant Routes as Routing
+    participant Cache as Cache
+    participant Scheduler as Harmonogram
+
+    Note over App,ENV: Rozpoczęcie inicjalizacji (app_db.py)
+
+    App->>ENV: odczytaj SECRET_KEY
+    ENV-->>App: wartość SECRET_KEY
+    App->>App: waliduj SECRET_KEY (dł. >= 32)
+    alt niepoprawny klucz
+        App-->>ENV: raise ValueError (przerwanie startu)
+    else poprawny klucz
+        App->>HTTP: ustaw app.config['SECRET_KEY']
+    end
+
+    App->>CSRF: zainicjuj CSRFProtect(self.app)
+    CSRF-->>App: CSRF włączone
+    App->>App: ustaw WTF_CSRF_TIME_LIMIT = None
+
+    App->>HTTP: zarejestruj handler after_request
+    HTTP-->>App: będzie dodawać nagłówek CSP do odpowiedzi
+
+    App->>DB: próba połączenia z PostgreSQL
+    alt połączenie udane
+        DB-->>App: połączenie udane
+        App->>App: logger.info("Backend PostgreSQL aktywny")
+    else połączenie nieudane
+        DB-->>App: błąd połączenia
+        App->>JSON: wywołaj _activate_json_fallback()
+        JSON-->>App: tryb JSON aktywny
+    end
+
+    App->>Socket: inicjalizuj Socket.IO
+    Socket-->>App: Socket gotowy
+
+    App->>Routes: zarejestruj trasy i blueprinty
+    Routes-->>App: trasy zamontowane
+
+    App->>Cache: wczytaj cache (opcjonalne)
+    Cache-->>App: cache gotowy
+
+    App->>Scheduler: uruchom harmonogram zadań w tle
+    Scheduler-->>App: harmonogram działa
+
+    Note over App,Routes: Inicjalizacja zakończona — aplikacja gotowa
+
+    %% Opcjonalny przepływ: ręczny eksport DB->JSON przed migracją
+    opt opcjonalny eksport ręczny (przed migracją)
+        DB->>JSON: eksportuj wszystkie tabele -> save_config()
+        JSON-->>DB: eksport zakończony
+    end

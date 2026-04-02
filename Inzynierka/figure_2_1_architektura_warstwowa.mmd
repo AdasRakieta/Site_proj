@@ -1,0 +1,34 @@
+%%{init: { 'theme': 'default', 'flowchart': { 'curve': 'linear' } } }%%
+flowchart TD
+  subgraph Presentation [Warstwa Prezentacji]
+    direction TB
+    Browser[Browser Client\nJinja2 Templates\nStatic JS/CSS]
+  end
+
+  subgraph Business [Warstwa Logiki Biznesowej]
+    direction TB
+    Routes[RoutesManager\nAPIManager\nAuthManager\nHomeManagers]
+  end
+
+  subgraph DataAccess [Warstwa Dostępu do Danych]
+    direction TB
+    DBManager[MultiHomeDBManager\nCacheManager]
+  end
+
+  subgraph Persistence [Warstwa Persystencji]
+    direction TB
+    Postgres[(PostgreSQL)]
+    Redis[(Redis)]
+    JSONFallback[(JSON Fallback File)]
+  end
+
+  Browser -- HTTP / WebSocket --> Routes
+  Routes -- Wywołania domenowe --> DBManager
+  DBManager -- SQL / Cache --> Postgres
+  DBManager -- Cache --> Redis
+  DBManager -- Fallback --> JSONFallback
+
+  classDef layer fill:#f9f9f9,stroke:#333,stroke-width:1px;color:#111;
+  class Presentation,Business,DataAccess,Persistence layer
+
+%% Rysunek 2.1: Architektura warstwowa SmartHome Multi-Home

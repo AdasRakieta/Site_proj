@@ -1,0 +1,65 @@
+%%{init: { 'theme': 'default' } }%%
+erDiagram
+    USERS {
+        UUID id
+        string username
+        string email
+        string password_hash
+        string role
+    }
+
+    HOMES {
+        UUID id
+        string name
+        text description
+        string address
+        float latitude
+        float longitude
+        UUID owner_id
+    }
+
+    USER_HOMES {
+        UUID id
+        UUID user_id
+        UUID home_id
+        string role
+        json permissions
+    }
+
+    ROOMS {
+        UUID id
+        UUID home_id
+        string name
+        text description
+        int display_order
+    }
+
+    DEVICES {
+        UUID id
+        UUID home_id
+        UUID room_id
+        string name
+        string device_type
+        boolean state
+        float temperature
+        json settings
+    }
+
+    HOME_AUTOMATIONS {
+        UUID id
+        UUID home_id
+        string name
+        json trigger_config
+        json actions_config
+        boolean enabled
+    }
+
+    USERS ||--o{ USER_HOMES : "memberships"
+    HOMES ||--o{ USER_HOMES : "memberships"
+    USERS ||--o{ HOMES : "owns"
+    HOMES ||--o{ ROOMS : "contains"
+    ROOMS ||--o{ DEVICES : "contains"
+    HOMES ||--o{ DEVICES : "owns"
+    HOMES ||--o{ HOME_AUTOMATIONS : "has"
+
+%% Rysunek 3.3: Diagram ER dla SmartHome Multi-Home

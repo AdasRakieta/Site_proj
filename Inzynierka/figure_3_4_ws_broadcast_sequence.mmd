@@ -1,0 +1,32 @@
+%%{init: { 'theme': 'default' } }%%
+sequenceDiagram
+    autonumber
+    participant UA as User A Browser
+    participant UB as User B Browser
+    participant UC as User C Browser (inne gospodarstwo)
+    participant SO as Flask-SocketIO Server
+    participant RM as RoutesManager
+    participant DB as MultiHomeDBManager
+    participant PG as PostgreSQL
+
+    UA->>UA: kliknij "Toggle Light" (room.html)
+    UA->>SO: emit 'toggle_device' {device_id, home_id}
+    SO->>RM: wywołaj handler 'toggle_device'
+    RM->>RM: waliduj session['user_id'] i session['current_home_id']
+    RM->>DB: MultiHomeDBManager.toggle_device(home_id, device_id, user_id)
+    DB->>PG: UPDATE devices SET state = NOT state WHERE id = ... AND home_id = ...
+    PG-->>DB: zwróć zaktualizowany wiersz
+    DB-->>RM: device_data
+    RM->>UA: emit 'device_updated' (do użytkownika A)
+    UA-->>UA: update UI lokalnie
+    RM->>RM: CacheManager.invalidate_cache(f"home:{home_id}:devices")
+    RM->>RM: wywołaj _broadcast_device_update(home_id, device_data)
+    note right of RM: Iteracja przez użytkowników gospodarstwa
+    RM->>SO: emit 'device_updated' do sesji User B (room=session_id)
+    SO-->>UB: 'device_updated' (User B otrzymuje update)
+    UB-->>UB: update UI
+    note over UC: User C należy do innego gospodarstwa
+    UC--xSO: (nie otrzymuje 'device_updated')
+    note right of RM: Nie używamy broadcast=True — izolacja gospodarstw zachowana
+
+    %% End of sequence

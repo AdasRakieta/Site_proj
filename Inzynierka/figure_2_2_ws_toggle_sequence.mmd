@@ -1,0 +1,26 @@
+%%{init: { 'theme': 'default' } }%%
+sequenceDiagram
+    autonumber
+    participant BC as Browser Client
+    participant JS as Socket.IO JS
+    participant SO as Flask-SocketIO
+    participant RM as RoutesManager
+    participant DB as MultiHomeDBManager
+
+    BC->>BC: użytkownik klika toggle
+    BC->>JS: emit 'toggle_device' {device_id, home_id}
+    JS->>SO: transport Socket.IO → serwer
+    SO->>RM: wywołaj handler 'toggle_device' (session, data)
+    RM->>RM: waliduj uprawnienia (user ∈ home)
+    RM->>DB: MultiHomeDBManager.toggle_device(home_id, device_id, user_id)
+    DB->>DB: UPDATE devices SET state = NOT state WHERE id=... AND home_id=...
+    DB-->>RM: zwróć device_data
+    RM->>RM: CacheManager.invalidate_cache(f"home:{home_id}:devices")
+    RM->>BC: emit 'device_updated' do inicjującego klienta (potwierdzenie)
+    BC-->>BC: aktualizuj UI lokalnie
+    RM->>RM: _broadcast_device_update(home_id, device_data)
+    RM->>SO: emit 'device_updated' do sesji każdego użytkownika gospodarstwa
+    SO-->>BC: inni klienci otrzymują 'device_updated'
+    BC-->>BC: aktualizuj DOM (document.querySelector...)
+
+    %% Rysunek 2.2: Sekwencja toggle_device z cache invalidation i broadcastem do użytkowników gospodarstwa
