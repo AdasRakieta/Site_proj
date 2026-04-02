@@ -3468,9 +3468,13 @@ class MultiHomeDBManager:
             User dict with keys: id, name, email, password_hash, role, etc.
             Returns None if user not found
         """
-        # Alias 'sys-admin' to 'sysadmin' for backward compatibility
+        # Keep backward compatibility between historical aliases.
+        # Some JSON configs store 'sys-admin' while older setups used 'sysadmin'.
+        normalized_candidates = [identifier]
         if identifier == 'sys-admin':
-            identifier = 'sysadmin'
+            normalized_candidates.append('sysadmin')
+        elif identifier == 'sysadmin':
+            normalized_candidates.append('sys-admin')
         
         # JSON fallback support
         if self.json_fallback_mode and self.json_backup:
@@ -3479,7 +3483,11 @@ class MultiHomeDBManager:
             
             # Search by email or username
             for username, user_data in users.items():
-                if user_data.get('email') == identifier or user_data.get('username') == identifier or username == identifier:
+                if (
+                    user_data.get('email') in normalized_candidates
+                    or user_data.get('username') in normalized_candidates
+                    or username in normalized_candidates
+                ):
                     # Get default home from user_current_home
                     user_current_home = config.get('user_current_home', {})
                     default_home_id = user_current_home.get(user_data.get('id'))
@@ -3505,8 +3513,8 @@ class MultiHomeDBManager:
                 SELECT id, name, email, password_hash, role, default_home_id, 
                        created_at, updated_at
                 FROM users 
-                WHERE email = %s
-            """, (identifier,))
+                WHERE email = ANY(%s)
+            """, (normalized_candidates,))
             
             row = cursor.fetchone()
             if row:
@@ -3526,8 +3534,8 @@ class MultiHomeDBManager:
                 SELECT id, name, email, password_hash, role, default_home_id,
                        created_at, updated_at
                 FROM users 
-                WHERE name = %s
-            """, (identifier,))
+                WHERE name = ANY(%s)
+            """, (normalized_candidates,))
             
             row = cursor.fetchone()
             if row:

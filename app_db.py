@@ -12,10 +12,12 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Literal
 from dotenv import load_dotenv
 
 # Configure logger
 logger = logging.getLogger(__name__)
+SocketAsyncMode = Literal['threading', 'eventlet', 'gevent', 'gevent_uwsgi']
 
 # Load environment variables FIRST, before any other imports that need them
 # Priority: 1) Environment variables (from Portainer/system), 2) .env file (local development)
@@ -121,8 +123,32 @@ class SmartHomeApp:
             # Increase session lifetime to 7 days
             'PERMANENT_SESSION_LIFETIME': 604800,  # 7 days in seconds
         })
-        # Use eventlet async_mode for production compatibility with Gunicorn
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
+        # Prefer threading on Windows; allow override via SOCKETIO_ASYNC_MODE.
+        socket_async_mode_env = (os.getenv('SOCKETIO_ASYNC_MODE') or '').strip().lower()
+        if socket_async_mode_env in ('threading', 'eventlet', 'gevent', 'gevent_uwsgi'):
+            preferred_async_mode: SocketAsyncMode = socket_async_mode_env
+        else:
+            preferred_async_mode = 'threading' if os.name == 'nt' else 'eventlet'
+
+        try:
+            self.socketio = SocketIO(
+                self.app,
+                cors_allowed_origins="*",
+                async_mode=preferred_async_mode
+            )
+            print(f"✓ SocketIO initialized (async_mode={preferred_async_mode})")
+        except ValueError as async_error:
+            fallback_mode: SocketAsyncMode = 'threading'
+            print(
+                f"⚠ SocketIO async_mode '{preferred_async_mode}' unavailable ({async_error}); "
+                f"falling back to '{fallback_mode}'"
+            )
+            self.socketio = SocketIO(
+                self.app,
+                cors_allowed_origins="*",
+                async_mode=fallback_mode
+            )
+            print(f"✓ SocketIO initialized (async_mode={fallback_mode})")
         
         # SECURITY: Enable CSRF protection (CRITICAL FIX)
         try:
