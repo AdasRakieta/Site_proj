@@ -19,6 +19,24 @@ class AutomationsManager {
         this.onAutomationsUpdate = this.onAutomationsUpdate.bind(this);
     }
 
+    normalizeEnabledValue(value, defaultValue = false) {
+        if (value === undefined || value === null) {
+            return defaultValue;
+        }
+
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (['false', '0', 'no', 'off'].includes(normalized)) {
+                return false;
+            }
+            if (['true', '1', 'yes', 'on'].includes(normalized)) {
+                return true;
+            }
+        }
+
+        return Boolean(value);
+    }
+
     async initPage() {
         console.log('Inicjalizacja strony automatyzacji');
         try {
@@ -137,6 +155,8 @@ class AutomationsManager {
     }
 
     createAutomationCard(automation, index) {
+        const isEnabled = this.normalizeEnabledValue(automation?.enabled, false);
+
         // Kontener na przyciski akcji
         const actionsContainer = this.app.createElement('div', {
             class: 'automation-actions'
@@ -171,8 +191,8 @@ class AutomationsManager {
             this.app.createElement('p', { textContent: `Wyzwalacz: ${this.formatTrigger(automation.trigger)}` }),
             this.app.createElement('p', { textContent: `Akcje: ${automation.actions.length}` }),
             this.app.createElement('div', {
-                class: `status-badge ${automation.enabled ? 'enabled' : 'disabled'}`,
-                textContent: automation.enabled ? 'Aktywna' : 'Nieaktywna'
+                class: `status-badge ${isEnabled ? 'enabled' : 'disabled'}`,
+                textContent: isEnabled ? 'Aktywna' : 'Nieaktywna'
             }),
             actionsContainer
         ]);
@@ -248,6 +268,11 @@ class AutomationsManager {
     showAutomationForm(automation = null, index = null) {
         const formContainer = document.getElementById('automation-form-container') || 
             this.app.createElement('div', { id: 'automation-form-container' });
+
+        const isEnabled = this.normalizeEnabledValue(
+            automation?.enabled,
+            automation === null
+        );
         
         formContainer.innerHTML = `
             <h3>${automation ? 'Edytuj automatyzację' : 'Nowa automatyzacja'}</h3>
@@ -276,7 +301,7 @@ class AutomationsManager {
                     <div class="center-container">
                         <label class="switch">
                             <input type="checkbox" id="automation-enabled" 
-                                   ${automation?.enabled ? 'checked' : ''}>
+                                   ${isEnabled ? 'checked' : ''}>
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -453,6 +478,7 @@ class AutomationsManager {
             this.app.createElement('option', { value: 'notification', textContent: 'Powiadomienie' })
         ]);
 
+        const actionMain = this.app.createElement('div', { class: 'action-main' });
         const paramsContainer = this.app.createElement('div', { class: 'action-params' });
         const removeButton = this.app.createElement('button', {
             class: 'remove-action',
@@ -460,8 +486,9 @@ class AutomationsManager {
             textContent: 'Usuń'
         });
 
-        actionElement.appendChild(typeSelect);
-        actionElement.appendChild(paramsContainer);
+        actionMain.appendChild(typeSelect);
+        actionMain.appendChild(paramsContainer);
+        actionElement.appendChild(actionMain);
         actionElement.appendChild(removeButton);
         container.appendChild(actionElement);
 
@@ -501,6 +528,7 @@ class AutomationsManager {
 
         const actionType = actionElement.querySelector('.action-type').value;
         const actionIndex = actionElement.dataset.index || 0;
+        actionElement.dataset.actionType = actionType;
         paramsContainer.innerHTML = '';
 
         switch (actionType) {

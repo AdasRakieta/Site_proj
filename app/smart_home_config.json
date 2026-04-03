@@ -240,7 +240,7 @@
                 "target_device_id": null
             },
             "created_at": "2026-04-02T22:04:11.393058",
-            "updated_at": "2026-04-02T22:04:11.393058"
+            "updated_at": "2026-04-03T00:39:53.848749"
         },
         {
             "id": "5ac9ca49-ed56-47e2-8159-3ab11323e91e",
@@ -257,7 +257,7 @@
                 "target_device_id": null
             },
             "created_at": "2026-04-02T22:04:11.393058",
-            "updated_at": "2026-04-02T22:04:11.393058"
+            "updated_at": "2026-04-03T00:48:12.180341"
         },
         {
             "id": "18383774-a845-46ed-8ecd-eb5d4b936e18",
@@ -283,7 +283,7 @@
             "room": "sypialnia",
             "name": "lampka_nocna",
             "device_type": "button",
-            "state": false,
+            "state": true,
             "enabled": true,
             "display_order": 4,
             "settings": {
@@ -291,7 +291,7 @@
                 "target_device_id": null
             },
             "created_at": "2026-04-02T22:04:11.393058",
-            "updated_at": "2026-04-02T22:04:11.393058"
+            "updated_at": "2026-04-03T00:39:56.897766"
         },
         {
             "id": "88624843-65fc-42de-982c-1741909c2335",
@@ -884,6 +884,30 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "d3e7d735-11d7-4364-ad49-fead593a1d35",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "timestamp": "2026-04-03T00:39:25.552792",
+            "level": "warning",
+            "message": "Nieudana próba logowania dla użytkownika sys-admin",
+            "event_type": "failed_login",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "sys-admin",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "46b4ea55-223e-4405-a127-0f68fc6328bd",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "timestamp": "2026-04-03T00:39:26.565229",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
         }
     ],
     "invitations": [
@@ -932,6 +956,15 @@
             "details": {
                 "source": "socket",
                 "timestamp": "2026-01-17T17:29:07.631343"
+            }
+        },
+        "00d73218-87d3-407a-8d01-c6323be833f4": {
+            "state": "Załączony",
+            "last_changed": "2026-04-02T22:48:50.023082+00:00",
+            "changed_by": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "details": {
+                "source": "socket",
+                "timestamp": "2026-04-02T22:48:50.020015"
             }
         }
     }

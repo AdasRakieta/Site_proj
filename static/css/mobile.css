@@ -195,13 +195,13 @@
         box-sizing: border-box !important;
     }
 
-    .action {
+    .user-management .action {
         display: flex !important;
         flex-direction: column !important;
         gap: 8px !important;
         width: 100% !important;
     }
-    .action > * {
+    .user-management .action > * {
         display: block !important;
     }
 

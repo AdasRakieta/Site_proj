@@ -343,10 +343,16 @@ input:focus{
 
 .add-device-select, .add-room-select {
   margin: 5px;
-  padding: 4px 8px;
+    padding: 8px 2.4rem 8px 10px;
   width: inherit;
+    border: var(--background-in-sel);
+    border-radius: 6px;
+    background: var(--background);
+    color: var(--text-color);
+    box-shadow: var(--box_shd);
   flex: 1;
   font-size: 1em;
+    transition: all 0.3s ease-in-out;
 }
 
 .add-room-btn, .add-device-btn {

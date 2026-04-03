@@ -102,7 +102,38 @@ input, textarea, select {
     border-radius: 4px;
     background-color: var(--background);
     color: var(--text-color);
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 16px) calc(50% - 2px),
+                         calc(100% - 11px) calc(50% - 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    min-height: 38px;
+    padding-right: 2.4rem;
+    cursor: pointer;
+}
+
+select::-ms-expand {
+    display: none;
+}
+
+select:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background-image: none;
+    padding-right: 0.75rem;
+}
+
+select option {
+    background-color: var(--bg-primary);
+    color: var(--text-color);
 }
 
 input:focus, input:hover, textarea:hover, textarea:focus, select:focus, select:hover {
@@ -1600,23 +1631,94 @@ footer {
 
 .form-buttons {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 20px;
     margin-top: 40px;
     margin-bottom: 10px;
 }
 
-.action {
+#automation-form-container #actions-container {
     display: flex;
+    flex-direction: column;
     gap: 10px;
-    margin-bottom: 10px;
-    align-items: center;
-
 }
 
-.action-params {
-    flex-grow: 1;
-    display: flex;
+#automation-form-container .action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+}
+
+#automation-form-container .action-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-width: 0;
+}
+
+#automation-form-container .action-main > .action-type {
+    flex: 0 1 220px;
+    min-width: 170px;
+}
+
+#automation-form-container .action-params {
+    flex: 1 1 320px;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#automation-form-container .action-params > * {
+    flex: 1 1 170px;
+    min-width: 0;
+}
+
+#automation-form-container .action-params label {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-bottom: 0;
+}
+
+#automation-form-container .action[data-action-type="set_temperature"] .action-params {
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+#automation-form-container .action[data-action-type="set_temperature"] .action-thermostat {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+#automation-form-container .action[data-action-type="set_temperature"] .action-params label {
+    white-space: nowrap;
+}
+
+#automation-form-container .action[data-action-type="set_temperature"] .action-temperature-value {
+    flex: 0 0 96px;
+    width: 96px;
+    max-width: 96px;
+}
+
+#automation-form .action .remove-action {
+    flex: 0 0 auto;
+    align-self: center;
+    min-width: 110px;
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+#automation-form-container .form-group .center-container {
+    align-items: center;
+}
+
+#automation-form-container .action select,
+#automation-form-container .action input[type="number"],
+#automation-form-container .action .action-notification-message {
+    margin-bottom: 0;
 }
 
 .no-automations {
@@ -1693,7 +1795,7 @@ footer {
 #automation-form-container input[type="text"],
 #automation-form-container input[type="time"],
 #automation-form-container input[type="number"] {
-    width: 200px;
+    width: min(100%, 220px);
     max-width: 220px;
     padding: 8px;
     font-size: 0.9rem;
@@ -1702,9 +1804,9 @@ footer {
 }
 
 #automation-form-container select {
-    width: 217.6px;
+    width: min(100%, 220px);
     margin-bottom: 15px;
-    padding: 8px;
+    padding: 8px 2.4rem 8px 10px;
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -1731,6 +1833,93 @@ footer {
   outline: none;
   box-shadow: 0 0 0 2px var(--accent);
   background: var(--background);
+}
+
+@media (max-width: 1024px) {
+    #automation-form-container input[type="text"],
+    #automation-form-container input[type="time"],
+    #automation-form-container input[type="number"],
+    #automation-form-container select {
+        width: min(100%, 190px);
+        max-width: 190px;
+    }
+
+    #automation-form-container .action {
+        align-items: center;
+    }
+
+    #automation-form-container .action-params {
+        flex-basis: 320px;
+    }
+
+    #automation-form-container .action-notification-message {
+        min-width: 180px;
+        max-width: 320px;
+    }
+}
+
+@media (max-width: 768px) {
+    #automation-form-container {
+        padding: 14px;
+    }
+
+    #automation-form-container input[type="text"],
+    #automation-form-container input[type="time"],
+    #automation-form-container input[type="number"],
+    #automation-form-container select,
+    #automation-form-container .action-notification-message {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        margin-bottom: 8px;
+    }
+
+    #automation-form-container .action {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        padding: 10px;
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--background) 90%, var(--accent) 10%);
+    }
+
+    #automation-form-container .action-main {
+        flex-direction: column;
+    }
+
+    #automation-form-container .action-params {
+        flex: 1 1 auto;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    #automation-form-container .action-params > * {
+        flex: 1 1 auto;
+    }
+
+    #automation-form-container .action[data-action-type="set_temperature"] .action-params {
+        flex-wrap: wrap;
+    }
+
+    #automation-form-container .action[data-action-type="set_temperature"] .action-temperature-value {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: none;
+    }
+
+    #automation-form .action .remove-action,
+    #automation-form button[id="add-action"],
+    #automation-form button[type="submit"],
+    #cancel-form {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    .form-buttons {
+        width: 100%;
+        gap: 10px;
+        margin-top: 20px;
+    }
 }
 
 .notification {

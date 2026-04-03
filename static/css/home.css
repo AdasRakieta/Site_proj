@@ -631,11 +631,11 @@
 }
 
 .select-settings {
-    padding: 10px 12px;
-    border: 1px solid var(--background);
+    padding: 10px 2.5rem 10px 12px;
+    border: var(--background-in-sel);
     border-radius: 6px;
     background: var(--background);
-    color: var(--text);
+    color: var(--text-color);
     font-size: 16px;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -643,7 +643,7 @@
 
 .select-settings:focus, .select-settings:hover {
     outline: none;
-    border-color: var(--accent);
+    border-color: var(--accent-color-blue) !important;
 }
 
 .account-info {

@@ -3,12 +3,24 @@
         "sys-admin": {
             "id": "c1c512f1-5183-4117-b54c-f4439932673d",
             "username": "sys-admin",
-            "password": "scrypt:32768:8:1$GYpiSimfl6jo0nF5$81bf2536b51e84781119f304844afd4b9c68892ed46e4c18f036933ee724ff3cd07abc97d239eeddba737b9256fc0497b338544fdf49cb6cb9ffb3603e68569a",
+            "password": "scrypt:32768:8:1$vF1Gc3KB8VvzKeQZ$daa22919fd665acad31a0ef01a6542594b74ff66215ccc94ad0bc8d60b14c2fa678e411b3089bc853ae730d89c8efefb9ce5780d6a362f481e3a3dc2ec7055b7",
             "role": "admin",
             "name": "System Administrator",
             "email": "admin@localhost",
             "created_at": "2026-01-10T21:52:14.205722",
+            "updated_at": "2026-04-02T22:04:11.393058",
             "is_system_user": true
+        },
+        "tester-admin": {
+            "id": "4dad2a37-59dd-47ea-ba97-e359861ad43f",
+            "username": "tester-admin",
+            "password": "scrypt:32768:8:1$5oTxJbJwYgpNsPkY$101713235517b50a40de34d603c84ea3cfaae8ce54f9f4746d515723e6c4060b21fa2cd8241ed4505b4b9ad8abdae838f752a54bf24a7aea8a38871841d95b76",
+            "role": "admin",
+            "name": "Tester Admin",
+            "email": "tester-admin@localhost",
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410",
+            "is_system_user": false
         }
     },
     "homes": {
@@ -27,6 +39,22 @@
             "owner_id": "c1c512f1-5183-4117-b54c-f4439932673d",
             "created_at": "2026-01-17T18:18:06.992644",
             "updated_at": "2026-01-17T18:18:06.992644"
+        },
+        "00d73218-87d3-407a-8d01-c6323be833f4": {
+            "id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "Dom testowy Copilot",
+            "description": "Gotowy zestaw testowy: pokoje, przyciski, termostaty i automatyzacje",
+            "owner_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        "7d49c5b7-9f81-4ffc-8a3d-35542bc63438": {
+            "id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "Dom testowy Tester Admin",
+            "description": "Izolowany dom testowy dla konta tester-admin",
+            "owner_id": "4dad2a37-59dd-47ea-ba97-e359861ad43f",
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
         }
     },
     "user_homes": {
@@ -53,12 +81,42 @@
                 ],
                 "joined_at": "2026-01-17T18:18:06.992644"
             }
+        ],
+        "00d73218-87d3-407a-8d01-c6323be833f4": [
+            {
+                "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+                "role": "owner",
+                "permissions": [
+                    "read",
+                    "write",
+                    "admin"
+                ],
+                "joined_at": "2026-04-02T22:04:11.393058"
+            }
+        ],
+        "7d49c5b7-9f81-4ffc-8a3d-35542bc63438": [
+            {
+                "user_id": "4dad2a37-59dd-47ea-ba97-e359861ad43f",
+                "role": "owner",
+                "permissions": [
+                    "read",
+                    "write",
+                    "admin"
+                ],
+                "joined_at": "2026-04-02T22:07:37.379410"
+            }
         ]
     },
     "user_current_home": {
-        "c1c512f1-5183-4117-b54c-f4439932673d": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0"
+        "c1c512f1-5183-4117-b54c-f4439932673d": "00d73218-87d3-407a-8d01-c6323be833f4",
+        "4dad2a37-59dd-47ea-ba97-e359861ad43f": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438"
     },
-    "temperature_states": {},
+    "temperature_states": {
+        "salon_termostat_salon": 21.0,
+        "sypialnia_termostat_sypialnia": 20.0,
+        "gabinet_termostat_gabinet": 22.0,
+        "serwerownia_termostat_serwerownia": 19.0
+    },
     "security_state": "Wyłączony",
     "rooms": [
         {
@@ -78,6 +136,60 @@
             "display_order": 2,
             "created_at": "2026-01-17T18:29:41.526803",
             "updated_at": "2026-01-17T18:29:41.526803"
+        },
+        {
+            "id": "8f274b0a-9419-412f-905f-a2c363704ed4",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "salon",
+            "description": "Strefa dzienna",
+            "display_order": 1,
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "acc5d624-a0f7-40bc-8daa-9656023fdeb6",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "kuchnia",
+            "description": "Strefa gotowania",
+            "display_order": 2,
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "f750b7fc-da4c-4080-a33d-ea6a5cee1cf4",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "sypialnia",
+            "description": "Strefa nocna",
+            "display_order": 3,
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "88d47efb-cb1a-460c-81e2-c0dcd365e242",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "gabinet",
+            "description": "Biuro domowe",
+            "display_order": 1,
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "50fc543f-5669-4d23-9b16-10bb37aa14ee",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "salon",
+            "description": "Strefa dzienna",
+            "display_order": 2,
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "826ae259-2bfa-4699-922b-0efa05ede497",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "serwerownia",
+            "description": "Strefa techniczna",
+            "display_order": 3,
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
         }
     ],
     "buttons": [
@@ -112,6 +224,142 @@
             },
             "created_at": "2026-01-17T18:30:02.905636",
             "updated_at": "2026-01-17T19:03:12.037809"
+        },
+        {
+            "id": "e593103e-43ba-4b77-abcc-54ab88ff916f",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "8f274b0a-9419-412f-905f-a2c363704ed4",
+            "room": "salon",
+            "name": "lampa_glowna",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-03T00:39:53.848749"
+        },
+        {
+            "id": "5ac9ca49-ed56-47e2-8159-3ab11323e91e",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "8f274b0a-9419-412f-905f-a2c363704ed4",
+            "room": "salon",
+            "name": "tv",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 2,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-03T00:48:12.180341"
+        },
+        {
+            "id": "18383774-a845-46ed-8ecd-eb5d4b936e18",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "acc5d624-a0f7-40bc-8daa-9656023fdeb6",
+            "room": "kuchnia",
+            "name": "oswietlenie_kuchni",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 3,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "eff39d11-a358-42a8-9c1a-6cb6f05b1c98",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "f750b7fc-da4c-4080-a33d-ea6a5cee1cf4",
+            "room": "sypialnia",
+            "name": "lampka_nocna",
+            "device_type": "button",
+            "state": true,
+            "enabled": true,
+            "display_order": 4,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-03T00:39:56.897766"
+        },
+        {
+            "id": "88624843-65fc-42de-982c-1741909c2335",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "88d47efb-cb1a-460c-81e2-c0dcd365e242",
+            "room": "gabinet",
+            "name": "swiatlo_biurka",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "5085ce5e-3af6-4cbc-9039-fbf1d2a53708",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "50fc543f-5669-4d23-9b16-10bb37aa14ee",
+            "room": "salon",
+            "name": "lampa_led",
+            "device_type": "button",
+            "state": false,
+            "enabled": true,
+            "display_order": 2,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "37376eca-c2ee-4d43-a99f-ba471a5e42d3",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "826ae259-2bfa-4699-922b-0efa05ede497",
+            "room": "serwerownia",
+            "name": "ups_toggle",
+            "device_type": "button",
+            "state": true,
+            "enabled": true,
+            "display_order": 3,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "85e28911-737c-4016-8a8c-addc6ef11f43",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "826ae259-2bfa-4699-922b-0efa05ede497",
+            "room": "serwerownia",
+            "name": "wentylator_rack",
+            "device_type": "button",
+            "state": true,
+            "enabled": true,
+            "display_order": 4,
+            "settings": {
+                "action": "toggle",
+                "target_device_id": null
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
         }
     ],
     "temperature_controls": [
@@ -150,6 +398,82 @@
             },
             "created_at": "2026-01-17T18:30:21.623310",
             "updated_at": "2026-01-17T19:17:49.889950"
+        },
+        {
+            "id": "881095ea-a347-44bc-be46-7d1b6c2d7dad",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "8f274b0a-9419-412f-905f-a2c363704ed4",
+            "room": "salon",
+            "name": "termostat_salon",
+            "device_type": "temperature_control",
+            "temperature": 21.0,
+            "min_temperature": 16.0,
+            "max_temperature": 28.0,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "target_temperature": 21.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "b11bfc42-e917-4b19-8f60-70f14b09d8e3",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "room_id": "f750b7fc-da4c-4080-a33d-ea6a5cee1cf4",
+            "room": "sypialnia",
+            "name": "termostat_sypialnia",
+            "device_type": "temperature_control",
+            "temperature": 20.0,
+            "min_temperature": 16.0,
+            "max_temperature": 28.0,
+            "enabled": true,
+            "display_order": 2,
+            "settings": {
+                "target_temperature": 20.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "634b1b71-a48b-4f79-85a4-243d5a90a10f",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "88d47efb-cb1a-460c-81e2-c0dcd365e242",
+            "room": "gabinet",
+            "name": "termostat_gabinet",
+            "device_type": "temperature_control",
+            "temperature": 22.0,
+            "min_temperature": 16.0,
+            "max_temperature": 28.0,
+            "enabled": true,
+            "display_order": 1,
+            "settings": {
+                "target_temperature": 22.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "d71b8360-c674-4855-80bb-9e9136d134f3",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "room_id": "826ae259-2bfa-4699-922b-0efa05ede497",
+            "room": "serwerownia",
+            "name": "termostat_serwerownia",
+            "device_type": "temperature_control",
+            "temperature": 19.0,
+            "min_temperature": 16.0,
+            "max_temperature": 28.0,
+            "enabled": true,
+            "display_order": 2,
+            "settings": {
+                "target_temperature": 19.0,
+                "mode": "auto"
+            },
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
         }
     ],
     "automations": [
@@ -169,12 +493,160 @@
             "error_count": 0,
             "created_at": "2026-01-11T11:54:23.927996",
             "updated_at": "2026-01-11T11:54:26.563181"
+        },
+        {
+            "id": "5aacdd28-69d4-48f3-b12a-51041b456a53",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "wieczorne_oswietlenie",
+            "trigger": {
+                "type": "time",
+                "time": "18:30",
+                "days": [
+                    "mon",
+                    "tue",
+                    "wed",
+                    "thu",
+                    "fri",
+                    "sat",
+                    "sun"
+                ]
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "salon_lampa_glowna",
+                    "state": "on"
+                },
+                {
+                    "type": "device",
+                    "device": "kuchnia_oswietlenie_kuchni",
+                    "state": "on"
+                },
+                {
+                    "type": "notification",
+                    "message": "Tryb wieczorny wlaczony"
+                }
+            ],
+            "enabled": true,
+            "execution_count": 0,
+            "last_executed": null,
+            "error_count": 0,
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "816b9d51-fe38-4b76-8379-8867214116e6",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "name": "tryb_nocny",
+            "trigger": {
+                "type": "time",
+                "time": "23:00",
+                "days": []
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "salon_tv",
+                    "state": "off"
+                },
+                {
+                    "type": "device",
+                    "device": "kuchnia_oswietlenie_kuchni",
+                    "state": "off"
+                },
+                {
+                    "type": "set_temperature",
+                    "thermostat": "sypialnia_termostat_sypialnia",
+                    "temperature": 19.0
+                },
+                {
+                    "type": "notification",
+                    "message": "Tryb nocny uruchomiony"
+                }
+            ],
+            "enabled": true,
+            "execution_count": 0,
+            "last_executed": null,
+            "error_count": 0,
+            "created_at": "2026-04-02T22:04:11.393058",
+            "updated_at": "2026-04-02T22:04:11.393058"
+        },
+        {
+            "id": "9f3d7288-2d70-41c5-b3ea-a3bcb807fc40",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "poranny_start_biura",
+            "trigger": {
+                "type": "time",
+                "time": "08:00",
+                "days": [
+                    "mon",
+                    "tue",
+                    "wed",
+                    "thu",
+                    "fri"
+                ]
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "gabinet_swiatlo_biurka",
+                    "state": "on"
+                },
+                {
+                    "type": "set_temperature",
+                    "thermostat": "gabinet_termostat_gabinet",
+                    "temperature": 22.5
+                },
+                {
+                    "type": "notification",
+                    "message": "Tryb pracy uruchomiony"
+                }
+            ],
+            "enabled": true,
+            "execution_count": 0,
+            "last_executed": null,
+            "error_count": 0,
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
+        },
+        {
+            "id": "061f73a5-6666-4788-a3db-07ac3335b399",
+            "home_id": "7d49c5b7-9f81-4ffc-8a3d-35542bc63438",
+            "name": "ochrona_serwerowni_noc",
+            "trigger": {
+                "type": "time",
+                "time": "23:30",
+                "days": []
+            },
+            "actions": [
+                {
+                    "type": "device",
+                    "device": "serwerownia_wentylator_rack",
+                    "state": "on"
+                },
+                {
+                    "type": "set_temperature",
+                    "thermostat": "serwerownia_termostat_serwerownia",
+                    "temperature": 18.5
+                },
+                {
+                    "type": "notification",
+                    "message": "Tryb nocny serwerowni aktywny"
+                }
+            ],
+            "enabled": true,
+            "execution_count": 0,
+            "last_executed": null,
+            "error_count": 0,
+            "created_at": "2026-04-02T22:07:37.379410",
+            "updated_at": "2026-04-02T22:07:37.379410"
         }
     ],
     "metadata": {
         "created_at": "2026-01-10T21:52:14.205814",
         "backup_mode": true,
-        "version": "1.0"
+        "version": "1.0",
+        "updated_at": "2026-04-02T22:07:37.379410"
     },
     "management_logs": [
         {
@@ -400,6 +872,42 @@
             "username": "System Administrator",
             "ip_address": "127.0.0.1",
             "details": {}
+        },
+        {
+            "id": "1728b45c-ffb8-48ce-947c-bfbfa0afd4d5",
+            "home_id": "2cdcb6af-70d2-4ac9-bc69-c5042aebc1a0",
+            "timestamp": "2026-01-17T19:31:10.246390",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "d3e7d735-11d7-4364-ad49-fead593a1d35",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "timestamp": "2026-04-03T00:39:25.552792",
+            "level": "warning",
+            "message": "Nieudana próba logowania dla użytkownika sys-admin",
+            "event_type": "failed_login",
+            "user_id": "c1c512f1-5183-4117-b54c-f4439932673d",
+            "username": "sys-admin",
+            "ip_address": "127.0.0.1",
+            "details": {}
+        },
+        {
+            "id": "46b4ea55-223e-4405-a127-0f68fc6328bd",
+            "home_id": "00d73218-87d3-407a-8d01-c6323be833f4",
+            "timestamp": "2026-04-03T00:39:26.565229",
+            "level": "info",
+            "message": "Użytkownik System Administrator zalogował się pomyślnie",
+            "event_type": "login",
+            "user_id": null,
+            "username": "System Administrator",
+            "ip_address": "127.0.0.1",
+            "details": {}
         }
     ],
     "invitations": [
@@ -449,6 +957,12 @@
                 "source": "socket",
                 "timestamp": "2026-01-17T17:29:07.631343"
             }
+        },
+        "00d73218-87d3-407a-8d01-c6323be833f4": {
+            "state": "Wyłączony",
+            "last_changed": "2026-04-02T22:48:47.994328+00:00",
+            "changed_by": null,
+            "details": null
         }
     }
 }
