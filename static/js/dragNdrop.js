@@ -1,6 +1,3 @@
-console.log('dragNdrop.js loaded');
-console.log('dragula available?', typeof dragula !== 'undefined');
-
 // Edit mode state and changes tracking
 window.editMode = false;
 // Save operation state to prevent race conditions
@@ -10,6 +7,154 @@ let pendingChanges = {
     deviceMoves: {},
     columnMoves: null,
     columnMovesRaw: null
+};
+
+window.nativeDeviceDndCleanup = null;
+
+function storeDeviceMove(cardElement, targetList) {
+    if (!cardElement || !targetList) return;
+
+    const deviceId = cardElement.getAttribute('data-id');
+    const deviceType = cardElement.getAttribute('data-type');
+    const columnElement = targetList.closest ? targetList.closest('.kanban-column') : targetList.parentElement;
+    const newRoom = columnElement?.querySelector('h3')?.textContent;
+    const actualRoom = newRoom === 'Nieprzypisane' ? null : newRoom;
+    const newRoomIdAttr = columnElement ? columnElement.getAttribute('data-room-id') : null;
+    const newRoomId = newRoomIdAttr && newRoomIdAttr !== 'null' && newRoomIdAttr !== 'undefined'
+        ? newRoomIdAttr
+        : null;
+
+    if (deviceId && deviceType) {
+        pendingChanges.deviceMoves[deviceId] = {
+            id: deviceId,
+            type: deviceType,
+            newRoom: actualRoom,
+            newRoomId,
+            target: targetList
+        };
+    }
+}
+
+window.destroyNativeDeviceDnD = function() {
+    if (typeof window.nativeDeviceDndCleanup === 'function') {
+        window.nativeDeviceDndCleanup();
+    }
+    window.nativeDeviceDndCleanup = null;
+};
+
+window.initNativeDeviceDnD = function(onDropHandler) {
+    window.destroyNativeDeviceDnD();
+
+    const lists = Array.from(document.querySelectorAll('.kanban-column .kanban-list'));
+    const cards = Array.from(document.querySelectorAll('.kanban-column .kanban-card'));
+
+    if (!lists.length || !cards.length) {
+        return null;
+    }
+
+    let draggedCard = null;
+
+    const findInsertBeforeCard = (list, clientY) => {
+        const candidates = Array.from(list.querySelectorAll('.kanban-card')).filter(card => card !== draggedCard);
+        for (const card of candidates) {
+            const rect = card.getBoundingClientRect();
+            const midpoint = rect.top + (rect.height / 2);
+            if (clientY < midpoint) {
+                return card;
+            }
+        }
+        return null;
+    };
+
+    const onDragStart = (event) => {
+        if (!window.editMode) {
+            event.preventDefault();
+            return;
+        }
+        draggedCard = event.currentTarget;
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedCard.getAttribute('data-id') || 'card');
+        }
+        draggedCard.classList.add('is-moving');
+    };
+
+    const onDragEnd = () => {
+        if (draggedCard) {
+            draggedCard.classList.remove('is-moving');
+        }
+        lists.forEach(list => list.classList.remove('native-drop-target'));
+        draggedCard = null;
+    };
+
+    const onDragOver = (event) => {
+        if (!window.editMode || !draggedCard) return;
+        event.preventDefault();
+        const list = event.currentTarget;
+        list.classList.add('native-drop-target');
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const onDragLeave = (event) => {
+        event.currentTarget.classList.remove('native-drop-target');
+    };
+
+    const onDrop = (event) => {
+        if (!window.editMode || !draggedCard) return;
+        event.preventDefault();
+
+        const list = event.currentTarget;
+        list.classList.remove('native-drop-target');
+
+        const beforeCard = findInsertBeforeCard(list, event.clientY);
+        if (beforeCard) {
+            list.insertBefore(draggedCard, beforeCard);
+        } else {
+            list.appendChild(draggedCard);
+        }
+
+        storeDeviceMove(draggedCard, list);
+
+        if (typeof onDropHandler === 'function') {
+            onDropHandler(draggedCard, list, null, beforeCard);
+        }
+    };
+
+    cards.forEach(card => {
+        card.setAttribute('draggable', 'true');
+        card.addEventListener('dragstart', onDragStart);
+        card.addEventListener('dragend', onDragEnd);
+    });
+
+    lists.forEach(list => {
+        list.addEventListener('dragover', onDragOver);
+        list.addEventListener('dragleave', onDragLeave);
+        list.addEventListener('drop', onDrop);
+    });
+
+    window.nativeDeviceDndCleanup = function() {
+        cards.forEach(card => {
+            card.removeEventListener('dragstart', onDragStart);
+            card.removeEventListener('dragend', onDragEnd);
+            card.removeAttribute('draggable');
+            card.classList.remove('is-moving');
+        });
+
+        lists.forEach(list => {
+            list.removeEventListener('dragover', onDragOver);
+            list.removeEventListener('dragleave', onDragLeave);
+            list.removeEventListener('drop', onDrop);
+            list.classList.remove('native-drop-target');
+        });
+
+        draggedCard = null;
+    };
+
+    return {
+        mode: 'native'
+    };
 };
 
 // Zbuduj spójny payload kolejności urządzeń z aktualnego DOM (per typ urządzenia)
@@ -50,7 +195,13 @@ function buildDevicesOrderPayload() {
 
 // Dynamic Kanban Dragula initialization for room columns
 window.initDynamicKanbanDragula = function(onDropHandler) {
-    console.log('dragNdrop.js - initDynamicKanbanDragula start');
+    if (typeof dragula === 'undefined') {
+        console.warn('Dragula unavailable - using native HTML5 drag and drop fallback');
+        return window.initNativeDeviceDnD(onDropHandler);
+    }
+
+    window.destroyNativeDeviceDnD();
+
     var kanbanContainer = document.getElementById('kanbanContainer');
     if (!kanbanContainer) {
         console.error('No kanbanContainer found');
@@ -58,7 +209,6 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
     }
     
     var columns = kanbanContainer.querySelectorAll('.kanban-list');
-    console.log('Found columns:', columns.length);
     if (!columns.length) return;
 
     if (window.kanbanDragulaInstance && window.kanbanDragulaInstance.destroy) {
@@ -92,7 +242,9 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
             return true;
         },
         invalid: function (el, handle) {
-            return false;
+            if (!handle || !handle.closest) return false;
+            // Keep button/input interactions working while in edit mode.
+            return !!handle.closest('button, input, select, textarea, .kanban-column-header');
         },
         direction: 'vertical',
         removeOnSpill: false,
@@ -111,26 +263,10 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
         })
         .on('drop', function(el, target, source, sibling) {
             if (!el || !target || !window.editMode) return;
-            
-            const deviceId = el.getAttribute('data-id');
-            const deviceType = el.getAttribute('data-type');
-            const columnElement = target.closest ? target.closest('.kanban-column') : target.parentElement;
-            const newRoom = columnElement?.querySelector('h3')?.textContent;
-            const actualRoom = newRoom === 'Nieprzypisane' ? null : newRoom;
-            const newRoomIdAttr = columnElement ? columnElement.getAttribute('data-room-id') : null;
-            const newRoomId = newRoomIdAttr && newRoomIdAttr !== 'null' && newRoomIdAttr !== 'undefined'
-                ? newRoomIdAttr
-                : null;
-            
-            // Store only the latest change for each device
-            if (deviceId && deviceType) {
-                pendingChanges.deviceMoves[deviceId] = {
-                    id: deviceId,
-                    type: deviceType,
-                    newRoom: actualRoom,
-                    newRoomId,
-                    target: target
-                };
+            storeDeviceMove(el, target);
+
+            if (typeof onDropHandler === 'function') {
+                onDropHandler(el, target, source, sibling);
             }
         })
         .on('dragend', function(el) {
@@ -148,7 +284,6 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
             el.classList.remove('is-moving');
         });
 
-    console.log('Dragula initialized with', columns.length, 'columns');
     return window.kanbanDragulaInstance;
 };
 
@@ -156,7 +291,6 @@ window.initDynamicKanbanDragula = function(onDropHandler) {
 window.toggleEditMode = function(enabled) {
     // Prevent edit mode changes during save operations
     if (enabled && isSaving) {
-        console.log('Cannot enter edit mode while save operation is in progress');
         return;
     }
     
@@ -192,17 +326,14 @@ window.toggleEditMode = function(enabled) {
 window.saveChanges = async function() {
     // Prevent concurrent save operations
     if (isSaving) {
-        console.log('Save already in progress, ignoring duplicate call');
         return;
     }
     
     isSaving = true;
-    console.log('Saving changes:', pendingChanges);
-    
     // Disable buttons during save
     const editButton = document.getElementById('editModeButton');
-    const saveButton = document.querySelector('[onclick="saveChanges()"]');
-    const cancelButton = document.querySelector('[onclick="cancelChanges()"]');
+    const saveButton = document.getElementById('saveModeButton');
+    const cancelButton = document.getElementById('cancelModeButton');
     
     if (editButton) editButton.disabled = true;
     if (saveButton) {
@@ -242,8 +373,7 @@ window.saveChanges = async function() {
                 },
                 body: JSON.stringify(payload)
             });
-            const data = await response.json();
-            console.log('Room order updated:', data);
+            await response.json();
         } catch (error) {
             console.error('Error saving room order:', error);
         }
@@ -253,15 +383,11 @@ window.saveChanges = async function() {
     const devicePayload = buildDevicesOrderPayload();
     if (devicePayload.length > 0) {
         try {
-            console.log('Preparing batch update for', devicePayload.length, 'devices');
-            console.log('Batch update payload:', devicePayload);
-            
             // Normalize type names for backend (light -> button, thermostat -> temperature_control)
             const normalizedPayload = devicePayload.map(device => ({
                 ...device,
                 type: device.type === 'light' ? 'button' : (device.type === 'thermostat' ? 'temperature_control' : device.type)
             }));
-            console.log('Normalized payload:', normalizedPayload);
             
             const response = await fetch('/api/devices/batch-update', {
                 method: 'POST',
@@ -273,14 +399,11 @@ window.saveChanges = async function() {
             });
             
             const result = await response.json();
-            console.log('Batch update result:', result);
             
             if (result.status === 'success' || result.status === 'partial_success') {
-                console.log('Batch update successful:', result);
             } else {
                 console.error('Batch update failed:', result);
                 // Fallback to individual updates if batch fails
-                console.log('Falling back to individual updates...');
                 for (const move of devicePayload) {
                     try {
                         const endpoint = move.type === 'temperature_control' || move.type === 'thermostat' ? `/api/temperature_controls/${move.id}` : `/api/buttons/${move.id}`;
@@ -336,9 +459,13 @@ window.saveChanges = async function() {
         saveButton.textContent = 'Zapisz';
     }
     if (cancelButton) cancelButton.disabled = false;
-    
-    console.log('Save operation completed successfully');
-    // Socket updates should handle UI refresh - no need for loadKanban() to prevent race conditions
+
+    // Run one authoritative sync after save to avoid transient partial realtime payloads.
+    if (window.scheduleKanbanSync) {
+        window.scheduleKanbanSync(120);
+    } else if (window.loadKanban) {
+        window.loadKanban();
+    }
 };
 
 // Cancel changes function

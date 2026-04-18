@@ -373,9 +373,6 @@ class SmartHomeApp {
             return;
         }
         const events = {
-            'update_rooms': 'onRoomsUpdate',
-            'update_buttons': 'onButtonsUpdate',
-            'update_temperature_controls': 'onTemperatureControlsUpdate',
             'sync_button_states': 'onButtonStatesSync',
             'update_security_state': 'onSecurityStateUpdate',
             'update_automations': data => this.automations.onAutomationsUpdate(data)

@@ -1,5 +1,3 @@
-console.log('controls.js loaded');
-
 // --- Kontrolki do zarządzania pokojami, przyciskami i sterownikami temperatury ---
 
 function getCSRFToken() {
@@ -30,8 +28,99 @@ function getCSRFToken() {
         token = window.csrf_token;
     }
     
-    console.log('CSRF Token:', token); // debugging
     return token;
+}
+
+function normalizeButtonsPayload(payload) {
+    const source = payload && typeof payload === 'object' && Array.isArray(payload.data)
+        ? payload.data
+        : payload;
+    if (!Array.isArray(source)) return [];
+    return source.map(button => ({ ...button, type: 'light' }));
+}
+
+function normalizeControlsPayload(payload) {
+    const source = payload && typeof payload === 'object' && Array.isArray(payload.data)
+        ? payload.data
+        : payload;
+    if (!Array.isArray(source)) return [];
+    return source.map(control => ({ ...control, type: 'thermostat' }));
+}
+
+function getEmptyKanbanState() {
+    return {
+        rooms: [],
+        buttons: [],
+        controls: []
+    };
+}
+
+window.kanbanState = window.kanbanState || getEmptyKanbanState();
+let kanbanRenderQueued = false;
+let kanbanSyncTimer = null;
+
+window.setKanbanState = function setKanbanState(partialState = {}) {
+    const nextRooms = partialState.rooms !== undefined
+        ? (window.normalizeRoomsData ? window.normalizeRoomsData(partialState.rooms) : (Array.isArray(partialState.rooms) ? partialState.rooms : []))
+        : window.kanbanState.rooms;
+
+    const nextButtons = partialState.buttons !== undefined
+        ? normalizeButtonsPayload(partialState.buttons)
+        : window.kanbanState.buttons;
+
+    const nextControls = partialState.controls !== undefined
+        ? normalizeControlsPayload(partialState.controls)
+        : window.kanbanState.controls;
+
+    window.kanbanState = {
+        rooms: nextRooms,
+        buttons: nextButtons,
+        controls: nextControls
+    };
+
+    return window.kanbanState;
+};
+
+window.renderCurrentKanban = function renderCurrentKanban() {
+    const current = window.kanbanState || getEmptyKanbanState();
+    window.updateRoomSelect(current.rooms);
+    window.renderKanbanLists(current.rooms, current.buttons, current.controls);
+};
+
+window.scheduleKanbanRender = function scheduleKanbanRender() {
+    if (kanbanRenderQueued) return;
+    kanbanRenderQueued = true;
+    requestAnimationFrame(() => {
+        kanbanRenderQueued = false;
+        window.renderCurrentKanban();
+    });
+};
+
+window.scheduleKanbanSync = function scheduleKanbanSync(delayMs = 350) {
+    if (kanbanSyncTimer) {
+        clearTimeout(kanbanSyncTimer);
+    }
+    kanbanSyncTimer = setTimeout(() => {
+        kanbanSyncTimer = null;
+        if (typeof window.loadKanban === 'function') {
+            window.loadKanban();
+        }
+    }, delayMs);
+};
+
+async function fetchJsonNoStore(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    const cacheBypassUrl = `${url}${separator}_ts=${Date.now()}`;
+    const response = await fetch(cacheBypassUrl, {
+        cache: 'no-store',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    });
+    if (!response.ok) {
+        throw new Error(`Request failed (${response.status}) for ${url}`);
+    }
+    return response.json();
 }
 
 // --- Drag & Drop kolejności pokoi, świateł i termostatów ---
@@ -214,7 +303,6 @@ function getCSRFToken() {
 
 // --- Kanban/DragNDrop rendering for edit.html ---
 window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) {
-    console.log('renderKanbanLists called');
     const kanbanContainer = document.getElementById('kanbanContainer');
     kanbanContainer.innerHTML = '';
     
@@ -322,19 +410,23 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
         col.style.maxWidth = '300px';
     });
 
-    // Inicjalizacja Dragula dla urządzeń
+    // Inicjalizacja DnD dla urządzeń (Dragula lub fallback natywny)
     if (window.initDynamicKanbanDragula) {
-        console.log('Setting up Dragula handlers');
         const allLists = document.querySelectorAll('.kanban-list');
         window.initDynamicKanbanDragula(function onDropHandler(el, target, source, sibling) {
-            // No need for immediate API calls - changes are stored in pendingChanges
-            console.log('Device moved - changes will be stored until save');
+            // No immediate API calls - changes are persisted on save.
         });
+    } else {
+        // Keep silent here - the helper logs warnings on real failures.
     }
 
     // Inicjalizacja Dragula dla kolumn
     if (window.columnsDragulaInstance && window.columnsDragulaInstance.destroy) {
         window.columnsDragulaInstance.destroy();
+    }
+
+    if (typeof dragula === 'undefined') {
+        return;
     }
 
     window.columnsDragulaInstance = dragula([columnsWrapper], {
@@ -351,7 +443,6 @@ window.renderKanbanLists = function renderKanbanLists(rooms, buttons, controls) 
 
     window.columnsDragulaInstance.on('drop', function(el, target, source, sibling) {
         if (!window.editMode) return;
-        console.log('Column moved - storing new order');
         const columns = Array.from(columnsWrapper.children);
         const roomOrder = columns
             .filter(col => !col.hasAttribute('data-fixed'))
@@ -459,8 +550,7 @@ function updateDeviceOrders(targetList, room, roomId = null) {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ room: room, room_id: roomId, order: lightsOrder })
-        }).then(r => r.json())
-          .then(data => console.log('Lights order updated:', data));
+                }).then(r => r.json());
     }
 
     if (thermostatsOrder.length > 0) {
@@ -471,8 +561,7 @@ function updateDeviceOrders(targetList, room, roomId = null) {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ room: room, room_id: roomId, order: thermostatsOrder })
-        }).then(r => r.json())
-          .then(data => console.log('Thermostats order updated:', data));
+                }).then(r => r.json());
     }
 }
 
@@ -494,7 +583,17 @@ window.addDeviceFromKanban = function(name, type, room) {
             'X-CSRFToken': getCSRFToken()
         },
         body: JSON.stringify({ name, room: roomName, room_id: roomId })
-    }).then(r => r.json()).then(() => window.loadKanban());
+    }).then(r => r.json()).then((data) => {
+        const current = window.kanbanState || getEmptyKanbanState();
+        if (type === 'light' && data && data.button) {
+            window.setKanbanState({ buttons: [...current.buttons, { ...data.button, type: 'light' }] });
+            window.scheduleKanbanRender();
+        } else if (type !== 'light' && data && data.control) {
+            window.setKanbanState({ controls: [...current.controls, { ...data.control, type: 'thermostat' }] });
+            window.scheduleKanbanRender();
+        }
+        window.scheduleKanbanSync();
+    });
 };
 
 // Funkcje obsługi usuwania z Kanban
@@ -508,7 +607,12 @@ window.deleteDevice = function(device) {
     .then(data => {
         if (data.status === 'success') {
             if (window.showNotification) window.showNotification('Urządzenie usunięte!', 'success');
-            window.loadKanban();
+            const current = window.kanbanState || getEmptyKanbanState();
+            const nextButtons = current.buttons.filter(item => String(item.id) !== String(device.id));
+            const nextControls = current.controls.filter(item => String(item.id) !== String(device.id));
+            window.setKanbanState({ buttons: nextButtons, controls: nextControls });
+            window.scheduleKanbanRender();
+            window.scheduleKanbanSync();
         }
         else {
             if (window.showNotification) window.showNotification('Błąd usuwania urządzenia: ' + (data.message || 'Nieznany błąd'), 'error');
@@ -524,14 +628,13 @@ function startEditDeviceKanban(device, li) {
     const saveBtn = li.querySelector('.kanban-save-btn');
     const cancelBtn = li.querySelector('.kanban-cancel-btn');
 
-    function exitEditMode(newName) {
-        // Restore normal display (reload Kanban)
-        window.loadKanban();
+    function exitEditMode() {
+        window.scheduleKanbanRender();
     }
 
     saveBtn.onclick = () => {
         const newName = input.value.trim();
-        if (!newName || newName === device.name) return exitEditMode(device.name);
+        if (!newName || newName === device.name) return exitEditMode();
         const endpoint = device.type === 'light' ? `/api/buttons/${device.id}` : `/api/temperature_controls/${device.id}`;
         fetch(endpoint, {
             method: 'PUT',
@@ -545,19 +648,25 @@ function startEditDeviceKanban(device, li) {
         .then(data => {
             if (data.status === 'success') {
                 if (window.showNotification) window.showNotification('Nazwa urządzenia zaktualizowana!', 'success');
+                const current = window.kanbanState || getEmptyKanbanState();
+                const updateName = (item) => String(item.id) === String(device.id) ? { ...item, name: newName } : item;
+                window.setKanbanState({
+                    buttons: current.buttons.map(updateName),
+                    controls: current.controls.map(updateName)
+                });
             } else {
                 if (window.showNotification) window.showNotification('Błąd podczas aktualizacji nazwy: ' + (data.message || 'Nieznany błąd'), 'error');
             }
-            exitEditMode(newName);
+            exitEditMode();
         })
         .catch(error => {
             if (window.showNotification) window.showNotification('Błąd sieci podczas aktualizacji nazwy', 'error');
-            exitEditMode(device.name);
+            exitEditMode();
         });
     };
 
     cancelBtn.onclick = () => {
-        exitEditMode(device.name);
+        exitEditMode();
     };
 
     input.onkeydown = (e) => {
@@ -622,7 +731,14 @@ window.addNewRoom = function() {
         if (data.status === 'success') {
             input.value = ''; // Wyczyść pole
             if (window.showNotification) window.showNotification('Pokój dodany!', 'success');
-            window.loadKanban(); // Przeładuj kanban
+
+            // Update local state immediately so user sees the new room without hard refresh.
+            const current = window.kanbanState || getEmptyKanbanState();
+            const createdRoom = data.room || null;
+            const nextRooms = createdRoom ? [...current.rooms, createdRoom] : current.rooms;
+            window.setKanbanState({ rooms: nextRooms });
+            window.scheduleKanbanRender();
+            window.scheduleKanbanSync();
         } else {
             if (window.showNotification) window.showNotification(data.message || 'Błąd podczas dodawania pokoju', 'error');
         }
@@ -658,7 +774,19 @@ window.addNewDevice = function() {
         if (data.status === 'success') {
             nameInput.value = ''; // Wyczyść pole nazwy
             if (window.showNotification) window.showNotification('Urządzenie dodane!', 'success');
-            window.loadKanban(); // Przeładuj kanban
+
+            // Optimistic local update for immediate UI feedback.
+            const current = window.kanbanState || getEmptyKanbanState();
+            if (type === 'light' && data.button) {
+                const nextButtons = [...current.buttons, { ...data.button, type: 'light' }];
+                window.setKanbanState({ buttons: nextButtons });
+                window.scheduleKanbanRender();
+            } else if (type === 'thermostat' && data.control) {
+                const nextControls = [...current.controls, { ...data.control, type: 'thermostat' }];
+                window.setKanbanState({ controls: nextControls });
+                window.scheduleKanbanRender();
+            }
+            window.scheduleKanbanSync();
         } else {
             if (window.showNotification) window.showNotification(data.message || 'Błąd podczas dodawania urządzenia', 'error');
         }
@@ -667,25 +795,34 @@ window.addNewDevice = function() {
 
 // --- Nadpisanie ładowania list na Kanban ---
 window.loadKanban = function() {
-    console.log('window.loadKanban called');
-    Promise.all([
-        window.app.getRooms(true),
-        fetch('/api/buttons').then(r => r.json()),
-        fetch('/api/temperature_controls').then(r => r.json())
-    ]).then(([rooms, buttons, controls]) => {
-        console.log('Promise.all resolved', rooms, buttons, controls);
-        // Handle API responses that return {data: [...], status: 'success'}
-        const normalizedRooms = window.normalizeRoomsData ? window.normalizeRoomsData(rooms) : (Array.isArray(rooms) ? rooms : []);
-        let normalizedButtons = (buttons && Array.isArray(buttons.data)) ? buttons.data : (Array.isArray(buttons) ? buttons : []);
-        let normalizedControls = (controls && Array.isArray(controls.data)) ? controls.data : (Array.isArray(controls) ? controls : []);
+    Promise.allSettled([
+        window.app && typeof window.app.getRooms === 'function' ? window.app.getRooms(true) : fetchJsonNoStore('/api/rooms'),
+        fetchJsonNoStore('/api/buttons'),
+        fetchJsonNoStore('/api/temperature_controls')
+    ]).then((results) => {
+        const [roomsResult, buttonsResult, controlsResult] = results;
 
-        normalizedButtons = normalizedButtons.map(button => ({ ...button, type: 'light' }));
-        normalizedControls = normalizedControls.map(control => ({ ...control, type: 'thermostat' }));
+        const current = window.kanbanState || getEmptyKanbanState();
+        const nextState = {
+            rooms: roomsResult.status === 'fulfilled' ? roomsResult.value : current.rooms,
+            buttons: buttonsResult.status === 'fulfilled' ? buttonsResult.value : current.buttons,
+            controls: controlsResult.status === 'fulfilled' ? controlsResult.value : current.controls
+        };
 
-        window.updateRoomSelect(normalizedRooms); // Aktualizuj selectbox
-        window.renderKanbanLists(normalizedRooms, normalizedButtons, normalizedControls);
+        if (roomsResult.status === 'rejected') {
+            console.error('Failed to load rooms:', roomsResult.reason);
+        }
+        if (buttonsResult.status === 'rejected') {
+            console.error('Failed to load buttons:', buttonsResult.reason);
+        }
+        if (controlsResult.status === 'rejected') {
+            console.error('Failed to load temperature controls:', controlsResult.reason);
+        }
+
+        window.setKanbanState(nextState);
+        window.scheduleKanbanRender();
     }).catch(e => {
-        console.error('Promise.all error', e);
+        console.error('loadKanban unexpected error', e);
     });
 };
 
@@ -694,16 +831,43 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // --- Obsługa socket.io dla aktualizacji na żywo (jeśli jest dostępny socket) ---
-if (window.io) {
-    const socket = io();
-    // Zamiast updateRoomsList itp. wywołuj window.loadKanban
-    socket.on('update_rooms', function (rooms) {
-        window.loadKanban();
-    });
-    socket.on('update_buttons', function (buttons) {
-        window.loadKanban();
-    });
-    socket.on('update_temperature_controls', function (controls) {
-        window.loadKanban();
-    });
+function bindEditRealtimeUpdates() {
+    if (!window.app) return;
+
+    window.app.onRoomsUpdate = function(roomsPayload) {
+        const normalizedRooms = window.normalizeRoomsData ? window.normalizeRoomsData(roomsPayload) : (Array.isArray(roomsPayload) ? roomsPayload : []);
+        const current = window.kanbanState || getEmptyKanbanState();
+        if (normalizedRooms.length === 0 && current.rooms.length > 0) {
+            window.scheduleKanbanSync(120);
+            return;
+        }
+        window.setKanbanState({ rooms: normalizedRooms });
+        window.scheduleKanbanRender();
+    };
+
+    window.app.onButtonsUpdate = function(buttonsPayload) {
+        const normalizedButtons = normalizeButtonsPayload(buttonsPayload);
+        const current = window.kanbanState || getEmptyKanbanState();
+        if (normalizedButtons.length === 0 && current.buttons.length > 0) {
+            window.scheduleKanbanSync(120);
+            return;
+        }
+        window.setKanbanState({ buttons: normalizedButtons });
+        window.scheduleKanbanRender();
+    };
+
+    window.app.onTemperatureControlsUpdate = function(controlsPayload) {
+        const normalizedControls = normalizeControlsPayload(controlsPayload);
+        const current = window.kanbanState || getEmptyKanbanState();
+        if (normalizedControls.length === 0 && current.controls.length > 0) {
+            window.scheduleKanbanSync(120);
+            return;
+        }
+        window.setKanbanState({ controls: normalizedControls });
+        window.scheduleKanbanRender();
+    };
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    bindEditRealtimeUpdates();
+});

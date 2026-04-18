@@ -179,6 +179,14 @@ input:focus{
     background: var(--bg-card);
 }
 
+.edit-mode .kanban-card {
+    cursor: grab;
+}
+
+.edit-mode .kanban-card:active {
+    cursor: grabbing;
+}
+
 .edit-mode .kanban-card:hover {
     background: var(--bg-card-hover);
     transform: scale(1.05);
@@ -266,6 +274,12 @@ input:focus{
 
 .gu-transit {
     opacity: var(--transit-opacity);
+}
+
+.kanban-list.native-drop-target {
+    border: 2px dashed var(--accent);
+    border-radius: 8px;
+    background: var(--hover);
 }
 
 /* Drag and drop states */

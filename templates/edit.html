@@ -5,7 +5,7 @@
 
 {% block content %}
     <div class="edit-mode-buttons">
-        <button id="editModeButton" class="edit-mode-button">Tryb edycji</button>
+        <button type="button" id="editModeButton" class="edit-mode-button">Tryb edycji</button>
         
     </div>
 
@@ -18,7 +18,7 @@
                 <div class="add-room-div" style="display: flex; gap: 10px;">
                     <input class="add-room-input" type="text" id="newRoomName" placeholder="Nazwa pokoju..." >
                 </div>
-                <button style="margin-top: 10px;" class="add-room-btn" onclick="window.addNewRoom()">+</button>
+                <button type="button" style="margin-top: 10px;" class="add-room-btn" onclick="window.addNewRoom()">+</button>
             </div>
 
             <!-- Dodawanie urządzenia -->
@@ -34,13 +34,13 @@
                         <option value="">Nieprzypisane</option>
                         <!-- Lista pokoi będzie dodana przez JS -->
                     </select>
-                    <button class="add-device-btn" onclick="window.addNewDevice()">+</button>
+                    <button type="button" class="add-device-btn" onclick="window.addNewDevice()">+</button>
                 </div>
             </div>
         </div>
         <div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
-            <button id="saveModeButton" class="edit-mode-button save">Zapisz</button>
-            <button id="cancelModeButton" class="edit-mode-button cancel">Anuluj</button>
+            <button type="button" id="saveModeButton" class="edit-mode-button save">Zapisz</button>
+            <button type="button" id="cancelModeButton" class="edit-mode-button cancel">Anuluj</button>
         </div>
     </div>
 
@@ -52,9 +52,9 @@
 
 {% block scripts %}
 <link rel="stylesheet" href="{{ URL_PREFIX }}{{ url_for('static', filename='css/dragNdrop.css') }}?v={{ asset_version }}">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
-<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/dragNdrop.js') }}"></script>
-<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/controls.js') }}"></script>
+<script src="https://unpkg.com/dragula@3.7.2/dist/dragula.min.js"></script>
+<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/dragNdrop.js') }}?v={{ asset_version }}"></script>
+<script src="{{ URL_PREFIX }}{{ url_for('static', filename='js/controls.js') }}?v={{ asset_version }}"></script>
 
 <!-- Preloaded Kanban data as JSON (avoids JS parser errors on Jinja) -->
 <script id="preloaded-kanban-data" type="application/json">
@@ -100,16 +100,44 @@
     (function() {
         const originalLoadKanban = window.loadKanban;
         window.loadKanban = function() {
-            console.log('First-call preloaded Kanban render');
-            if (window.updateRoomSelect) {
-                window.updateRoomSelect(preloadedRooms || []);
+            const initialRooms = preloadedRooms || [];
+            const initialButtons = preloadedButtons || [];
+            const initialControls = preloadedControls || [];
+
+            if (window.setKanbanState) {
+                window.setKanbanState({
+                    rooms: initialRooms,
+                    buttons: initialButtons,
+                    controls: initialControls
+                });
+
+                if (window.scheduleKanbanRender) {
+                    window.scheduleKanbanRender();
+                } else if (window.renderCurrentKanban) {
+                    window.renderCurrentKanban();
+                }
+            } else {
+                if (window.updateRoomSelect) {
+                    window.updateRoomSelect(initialRooms);
+                }
+                if (window.renderKanbanLists) {
+                    window.renderKanbanLists(initialRooms, initialButtons, initialControls);
+                }
             }
-            if (window.renderKanbanLists) {
-                window.renderKanbanLists(preloadedRooms || [], preloadedButtons || [], preloadedControls || []);
-            }
+
             // Restore the original loadKanban for subsequent calls (which fetch fresh data)
             if (typeof originalLoadKanban === 'function') {
                 window.loadKanban = originalLoadKanban;
+                // Run a silent background sync so state aligns with latest backend data.
+                if (window.scheduleKanbanSync) {
+                    window.scheduleKanbanSync(120);
+                } else {
+                    setTimeout(() => {
+                        if (typeof window.loadKanban === 'function') {
+                            window.loadKanban();
+                        }
+                    }, 120);
+                }
             }
         };
     })();
