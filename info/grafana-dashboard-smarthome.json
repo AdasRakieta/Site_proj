@@ -94,7 +94,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/health\"}",
+          "expr": "max(probe_success{instance=~\"https://malina.tail384b18.ts.net(/health)?/?$\"})",
           "refId": "A"
         }
       ],
@@ -181,7 +181,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_duration_seconds{instance=\"https://malina.tail384b18.ts.net/health\"}",
+          "expr": "max(probe_duration_seconds{instance=~\"https://malina.tail384b18.ts.net(/health)?/?$\"})",
           "legendFormat": "Czas odpowiedzi HTTP",
           "refId": "A"
         }
@@ -249,7 +249,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "(probe_ssl_earliest_cert_expiry{instance=\"https://malina.tail384b18.ts.net/health\"} - time()) / 86400",
+          "expr": "max((probe_ssl_earliest_cert_expiry{instance=~\"https://malina.tail384b18.ts.net(/health)?/?$\"} - time()) / 86400)",
           "refId": "A"
         }
       ],
@@ -403,7 +403,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "probe_success{instance=\"https://malina.tail384b18.ts.net/health\"}",
+          "expr": "avg_over_time(probe_success{instance=~\"https://malina.tail384b18.ts.net(/health)?/?$\"}[24h]) * 100",
           "legendFormat": "Dostępność",
           "refId": "A"
         }
@@ -538,7 +538,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(container_memory_usage_bytes{container_label_com_docker_compose_service=~\".*smarthome.*app.*|.*app.*\"})",
+          "expr": "sum((container_memory_usage_bytes{container_label_com_docker_compose_service=~\".*smarthome.*|.*app.*\", image!=\"\"}) or (container_memory_usage_bytes{name=~\".*smarthome.*|.*app.*\", image!=\"\"}) or (container_memory_usage_bytes{container=~\".*smarthome.*|.*app.*\", image!=\"\"}))",
           "refId": "A"
         }
       ],
@@ -625,8 +625,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m]) * 100)",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "topk(5, sum by (container_name) ((label_replace(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")) or (label_replace(rate(container_cpu_usage_seconds_total{name!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"name\", \"/?(.*)\")) or (label_replace(rate(container_cpu_usage_seconds_total{container!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"container\", \"(.*)\"))) * 100)",
+          "legendFormat": "{{container_name}}",
           "refId": "A"
         }
       ],
@@ -713,8 +713,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"})",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "topk(5, sum by (container_name) ((label_replace(container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")) or (label_replace(container_memory_usage_bytes{name!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"name\", \"/?(.*)\")) or (label_replace(container_memory_usage_bytes{container!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"container\", \"(.*)\"))))",
+          "legendFormat": "{{container_name}}",
           "refId": "A"
         }
       ],
@@ -834,7 +834,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"}) by (container_label_com_docker_compose_service)",
+          "expr": "sum by (container_name) ((label_replace(container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")) or (label_replace(container_memory_usage_bytes{name!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"name\", \"/?(.*)\")) or (label_replace(container_memory_usage_bytes{container!=\"\", image!=\"\"}, \"container_name\", \"$1\", \"container\", \"(.*)\")))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -844,7 +844,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m])) by (container_label_com_docker_compose_service) * 100",
+          "expr": "sum by (container_name) ((label_replace(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")) or (label_replace(rate(container_cpu_usage_seconds_total{name!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"name\", \"/?(.*)\")) or (label_replace(rate(container_cpu_usage_seconds_total{container!=\"\", image!=\"\"}[5m]), \"container_name\", \"$1\", \"container\", \"(.*)\"))) * 100",
           "format": "table",
           "instant": true,
           "refId": "B"
@@ -867,14 +867,14 @@
               "job": true
             },
             "indexByName": {
-              "container_label_com_docker_compose_service": 0,
+              "container_name": 0,
               "Value #B": 1,
               "Value #A": 2
             },
             "renameByName": {
               "Value #A": "RAM",
               "Value #B": "CPU %",
-              "container_label_com_docker_compose_service": "Kontener"
+              "container_name": "Kontener"
             }
           }
         }
